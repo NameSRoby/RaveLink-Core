@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#050507" />
+    <link rel="icon" type="image/png" href="/RaveLink-Core.png" />
+    <title>RaveLink Core</title>
+    <link rel="stylesheet" href="/core.css" />
+    <link rel="stylesheet" href="/usability.css" />
+    <link rel="stylesheet" href="/lighting.css" />
+    <link rel="stylesheet" href="/mods.css" />
+  </head>
+  <body>
+    <header class="hudHeader">
+      <div>
+        <h1>RAVELINK CORE</h1>
+        <div class="sub">WINDOWS CREATOR CORE // LIGHTING + STREAM CONTROL</div>
+      </div>
+      <div class="headerRight">
+        <button
+          id="themeButton"
+          class="iconButton"
+          type="button"
+          title="Theme settings"
+          aria-label="Theme settings"
+        >
+          &#9881;</button
+        ><span id="health" class="badge warn">CONNECTING</span
+        ><span id="network" class="badge">LOCAL</span>
+      </div>
+    </header>
+    <aside id="themePanel" class="themePanel" hidden>
+      <div class="sectionHead">
+        <h2>HUD THEME</h2>
+        <button
+          id="closeTheme"
+          class="iconButton"
+          type="button"
+          title="Close theme settings"
+          aria-label="Close theme settings"
+        >
+          X
+        </button>
+      </div>
+      <div class="presetGrid">
+        <button type="button" data-theme="midnight">MIDNIGHT</button
+        ><button type="button" data-theme="ember">EMBER</button
+        ><button type="button" data-theme="ocean">OCEAN</button
+        ><button type="button" data-theme="matrix">MATRIX</button
+        ><button type="button" data-theme="aurora">AURORA</button
+        ><button type="button" data-theme="solar">SOLAR</button>
+      </div>
+      <div class="themeColors">
+        <label>ACTIVE<input id="themeAccent" type="color" /></label
+        ><label>BACKGROUND<input id="themeBg" type="color" /></label
+        ><label>SURFACE<input id="themeSurface" type="color" /></label
+        ><label>TEXT<input id="themeText" type="color" /></label>
+      </div>
+      <label
+        >GLOW <output id="glowValue">65%</output
+        ><input
+          id="themeGlow"
+          type="range"
+          min="0"
+          max="95"
+          value="65" /></label
+      ><button id="resetTheme" type="button">RESET THEME</button>
+      <div class="developerModeControl">
+        <label class="checkLabel" title="Show advanced developer-only controls in feature pages."
+          ><input id="developerMode" type="checkbox" /> DEVELOPER MODE</label
+        >
+      </div>
+    </aside>
+    <nav id="tabs" class="tabs" aria-label="RaveLink controls">
+      <button class="tabButton active" data-tab="lights" type="button">
+        LIGHTS</button
+      ><button class="tabButton" data-tab="fixtures" type="button">
+        FIXTURES</button
+      ><button class="tabButton" data-tab="widget" type="button">WIDGET</button
+      ><button
+        id="featuresTab"
+        class="tabButton"
+        data-tab="features"
+        type="button"
+        hidden
+      >
+        PACKAGES</button
+      ><button
+        id="modsTab"
+        class="tabButton"
+        data-tab="mods"
+        type="button"
+        hidden
+      >
+        MODS
+      </button>
+    </nav>
+    <main>
+      <section class="panel active" data-panel="lights">
+        <div class="panelTitle">
+          <div>
+            <span>DIRECT CONTROL</span>
+            <h2>TWITCH LIGHTS</h2>
+          </div>
+          <span id="lightStatus" class="statusLine">READY</span>
+        </div>
+        <div class="telemetryGrid">
+          <div><span>PROFILE</span><strong>CLEAN CORE</strong></div>
+          <div><span>COLOR PARSER</span><strong>ONLINE</strong></div>
+          <div><span>HUE</span><strong id="hueCount">0</strong></div>
+          <div><span>WIZ</span><strong id="wizCount">0</strong></div>
+        </div>
+        <div class="cluster">
+          <h3>COLOR COMMAND</h3>
+          <div class="controlGrid">
+            <label
+              >TARGET<select id="lightTarget">
+                <option value="all">ALL LIGHTS</option>
+                <option value="brand:hue">ALL HUE</option>
+                <option value="brand:wiz">ALL WIZ</option>
+              </select></label
+            ><label
+              >COLOR OR DIRECTIVE<input
+                id="colorText"
+                placeholder="deep blue"
+                autocomplete="off" /></label
+            ><label
+              >COLOR<input
+                id="colorPicker"
+                type="color"
+                value="#0066ff" /></label
+            ><label
+              >BRIGHTNESS <output id="brightnessValue">100%</output
+              ><input
+                id="brightness"
+                type="range"
+                min="10"
+                max="100"
+                value="100"
+            /></label>
+          </div>
+          <div class="swatchRow" aria-label="Quick colors">
+            <button
+              type="button"
+              data-color="red"
+              title="Red"
+              style="--swatch: #ff2020"
+            ></button
+            ><button
+              type="button"
+              data-color="blue"
+              title="Blue"
+              style="--swatch: #1769ff"
+            ></button
+            ><button
+              type="button"
+              data-color="green"
+              title="Green"
+              style="--swatch: #1ed760"
+            ></button
+            ><button
+              type="button"
+              data-color="purple"
+              title="Purple"
+              style="--swatch: #a855f7"
+            ></button
+            ><button
+              type="button"
+              data-color="warm white"
+              title="Warm white"
+              style="--swatch: #ffd7a0"
+            ></button
+            ><button id="applyColor" type="button">APPLY COLOR</button>
+          </div>
+          <pre id="colorResult" class="result" hidden></pre>
+        </div>
+        <details class="cluster" id="twitchLightProgram">
+          <summary>TWITCH CHANNEL-POINT PROGRAM</summary>
+          <fieldset id="twitchProgramControls">
+            <div class="controlGrid">
+              <label
+                >ROUTING MODE<select id="twitchRoutingMode">
+                  <option value="assignments">FIXTURE ASSIGNMENTS</option>
+                  <option value="off">CHANNEL POINTS OFF</option>
+                </select></label
+              ><label
+                >DEFAULT BRIGHTNESS %<input
+                  id="parserDefaultBrightness"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value="100" /></label
+              ><label class="checkLabel"
+                ><input id="parserFuzzy" type="checkbox" checked /> TYPO
+                MATCHING</label
+              ><label class="checkLabel"
+                ><input id="parserDescriptors" type="checkbox" checked /> COLOR
+                DESCRIPTORS</label
+              >
+            </div>
+            <div class="actions">
+              <button id="saveTwitchProgram" type="button">
+                SAVE PROGRAM</button
+              ><button id="addTwitchFixtureGroup" type="button">
+                ADD GROUP</button
+              ><button id="refreshTwitchProgram" type="button">
+                REFRESH PROGRAM
+              </button>
+            </div>
+            <div id="selectedFixtureMove" class="selectedFixtureMove" hidden>
+              <strong id="selectedFixtureLabel"></strong>
+              <label>MOVE TO<select id="fixtureDestination"></select></label>
+              <button id="moveSelectedFixture" type="button">MOVE</button>
+            </div>
+            <div id="twitchFixtureBoard" class="fixtureBoard"></div>
+            <div class="commandRow">
+              <label
+                >REQUEST PREVIEW<input
+                  id="twitchColorExample"
+                  placeholder="desk light blue 60%"
+                  maxlength="96" /></label
+              ><button id="previewTwitchColor" type="button">
+                PREVIEW SAVED PROGRAM
+              </button>
+            </div>
+            <div class="twitchPreview">
+              <span id="twitchPreviewSwatch"></span
+              ><output id="twitchPreviewResult"></output>
+            </div>
+          </fieldset>
+          <div id="twitchProgramNotice" class="notice" role="status"></div>
+        </details>
+      </section>
+      <section class="panel" data-panel="fixtures" hidden>
+        <div class="panelTitle">
+          <div>
+            <span>HARDWARE</span>
+            <h2>FIXTURE ROUTING</h2>
+          </div>
+          <button id="refreshFixtures" type="button">REFRESH</button>
+        </div>
+        <div class="cluster">
+          <h3>DISCOVER AND CONNECT</h3>
+          <div class="actions">
+            <button id="discoverHue" type="button">1 // DISCOVER HUE</button
+            ><button id="pairHueManual" type="button" disabled>2 // PAIR SELECTED BRIDGE</button
+            ><button id="discoverWiz" type="button">DISCOVER WIZ</button>
+          </div>
+          <div id="fixtureActionResult" class="result" hidden></div>
+        </div>
+        <div class="cluster">
+          <h3>ADD OR UPDATE FIXTURE</h3>
+          <div class="fixtureForm">
+            <label
+              >BRAND<select id="fixtureBrand">
+                <option value="hue">PHILIPS HUE</option>
+                <option value="wiz">WIZ</option>
+              </select></label
+            ><label
+              >FIXTURE ID<input id="fixtureId" placeholder="desk-left" /></label
+            ><label
+              >NAME<input id="fixtureName" placeholder="Desk left" /></label
+            ><label>ZONE<input id="fixtureZone" placeholder="desk" /></label
+            ><label
+              >LIGHT ID<input
+                id="fixtureLightId"
+                type="number"
+                min="1"
+                value="1" /></label
+            ><label
+              >DEVICE IP<input
+                id="fixtureIp"
+                type="password"
+                placeholder="192.168.x.x"
+                autocomplete="new-password" /></label
+            ><label
+              >BRIDGE IP<input
+                id="fixtureBridgeIp"
+                type="password"
+                placeholder="192.168.x.x"
+                autocomplete="new-password" /></label
+            ><label class="checkLabel"
+              ><input id="fixtureEnabled" type="checkbox" checked />
+              ENABLED</label
+            ><label class="checkLabel"
+              ><input id="fixtureTwitch" type="checkbox" checked /> TWITCH
+              CONTROL</label
+            ><label class="checkLabel"
+              ><input id="showFixtureAddresses" type="checkbox" /> SHOW
+              ADDRESSES</label
+            >
+          </div>
+          <div class="actions">
+            <button id="saveFixture" type="button">SAVE FIXTURE</button
+            ><button id="clearFixture" type="button">CLEAR</button>
+          </div>
+        </div>
+        <div class="cluster">
+          <h3>FIXTURES</h3>
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>NAME</th>
+                  <th>BRAND</th>
+                  <th>ZONE</th>
+                  <th>ROUTE</th>
+                  <th>STATE</th>
+                  <th>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody id="fixtureRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <section class="panel" data-panel="widget" hidden>
+        <div class="panelTitle">
+          <div>
+            <span>STREAMELEMENTS</span>
+            <h2>WIDGET GENERATOR</h2>
+          </div>
+          <span id="widgetStatus" class="statusLine">CHECKING TOKEN</span>
+        </div>
+        <div class="cluster">
+          <h3>1 // SECURE INTAKE</h3>
+          <div class="formGrid">
+            <label
+              >LOCAL BRIDGE URL<input
+                id="baseUrl"
+                type="password"
+                autocomplete="off" /></label
+            ><label
+              >INTAKE TOKEN<input
+                id="intakeToken"
+                type="password"
+                autocomplete="new-password"
+            /></label>
+          </div>
+          <div class="actions">
+            <button
+              id="rotateIntakeToken"
+              type="button"
+              title="Generate a server-managed intake token"
+            >
+              GENERATE TOKEN</button
+            ><button id="testIntakeToken" type="button" title="Verify the entered intake token without changing any lights">
+              VERIFY TOKEN</button
+            ><button
+              id="clearIntakeToken"
+              class="danger"
+              type="button"
+              title="Revoke server-managed intake tokens"
+            >
+              REVOKE TOKEN</button>
+            <button id="refreshWidgetConnection" type="button" title="Check whether the deployed StreamElements widget is reaching this server">CHECK DEPLOYMENT</button>
+          </div>
+        </div>
+        <div class="cluster">
+          <h3>2 // REWARD ROUTING</h3>
+          <div class="formGrid">
+            <label>CHANGE LIGHTS REWARD ID<input id="colorRewardId" /></label
+            ><label>TEACH COLOR REWARD ID<input id="teachRewardId" /></label
+            ><label>SONG REQUEST REWARD ID<input id="songRewardId" /></label>
+          </div>
+          <div id="settlementNotice" class="notice" role="status">CONVEYOR MODE // SUPPLY REWARD IDS FROM YOUR TWITCH DASHBOARD; THE WIDGET HAS NO TWITCH AUTHORIZATION OR HELIX ACCESS</div>
+        </div>
+        <div class="cluster">
+          <h3>3 // GENERATED WIDGET</h3>
+          <div class="actions outputActions">
+            <button id="generateWidget" type="button">GENERATE WIDGET</button
+            ><button id="rebuildWidget" type="button" title="Rotate the intake token and generate matching replacement code in one step">REBUILD DEPLOYMENT</button
+            ><button id="copyWidget" type="button">COPY</button
+            ><label class="checkLabel"
+              ><input id="showWidgetSensitive" type="checkbox" /> SHOW SENSITIVE
+              VALUES</label
+            >
+          </div>
+          <textarea
+            id="widgetOutput"
+            rows="12"
+            readonly
+            spellcheck="false"
+            aria-label="Generated StreamElements widget"
+          ></textarea>
+          <div id="widgetNotice" class="notice" role="status"></div>
+          <div id="widgetConnectionNotice" class="notice" role="status"></div>
+        </div>
+      </section>
+      <section class="panel" data-panel="features" hidden>
+        <div class="panelTitle">
+          <div>
+            <span>FIRST-PARTY PACKAGES</span>
+            <h2>FEATURE PACKAGES</h2>
+          </div>
+          <div>
+            <span id="featureHostStatus" class="statusLine">HOST OFFLINE</span
+            ><button id="refreshFeatures" type="button">REFRESH</button>
+          </div>
+        </div>
+        <div class="cluster">
+          <h3>AVAILABLE</h3>
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>FEATURE</th>
+                  <th>VERSION</th>
+                  <th>RESOURCES</th>
+                  <th>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody id="availableFeatureRows">
+                <tr>
+                  <td colspan="4">NO PACKAGES AVAILABLE</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="cluster">
+          <h3>INSTALLED</h3>
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>FEATURE</th>
+                  <th>STATE</th>
+                  <th>PERMISSIONS</th>
+                  <th>RESOURCES</th>
+                  <th>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody id="featureRows">
+                <tr>
+                  <td colspan="5">NO FEATURES INSTALLED</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div
+            id="featureNotice"
+            class="notice"
+            role="status"
+            aria-live="polite"
+          ></div>
+        </div>
+      </section>
+      <section class="panel" data-panel="mods" hidden>
+        <div class="panelTitle">
+          <div>
+            <span>SUPERVISED EXTENSIONS</span>
+            <h2>MODS</h2>
+          </div>
+          <div>
+            <span id="modHostStatus" class="statusLine">HOST OFFLINE</span
+            ><button id="refreshMods" type="button">REFRESH</button>
+          </div>
+        </div>
+        <div class="cluster">
+          <div class="sectionHead">
+            <h3>DROP-IN REVIEW</h3>
+            <span id="modInboxStatus" class="inboxPath">mod\</span>
+          </div>
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>PACKAGE</th>
+                  <th>TYPE</th>
+                  <th>PERMISSIONS</th>
+                  <th>LIMITS</th>
+                  <th>ACTION</th>
+                </tr>
+              </thead>
+              <tbody id="modInboxRows">
+                <tr>
+                  <td colspan="5">WATCHING MOD FOLDER</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div
+            id="modNotice"
+            class="notice"
+            role="status"
+            aria-live="polite"
+          ></div>
+        </div>
+        <div class="cluster">
+          <h3>INSTALLED MODS</h3>
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>MOD</th>
+                  <th>STATE</th>
+                  <th>APPROVAL</th>
+                  <th>RESOURCES</th>
+                  <th>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody id="modRows">
+                <tr>
+                  <td colspan="5">NO MODS INSTALLED</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="modUiSurface" class="modUiSurface" hidden>
+          <div class="sectionHead">
+            <h3 id="modUiTitle">MOD PANEL</h3>
+            <button
+              id="closeModUi"
+              class="iconButton"
+              type="button"
+              title="Close mod panel"
+              aria-label="Close mod panel"
+            >
+              X
+            </button>
+          </div>
+          <iframe
+            id="modUiFrame"
+            sandbox="allow-scripts"
+            referrerpolicy="no-referrer"
+            title="Mod panel"
+          ></iframe>
+        </div>
+      </section>
+    </main>
+    <script src="/core.js"></script>
+  </body>
+</html>

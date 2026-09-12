@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ravelink.local/contracts/widget-events-v2.schema.json",
+  "title": "RaveLink Widget Event v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "source", "eventEnvelope"],
+  "properties": {
+    "contract": { "const": "widget.events.v2" },
+    "source": { "const": "streamelements" },
+    "eventEnvelope": { "type": "object" },
+    "widgetConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "colorRewardId": { "type": "string", "maxLength": 512 },
+        "teachRewardId": { "type": "string", "maxLength": 512 },
+        "songRewardId": { "type": "string", "maxLength": 512 }
+      }
+    },
+    "target": { "type": "string", "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9.-]*$" }
+  }
+}

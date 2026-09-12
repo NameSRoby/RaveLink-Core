@@ -1,0 +1,96 @@
+.controlGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+#twitchLightProgram summary { cursor: pointer; font-weight: 800; font-size: 12px; }
+#twitchProgramControls { border: 0; padding: 12px 0 0; margin: 0; min-width: 0; }
+.twitchPreview { display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; }
+#twitchPreviewSwatch { display: block; width: 36px; height: 36px; flex: 0 0 36px; border: 1px solid var(--edge); }
+#twitchPreviewResult { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; font-size: 12px; }
+.fixtureBoard { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 12px; }
+.fixtureDropZone { min-width: 0; min-height: 130px; padding: 10px; border: 1px solid var(--edge); background: #080d18; }
+.fixtureDropZone.dragOver { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.fixtureZoneHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.fixtureZoneHead h4 { margin: 6px 0 0; font-size: 12px; }
+.fixtureZoneSettings { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+.fixtureZoneSettings input:not([type="checkbox"]) { width: 130px; min-height: 34px; }
+.fixtureZoneSettings label { display: flex; flex-direction: row; align-items: center; width: auto; }
+.fixtureZoneSettings .fixtureZoneField { display: grid; gap: 3px; font-size: 10px; }
+.fixtureZoneSettings .iconButton { width: 34px; min-width: 34px; min-height: 34px; padding: 0; }
+.fixtureChipList { display: flex; gap: 7px; flex-wrap: wrap; align-content: flex-start; min-height: 68px; }
+.fixtureChip { width: auto; max-width: 100%; min-height: 34px; padding: 7px 10px; overflow-wrap: anywhere; cursor: grab; }
+.fixtureChip.selected { border-color: var(--accent); background: #1c2942; }
+.emptyDropZone { color: var(--muted); font-size: 11px; align-self: center; }
+.selectedFixtureMove { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; margin-top: 12px; padding: 10px; border: 1px solid var(--accent); }
+.selectedFixtureMove[hidden] { display: none; }
+.selectedFixtureMove label { width: min(280px,100%); }
+
+.featureSubtabs { margin: 12px 0; flex-wrap: wrap; }
+.featureWorkspace { min-width: 0; }
+.featureWorkspace > h2 { margin: 0; padding-bottom: 12px; font-size: 20px; letter-spacing: 0; border-bottom: 1px solid var(--edge); }
+.featurePageFrame { display: block; width: 100%; height: 78vh; min-height: 540px; border: 0; }
+.featurePageFrame[hidden] { display: none; }
+.overlaySourceTools { display: grid; grid-template-columns: minmax(280px,1fr) 130px auto auto; align-items: end; gap: 10px; margin: 0 0 12px; padding: 10px 0 12px; border-bottom: 1px solid var(--edge); }
+.overlaySourceTools[hidden] { display: none; }
+.overlaySourceTools .statusLine { align-self: center; white-space: nowrap; }
+
+.swatchRow,
+.discoveryActions,
+.hueLightRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.swatchRow {
+  margin-top: 12px;
+}
+
+.swatchRow [data-color] {
+  width: 38px;
+  min-width: 38px;
+  padding: 0;
+  background: var(--swatch);
+  border-color: #64728e;
+}
+
+.swatchRow #applyColor {
+  margin-left: auto;
+  width: auto;
+}
+
+.hueLightList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.hueLightRow {
+  min-height: 38px;
+  padding: 7px;
+  border-top: 1px solid var(--edge);
+}
+
+.hueLightRow input {
+  width: auto;
+  min-height: 0;
+}
+
+@media (max-width: 900px) {
+  .controlGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .controlGrid,
+  .hueLightList,
+  .fixtureBoard { grid-template-columns: 1fr; }
+  .fixtureZoneHead { display: block; }
+  .fixtureZoneSettings { justify-content: flex-start; margin-top: 8px; }
+  .fixtureZoneSettings input:not([type="checkbox"]) { width: 100%; }
+  .fixtureZoneSettings .fixtureZoneField { width: 100%; }
+  .swatchRow #applyColor { margin-left: 0; width: 100%; }
+  .overlaySourceTools { grid-template-columns: 1fr; align-items: stretch; }
+}

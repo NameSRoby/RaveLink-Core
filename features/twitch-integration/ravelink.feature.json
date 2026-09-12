@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "id": "twitch-integration",
+  "name": "Twitch Integration",
+  "description": "Optional Twitch Device Code authorization, redemption settlement, EventSub foundation, and chat transport.",
+  "version": "0.7.0",
+  "publisher": "ravelink",
+  "entry": "dist/main.js",
+  "engine": {
+    "featureApi": "^1.0.0",
+    "node": ">=22"
+  },
+  "consumes": [
+    "twitch.host.v1"
+  ],
+  "provides": [
+    "twitch.connection.read.v1",
+    "twitch.oauth.admin.v1",
+    "twitch.monitor.admin.v1",
+    "twitch.rewards.read.v1",
+    "twitch.rewards.admin.v1",
+    "twitch.redemptions.v1",
+    "twitch.chat.send.v1"
+  ],
+  "contracts": [
+    "contracts/twitch-integration-v1.contracts.json"
+  ],
+  "permissions": {
+    "network": [
+      "id.twitch.tv",
+      "api.twitch.tv",
+      "eventsub.wss.twitch.tv"
+    ],
+    "storage": false,
+    "secrets": [
+      "twitch.oauth.tokens"
+    ],
+    "process": false,
+    "hardware": []
+  },
+  "resources": {
+    "idleCpuPercent": 0.1,
+    "idleRssMiB": 48,
+    "activeRssMiB": 64,
+    "timers": 1,
+    "minTimerMs": 1000,
+    "ipcFrameBytes": 32768,
+    "inFlightCalls": 2,
+    "queuedCalls": 4,
+    "externalInFlight": 1,
+    "storageBytes": 0,
+    "historyEntries": 128,
+    "shutdownGraceMs": 1500
+  },
+  "contributes": {
+    "pages": [
+      {
+        "id": "connection",
+        "title": "Connection",
+        "entry": "ui/connection.html",
+        "surface": "panel",
+        "embedHosts": [],
+        "imageHosts": [],
+        "capabilities": [
+          "twitch.connection.read.v1",
+          "twitch.oauth.admin.v1",
+          "twitch.monitor.admin.v1",
+          "twitch.rewards.read.v1",
+          "twitch.rewards.admin.v1"
+        ]
+      }
+    ]
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "files": {
+      "contracts/twitch-integration-v1.contracts.json": "2aec7c45085375a264ebda3087954cba7363774900009dbb1154c61a601250fd",
+      "dist/main.js": "2eebf66b5714ec9695b73ccb895e21d072b78a5b377701ee1039e94d2637e37e",
+      "ui/connection.html": "1dbcb40d17e68ad3a80916379d9f499f62fd5e6d39dc7e1c00b6b1847e7ad654"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "ravelink-core",
+  "version": "0.6.0",
+  "description": "RaveLink Core for modular local lighting, Twitch, and creator features on Windows",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/NameSRoby/RaveLink-Core#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NameSRoby/RaveLink-Core.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NameSRoby/RaveLink-Core/issues"
+  },
+  "main": "src/app/core/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/app/optional/feature-enabled-server.js",
+    "start:core": "node src/app/core/index.js",
+    "start:mods": "node src/app/optional/combined-enabled-server.js"
+  },
+  "dependencies": {
+    "axios": "^1.15.0",
+    "bonjour-service": "^1.4.4",
+    "cross-fetch": "3.1.5",
+    "express": "^5.2.1",
+    "yauzl": "3.4.0",
+    "yazl": "3.3.1",
+    "youtubei.js": "18.0.0"
+  },
+  "optionalDependencies": {
+    "hue-sync": "^0.1.3",
+    "node-dtls-client": "^1.1.1"
+  },
+  "overrides": {
+    "path-to-regexp": "8.4.2"
+  }
+}

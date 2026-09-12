@@ -1,0 +1,22 @@
+{
+  "name": "@ravelink/mod-sdk",
+  "version": "1.0.0",
+  "description": "Standalone contracts and test harness for isolated RaveLink mods",
+  "keywords": ["ravelink", "mods", "sdk", "streaming", "lighting"],
+  "homepage": "https://github.com/NameSRoby/RaveLink-Core#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/NameSRoby/RaveLink-Core.git", "directory": "packages/mod-sdk" },
+  "bugs": { "url": "https://github.com/NameSRoby/RaveLink-Core/issues" },
+  "main": "index.js",
+  "types": "index.d.ts",
+  "type": "commonjs",
+  "license": "ISC",
+  "files": ["index.js", "index.d.ts", "testing.js", "testing.d.ts", "schemas", "README.md", "LICENSE"],
+  "exports": {
+    ".": { "types": "./index.d.ts", "require": "./index.js", "default": "./index.js" },
+    "./testing": { "types": "./testing.d.ts", "require": "./testing.js", "default": "./testing.js" },
+    "./schemas/manifest-v1": "./schemas/mod-manifest-v1.schema.json",
+    "./schemas/broker-envelope-v1": "./schemas/broker-envelope-v1.schema.json"
+  },
+  "engines": { "node": ">=22" },
+  "publishConfig": { "access": "public", "provenance": true }
+}

@@ -1,2 +1,47 @@
-# RaveLink-Core
-Powerful streamer oriented localhost server, capable of song requests, LED light control with plans to be expanded upon
+# RaveLink Core
+
+<img src="assets/RaveLink-Core.png" alt="RaveLink Core" width="96" height="96">
+
+RaveLink Core is a local Windows control app for streamer lighting and optional Twitch-powered features. It runs from the system tray and opens its control surface at `http://127.0.0.1:5050`.
+
+## What It Does
+
+- Discovers, pairs, groups, and controls Philips Hue and WiZ lights.
+- Understands natural color requests such as `light red 70%` and fixture prefixes.
+- Generates a small StreamElements widget when OAuth-free Twitch event intake is preferred.
+- Adds native Twitch OAuth, chat, and channel-point handling as an optional feature.
+- Adds YouTube Song Request, local playlists, playback controls, and OBS overlays as an optional feature.
+- Keeps optional features and community mods isolated from the lighting core.
+
+## Install
+
+1. Open the latest GitHub release.
+2. Download `RaveLink-Core-Windows-v0.6.0-setup-installer.exe`.
+3. Choose an installation folder and the optional features you want.
+4. Launch **RaveLink Core** from the Start menu or desktop shortcut.
+
+The installer includes the application runtime and production dependencies. Node.js and npm are not required.
+
+## First Run
+
+Use **Fixtures** to discover and pair lights, then assign them under **Lights**. Optional feature tabs appear only when their packages are installed. The tray icon can reopen the control surface, restart the local server, or shut it down cleanly.
+
+RaveLink Core listens on the local machine by default. OAuth tokens and other private runtime state stay outside the published source and release payload; supported secrets are protected for the current Windows user.
+
+## Portable Version
+
+The release also includes a self-contained ZIP. Extract the complete folder, then run `RaveLink-Core.exe`. Do not move the executable away from its accompanying folders.
+
+## Uninstall
+
+Use **Installed apps** in Windows or the RaveLink Core Start menu entry. The uninstaller asks the tray host to stop before removing program files.
+
+## Requirements
+
+- Windows 10 or Windows 11, 64-bit
+- A local network connection for supported smart lights
+- Internet access only for online services you choose to use, such as Twitch or YouTube
+
+## License
+
+RaveLink Core is licensed under the Apache License 2.0. Third-party components retain their own licenses; see `THIRD_PARTY_NOTICES.md` in the installed folder.

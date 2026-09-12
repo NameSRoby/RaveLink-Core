@@ -1,0 +1,9 @@
+.inboxPath {
+  color: var(--ok);
+  font-family: Consolas, monospace;
+  font-size: 12px;
+}
+
+#modInboxRows .invalid {
+  color: var(--bad);
+}

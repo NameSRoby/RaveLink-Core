@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Song Settlement V1","type":"object","additionalProperties":false,"required":["entryId","outcome"],"properties":{"entryId":{"type":"string","maxLength":160},"outcome":{"type":"string","maxLength":40}}}

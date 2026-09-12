@@ -1,0 +1,896 @@
+{
+  "schemaVersion": 1,
+  "contracts": [
+    {
+      "capability": "twitch.connection.read.v1",
+      "methods": {
+        "status": {
+          "request": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "configured",
+              "connected",
+              "scopes",
+              "authorizationPending",
+              "requiredScopes",
+              "vault"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "configured": {
+                "type": "boolean"
+              },
+              "connected": {
+                "type": "boolean"
+              },
+              "login": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "userId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "scopes": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "expiresAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "authorizationPending": {
+                "type": "boolean"
+              },
+              "userCode": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "verificationUri": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "nextPollAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "authorizationExpiresAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "requiredScopes": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "vault": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "lastError": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "twitch.oauth.admin.v1",
+      "methods": {
+        "configure": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "clientId"
+            ],
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 80
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "configured",
+              "connected",
+              "scopes",
+              "authorizationPending",
+              "requiredScopes",
+              "vault"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "configured": {
+                "type": "boolean"
+              },
+              "connected": {
+                "type": "boolean"
+              },
+              "login": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "userId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "scopes": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "expiresAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "authorizationPending": {
+                "type": "boolean"
+              },
+              "userCode": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "verificationUri": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "nextPollAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "authorizationExpiresAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "requiredScopes": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "vault": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "lastError": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          }
+        },
+        "clear": {
+          "request": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "configured",
+              "connected",
+              "scopes",
+              "authorizationPending",
+              "requiredScopes",
+              "vault"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "configured": {
+                "type": "boolean"
+              },
+              "connected": {
+                "type": "boolean"
+              },
+              "login": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "userId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "scopes": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "expiresAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "authorizationPending": {
+                "type": "boolean"
+              },
+              "userCode": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "verificationUri": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "nextPollAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "authorizationExpiresAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "requiredScopes": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "vault": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "lastError": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          }
+        },
+        "begin": {
+          "request": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "scopes": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "enum": [
+                    "channel:manage:redemptions",
+                    "channel:read:vips",
+                    "moderation:read",
+                    "user:read:chat",
+                    "user:write:chat"
+                  ]
+                }
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "configured",
+              "connected",
+              "scopes",
+              "authorizationPending",
+              "requiredScopes",
+              "vault"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "configured": {
+                "type": "boolean"
+              },
+              "connected": {
+                "type": "boolean"
+              },
+              "login": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "userId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "scopes": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "expiresAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "authorizationPending": {
+                "type": "boolean"
+              },
+              "userCode": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "verificationUri": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "nextPollAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "authorizationExpiresAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "requiredScopes": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "vault": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "lastError": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          }
+        },
+        "poll": {
+          "request": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "configured",
+              "connected",
+              "scopes",
+              "authorizationPending",
+              "requiredScopes",
+              "vault"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "configured": {
+                "type": "boolean"
+              },
+              "connected": {
+                "type": "boolean"
+              },
+              "login": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "userId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "scopes": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "expiresAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "authorizationPending": {
+                "type": "boolean"
+              },
+              "userCode": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "verificationUri": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "nextPollAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "authorizationExpiresAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "requiredScopes": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "vault": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "lastError": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          }
+        },
+        "disconnect": {
+          "request": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "configured",
+              "connected",
+              "scopes",
+              "authorizationPending",
+              "requiredScopes",
+              "vault"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "configured": {
+                "type": "boolean"
+              },
+              "connected": {
+                "type": "boolean"
+              },
+              "login": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "userId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "scopes": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "expiresAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "authorizationPending": {
+                "type": "boolean"
+              },
+              "userCode": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "verificationUri": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "nextPollAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "authorizationExpiresAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "requiredScopes": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "vault": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "lastError": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "twitch.monitor.admin.v1",
+      "methods": {
+        "configure": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "intakeMode",
+              "songRequestChatEnabled"
+            ],
+            "properties": {
+              "intakeMode": {
+                "enum": [
+                  "native",
+                  "streamelements"
+                ]
+              },
+              "songRequestChatEnabled": {
+                "type": "boolean"
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "twitch.rewards.read.v1",
+      "methods": {
+        "inspect": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "rewardId"
+            ],
+            "properties": {
+              "rewardId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "broadcasterId": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "rewardId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "exists": {
+                "type": "boolean"
+              },
+              "manageable": {
+                "type": "boolean"
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 45
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "status": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 599
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "twitch.rewards.admin.v1",
+      "methods": {
+        "create": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "purpose",
+              "title",
+              "cost"
+            ],
+            "properties": {
+              "purpose": {
+                "enum": [
+                  "lights",
+                  "teach",
+                  "song_request"
+                ]
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 45
+              },
+              "cost": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000000
+              },
+              "prompt": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "userInputRequired": {
+                "type": "boolean"
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "purpose": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "rewardId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 45
+              },
+              "cost": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "manageable": {
+                "type": "boolean"
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "status": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 599
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "twitch.redemptions.v1",
+      "methods": {
+        "settle": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "redemptionId",
+              "rewardId",
+              "status"
+            ],
+            "properties": {
+              "redemptionId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "rewardId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "broadcasterId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "status": {
+                "enum": [
+                  "FULFILLED",
+                  "CANCELED"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "status": {
+                "type": "string",
+                "maxLength": 20
+              },
+              "redemptionId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "refunded": {
+                "type": "boolean"
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "retryable": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "twitch.chat.send.v1",
+      "methods": {
+        "send": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "message"
+            ],
+            "properties": {
+              "message": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "broadcasterId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "replyParentMessageId": {
+                "type": "string",
+                "maxLength": 160
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "messageId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "dropped": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "retryable": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

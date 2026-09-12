@@ -1,0 +1,1113 @@
+{
+  "schemaVersion": 1,
+  "contracts": [
+    {
+      "capability": "song.playlist.read.v1",
+      "methods": {
+        "status": {
+          "request": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "properties": {
+              "offset": { "type": "integer", "minimum": 0 },
+              "limit": { "type": "integer", "minimum": 1, "maximum": 25 }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok", "selectedId", "collections", "tracks", "page", "limits"],
+            "properties": {
+              "ok": { "const": true },
+              "selectedId": { "type": "string", "maxLength": 40 },
+              "collections": { "type": "array", "maxItems": 21 },
+              "tracks": { "type": "array", "maxItems": 25 },
+              "page": { "type": "object" },
+              "limits": { "type": "object" },
+              "import": { "type": ["object", "null"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.playlist.admin.v1",
+      "methods": {
+        "mutate": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action"],
+            "properties": {
+              "action": { "enum": ["create", "rename", "delete", "select", "import", "cancel_import", "configure_history"] },
+              "collectionId": { "type": "string", "maxLength": 40 },
+              "name": { "type": "string", "maxLength": 80 },
+              "url": { "type": "string", "maxLength": 500 },
+              "enabled": { "type": "boolean" },
+              "destinationId": { "type": "string", "maxLength": 40 }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok", "code"],
+            "properties": {
+              "ok": { "type": "boolean" },
+              "code": { "type": "string", "maxLength": 80 },
+              "collection": { "type": "object" },
+              "selectedId": { "type": "string", "maxLength": 40 },
+              "import": { "type": "object" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.queue.read.v1",
+      "methods": {
+        "status": {
+          "request": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 25
+              },
+              "playlistOffset": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "playlistLimit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 25
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "queue",
+              "counts"
+            ],
+            "properties": {
+              "ok": {
+                "const": true
+              },
+              "queue": {
+                "type": "array",
+                "maxItems": 25
+              },
+              "counts": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.queue.submit.v1",
+      "methods": {
+        "submit": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "requestId",
+              "requesterId",
+              "query"
+            ],
+            "properties": {
+              "requestId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "requesterId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "requesterName": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "requesterRole": {
+                "enum": [
+                  "viewer",
+                  "vip",
+                  "moderator"
+                ]
+              },
+              "notifyChat": {
+                "type": "boolean"
+              },
+              "responseMessageId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "candidate": {
+                "type": "object"
+              },
+              "catalogFailure": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "code"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "code": {
+                "type": "string",
+                "maxLength": 40
+              }
+            }
+          }
+        },
+        "undo": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "requesterId"
+            ],
+            "properties": {
+              "requesterId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "requestId": {
+                "type": "string",
+                "maxLength": 160
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "code"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "code": {
+                "type": "string",
+                "maxLength": 40
+              }
+            }
+          }
+        },
+        "self": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "action",
+              "requesterId"
+            ],
+            "properties": {
+              "action": {
+                "enum": [
+                  "skip",
+                  "remove"
+                ]
+              },
+              "requesterId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "requesterName": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "notifyChat": {
+                "type": "boolean"
+              },
+              "responseMessageId": {
+                "type": "string",
+                "maxLength": 160
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "code"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "code": {
+                "type": "string",
+                "maxLength": 40
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.queue.admin.v1",
+      "methods": {
+        "moderate": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "enum": [
+                  "pause",
+                  "resume",
+                  "clear",
+                  "skip",
+                  "remove",
+                  "block",
+                  "unblock",
+                  "timeout",
+                  "untimeout",
+                  "block_song",
+                  "unblock_song",
+                  "volume",
+                  "playlist_play",
+                  "playlist_shuffle",
+                  "playlist_stop",
+                  "playlist_clear",
+                  "playlist_remove"
+                ]
+              },
+              "entryId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "playlistId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "position": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200
+              },
+              "requesterId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "requesterKey": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "requesterName": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "providerItemId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "minutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1440
+              },
+              "value": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "removePending": {
+                "type": "boolean"
+              },
+              "notifyChat": {
+                "type": "boolean"
+              },
+              "responseMessageId": {
+                "type": "string",
+                "maxLength": 160
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "code"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "code": {
+                "type": "string",
+                "maxLength": 40
+              }
+            }
+          }
+        },
+        "configure": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "limits": {
+                "type": "object"
+              },
+              "responses": {
+                "type": "object"
+              },
+              "catalogPolicy": {
+                "type": "object"
+              },
+              "volumeCeilingPercent": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "const": true
+              }
+            }
+          }
+        },
+        "settle": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "entryId"
+            ],
+            "properties": {
+              "entryId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "outcome": {
+                "type": "string",
+                "maxLength": 40
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "code"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "code": {
+                "type": "string",
+                "maxLength": 40
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.queue.events.v1",
+      "events": {
+        "changed": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reason",
+            "counts",
+            "paused"
+          ],
+          "properties": {
+            "reason": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "counts": {
+              "type": "object"
+            },
+            "paused": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.playback.read.v1",
+      "methods": {
+        "status": {
+          "request": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "revision",
+              "playbackSource",
+              "primary",
+              "managed",
+              "observed"
+            ],
+            "properties": {
+              "ok": {
+                "const": true
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "playbackSource": {
+                "enum": [
+                  "youtube",
+                  "tidal",
+                  "spotify",
+                  "apple-music"
+                ]
+              },
+              "primary": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "managed": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "observed": {
+                "type": "array",
+                "maxItems": 4
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.playback.driver.v1",
+      "methods": {
+        "pull": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "driverId",
+              "providers"
+            ],
+            "properties": {
+              "driverId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "providers": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 8,
+                "items": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 40
+                }
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "code"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "code": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "action": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "acknowledge": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "driverId",
+              "leaseId",
+              "state"
+            ],
+            "properties": {
+              "driverId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "leaseId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "state": {
+                "enum": [
+                  "started",
+                  "progress",
+                  "ended",
+                  "failed",
+                  "skipped"
+                ]
+              },
+              "positionMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 86400000
+              },
+              "durationMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 86400000
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "code"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "code": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "entryId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "outcome": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.playback.observe.v1",
+      "methods": {
+        "observe": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "provider",
+              "sourceId",
+              "available"
+            ],
+            "properties": {
+              "provider": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 40
+              },
+              "sourceId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "available": {
+                "type": "boolean"
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "artists": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "string",
+                  "maxLength": 100
+                }
+              },
+              "album": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "status": {
+                "enum": [
+                  "playing",
+                  "paused",
+                  "stopped"
+                ]
+              },
+              "positionMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 86400000
+              },
+              "durationMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 86400000
+              },
+              "observedAt": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "code"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "code": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.playback.events.v1",
+      "events": {
+        "changed": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reason",
+            "revision",
+            "primary"
+          ],
+          "properties": {
+            "reason": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "primary": {
+              "type": [
+                "object",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.observer.admin.v1",
+      "methods": {
+        "status": {
+          "request": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "supported",
+              "lifecycle",
+              "playbackSource"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "supported": {
+                "type": "boolean"
+              },
+              "lifecycle": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "playbackSource": {
+                "enum": [
+                  "youtube",
+                  "tidal",
+                  "spotify",
+                  "apple-music"
+                ]
+              },
+              "selectedProvider": {
+                "enum": [
+                  "tidal",
+                  "spotify",
+                  "apple-music"
+                ]
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "pid": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "lastObservedAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "lastError": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "forwarding": {
+                "type": "boolean"
+              },
+              "pending": {
+                "type": "boolean"
+              },
+              "counters": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "control": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "enum": [
+                  "start",
+                  "stop",
+                  "select"
+                ]
+              },
+              "source": {
+                "enum": [
+                  "youtube",
+                  "tidal",
+                  "spotify",
+                  "apple-music"
+                ]
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok",
+              "supported",
+              "lifecycle",
+              "playbackSource"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "supported": {
+                "type": "boolean"
+              },
+              "lifecycle": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "playbackSource": {
+                "enum": [
+                  "youtube",
+                  "tidal",
+                  "spotify",
+                  "apple-music"
+                ]
+              },
+              "selectedProvider": {
+                "enum": [
+                  "tidal",
+                  "spotify",
+                  "apple-music"
+                ]
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "pid": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "lastObservedAt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "lastError": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "forwarding": {
+                "type": "boolean"
+              },
+              "pending": {
+                "type": "boolean"
+              },
+              "counters": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.overlay.read.v1",
+      "methods": {
+        "status": {
+          "request": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ok",
+              "revision",
+              "config"
+            ],
+            "properties": {
+              "ok": {
+                "const": true
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "config": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.overlay.admin.v1",
+      "methods": {
+        "configure": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "config"
+            ],
+            "properties": {
+              "config": {
+                "type": "object"
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ok",
+              "revision",
+              "config"
+            ],
+            "properties": {
+              "ok": {
+                "const": true
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "config": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.overlay.events.v1",
+      "events": {
+        "changed": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "revision"
+          ],
+          "properties": {
+            "revision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.catalog.read.v1",
+      "methods": {
+        "status": {
+          "request": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok", "configured", "policy"],
+            "properties": {
+              "ok": { "type": "boolean" },
+              "configured": { "type": "boolean" },
+              "mode": { "type": "string", "enum": ["keyless", "official"] },
+              "officialConfigured": { "type": "boolean" },
+              "keylessAvailable": { "type": "boolean" },
+              "availableModes": { "type": "array", "maxItems": 2, "items": { "type": "string", "enum": ["keyless", "official"] } },
+              "keyless": { "type": "object" },
+              "unavailable": { "type": "boolean" },
+              "vault": { "type": "string", "maxLength": 40 },
+              "cacheEntries": { "type": "integer", "minimum": 0, "maximum": 100 },
+              "inFlight": { "type": "integer", "minimum": 0, "maximum": 32 },
+              "quota": { "type": "object" },
+              "limits": { "type": "object" },
+              "lastError": { "type": "string", "maxLength": 120 },
+              "policy": { "type": "object" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.catalog.admin.v1",
+      "methods": {
+        "configure": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "apiKey": { "type": "string", "minLength": 20, "maxLength": 200 },
+              "mode": { "type": "string", "enum": ["keyless", "official"] },
+              "policy": { "type": "object" }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok"],
+            "properties": {
+              "ok": { "type": "boolean" },
+              "configured": { "type": "boolean" },
+              "mode": { "type": "string", "enum": ["keyless", "official"] },
+              "error": { "type": "string", "maxLength": 80 },
+              "policy": { "type": "object" }
+            }
+          }
+        },
+        "clear": {
+          "request": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok", "configured"],
+            "properties": {
+              "ok": { "type": "boolean" },
+              "configured": { "type": "boolean" },
+              "error": { "type": "string", "maxLength": 80 }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

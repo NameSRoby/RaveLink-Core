@@ -1,0 +1,9 @@
+{
+  "intentRoutes": {
+    "HUE_STATE": "all",
+    "WIZ_PULSE": "all",
+    "TWITCH_HUE": "all",
+    "TWITCH_WIZ": "all"
+  },
+  "fixtures": []
+}

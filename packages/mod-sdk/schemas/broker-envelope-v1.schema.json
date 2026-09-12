@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ravelink.local/schemas/broker-envelope-v1.schema.json",
+  "title": "RaveLink Mod Broker Envelope V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocolVersion", "type", "sentAt"],
+  "properties": {
+    "protocolVersion": { "const": 1 },
+    "type": { "enum": ["hello", "ready", "request", "response", "event", "cancel", "shutdown", "heartbeat"] },
+    "sentAt": { "type": "integer", "minimum": 0 },
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+    "replyTo": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+    "capability": { "type": "string", "pattern": "^[a-z][a-z0-9-]*(?:\\.[a-z][a-z0-9-]*)+\\.v[1-9][0-9]*$", "maxLength": 100 },
+    "method": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9.:-]{0,79}$" },
+    "providerId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,31}\\.[a-z0-9][a-z0-9-]{0,31}$" },
+    "deadlineAt": { "type": "integer", "minimum": 0 },
+    "payload": {},
+    "ok": { "type": "boolean" },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+        "message": { "type": "string", "maxLength": 300 },
+        "retryable": { "type": "boolean" }
+      }
+    }
+  }
+}
