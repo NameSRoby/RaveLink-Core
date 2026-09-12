@@ -1,0 +1,9 @@
+{
+  "detail": {
+    "listener": "follower-latest",
+    "event": {
+      "name": "AnonymizedFollower",
+      "amount": 1
+    }
+  }
+}

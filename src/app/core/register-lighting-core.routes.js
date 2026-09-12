@@ -316,6 +316,11 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
     if (!widgetTokenVault.verify(req.body?.widgetIntakeToken).ok) {
       return res.status(401).json({ ok: false, error: "widget_intake_token_invalid" });
     }
+    const admission = widgetIntakeLimiter?.take("widget-template", 5);
+    if (admission?.ok === false) {
+      res.setHeader("Retry-After", String(admission.retryAfterSeconds));
+      return res.status(429).json({ ok: false, error: "widget_template_rate_limited" });
+    }
     return res.json(generateWidgetTemplate(req.body || {}));
   });
   app.post("/system/widget-template-rebuild", (req, res) => {

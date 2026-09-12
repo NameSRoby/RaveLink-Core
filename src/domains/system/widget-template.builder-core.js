@@ -3,7 +3,8 @@
 
 function normalizeWidgetPayload(input = {}) {
   const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
-  const baseUrl = String(source.baseUrl || "http://127.0.0.1:5050").trim().replace(/\/+$/, "");
+  let baseUrl = String(source.baseUrl || "http://127.0.0.1:5050").trim().slice(0, 2048);
+  while (baseUrl.endsWith("/")) baseUrl = baseUrl.slice(0, -1);
   return {
     colorRewardId: String(source.colorRewardId || "").trim().slice(0, 512),
     teachRewardId: String(source.teachRewardId || "").trim().slice(0, 512),

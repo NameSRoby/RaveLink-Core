@@ -1,0 +1,11 @@
+{
+  "detail": {
+    "listener": "message",
+    "event": {
+      "data": {
+        "text": "Example message!",
+        "displayName": "AnonymizedViewer"
+      }
+    }
+  }
+}

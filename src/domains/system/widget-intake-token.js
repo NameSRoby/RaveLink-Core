@@ -22,9 +22,9 @@ function getByPath(source, path) {
 }
 
 function extractBearerToken(headerValue = "") {
-  const value = asString(headerValue);
-  const match = /^Bearer\s+(.+)$/i.exec(value);
-  return match ? normalizeWidgetIntakeToken(match[1]) : "";
+  const value = asString(headerValue).slice(0, 1024);
+  if (value.slice(0, 7).toLowerCase() !== "bearer ") return "";
+  return normalizeWidgetIntakeToken(value.slice(7));
 }
 
 function readWidgetIntakeTokenFromRequest(req = {}, body = {}) {

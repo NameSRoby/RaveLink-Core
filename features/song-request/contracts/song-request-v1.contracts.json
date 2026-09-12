@@ -388,9 +388,14 @@
               "catalogPolicy": {
                 "type": "object"
               },
+              "volumeFloorPercent": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
               "volumeCeilingPercent": {
                 "type": "integer",
-                "minimum": 1,
+                "minimum": 0,
                 "maximum": 100
               }
             }

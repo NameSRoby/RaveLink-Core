@@ -3,7 +3,7 @@
   "id": "song-request",
   "name": "Song Request",
   "description": "First-party YouTube Song Request with native catalog search and a provider-neutral now-playing overlay.",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
@@ -163,10 +163,10 @@
   "integrity": {
     "algorithm": "sha256",
     "files": {
-      "contracts/song-request-v1.contracts.json": "cd0c860d6a78b93287024c3a0540a708c984b05d3d633029b4aa1f49ce48e79c",
+      "contracts/song-request-v1.contracts.json": "22e43cbaa7df158042278e2ea63709d86f41e9a7e3fe62be05ddbed1a4c0fa58",
       "dist/catalog-policy.js": "c9eddb6a09351c7cf79ad7fd0ba66543e266781bac73aea4817adceead4d9893",
       "dist/chat-responses.js": "55c04927f59b7dde3db8803bf4ec61333ab44d6e2feb8d378b4b5a0e08d26370",
-      "dist/domain.js": "a0dc17e19e73f61dca0fa1bfea2a58520bc36e7b747351ed65d099b7993e5ab2",
+      "dist/domain.js": "8ebf302cc35d4e8d3b7e2244bcf5665a27780a7c2b65d1912abda08e7d20a41e",
       "dist/main.js": "9708e8ba15809d504d34f04c19095f58c548948280d7e8645ba6ffeb0099b3cc",
       "dist/playlist-library.js": "b6eb0f20944a425db45cc72bf219b13fe5dd5bb8b9dc48292107a12c19660967",
       "dist/playlist-service.js": "97a39fb8c45f1d589330e250ab2b5a858f2a64aa0194807926e11358b356842b",
@@ -177,7 +177,7 @@
       "schemas/settlement-v1.schema.json": "06404c47b368a98e73c90d4adc9f3256efde94d10f994d76e864f70f0101c95c",
       "ui/obs-overlay.html": "6f8e4dfe7b87874d06608f49cc4736a6301846209f19030bb52bec44faa2d902",
       "ui/overlay-editor.html": "d3327e2e683f52e9323589e1da991b900e5ef5b930820727ee9402abc6637e8f",
-      "ui/player.html": "eff316bfe948cd5c3b039850e00837050c912b4f539a50b0a70958fee77d377f",
+      "ui/player.html": "e2806b46e629a84bc847f6649d611f3bda9be6f0e2f29227f8b77f0ca87f4797",
       "ui/request-queue.html": "3ee23352430e6b4b115e060b936b2df95f996ee4181f4c7b8e9599a7816fc915",
       "ui/server-playlist.html": "77f22ea6f1e0e680b0a6c1d8ee61152b78aa4484b3144ddc40ac5c1b77f7b73d",
       "ui/now-playing.html": "1eca7e15682e65add30c19c152f16a3af6affb9950dd44981d9023915ae7c3da"

@@ -1,7 +1,7 @@
 node_modules/
-runtime/
-.runtime/
-dist/
+/runtime/
+/.runtime/
+/dist/
 *.log
 .env
 .env.*
