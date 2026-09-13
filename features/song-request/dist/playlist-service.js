@@ -8,12 +8,12 @@ function createPlaylistService(options) {
   const persistedPages = new Map();
   let persistedIndex = "";
 
-  function activateTracks(rows) {
+  function activateTracks(rows, arm = true) {
     const mode = queue.status().playlistState.mode;
     queue.moderate({ action: "playlist_stop" });
     queue.importPlaylist(rows);
-    if (mode === "sequential") queue.moderate({ action: "playlist_play" });
-    if (mode === "shuffle") queue.moderate({ action: "playlist_shuffle" });
+    if (mode === "sequential") queue.moderate({ action: "playlist_play", arm });
+    if (mode === "shuffle") queue.moderate({ action: "playlist_shuffle", arm });
   }
 
   async function activate() {
@@ -37,7 +37,7 @@ function createPlaylistService(options) {
         library.restore(stored.value, pagesById);
         library.ensureChatCollection();
         persistedIndex = JSON.stringify(stored.value);
-        if (library.active()) activateTracks(library.active().tracks);
+        if (library.active()) activateTracks(library.active().tracks, false);
       }
     } catch {}
     if (library.active()) { schedulePersistence(0); return; }
@@ -73,15 +73,15 @@ function createPlaylistService(options) {
   async function advanceImport(request) {
     const target = Math.min(activeImport.count, importRows.length + 300);
     for (let offset = importRows.length; offset < target; offset += 100) {
-      const page = await context.callCapability("youtube.catalog.host.v1", "import-playlist-page", { jobId: activeImport.jobId, offset, limit: Math.min(100, target - offset) }, { timeoutMs: 1500 });
+      const page = await context.callCapability(activeImport.capability, "import-playlist-page", { jobId: activeImport.jobId, offset, limit: Math.min(100, target - offset) }, { timeoutMs: 1500 });
       if (!page?.ok) throw new Error(page?.error || "playlist_import_transfer_failed");
       importRows.push(...page.items);
     }
     activeImport = { ...activeImport, state: importRows.length < activeImport.count ? "transferring" : "complete", transferred: importRows.length };
     if (activeImport.state !== "complete") return;
-    const created = library.create({ name: activeImport.name || activeImport.title, provider: "youtube", sourceId: activeImport.playlistId });
+    const created = library.create({ name: activeImport.name || activeImport.title, provider: activeImport.provider, sourceId: activeImport.playlistId });
     if (!created.ok) throw new Error(created.code);
-    library.replace(created.collection.id, importRows, { provider: "youtube", sourceId: activeImport.playlistId });
+    library.replace(created.collection.id, importRows, { provider: activeImport.provider, sourceId: activeImport.playlistId });
     library.select(created.collection.id);
     activateTracks(library.active().tracks);
     activeImport = { ...activeImport, state: "complete", collectionId: created.collection.id };
@@ -93,7 +93,7 @@ function createPlaylistService(options) {
   async function read(payload, request) {
     if (activeImport?.jobId && activeImport.state === "running") {
       try {
-        const status = await context.callCapability("youtube.catalog.host.v1", "import-playlist-status", { jobId: activeImport.jobId }, { timeoutMs: 1500 });
+        const status = await context.callCapability(activeImport.capability, "import-playlist-status", { jobId: activeImport.jobId }, { timeoutMs: 1500 });
         activeImport = { ...activeImport, ...status };
         if (status?.ok && status.state === "complete") {
           importRows = [];
@@ -116,29 +116,37 @@ function createPlaylistService(options) {
     } else if (payload.action === "rename") result = library.rename(payload.collectionId, payload.name);
     else if (payload.action === "delete") result = library.remove(payload.collectionId);
     else if (payload.action === "select") result = library.select(payload.collectionId);
+    else if (payload.action === "play_random") result = library.selectRandom();
     else if (payload.action === "configure_history") result = library.configureHistory(payload);
     else if (payload.action === "import") return startImport(payload);
     else if (payload.action === "cancel_import") return cancelImport();
     else return { ok: false, code: "playlist_action_invalid" };
-    if (result.ok && ["select", "delete"].includes(payload.action)) activateTracks(result.tracks);
-    if (result.ok) { schedulePersistence(); publishChange(result, request); }
-    return result;
+    if (result.ok && ["select", "delete", "play_random"].includes(payload.action)) activateTracks(result.tracks);
+    if (result.ok && payload.action === "play_random") {
+      queue.moderate({ action: "playlist_shuffle" });
+      result = { ...result, code: "random_playlist_started" };
+    }
+    const response = result?.tracks ? Object.fromEntries(Object.entries(result).filter(([key]) => key !== "tracks")) : result;
+    if (response.ok) { schedulePersistence(); publishChange(response, request); }
+    return response;
   }
 
   async function startImport(payload) {
     if (["running", "transferring"].includes(activeImport?.state)) return { ok: false, code: "playlist_import_busy" };
+    const soundcloud = /^https:\/\/(?:www\.|m\.)?soundcloud\.com\/|^https:\/\/on\.soundcloud\.com\//i.test(String(payload.url || ""));
+    const capability = soundcloud ? "soundcloud.catalog.v1" : "youtube.catalog.host.v1";
     let started;
-    try { started = await context.callCapability("youtube.catalog.host.v1", "import-playlist-start", { url: payload.url, limit: 2500 }, { timeoutMs: 2000 }); }
+    try { started = await context.callCapability(capability, "import-playlist-start", { url: payload.url, limit: 2500 }, { timeoutMs: 2000 }); }
     catch { started = { ok: false, error: "playlist_import_unavailable" }; }
     if (!started?.ok) return { ok: false, code: started?.error || "playlist_import_unavailable" };
-    activeImport = { ...started, name: String(payload.name || "").slice(0, 80) };
+    activeImport = { ...started, name: String(payload.name || "").slice(0, 80), provider: soundcloud ? "soundcloud" : "youtube", capability };
     importRows = [];
     return { ok: true, code: "playlist_import_started", import: activeImport };
   }
 
   async function cancelImport() {
     if (!activeImport?.jobId) return { ok: false, code: "playlist_import_not_found" };
-    await context.callCapability("youtube.catalog.host.v1", "import-playlist-cancel", { jobId: activeImport.jobId }, { timeoutMs: 1000 }).catch(() => null);
+    await context.callCapability(activeImport.capability, "import-playlist-cancel", { jobId: activeImport.jobId }, { timeoutMs: 1000 }).catch(() => null);
     activeImport = { ...activeImport, state: "canceled" };
     importRows = [];
     return { ok: true, code: "playlist_import_canceled" };

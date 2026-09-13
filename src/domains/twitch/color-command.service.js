@@ -1,8 +1,8 @@
 // [TITLE] Module: domains/twitch/color-command.service.js
-// [TITLE] Purpose: parse and route Twitch color commands to Hue and WiZ fixtures
+// [TITLE] Purpose: parse and route Twitch color commands to Hue, WiZ, and alpha Govee fixtures
 
 module.exports = function createColorCommandService(options = {}) {
-  const { twitchColorConfig, fixtureRegistry, directiveService, hueBridge, wizBridge } = options;
+  const { twitchColorConfig, fixtureRegistry, directiveService, hueBridge, wizBridge, goveeBridge } = options;
   if (!twitchColorConfig || !fixtureRegistry || !directiveService?.parseTwitchColorDirective) throw new Error("createColorCommandService requires color config, fixtures, and directive service");
 
   function listFixtures(brand = "", zone = "") { return fixtureRegistry.listTwitchBy(brand, zone); }
@@ -18,7 +18,7 @@ module.exports = function createColorCommandService(options = {}) {
     const fixtures = listFixtures();
     const available = new Set(fixtures.map(row => String(row.brand).toLowerCase()));
     if (available.has(fallback)) return fallback;
-    return available.has(fallback === "hue" ? "wiz" : "hue") ? (fallback === "hue" ? "wiz" : "hue") : fallback;
+    return ["hue", "wiz", "govee"].find(brand => available.has(brand)) || fallback;
   }
   async function applyColorText(rawText, requestOptions = {}) {
     const direct = requestOptions.mode === "direct";
@@ -45,7 +45,7 @@ module.exports = function createColorCommandService(options = {}) {
     if (requestedFixtureId && !fixed) return { ok: false, target: null, fixtureTargetId: requestedFixtureId, error: direct ? "fixture target not found or disabled" : "fixture prefix target not found or not twitch-enabled" };
     const directive = directiveService.parseTwitchColorDirective(text);
     if (!directive.ok) return { ok: false, target, error: directive.error || "invalid color text" };
-    const result = { ok: true, target, usedPrefix: prefixed.prefix || null, fixtureTargetId: fixed?.id || null, hueZones: [], wizZones: [], hueTargets: 0, wizTargets: 0, hueDelivery: { sent: 0, failed: 0 }, wizDelivery: { sent: 0, failed: 0 }, directiveType: directive.type, colorMatch: directive.matchedName || "", fuzzy: directive.fuzzy || null };
+    const result = { ok: true, target, usedPrefix: prefixed.prefix || null, fixtureTargetId: fixed?.id || null, hueZones: [], wizZones: [], goveeZones: [], hueTargets: 0, wizTargets: 0, goveeTargets: 0, hueDelivery: { sent: 0, failed: 0 }, wizDelivery: { sent: 0, failed: 0 }, goveeDelivery: { sent: 0, failed: 0, alpha: true }, directiveType: directive.type, colorMatch: directive.matchedName || "", fuzzy: directive.fuzzy || null };
     Object.assign(result, { preview: requestOptions.preview === true, targets: [], modifiers: directive.modifiers || {}, hex: directive.hex || '', baseHex: directive.baseHex || '', brightnessPercent: directive.brightnessPercent, ruleIds: route?.ruleIds || [] });
 
     if (target === "hue" || target === "both") {
@@ -72,12 +72,22 @@ module.exports = function createColorCommandService(options = {}) {
         })());
       }
     }
+    if (target === "govee" || target === "both") {
+      result.goveeZones = fixed ? [fixed.zone || "govee"] : fixtureRegistry.parseZoneList(route?.managed ? "all" : requestOptions.goveeZone || requestOptions.zone || (direct ? "all" : fixtureRegistry.resolveZone("TWITCH_GOVEE") || "govee"), direct ? "all" : "govee");
+      const targets = fixed ? (fixed.brand === "govee" ? [fixed] : []) : (() => { const rows = new Map(); for (const zone of result.goveeZones) for (const fixture of activeFixtures("govee", zone)) rows.set(fixture.id, fixture); return [...rows.values()]; })();
+      result.goveeTargets = targets.length;
+      result.targets.push(...targets.map(row => row.id));
+      if (targets.length && !requestOptions.preview) deliveries.push((async () => {
+        try { result.goveeDelivery = { ...normalizeDelivery(await goveeBridge.sendState(targets, directive.wizState), targets.length), alpha: true }; }
+        catch { result.goveeDelivery = { sent: 0, failed: targets.length, alpha: true }; }
+      })());
+    }
     await Promise.all(deliveries);
-    result.skippedTargets = selectedIds ? Math.max(0, selectedIds.size - result.hueTargets - result.wizTargets) : 0;
-    if (result.hueTargets + result.wizTargets === 0) return { ...result, ok: false, error: "no routed fixtures matched" };
+    result.skippedTargets = selectedIds ? Math.max(0, selectedIds.size - result.hueTargets - result.wizTargets - result.goveeTargets) : 0;
+    if (result.hueTargets + result.wizTargets + result.goveeTargets === 0) return { ...result, ok: false, error: "no routed fixtures matched" };
     if (requestOptions.preview) return { ...result, sent: 0, failed: 0, partial: result.skippedTargets > 0 };
-    result.sent = Number(result.hueDelivery.sent || 0) + Number(result.wizDelivery.sent || 0);
-    result.failed = Number(result.hueDelivery.failed || 0) + Number(result.wizDelivery.failed || 0) + result.skippedTargets;
+    result.sent = Number(result.hueDelivery.sent || 0) + Number(result.wizDelivery.sent || 0) + Number(result.goveeDelivery.sent || 0);
+    result.failed = Number(result.hueDelivery.failed || 0) + Number(result.wizDelivery.failed || 0) + Number(result.goveeDelivery.failed || 0) + result.skippedTargets;
     result.partial = result.sent > 0 && result.failed > 0;
     return result.sent === 0 && result.failed > 0 ? { ...result, ok: false, error: "hardware_delivery_failed" } : result;
   }

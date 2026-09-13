@@ -217,6 +217,30 @@ function createTwitchApiClient(options = {}) {
     return { ok: true, rewardId, title: text(reward.title, 45) || title, cost: Number(reward.cost || cost), manageable: true };
   }
 
+  async function setRewardPaused(input = {}) {
+    const credentials = input.credentials || {};
+    const broadcasterId = text(input.broadcasterId || credentials.userId, 80);
+    const rewardId = text(input.rewardId, 160);
+    const accessToken = text(credentials.accessToken, 2048);
+    const clientId = text(credentials.clientId, 80);
+    if (!broadcasterId || !rewardId || !accessToken || !clientId || typeof input.paused !== "boolean") {
+      return { ok: false, error: "twitch_reward_pause_invalid" };
+    }
+    const query = new URLSearchParams({ broadcaster_id: broadcasterId, id: rewardId });
+    const result = await request(`${TWITCH_HELIX}/channel_points/custom_rewards?${query}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${accessToken}`, "Client-Id": clientId, "content-type": "application/json" },
+      body: JSON.stringify({ is_paused: input.paused })
+    });
+    if (!result.ok) return {
+      ok: false,
+      error: result.status === 401 ? "twitch_reauthorization_required" : result.status === 403 ? "twitch_reward_not_manageable" : "twitch_reward_pause_failed",
+      status: result.status,
+      retryable: result.status === 429 || result.status >= 500
+    };
+    return { ok: true, rewardId, paused: input.paused };
+  }
+
   async function createEventSubSubscription(input = {}) {
     const credentials = input.credentials || {};
     const type = text(input.type, 100);
@@ -292,7 +316,7 @@ function createTwitchApiClient(options = {}) {
     return { ok: true, moderators: moderators.ids, vips: vips.ids.filter(id => !moderators.ids.includes(id)) };
   }
 
-  return Object.freeze({ beginDeviceAuthorization, pollDeviceAuthorization, refreshUserAccessToken, validateToken, revokeToken, inspectReward, createReward, createEventSubSubscription, listRequesterRoles, settleRedemption, sendChat });
+  return Object.freeze({ beginDeviceAuthorization, pollDeviceAuthorization, refreshUserAccessToken, validateToken, revokeToken, inspectReward, createReward, setRewardPaused, createEventSubSubscription, listRequesterRoles, settleRedemption, sendChat });
 }
 
 module.exports = { ALLOWED_SCOPES, DEFAULT_SCOPES, normalizeScopes, createTwitchApiClient };

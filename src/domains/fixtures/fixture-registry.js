@@ -103,7 +103,7 @@ module.exports = function createFixtureRegistry(options = {}) {
     const brand = String(raw.brand || "").trim().toLowerCase();
     if (!VALID_FIXTURE_ID_RE.test(id) || !VALID_BRAND_RE.test(brand)) return null;
 
-    const zoneDefault = brand === "hue" ? "hue" : brand === "wiz" ? "wiz" : "custom";
+    const zoneDefault = brand === "hue" ? "hue" : brand === "wiz" ? "wiz" : brand === "govee" ? "govee" : "custom";
     return {
       id,
       name: boundedText(raw.name || id, 96),
@@ -132,7 +132,7 @@ module.exports = function createFixtureRegistry(options = {}) {
         Number(fixture.lightId || 0) > 0
       );
     }
-    if (fixture.brand === "wiz") {
+    if (fixture.brand === "wiz" || fixture.brand === "govee") {
       return Boolean(String(fixture.ip || "").trim());
     }
     return true;

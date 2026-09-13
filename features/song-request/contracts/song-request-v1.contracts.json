@@ -38,7 +38,7 @@
             "additionalProperties": false,
             "required": ["action"],
             "properties": {
-              "action": { "enum": ["create", "rename", "delete", "select", "import", "cancel_import", "configure_history"] },
+              "action": { "enum": ["create", "rename", "delete", "select", "play_random", "import", "cancel_import", "configure_history"] },
               "collectionId": { "type": "string", "maxLength": 40 },
               "name": { "type": "string", "maxLength": 80 },
               "url": { "type": "string", "maxLength": 500 },
@@ -299,6 +299,7 @@
                   "block_song",
                   "unblock_song",
                   "volume",
+                  "playback_start",
                   "playlist_play",
                   "playlist_shuffle",
                   "playlist_stop",
@@ -1065,7 +1066,15 @@
               "quota": { "type": "object" },
               "limits": { "type": "object" },
               "lastError": { "type": "string", "maxLength": 120 },
-              "policy": { "type": "object" }
+              "policy": { "type": "object" },
+              "soundcloud": {
+                "type": "object",
+                "properties": {
+                  "configured": { "type": "boolean" },
+                  "available": { "type": "boolean" },
+                  "unavailable": { "type": "boolean" }
+                }
+              }
             }
           }
         }

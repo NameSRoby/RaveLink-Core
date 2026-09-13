@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "id": "soundcloud-integration",
+  "name": "SoundCloud Integration (Alpha)",
+  "description": "Optional official SoundCloud API connection, playable search, widget playback support, and public playlist import.",
+  "version": "0.1.0",
+  "publisher": "ravelink",
+  "entry": "dist/main.js",
+  "engine": {
+    "featureApi": "^1.0.0",
+    "node": ">=22"
+  },
+  "consumes": [
+    "soundcloud.catalog.host.v1"
+  ],
+  "provides": [
+    "soundcloud.connection.read.v1",
+    "soundcloud.credentials.admin.v1",
+    "soundcloud.catalog.v1"
+  ],
+  "contracts": [
+    "contracts/soundcloud-integration-v1.contracts.json"
+  ],
+  "permissions": {
+    "network": [
+      "api.soundcloud.com",
+      "secure.soundcloud.com",
+      "w.soundcloud.com"
+    ],
+    "storage": false,
+    "secrets": [
+      "soundcloud.app.credentials"
+    ],
+    "process": false,
+    "hardware": []
+  },
+  "resources": {
+    "idleCpuPercent": 0.1,
+    "idleRssMiB": 32,
+    "activeRssMiB": 48,
+    "timers": 0,
+    "minTimerMs": 1000,
+    "ipcFrameBytes": 65536,
+    "inFlightCalls": 2,
+    "queuedCalls": 6,
+    "externalInFlight": 1,
+    "storageBytes": 0,
+    "historyEntries": 128,
+    "shutdownGraceMs": 1500
+  },
+  "contributes": {
+    "pages": [
+      {
+        "id": "connection",
+        "title": "Setup",
+        "entry": "ui/connection.html",
+        "surface": "panel",
+        "embedHosts": [],
+        "imageHosts": [],
+        "capabilities": [
+          "soundcloud.connection.read.v1",
+          "soundcloud.credentials.admin.v1"
+        ]
+      }
+    ]
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "files": {
+      "contracts/soundcloud-integration-v1.contracts.json": "6148adc4c36bcfd385f284dc8d49a07e38fee2d833de98a213ac9746932be09e",
+      "dist/main.js": "eacfc12d2b22e57f2a194cf717e3fe564df076623ae56e0e9e64cf1f3cc23cf6",
+      "ui/connection.html": "6dd9da1ad557fd821de3afff477f357350bb3ddc464dd0c14ab54bad9f144ed6"
+    }
+  }
+}

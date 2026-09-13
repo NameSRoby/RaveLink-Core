@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "song-request",
   "name": "Song Request",
-  "description": "First-party YouTube Song Request with native catalog search and a provider-neutral now-playing overlay.",
-  "version": "0.11.1",
+  "description": "First-party YouTube and optional SoundCloud Song Request with official playback widgets and a provider-neutral now-playing overlay.",
+  "version": "0.13.1",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
@@ -15,9 +15,11 @@
     "twitch.chat.send.v1?",
     "widget.state.v1?",
     "twitch.redemptions.v1?",
+    "twitch.rewards.manage.v1?",
     "diagnostics.publish.v1?",
     "media.windows.now-playing.v1?",
-    "youtube.catalog.host.v1?"
+    "youtube.catalog.host.v1?",
+    "soundcloud.catalog.v1?"
   ],
   "provides": [
     "song.playlist.read.v1",
@@ -69,7 +71,8 @@
         "entry": "ui/player.html",
         "surface": "panel",
         "embedHosts": [
-          "www.youtube.com"
+          "www.youtube.com",
+          "w.soundcloud.com"
         ],
         "imageHosts": [],
         "capabilities": [
@@ -163,24 +166,24 @@
   "integrity": {
     "algorithm": "sha256",
     "files": {
-      "contracts/song-request-v1.contracts.json": "22e43cbaa7df158042278e2ea63709d86f41e9a7e3fe62be05ddbed1a4c0fa58",
+      "contracts/song-request-v1.contracts.json": "16688c8ae73fd292de47ff600e073d306125b69b796098feafc4345c8ac2b8b1",
       "dist/catalog-policy.js": "c9eddb6a09351c7cf79ad7fd0ba66543e266781bac73aea4817adceead4d9893",
-      "dist/chat-responses.js": "55c04927f59b7dde3db8803bf4ec61333ab44d6e2feb8d378b4b5a0e08d26370",
-      "dist/domain.js": "8ebf302cc35d4e8d3b7e2244bcf5665a27780a7c2b65d1912abda08e7d20a41e",
-      "dist/main.js": "9708e8ba15809d504d34f04c19095f58c548948280d7e8645ba6ffeb0099b3cc",
-      "dist/playlist-library.js": "b6eb0f20944a425db45cc72bf219b13fe5dd5bb8b9dc48292107a12c19660967",
-      "dist/playlist-service.js": "97a39fb8c45f1d589330e250ab2b5a858f2a64aa0194807926e11358b356842b",
+      "dist/chat-responses.js": "37bdcb7839ce54d3dd77d2610fb2c5f2fb5617778c277527e2b3414beb238c83",
+      "dist/domain.js": "96da009e1ff0f4ca03551ea5a5ce2700cc9c3993ebbd0e93179fc0d4253e53bd",
+      "dist/main.js": "9ef856374d5244f915d2aa17013c8d2cddfb59659ba7cd113f9f99f2637d26ef",
       "dist/overlay-config.js": "0d3b7000b7c8a2e9879607c481aa23eae2f20423875945ba2a0d03dab262618a",
+      "dist/playlist-library.js": "3cdb953da3d1110fa61aae54e75b18f09a1db4270a8267c706ff76bd18d601dc",
+      "dist/playlist-service.js": "fd7f9158c1fc241a373704ee4a61c85540d792b24648ced31f6ff193d116b85e",
       "schemas/provider-v1.schema.json": "d709067c1a3adcac30ed391609be9f185a88b829266beb4deb3473dfbb54fba8",
       "schemas/queue-v1.schema.json": "8e3b16d16c6195437e74df7ff9a70276f7c3a6eb48907029e4ee5e50858af5d2",
       "schemas/response-intent-v1.schema.json": "2805e15cd0d74c455c4f445e9c73f7a671d5223a9a931e253856bbd801de8646",
       "schemas/settlement-v1.schema.json": "06404c47b368a98e73c90d4adc9f3256efde94d10f994d76e864f70f0101c95c",
+      "ui/now-playing.html": "1eca7e15682e65add30c19c152f16a3af6affb9950dd44981d9023915ae7c3da",
       "ui/obs-overlay.html": "6f8e4dfe7b87874d06608f49cc4736a6301846209f19030bb52bec44faa2d902",
-      "ui/overlay-editor.html": "d3327e2e683f52e9323589e1da991b900e5ef5b930820727ee9402abc6637e8f",
-      "ui/player.html": "e2806b46e629a84bc847f6649d611f3bda9be6f0e2f29227f8b77f0ca87f4797",
+      "ui/overlay-editor.html": "c3890731efe1f4e4ba8252d3ff84c3547fc245eae3b642010da3eba54b5da17b",
+      "ui/player.html": "35d8d783395bb026b165af18217c33a290bd4d7ed50c3935b15e6c50dcd891e6",
       "ui/request-queue.html": "3ee23352430e6b4b115e060b936b2df95f996ee4181f4c7b8e9599a7816fc915",
-      "ui/server-playlist.html": "77f22ea6f1e0e680b0a6c1d8ee61152b78aa4484b3144ddc40ac5c1b77f7b73d",
-      "ui/now-playing.html": "1eca7e15682e65add30c19c152f16a3af6affb9950dd44981d9023915ae7c3da"
+      "ui/server-playlist.html": "4b467beb439de224749d5d0ee41ad3c4a535fcd2c467223ec9762502d1fd820d"
     }
   }
 }

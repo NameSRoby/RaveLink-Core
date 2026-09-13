@@ -41,6 +41,7 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
   let validatedSinceLoad = false;
   let rewardReconcileInFlight = null;
   let rewardReconcileAfter = 0;
+  let rewardPauseChain = Promise.resolve();
   let monitor;
   let roleDirectory = new Map();
   let roleDirectoryAfter = 0;
@@ -382,6 +383,17 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     persist();
     return { ...result, purpose };
   }
+  async function setManagedRewardPaused(input = {}) {
+    const purpose = text(input.purpose, 40).toLowerCase();
+    const managed = profile.managedRewards?.[purpose];
+    if (!REWARD_PURPOSES.has(purpose) || !managed?.rewardId) return { ok: false, error: "twitch_reward_not_managed", retryable: false };
+    const operation = rewardPauseChain.then(() => withAuthorization(
+      current => api.setRewardPaused({ rewardId: managed.rewardId, paused: input.paused === true, credentials: current }),
+      ["channel:manage:redemptions"]
+    ));
+    rewardPauseChain = operation.catch(() => null);
+    return operation;
+  }
   async function sendChat(input) {
     return withAuthorization(current => api.sendChat({ ...input, credentials: current }), ["user:write:chat"]);
   }
@@ -455,5 +467,5 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     onRedemption: event => options.onRedemption?.(event, { ...profile.managedRewards }),
     onChat: event => options.onChat?.(event, { ...profile.monitorConfig })
   });
-  return Object.freeze({ status, ensureStatus, configure, configureMonitor, suspendMonitor, clearClientId, begin, poll, disconnect, inspectReward, createReward, observeRequesterRole, refreshRoleDirectory, resolveRequesterRole, settle, sendChat, shutdown });
+  return Object.freeze({ status, ensureStatus, configure, configureMonitor, suspendMonitor, clearClientId, begin, poll, disconnect, inspectReward, createReward, setManagedRewardPaused, observeRequesterRole, refreshRoleDirectory, resolveRequesterRole, settle, sendChat, shutdown });
 };

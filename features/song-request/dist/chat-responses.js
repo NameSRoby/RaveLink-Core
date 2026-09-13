@@ -27,8 +27,11 @@ const REASONS = Object.freeze({
   youtube_keyless_unavailable: "keyless YouTube search is unavailable", youtube_keyless_timeout: "keyless YouTube search timed out",
   youtube_keyless_rate_limited: "keyless YouTube search is temporarily rate limited", catalog_ambiguous: "the request matched multiple songs too closely",
   catalog_no_results: "YouTube returned no results", catalog_no_eligible_match: "no result passed the song safety filters",
-  catalog_untrusted_link: "only trusted YouTube and Spotify links are accepted", spotify_track_required: "the Spotify link must point to one track",
+  catalog_untrusted_link: "only trusted YouTube, Spotify, and SoundCloud links are accepted", spotify_track_required: "the Spotify link must point to one track",
   spotify_track_not_found: "the Spotify track could not be found", spotify_metadata_unavailable: "Spotify link metadata is unavailable",
+  soundcloud_catalog_unconfigured: "SoundCloud search is not configured", soundcloud_catalog_unavailable: "SoundCloud search is unavailable",
+  soundcloud_no_playable_track: "SoundCloud returned no fully playable track", soundcloud_rate_limited: "SoundCloud is temporarily rate limited",
+  soundcloud_token_rate_limited: "SoundCloud authentication is temporarily rate limited", soundcloud_auth_failed: "SoundCloud credentials were rejected",
   not_current_requester: "you can only skip your own currently playing song", invalid_requester: "that requester was not found",
   moderator_required: "a moderator is required", invalid_request: "the command was invalid"
 });

@@ -14,6 +14,7 @@ const createTokenBucket = require("../runtime/token-bucket");
 const { createWidgetIntakeTokenVault } = require("../../domains/system/widget-intake-token-vault");
 const createEgressGovernor = require("../runtime/egress-governor");
 const createHardwareOnboardingService = require("../../domains/fixtures/hardware-onboarding.service");
+const { createCoreUpdateService } = require("../../domains/system/core-update.service");
 
 module.exports = function createCoreServer(options = {}) {
   const rootDir = path.resolve(options.rootDir || path.join(__dirname, "../../.."));
@@ -53,6 +54,12 @@ module.exports = function createCoreServer(options = {}) {
     }
   });
   const hardwareOnboarding = createHardwareOnboardingService({ core });
+  const coreUpdates = createCoreUpdateService({
+    rootDir,
+    runtimeDir,
+    requestShutdown: options.requestShutdown,
+    ...(options.coreUpdateOptions || {})
+  });
   const widgetTokenVault = createWidgetIntakeTokenVault({
     vaultPath: path.join(runtimeDir, "system", "widget-intake.vault.json"),
     environmentToken: widgetIntakeToken,
@@ -115,6 +122,7 @@ module.exports = function createCoreServer(options = {}) {
     runtimeMetrics,
     egressGovernor,
     hardwareOnboarding,
+    coreUpdates,
     capabilities: options.capabilities,
     getCapabilities: () => {
       const registry = extension?.registry || extension?.features?.registry;
@@ -127,6 +135,7 @@ module.exports = function createCoreServer(options = {}) {
   extension = typeof options.extend === "function"
     ? options.extend({ app, express, rootDir, runtimeDir, egressGovernor, widgetController, twitchIntakeGate })
     : null;
+  coreUpdates.startLaunchCheck();
   if (typeof extension?.shutdown === "function") {
     lifecycle.register({ owner: extension.owner || "optional-platform", id: "extension", type: "capability", stop: extension.shutdown });
   }
@@ -136,7 +145,7 @@ module.exports = function createCoreServer(options = {}) {
   });
   return {
     app,
-    services: Object.freeze({ lightingCore: core, hardwareOnboarding, widgetController, widgetIntakeLimiter, widgetTokenVault, runtimeMetrics, egressGovernor, lifecycle }),
+    services: Object.freeze({ lightingCore: core, hardwareOnboarding, coreUpdates, widgetController, widgetIntakeLimiter, widgetTokenVault, runtimeMetrics, egressGovernor, lifecycle }),
     extension,
     profile
   };

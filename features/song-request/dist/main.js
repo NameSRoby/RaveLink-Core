@@ -7,6 +7,7 @@ const OPTIONAL = Object.freeze({
   chat: ["twitch.chat.send.v1", "send"],
   widget: ["widget.state.v1", "publish"],
   settlement: ["twitch.redemptions.v1", "settle"],
+  rewardPause: ["twitch.rewards.manage.v1", "set-paused"],
   diagnostics: ["diagnostics.publish.v1", "record"]
 });
 
@@ -19,7 +20,7 @@ let persistenceBackoffMs = 1000;
 let shuttingDown = false;
 const pending = new Set();
 const MAX_OPTIONAL_IN_FLIGHT = 8;
-const OPTIONAL_TIMEOUT_MS = Object.freeze({ chat: 8000, settlement: 8000, widget: 750, diagnostics: 750 });
+const OPTIONAL_TIMEOUT_MS = Object.freeze({ chat: 8000, settlement: 8000, rewardPause: 4000, widget: 750, diagnostics: 750 });
 let persistedPlaylistPageCount = 0;
 const optionalStatus = Object.fromEntries(Object.keys(OPTIONAL).map(name => [name, { attempted: 0, succeeded: 0, failed: 0, lastError: "" }]));
 
@@ -111,7 +112,7 @@ async function activate(nextContext) {
   persistenceBackoffMs = 1000;
   persistedPlaylistPageCount = 0;
   for (const status of Object.values(optionalStatus)) Object.assign(status, { attempted: 0, succeeded: 0, failed: 0, lastError: "" });
-  queue = createSongQueue({ requestProviders: ["youtube"] });
+  queue = createSongQueue({ requestProviders: ["youtube", "soundcloud"] });
   playlists = createPlaylistService({ context, queue, schedulePersistence, publishChange });
   try {
     const stored = await context.callCapability("ravelink.storage.v1", "get", { key: "queue-state-v1" }, { timeoutMs: 1000 });
@@ -170,10 +171,12 @@ async function handleRequest(request) {
   if (request.capability === "song.playlist.read.v1") return playlists.read(request.payload, request);
   if (request.capability === "song.playlist.admin.v1") return playlists.mutate(request.payload || {}, request);
   if (request.capability === "song.catalog.read.v1") {
+    let soundcloud = { ok: true, configured: false, unavailable: true };
+    try { soundcloud = await context.callCapability("soundcloud.catalog.v1", "status", null, { timeoutMs: 1500 }); } catch {}
     try {
       const provider = await context.callCapability("youtube.catalog.host.v1", "status", null, { timeoutMs: 1500 });
-      return { ...provider, policy: queue.status().catalogPolicy };
-    } catch { return { ok: true, configured: false, unavailable: true, policy: queue.status().catalogPolicy }; }
+      return { ...provider, soundcloud, policy: queue.status().catalogPolicy };
+    } catch { return { ok: true, configured: false, unavailable: true, soundcloud, policy: queue.status().catalogPolicy }; }
   }
   if (request.capability === "song.catalog.admin.v1") {
     if (request.method === "clear") {
@@ -219,17 +222,23 @@ async function handleRequest(request) {
   }
   let effectiveRequest = request;
   if (request.capability === "song.queue.submit.v1" && request.method === "submit"
-    && (!request.payload?.candidate || request.payload.candidate.provider === "youtube")) {
+    && (!request.payload?.candidate || ["youtube", "soundcloud"].includes(request.payload.candidate.provider)
+      || /^https:\/\/(?:www\.|m\.)?soundcloud\.com\/|^https:\/\/on\.soundcloud\.com\//i.test(String(request.payload?.query || "")))) {
     const payload = request.payload || {};
+    const soundCloudLink = /^https:\/\/(?:www\.|m\.)?soundcloud\.com\/|^https:\/\/on\.soundcloud\.com\//i.test(String(payload.query || ""));
+    const useSoundCloud = payload.candidate?.provider === "soundcloud" || soundCloudLink;
     const videoId = /^[A-Za-z0-9_-]{11}$/.test(String(payload.candidate?.providerItemId || "")) ? payload.candidate.providerItemId : "";
     const queueState = queue.status();
     let resolved;
     try {
-      resolved = await context.callCapability("youtube.catalog.host.v1", "resolve", {
-        query: payload.query, videoId, policy: { ...queueState.catalogPolicy, maxDurationMs: queueState.limits.maxDurationMs }
+      resolved = await context.callCapability(useSoundCloud ? "soundcloud.catalog.v1" : "youtube.catalog.host.v1", "resolve", {
+        query: payload.query,
+        videoId,
+        policy: { ...queueState.catalogPolicy, maxDurationMs: queueState.limits.maxDurationMs },
+        maxDurationMs: queueState.limits.maxDurationMs
       }, { timeoutMs: videoId ? 4000 : 9000 });
     } catch {
-      resolved = { ok: false, reason: "youtube_catalog_unavailable" };
+      resolved = { ok: false, reason: useSoundCloud ? "soundcloud_catalog_unavailable" : "youtube_catalog_unavailable" };
     }
     if (resolved?.ok) effectiveRequest = { ...request, payload: { ...payload, candidate: resolved.candidate } };
     else {
@@ -246,6 +255,9 @@ async function handleRequest(request) {
     ? queue.configureOverlay
     : request.method === "self" ? queue.selfManage : queue[request.method];
   const result = handler(effectiveRequest.payload);
+  if (request.capability === "song.queue.admin.v1" && request.method === "moderate" && result.ok && ["pause", "resume"].includes(request.payload?.action)) {
+    optionalCall("rewardPause", { purpose: "song_request", paused: result.paused === true });
+  }
   if (request.capability.startsWith("song.overlay.")) {
     if (result.ok) { schedulePersistence(); publishOverlay(result); }
     return result;

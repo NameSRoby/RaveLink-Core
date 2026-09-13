@@ -5,7 +5,7 @@ const { parseBoolean } = require("../../shared/validation/parse-boolean");
 const fs = require("node:fs");
 const { readJsonFileWithMetadata, writeJsonFile } = require("../../shared/fs/json-file-store");
 
-const TARGETS = new Set(["hue", "wiz", "both"]);
+const TARGETS = new Set(["hue", "wiz", "govee", "both"]);
 const PREFIX_RE = /^[a-z][a-z0-9_-]{0,31}$/;
 const MAX_FIXTURE_PREFIXES = 256;
 
@@ -40,8 +40,9 @@ module.exports = function createTwitchColorConfigRuntime(options = {}) {
   function sanitizeConfig(input = {}) {
     const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
     const rawPrefixes = source.prefixes && typeof source.prefixes === "object" ? source.prefixes : {};
-    const prefixes = { hue: sanitizePrefix(rawPrefixes.hue, defaults.prefixes?.hue), wiz: sanitizePrefix(rawPrefixes.wiz, defaults.prefixes?.wiz || "wiz") };
-    if (prefixes.hue && prefixes.hue === prefixes.wiz) prefixes.wiz = "";
+    const prefixes = { hue: sanitizePrefix(rawPrefixes.hue, defaults.prefixes?.hue), wiz: sanitizePrefix(rawPrefixes.wiz, defaults.prefixes?.wiz || "wiz"), govee: sanitizePrefix(rawPrefixes.govee, defaults.prefixes?.govee || "govee") };
+    const seen = new Set();
+    for (const brand of ["hue", "wiz", "govee"]) { if (prefixes[brand] && seen.has(prefixes[brand])) prefixes[brand] = ""; else if (prefixes[brand]) seen.add(prefixes[brand]); }
     return {
       version: 1,
       defaultTarget: sanitizeTarget(source.defaultTarget, defaults.defaultTarget || "hue"),
@@ -70,7 +71,8 @@ module.exports = function createTwitchColorConfigRuntime(options = {}) {
     const candidates = [
       ...Object.entries(fixturePrefixes).map(([fixtureId, prefix]) => ({ fixtureId, target: null, prefix: sanitizePrefix(prefix), fixture: true })),
       { target: "hue", prefix: sanitizePrefix(prefixes.hue), fixtureId: "", fixture: false },
-      { target: "wiz", prefix: sanitizePrefix(prefixes.wiz), fixtureId: "", fixture: false }
+      { target: "wiz", prefix: sanitizePrefix(prefixes.wiz), fixtureId: "", fixture: false },
+      { target: "govee", prefix: sanitizePrefix(prefixes.govee), fixtureId: "", fixture: false }
     ].filter(row => row.prefix).sort((a, b) => b.prefix.length - a.prefix.length || Number(b.fixture) - Number(a.fixture));
     const lower = source.toLowerCase();
     for (const row of candidates) {
@@ -80,7 +82,7 @@ module.exports = function createTwitchColorConfigRuntime(options = {}) {
     }
     return { target: null, fixtureId: "", prefix: "", text: source };
   }
-  function getCapabilities() { return { hue: true, wiz: true }; }
+  function getCapabilities() { return { hue: true, wiz: true, govee: "alpha" }; }
   function getLoadSummary() { return { defaultTarget: runtime.defaultTarget, autoDefaultTarget: runtime.autoDefaultTarget, prefixes: { ...runtime.prefixes }, fixturePrefixCount: Object.keys(runtime.fixturePrefixes).length }; }
   return Object.freeze({ sanitizeCommandText, getSnapshot, patch, parseColorTarget: sanitizeTarget, splitPrefixedColorText, getCapabilities, getLoadSummary });
 };

@@ -1,5 +1,5 @@
 // [TITLE] Module: domains/fixtures/hardware-onboarding.service.js
-// [TITLE] Purpose: bounded, server-owned Hue and WiZ discovery/onboarding sessions
+// [TITLE] Purpose: bounded, server-owned Hue, WiZ, and alpha Govee discovery/onboarding sessions
 
 const crypto = require("node:crypto");
 
@@ -43,16 +43,19 @@ module.exports = function createHardwareOnboardingService(options = {}) {
   const discoveryCounters = { started: 0, joined: 0, completed: 0, failed: 0 };
 
   function discover(kindRaw, input = {}) {
-    const kind = kindRaw === "hue" ? "hue" : kindRaw === "wiz" ? "wiz" : "";
+    const kind = ["hue", "wiz", "govee"].includes(kindRaw) ? kindRaw : "";
     if (!kind) return Promise.resolve({ ok: false, error: "unsupported_discovery_kind" });
     if (discoveryWork.has(kind)) {
       discoveryCounters.joined += 1;
       return discoveryWork.get(kind);
     }
     discoveryCounters.started += 1;
+    if (kind === "govee" && typeof core.goveeBridge?.discoverDevices !== "function") {
+      return Promise.resolve({ ok: false, error: "govee_alpha_unavailable", devices: [] });
+    }
     const operation = Promise.resolve().then(() => kind === "hue"
       ? core.hueBridge.discoverBridges(input)
-      : core.wizBridge.discoverDevices(input));
+      : kind === "govee" ? core.goveeBridge.discoverDevices(input) : core.wizBridge.discoverDevices(input));
     const tracked = operation.then(result => {
       if (result?.ok === false) discoveryCounters.failed += 1;
       else discoveryCounters.completed += 1;
@@ -77,7 +80,7 @@ module.exports = function createHardwareOnboardingService(options = {}) {
   }
 
   function recordDiscovery(kindRaw, rowsRaw) {
-    const kind = kindRaw === "hue" ? "hue" : "wiz";
+    const kind = ["hue", "wiz", "govee"].includes(kindRaw) ? kindRaw : "wiz";
     const rows = Array.isArray(rowsRaw) ? rowsRaw.slice(0, 16) : [];
     const targets = [];
     for (const [index, row] of rows.entries()) {
@@ -91,11 +94,13 @@ module.exports = function createHardwareOnboardingService(options = {}) {
         bridgeId: text(row?.id, 128).toUpperCase(),
         name: text(row?.roomName || row?.moduleName, 96),
         moduleName: text(row?.moduleName, 96),
+        device: text(row?.device, 128),
+        sku: text(row?.sku, 32).toUpperCase(),
         expiresAt: Number(now() || Date.now()) + DISCOVERY_TTL_MS
       });
       targets.push({
         selectionToken,
-        label: kind === "hue" ? `Hue bridge ${index + 1}` : (text(row?.roomName || row?.moduleName, 96) || `WiZ device ${index + 1}`),
+        label: kind === "hue" ? `Hue bridge ${index + 1}` : kind === "govee" ? (text(row?.name, 96) || `Govee light ${index + 1}`) : (text(row?.roomName || row?.moduleName, 96) || `WiZ device ${index + 1}`),
         addressHint: maskAddress(ip)
       });
     }
@@ -319,6 +324,21 @@ module.exports = function createHardwareOnboardingService(options = {}) {
       : saved;
   }
 
+  function commitGovee(input = {}) {
+    const tokens = [...new Set((Array.isArray(input.selectionTokens) ? input.selectionTokens : [input.selectionToken]).map(validToken).filter(Boolean))].slice(0, MAX_COMMIT_FIXTURES);
+    const selected = tokens.map(token => takeDiscovery(token, "govee")).filter(row => row.ok).map(row => row.target);
+    if (!selected.length) return { ok: false, error: tokens.length ? "discovery_selection_expired" : "no_govee_devices_selected" };
+    const current = core.fixtureRegistry.getFixtures(), existingIds = new Set(current.map(row => row.id));
+    const fixtures = selected.map((target, index) => {
+      const existing = current.find(row => row.brand === "govee" && (row.extras?.device === target.device || row.ip === target.ip));
+      const displayName = target.name || `Govee ${target.sku || `light ${index + 1}`}`;
+      const id = existing?.id || uniqueFixtureId(`govee-${displayName}`, existingIds); existingIds.add(id);
+      return { id, name: displayName, brand: "govee", zone: slug(input.zone || target.name, "govee"), enabled: true, engineEnabled: true, twitchEnabled: input.twitchEnabled !== false, ip: target.ip, extras: { device: target.device, sku: target.sku, alpha: true, transport: "lan" } };
+    });
+    const saved = core.fixtureRegistry.upsertFixtures(fixtures);
+    return saved.ok ? { ok: true, alpha: true, installed: saved.fixtures.map(row => ({ id: row.id, name: row.name, zone: row.zone })) } : saved;
+  }
+
   function getDiagnostics() {
     prune(discovery, MAX_DISCOVERY_TARGETS);
     for (const [token, row] of huePairTargets) {
@@ -346,10 +366,15 @@ module.exports = function createHardwareOnboardingService(options = {}) {
         ? { ...probe, fixture: { id: fixture.id, name: fixture.name, brand: "wiz" } }
         : probe;
     }
+    if (fixture.brand === "govee") {
+      if (typeof core.goveeBridge?.probeDevice !== "function") return { ok: false, reachable: false, error: "govee_alpha_unavailable" };
+      const probe = await core.goveeBridge.probeDevice(fixture, { timeoutMs: input.timeoutMs });
+      return probe.ok ? { ...probe, fixture: { id: fixture.id, name: fixture.name, brand: "govee", alpha: true } } : probe;
+    }
     return { ok: false, reachable: false, error: "fixture_probe_unsupported" };
   }
 
-  return Object.freeze({ discover, recordDiscovery, selectDiscovery, prepareHue, pairHue, commitHue, commitWiz, testFixture, getDiagnostics });
+  return Object.freeze({ discover, recordDiscovery, selectDiscovery, prepareHue, pairHue, commitHue, commitWiz, commitGovee, testFixture, getDiagnostics });
 };
 
 module.exports.constants = { DISCOVERY_TTL_MS, HUE_PAIR_TARGET_TTL_MS, HUE_SETUP_TTL_MS, MAX_DISCOVERY_TARGETS, MAX_HUE_PAIR_TARGETS, MAX_HUE_SETUPS, MAX_COMMIT_FIXTURES };

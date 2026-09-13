@@ -79,6 +79,7 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
   const profile = String(options.profile || "clean-slate-core");
   const widgetOrigins = [...new Set((options.widgetOrigins || []).map(value => String(value || "").trim()).filter(Boolean))].slice(0, 8);
   const hardwareOnboarding = options.hardwareOnboarding;
+  const coreUpdates = options.coreUpdates;
   if (!app || typeof app.get !== "function" || !core) {
     throw new Error("registerLightingCoreRoutes requires app and core");
   }
@@ -94,6 +95,7 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
       twitchColors: true,
       hue: true,
       wiz: true,
+      govee: "alpha",
       widget: Boolean(widgetController),
       features: optionalCapabilities.features === true,
       mods: optionalCapabilities.mods === true,
@@ -129,7 +131,32 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
     return { ...payload, revision };
   }
 
-  app.get("/health", (req, res) => res.json({ ok: true, profile, capabilities: capabilitySnapshot() }));
+  app.get("/health", (req, res) => res.json({ ok: true, version: coreUpdates?.status?.().currentVersion || "unknown", profile, capabilities: capabilitySnapshot() }));
+  app.get("/system/update/status", (req, res) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    res.setHeader("Cache-Control", "no-store");
+    return res.json(coreUpdates?.status?.() || { ok: false, error: "updates_unavailable" });
+  });
+  app.post("/system/update/configure", (req, res) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    return res.json(coreUpdates.configure(req.body || {}));
+  });
+  app.post("/system/update/check", async (req, res, next) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    try { return res.json(await coreUpdates.check()); } catch (error) { return next(error); }
+  });
+  app.post("/system/update/download", async (req, res, next) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    try { return res.json(await coreUpdates.download()); } catch (error) { return next(error); }
+  });
+  app.post("/system/update/apply", (req, res, next) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    try { return res.status(202).json(coreUpdates.apply()); } catch (error) { return next(error); }
+  });
+  app.post("/system/update/rollback", (req, res, next) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    try { return res.status(202).json(coreUpdates.rollback()); } catch (error) { return next(error); }
+  });
   app.get("/system/capabilities", (req, res) => {
     res.json({ ok: true, profile, capabilities: capabilitySnapshot() });
   });
@@ -148,6 +175,7 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
     const hueTelemetry = core.hueBridge?.getTelemetry?.() || {};
     const hueEntertainment = hueTelemetry.entertainmentRuntime || {};
     const wizTelemetry = core.wizBridge?.getTelemetry?.() || {};
+    const goveeTelemetry = core.goveeBridge?.getTelemetry?.() || {};
     return res.json(publicDiagnostics(snapshot
       ? { ...snapshot, domains: {
         widget: widgetController?.getDiagnostics?.() || null,
@@ -166,7 +194,8 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
             dnsOverrideEvictions: Number(hueEntertainment.dnsOverrideEvictions || 0),
             activeSessions: Number(hueEntertainment.activeSessions || 0)
           },
-          wiz: wizTelemetry.resources || null
+          wiz: wizTelemetry.resources || null,
+          goveeAlpha: goveeTelemetry
         }
       } }
       : { ok: false, error: "diagnostics_unavailable" }));
@@ -182,7 +211,7 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
     try {
       const group = req.body?.groupId ? core.twitchLightRouting.resolveGroup(req.body.groupId) : null;
       if (req.body?.groupId && !group) return res.status(400).json({ ok: false, error: 'fixture_group_not_found' });
-      if (group && ['fixtureId', 'fixtureIds', 'target', 'zone', 'hueZone', 'wizZone'].some(key => req.body[key] !== undefined)) return res.status(400).json({ ok: false, error: 'ambiguous_light_group_target' });
+      if (group && ['fixtureId', 'fixtureIds', 'target', 'zone', 'hueZone', 'wizZone', 'goveeZone'].some(key => req.body[key] !== undefined)) return res.status(400).json({ ok: false, error: 'ambiguous_light_group_target' });
       const result = await core.colorCommandService.applyColorText(req.body?.text, {
         target: group ? 'both' : req.body?.target,
         targetExplicit: Boolean(group || req.body?.target),
@@ -191,7 +220,8 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
         mode: "direct",
         zone: req.body?.zone,
         hueZone: req.body?.hueZone,
-        wizZone: req.body?.wizZone
+        wizZone: req.body?.wizZone,
+        goveeZone: req.body?.goveeZone
       });
       res.status(result.ok === false ? 400 : 200).json(result);
     } catch (error) {
@@ -301,6 +331,23 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
     if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
     res.setHeader("Cache-Control", "no-store");
     const result = hardwareOnboarding.commitWiz(req.body || {});
+    return res.status(result.ok === false ? 400 : 200).json(result);
+  });
+  app.get("/govee/discover", async (req, res, next) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    if (hasForeignOrigin(req)) return res.status(403).json({ ok: false, error: "same_origin_required" });
+    try {
+      const result = await hardwareOnboarding.discover("govee", { timeoutMs: req.query?.timeoutMs });
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(result.ok === false ? 503 : 200).json(result.ok === false
+        ? { ok: false, error: String(result.error || "govee_discovery_failed"), targets: [], alpha: true }
+        : { ok: true, kind: "govee", alpha: true, count: result.devices.length, targets: hardwareOnboarding.recordDiscovery("govee", result.devices) });
+    } catch (error) { return next(error); }
+  });
+  app.post("/govee/onboarding/commit", (req, res) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    res.setHeader("Cache-Control", "no-store");
+    const result = hardwareOnboarding.commitGovee(req.body || {});
     return res.status(result.ok === false ? 400 : 200).json(result);
   });
   app.post("/hardware/discovery/select", (req, res) => {

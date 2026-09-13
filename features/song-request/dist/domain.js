@@ -76,6 +76,7 @@ function createSongQueue(options = {}) {
   let overlayRevision = 0;
   let overlay = overlayFrom(DEFAULT_OVERLAY);
   let managedPlayback = null;
+  let playbackEnabled = false;
   let playbackSource = "youtube";
   let playlist = [];
   let playlistMode = "off";
@@ -99,7 +100,7 @@ function createSongQueue(options = {}) {
     const primary = playbackSource === "youtube"
       ? managed?.status === "playing" ? managed : playingObserved || managed || selected[0] || null
       : playingObserved || selected[0] || null;
-    return { ok: true, revision: playbackRevision, playbackSource, primary, managed, observed };
+    return { ok: true, revision: playbackRevision, playbackSource, playbackEnabled, primary, managed, observed };
   }
 
   function configurePlaybackSource(payload = {}) {
@@ -137,6 +138,7 @@ function createSongQueue(options = {}) {
       ? payload.providers.slice(0, 8).map(value => text(value, 40).toLowerCase()).filter(value => PROVIDER_RE.test(value))
       : [];
     if (!driverId || !providers.length) return { ok: false, code: "driver_invalid" };
+    if (!playbackEnabled) return { ok: true, code: "idle", action: null, revision: playbackRevision };
     if (managedPlayback) {
       if (managedPlayback.driverId !== driverId || managedPlayback.status !== "loading") return { ok: true, code: "idle", action: null, revision: playbackRevision };
       return { ok: true, code: "load", action: { leaseId: managedPlayback.leaseId, entryId: managedPlayback.entryId, origin: managedPlayback.origin || "queue", candidate: clonePlayback(managedPlayback).candidate }, revision: playbackRevision };
@@ -303,7 +305,9 @@ function createSongQueue(options = {}) {
     if (catalogFailure) return response(false, "rejected", { reason: catalogFailure });
     const candidate = candidateFrom(payload.candidate, query);
     if (!candidate) return response(false, "rejected", { reason: "candidate_invalid" });
-    if (requestProviders && (!requestProviders.has(candidate.provider) || candidate.provider === "youtube" && !/^[A-Za-z0-9_-]{11}$/.test(candidate.providerItemId))) {
+    if (requestProviders && (!requestProviders.has(candidate.provider)
+      || candidate.provider === "youtube" && !/^[A-Za-z0-9_-]{11}$/.test(candidate.providerItemId)
+      || candidate.provider === "soundcloud" && !/^soundcloud:tracks:[A-Za-z0-9_-]+$/.test(candidate.providerItemId))) {
       return response(false, "rejected", { reason: "youtube_reference_required" });
     }
     if (candidate.durationMs > limits.maxDurationMs) return response(false, "rejected", { reason: "duration_limit" });
@@ -387,6 +391,10 @@ function createSongQueue(options = {}) {
       case "resume":
         paused = action === "pause";
         return { ok: true, code: action, paused };
+      case "playback_start":
+        playbackEnabled = true;
+        playbackRevision += 1;
+        return { ok: true, code: "playback_started", playbackEnabled, revision: playbackRevision };
       case "clear": {
         const removed = queue.length;
         queue = [];
@@ -401,6 +409,7 @@ function createSongQueue(options = {}) {
       case "playlist_shuffle":
       case "playlist_stop":
         playlistMode = action === "playlist_play" ? "sequential" : action === "playlist_shuffle" ? "shuffle" : "off";
+        if (action !== "playlist_stop" && payload.arm !== false) playbackEnabled = true;
         if (action === "playlist_stop" && managedPlayback?.origin === "playlist") {
           managedPlayback = null;
           playbackRevision += 1;
@@ -585,7 +594,9 @@ function createSongQueue(options = {}) {
       const requestId = text(row?.requestId, 160);
       const storedRequester = text(row?.requesterKey || row?.requesterId, 160);
       if (!candidate || !requestId || !storedRequester) continue;
-      if (requestProviders && (!requestProviders.has(candidate.provider) || candidate.provider === "youtube" && !/^[A-Za-z0-9_-]{11}$/.test(candidate.providerItemId))) continue;
+      if (requestProviders && (!requestProviders.has(candidate.provider)
+        || candidate.provider === "youtube" && !/^[A-Za-z0-9_-]{11}$/.test(candidate.providerItemId)
+        || candidate.provider === "soundcloud" && !/^soundcloud:tracks:[A-Za-z0-9_-]+$/.test(candidate.providerItemId))) continue;
       restored.push({
         id: text(row.id, 160) || `restored_${restored.length + 1}`,
         requestId,

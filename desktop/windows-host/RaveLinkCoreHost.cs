@@ -14,8 +14,8 @@ using Microsoft.Win32;
 [assembly: System.Reflection.AssemblyDescription("RaveLink Core Windows runtime host")]
 [assembly: System.Reflection.AssemblyCompany("NameSRoby")]
 [assembly: System.Reflection.AssemblyProduct("RaveLink Core")]
-[assembly: System.Reflection.AssemblyVersion("0.6.1.0")]
-[assembly: System.Reflection.AssemblyFileVersion("0.6.1.0")]
+[assembly: System.Reflection.AssemblyVersion("0.6.2.0")]
+[assembly: System.Reflection.AssemblyFileVersion("0.6.2.0")]
 
 namespace RaveLink.Core.WindowsHost
 {
@@ -82,6 +82,9 @@ namespace RaveLink.Core.WindowsHost
         private bool exiting;
         private bool openedDashboard;
 
+        private string PendingUpdatePath { get { return Path.Combine(root, "runtime", "updates", "pending-health.json"); } }
+        private string AvailableRollbackPath { get { return Path.Combine(root, "runtime", "updates", "available-rollback.json"); } }
+
         internal CoreApplicationContext(string rootDirectory)
         {
             root = Path.GetFullPath(rootDirectory);
@@ -120,8 +123,10 @@ namespace RaveLink.Core.WindowsHost
             try
             {
                 int port = ServerControl.Port();
-                if (await ServerControl.IsHealthyAsync(port))
+                string expectedUpdateVersion = PendingUpdateVersion();
+                if (await ServerControl.IsHealthyVersionAsync(port, expectedUpdateVersion))
                 {
+                    ConfirmPendingUpdate();
                     SetStatus("Server online", ToolTipIcon.Info);
                     OpenDashboardOnce(port);
                     return;
@@ -150,6 +155,8 @@ namespace RaveLink.Core.WindowsHost
                     RedirectStandardOutput = true,
                     RedirectStandardError = true
                 };
+                start.EnvironmentVariables["RAVELINK_WINDOWS_HOST"] = "1";
+                start.EnvironmentVariables["RAVELINK_HOST_PID"] = Process.GetCurrentProcess().Id.ToString();
                 server = new Process { StartInfo = start, EnableRaisingEvents = true };
                 server.OutputDataReceived += delegate(object sender, DataReceivedEventArgs e) { if (e.Data != null) HostLog.Write(root, e.Data); };
                 server.ErrorDataReceived += delegate(object sender, DataReceivedEventArgs e) { if (e.Data != null) HostLog.Write(root, e.Data); };
@@ -165,8 +172,9 @@ namespace RaveLink.Core.WindowsHost
 
                 for (int attempt = 0; attempt < 60 && !server.HasExited; attempt++)
                 {
-                    if (await ServerControl.IsHealthyAsync(port))
+                    if (await ServerControl.IsHealthyVersionAsync(port, expectedUpdateVersion))
                     {
+                        ConfirmPendingUpdate();
                         SetStatus("Server online", ToolTipIcon.Info);
                         OpenDashboardOnce(port);
                         return;
@@ -174,11 +182,13 @@ namespace RaveLink.Core.WindowsHost
                     await Task.Delay(250);
                 }
                 SetStatus("Server did not become ready", ToolTipIcon.Error);
+                if (!String.IsNullOrEmpty(expectedUpdateVersion)) await RollbackPendingUpdateAsync();
             }
             catch (Exception error)
             {
                 HostLog.Write(root, "Host startup failed: " + error.GetType().Name);
                 SetStatus("Server startup failed", ToolTipIcon.Error);
+                if (File.Exists(PendingUpdatePath)) uiContext.Post(async delegate { await RollbackPendingUpdateAsync(); }, null);
             }
             finally { lifecycle.Release(); }
         }
@@ -220,6 +230,59 @@ namespace RaveLink.Core.WindowsHost
         {
             if (exiting) return;
             uiContext.Post(delegate { if (!exiting) SetStatus("Server stopped", ToolTipIcon.Warning); }, null);
+        }
+
+        private string PendingUpdateVersion()
+        {
+            try
+            {
+                if (!File.Exists(PendingUpdatePath)) return "";
+                string json = File.ReadAllText(PendingUpdatePath, Encoding.UTF8);
+                var match = System.Text.RegularExpressions.Regex.Match(json, "\\\"updatedVersion\\\"\\s*:\\s*\\\"(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\\\"");
+                return match.Success ? match.Groups["version"].Value : "invalid";
+            }
+            catch { return "invalid"; }
+        }
+
+        private void ConfirmPendingUpdate()
+        {
+            try
+            {
+                if (!File.Exists(PendingUpdatePath)) return;
+                Directory.CreateDirectory(Path.GetDirectoryName(AvailableRollbackPath));
+                if (File.Exists(AvailableRollbackPath)) File.Delete(AvailableRollbackPath);
+                File.Move(PendingUpdatePath, AvailableRollbackPath);
+                string staged = Path.Combine(root, "runtime", "updates", "staged.json");
+                if (File.Exists(staged)) File.Delete(staged);
+                HostLog.Write(root, "Update health check passed; rollback snapshot retained.");
+            }
+            catch (Exception error) { HostLog.Write(root, "Could not confirm update: " + error.GetType().Name); }
+        }
+
+        private async Task RollbackPendingUpdateAsync()
+        {
+            if (exiting) return;
+            exiting = true;
+            SetStatus("Update failed; restoring previous version", ToolTipIcon.Error);
+            await StopServerAsync();
+            try
+            {
+                string runner = Path.Combine(root, "runtime", "updates", "ravelink-update-runner.ps1");
+                if (!File.Exists(runner)) throw new FileNotFoundException("Update rollback helper is missing.", runner);
+                var rollback = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = "-NoProfile -ExecutionPolicy Bypass -File " + Quote(runner) + " -Action Rollback -Root " + Quote(root) + " -HostPid " + Process.GetCurrentProcess().Id,
+                    WorkingDirectory = root,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+                Process.Start(rollback);
+                HostLog.Write(root, "Automatic rollback started.");
+            }
+            catch (Exception error) { HostLog.Write(root, "Automatic rollback could not start: " + error.GetType().Name); }
+            FinishExit();
         }
 
         private void OnSessionEnding(object sender, SessionEndingEventArgs args)
@@ -271,12 +334,24 @@ namespace RaveLink.Core.WindowsHost
 
         internal static async Task<bool> IsHealthyAsync(int port)
         {
+            return await IsHealthyVersionAsync(port, "");
+        }
+
+        internal static async Task<bool> IsHealthyVersionAsync(int port, string expectedVersion)
+        {
             try
             {
                 var request = WebRequest.CreateHttp("http://127.0.0.1:" + port + "/health");
                 request.Method = "GET";
                 request.Timeout = 800;
-                using (var response = (HttpWebResponse)await request.GetResponseAsync()) return response.StatusCode == HttpStatusCode.OK;
+                using (var response = (HttpWebResponse)await request.GetResponseAsync())
+                using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
+                {
+                    if (response.StatusCode != HttpStatusCode.OK) return false;
+                    if (String.IsNullOrEmpty(expectedVersion)) return true;
+                    string body = await reader.ReadToEndAsync();
+                    return body.Contains("\"version\":\"" + expectedVersion + "\"");
+                }
             }
             catch { return false; }
         }

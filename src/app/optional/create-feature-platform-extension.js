@@ -11,6 +11,7 @@ module.exports = function createFeaturePlatformExtension(options = {}) {
     let registry;
     let twitchOAuth;
     let youtubeCatalog;
+    let soundCloudCatalog;
     const chatCommands = createTwitchChatCommandRouter({
       submitSongRequest: payload => registry.request("song-request", "song.queue.submit.v1", "submit", payload, { timeoutMs: 12000 }),
       selfManageSongRequest: payload => registry.request("song-request", "song.queue.submit.v1", "self", payload, { timeoutMs: 1500 }),
@@ -60,6 +61,13 @@ module.exports = function createFeaturePlatformExtension(options = {}) {
       }
       return youtubeCatalog;
     }
+    function soundCloudProvider() {
+      if (!soundCloudCatalog) {
+        const { createSoundCloudCatalogProvider } = require("../../capabilities/feature-platform/providers/soundcloud-catalog-provider");
+        soundCloudCatalog = createSoundCloudCatalogProvider({ vaultPath: path.join(context.runtimeDir, "features", "soundcloud-catalog.vault.json"), egressGovernor: context.egressGovernor });
+      }
+      return soundCloudCatalog;
+    }
     const mediaObserver = createWindowsMediaObserver({
       observerPath: path.join(rootDir, "scripts", "windows-media-observer.ps1"),
       onSnapshot: payload => registry.request("song-request", "song.playback.observe.v1", "observe", payload, { timeoutMs: 1000 })
@@ -79,6 +87,7 @@ module.exports = function createFeaturePlatformExtension(options = {}) {
         "twitch.host.v1/disconnect": () => twitchProvider().disconnect(),
         "twitch.host.v1/inspect-reward": payload => twitchProvider().inspectReward(payload),
         "twitch.host.v1/create-reward": payload => twitchProvider().createReward(payload),
+        "twitch.rewards.manage.v1/set-paused": payload => twitchProvider().setManagedRewardPaused(payload),
         "twitch.host.v1/settle": payload => twitchProvider().settle(payload),
         "twitch.host.v1/send-chat": payload => twitchProvider().sendChat(payload),
         "youtube.catalog.host.v1/status": () => youtubeProvider().status(),
@@ -89,6 +98,14 @@ module.exports = function createFeaturePlatformExtension(options = {}) {
         "youtube.catalog.host.v1/import-playlist-status": payload => youtubeProvider().importPlaylistStatus(payload),
         "youtube.catalog.host.v1/import-playlist-page": payload => youtubeProvider().importPlaylistPage(payload),
         "youtube.catalog.host.v1/import-playlist-cancel": payload => youtubeProvider().importPlaylistCancel(payload),
+        "soundcloud.catalog.host.v1/status": () => soundCloudProvider().status(),
+        "soundcloud.catalog.host.v1/configure": payload => soundCloudProvider().configure(payload),
+        "soundcloud.catalog.host.v1/clear": () => soundCloudProvider().clear(),
+        "soundcloud.catalog.host.v1/resolve": payload => soundCloudProvider().resolve(payload),
+        "soundcloud.catalog.host.v1/import-playlist-start": payload => soundCloudProvider().importPlaylistStart(payload),
+        "soundcloud.catalog.host.v1/import-playlist-status": payload => soundCloudProvider().importPlaylistStatus(payload),
+        "soundcloud.catalog.host.v1/import-playlist-page": payload => soundCloudProvider().importPlaylistPage(payload),
+        "soundcloud.catalog.host.v1/import-playlist-cancel": payload => soundCloudProvider().importPlaylistCancel(payload),
         ...(options.providers || {})
       },
       allowUnsafeRuntime: options.allowUnsafeRuntime === true

@@ -6,6 +6,7 @@ let fixtureGroups = [];
 let twitchProgramUi;
 let widgetSecurityStatus = {};
 let songRequestAvailable = false;
+let coreUpdateStatus = null;
 
 async function request(path, options = {}) {
   const headers = { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(options.headers || {}) };
@@ -64,6 +65,7 @@ const buttonExplanations = {
   discoverHue: "Search the local network for Philips Hue bridges. After discovery, the next pairing step will be shown.",
   pairHueManual: "Connect to the selected Hue bridge after pressing its physical link button.",
   discoverWiz: "Search the local network for WiZ lights and choose which fixtures to add.",
+  discoverGovee: "Search for Govee lights with LAN Control enabled. This adapter is an alpha feature.",
   refreshFixtures: "Reload saved fixtures and their current connection state.",
   saveFixture: "Save the fixture information currently entered in this form.",
   clearFixture: "Clear the fixture form without deleting saved fixtures.",
@@ -156,7 +158,7 @@ function configuredLightFixtures() {
 
 function applyLightingReadiness() {
   const ready = configuredLightFixtures();
-  const directReason = "Pair a Hue bridge or add a discovered WiZ fixture before controlling lights.";
+  const directReason = "Pair a Hue bridge or add a discovered WiZ or Govee fixture before controlling lights.";
   const twitchReady = ready.some(row => row.twitchEnabled === true);
   const twitchReason = "Add and enable at least one Twitch-controlled fixture before programming channel-point routing.";
   for (const element of [byId("lightTarget"), byId("colorText"), byId("colorPicker"), byId("brightness"), byId("applyColor"), ...document.querySelectorAll("[data-color]")]) {
@@ -175,7 +177,8 @@ function showDiscoveryResult(result) {
   output.style.color = "#c9d8ff";
   output.replaceChildren();
   const heading = document.createElement("strong");
-  heading.textContent = `${Number(result.count || 0)} ${result.kind === "hue" ? "Hue bridge" : "WiZ device"}${result.count === 1 ? "" : "s"} found`;
+  const kindLabel = result.kind === "hue" ? "Hue bridge" : result.kind === "govee" ? "Govee device (alpha)" : "WiZ device";
+  heading.textContent = `${Number(result.count || 0)} ${kindLabel}${result.count === 1 ? "" : "s"} found`;
   output.append(heading);
   const targets = result.targets || [];
   if (result.kind === "hue" && targets.length === 0) {
@@ -204,7 +207,8 @@ function showDiscoveryResult(result) {
           use.textContent = "SELECTING";
           await selectDiscoveredHue(target);
         } else {
-          const saved = await request("/wiz/onboarding/commit", { method: "POST", body: JSON.stringify({ selectionToken: target.selectionToken, zone: byId("fixtureZone").value }) });
+          const endpoint = result.kind === "govee" ? "/govee/onboarding/commit" : "/wiz/onboarding/commit";
+          const saved = await request(endpoint, { method: "POST", body: JSON.stringify({ selectionToken: target.selectionToken, zone: byId("fixtureZone").value }) });
           label.textContent = `${target.label} added`;
           use.remove();
           await loadFixtures();
@@ -218,13 +222,14 @@ function showDiscoveryResult(result) {
     }
     output.append(row);
   }
-  if (result.kind === "wiz" && targets.length > 1) {
+  if (["wiz", "govee"].includes(result.kind) && targets.length > 1) {
     const addAll = document.createElement("button");
     addAll.type = "button";
     addAll.textContent = "ADD ALL";
     addAll.onclick = async () => {
       try {
-        const saved = await request("/wiz/onboarding/commit", { method: "POST", body: JSON.stringify({ selectionTokens: targets.map(row => row.selectionToken), zone: byId("fixtureZone").value }) });
+        const endpoint = result.kind === "govee" ? "/govee/onboarding/commit" : "/wiz/onboarding/commit";
+        const saved = await request(endpoint, { method: "POST", body: JSON.stringify({ selectionTokens: targets.map(row => row.selectionToken), zone: byId("fixtureZone").value }) });
         await loadFixtures();
         showResult("fixtureActionResult", saved);
       } catch (error) { showResult("fixtureActionResult", error.message, true); }
@@ -304,6 +309,7 @@ function showHueSetup(result) {
   zoneLabel.append(zone);
   const twitchLabel = document.createElement("label");
   twitchLabel.className = "checkLabel";
+  twitchLabel.title = "Allow Twitch color commands to control the selected Hue lights.";
   const twitch = document.createElement("input");
   twitch.type = "checkbox";
   twitch.checked = byId("fixtureTwitch").checked;
@@ -426,6 +432,9 @@ function fixtureTestFailure(error) {
     wiz_probe_timeout: "The WiZ light did not answer. Confirm it is powered and on the same local network, then rediscover WiZ.",
     wiz_probe_failed: "The WiZ light could not be reached. Rediscover WiZ to refresh its saved address.",
     wiz_probe_transport_unavailable: "WiZ network probing is unavailable on this system.",
+    govee_probe_timeout: "The Govee light did not answer. Enable LAN Control in Govee Home, confirm it is powered and on this network, then rediscover it.",
+    govee_probe_failed: "The Govee light could not be reached over its local LAN API.",
+    govee_probe_transport_unavailable: "Govee LAN probing is unavailable on this system.",
     fixture_not_found: "This fixture is no longer saved. Refresh the fixture list."
   };
   return messages[error] || `The fixture test failed (${String(error || "unknown error").replaceAll("_", " ")}). Check its pairing and network settings.`;
@@ -435,7 +444,7 @@ function renderLightTargets() {
   const select = byId("lightTarget");
   const current = select.value || "all";
   const options = [
-    ["all", "ALL LIGHTS"], ["brand:hue", "ALL HUE"], ["brand:wiz", "ALL WIZ"],
+    ["all", "ALL LIGHTS"], ["brand:hue", "ALL HUE"], ["brand:wiz", "ALL WIZ"], ["brand:govee", "ALL GOVEE (ALPHA)"],
     ...fixtureGroups.filter(row => row.enabled !== false && row.fixtureIds?.length).map(row => [`group:${row.id}`, `GROUP: ${row.name}`]),
     ...[...new Set(fixtures.map(row => row.zone).filter(Boolean))].sort().map(zone => [`zone:${zone}`, `ZONE: ${zone.toUpperCase()}`]),
     ...fixtures.map(row => [`fixture:${row.id}`, `${String(row.brand).toUpperCase()}: ${row.name || row.id}`])
@@ -519,6 +528,14 @@ byId("discoverHue").onclick = async () => {
   finally { byId("discoverHue").disabled = false; byId("discoverHue").textContent = "1 // DISCOVER HUE"; }
 };
 byId("discoverWiz").onclick = async () => { try { showDiscoveryResult(await request("/wiz/discover")); } catch (error) { showResult("fixtureActionResult", error.message, true); } };
+byId("discoverGovee").onclick = async () => {
+  const button = byId("discoverGovee");
+  button.disabled = true;
+  button.textContent = "SEARCHING FOR GOVEE";
+  try { showDiscoveryResult(await request("/govee/discover")); }
+  catch (error) { showResult("fixtureActionResult", error.message, true); }
+  finally { button.disabled = false; button.textContent = "FIND GOVEE LIGHTS"; }
+};
 byId("pairHueManual").onclick = async () => {
   const bridgeIp = byId("fixtureBridgeIp").value;
   if (!bridgeIp) return showResult("fixtureActionResult", "Enter a Hue bridge address or use discovery.", true);
@@ -544,8 +561,7 @@ byId("applyColor").onclick = async () => {
   else body.target = "both";
   try {
     const result = await request('/color', { method: 'POST', body: JSON.stringify(body) });
-    const dryRun = result.hueDelivery?.dryRun || result.wizDelivery?.dryRun;
-    const matched = Number(result.hueTargets || 0) + Number(result.wizTargets || 0);
+    const dryRun = result.hueDelivery?.dryRun || result.wizDelivery?.dryRun || result.goveeDelivery?.dryRun;
     const destination = Array.isArray(result.targets) && result.targets.length ? result.targets.join(', ') : 'no fixtures';
     const command = `${result.hex || 'brightness only'} at ${result.brightnessPercent}%`;
     const summary = dryRun ? `Dry run: ${command} matched ${destination}. No hardware command sent.`
@@ -714,6 +730,59 @@ byId("copyWidget").onclick = async () => {
   }
 };
 
+function renderCoreUpdateStatus(value) {
+  coreUpdateStatus = value;
+  byId("installedVersion").textContent = value.currentVersion || "UNKNOWN";
+  byId("latestVersion").textContent = value.latest?.version || "NOT CHECKED";
+  byId("stagedVersion").textContent = value.staged?.version || "NONE";
+  byId("rollbackVersion").textContent = value.rollback?.version || "NONE";
+  byId("checkUpdatesOnLaunch").checked = value.checkOnLaunch === true;
+  const available = value.latest?.available === true;
+  byId("downloadUpdate").disabled = !available;
+  byId("applyUpdate").disabled = value.staged?.verified !== true || value.hosted !== true;
+  byId("rollbackUpdate").disabled = !value.rollback || value.hosted !== true;
+  byId("updateStatus").textContent = value.checking ? "CHECKING" : value.staged ? "READY TO INSTALL" : available ? "UPDATE AVAILABLE" : "CURRENT";
+  byId("updateNotice").textContent = value.lastError
+    ? `UPDATE CHECK FAILED // ${value.lastError.replaceAll("_", " ").toUpperCase()}`
+    : available
+      ? `VERSION ${value.latest.version} IS AVAILABLE. DOWNLOAD VERIFIES THE RELEASE CHECKSUM BEFORE INSTALLATION.`
+      : value.latest
+        ? "THIS INSTALLATION MATCHES THE LATEST STABLE RELEASE."
+        : "AUTOMATIC CHECKS ARE OPT-IN. UPDATES ARE NEVER INSTALLED WITHOUT YOUR ACTION.";
+  byId("updateNotice").className = `notice${value.lastError ? " bad" : ""}`;
+}
+
+async function updateAction(path, body) {
+  const value = await request(path, { method: "POST", body: JSON.stringify(body || {}) });
+  if (value.currentVersion) renderCoreUpdateStatus(value);
+  return value;
+}
+
+byId("saveUpdatePreference").onclick = async () => {
+  try { renderCoreUpdateStatus(await updateAction("/system/update/configure", { checkOnLaunch: byId("checkUpdatesOnLaunch").checked })); }
+  catch (error) { byId("updateNotice").textContent = `PREFERENCE NOT SAVED // ${error.message}`; byId("updateNotice").className = "notice bad"; }
+};
+byId("checkForUpdate").onclick = async () => {
+  try { renderCoreUpdateStatus(await updateAction("/system/update/check")); }
+  catch (error) { byId("updateNotice").textContent = `UPDATE CHECK FAILED // ${error.message}`; byId("updateNotice").className = "notice bad"; }
+};
+byId("downloadUpdate").onclick = async () => {
+  byId("downloadUpdate").disabled = true;
+  byId("updateNotice").textContent = "DOWNLOADING AND VERIFYING RELEASE...";
+  try { renderCoreUpdateStatus(await updateAction("/system/update/download")); }
+  catch (error) { byId("updateNotice").textContent = `DOWNLOAD FAILED // ${error.message}`; byId("updateNotice").className = "notice bad"; }
+};
+byId("applyUpdate").onclick = async () => {
+  if (!confirm(`Install RaveLink Core ${coreUpdateStatus?.staged?.version || "update"} now? The server will restart after creating a rollback snapshot.`)) return;
+  try { await updateAction("/system/update/apply"); byId("updateNotice").textContent = "UPDATE STARTED // RAVELINK CORE WILL REOPEN AFTER ITS HEALTH CHECK"; }
+  catch (error) { byId("updateNotice").textContent = `INSTALL FAILED // ${error.message}`; byId("updateNotice").className = "notice bad"; }
+};
+byId("rollbackUpdate").onclick = async () => {
+  if (!confirm(`Restore RaveLink Core ${coreUpdateStatus?.rollback?.version || "previous version"} now? Current settings and installed feature state will be preserved.`)) return;
+  try { await updateAction("/system/update/rollback"); byId("updateNotice").textContent = "ROLLBACK STARTED // RAVELINK CORE WILL REOPEN ON THE PREVIOUS VERSION"; }
+  catch (error) { byId("updateNotice").textContent = `ROLLBACK FAILED // ${error.message}`; byId("updateNotice").className = "notice bad"; }
+};
+
 async function boot() {
   try {
     const status = await request("/system/status");
@@ -723,6 +792,7 @@ async function boot() {
     fixtures = status.fixtures?.items || [];
     fixtureConnectivity = new Map((status.fixtures?.connectivity?.rows || []).map(row => [row.id, row]));
     songRequestAvailable = status.capabilities?.songRequest === true;
+    renderCoreUpdateStatus(await request("/system/update/status"));
     renderFixtures();
     applyWidgetSecurity(status.widgetSecurity);
     twitchProgramUi = await import('/twitch-light-program.js').then(module => module.initTwitchLightProgram({ request, initialState: status.twitchLightRouting, getFixtures: () => fixtures, changed: groups => { fixtureGroups = groups; renderLightTargets(); } }));

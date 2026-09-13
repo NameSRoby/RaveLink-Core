@@ -52,7 +52,7 @@ export function initTwitchLightProgram({ request, initialState, getFixtures, cha
   }
   function groupControls(rule, active = false) {
     const controls = document.createElement('div'); controls.className = 'fixtureZoneSettings';
-    const enabled = document.createElement('label'), check = document.createElement('input'); check.type = 'checkbox'; check.checked = rule.enabled;
+    const enabled = document.createElement('label'), check = document.createElement('input'); enabled.className = 'checkLabel'; enabled.title = 'Include this fixture group when Twitch color commands are routed.'; check.type = 'checkbox'; check.checked = rule.enabled;
     check.onchange = () => { rule.enabled = check.checked; markDirty(); }; enabled.append(check, document.createTextNode(' ENABLED')); controls.append(enabled);
     if (!active) {
       const nameLabel = document.createElement('label'); nameLabel.className = 'fixtureZoneField'; nameLabel.append(document.createTextNode('NAME'));

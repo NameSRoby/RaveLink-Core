@@ -44,3 +44,11 @@ test("feature package rejects payload tampering and undeclared files", async t =
   fs.writeFileSync(path.join(temp, "undeclared.txt"), "no");
   assert.equal((await verifyFeaturePackageDirectory(temp)).error, "integrity_inventory_mismatch");
 });
+
+test("playlist management presents an explicit delete dialog and bounded toggle controls", () => {
+  const html = fs.readFileSync(path.join(root, "ui", "server-playlist.html"), "utf8");
+  assert.match(html, /<dialog id="deleteDialog">/);
+  assert.match(html, /id="confirmDelete"/);
+  assert.match(html, /deleteDialog\.showModal\(\)/);
+  assert.match(html, /class="switchLabel"/);
+});

@@ -12,20 +12,22 @@ function text(value, maximum) {
 
 function normalizeTrack(row, now) {
   const candidate = row?.candidate || row;
-  const providerItemId = text(candidate?.providerItemId, 20);
-  if (!/^[A-Za-z0-9_-]{11}$/.test(providerItemId)) return null;
+  const provider = candidate?.provider === "soundcloud" ? "soundcloud" : "youtube";
+  const providerItemId = text(candidate?.providerItemId, 160);
+  if (provider === "youtube" ? !/^[A-Za-z0-9_-]{11}$/.test(providerItemId) : !/^soundcloud:tracks:[A-Za-z0-9_-]+$/.test(providerItemId)) return null;
+  const sourceUrl = provider === "youtube" ? `https://www.youtube.com/watch?v=${providerItemId}` : text(candidate?.sourceUrl, 500);
   return {
-    id: `pl_${providerItemId}`,
-    identity: `youtube:${providerItemId}`,
+    id: provider === "youtube" ? `pl_${providerItemId}` : `pl_${crypto.createHash("sha256").update(`${provider}:${providerItemId}`).digest("hex").slice(0, 20)}`,
+    identity: `${provider}:${providerItemId}`,
     addedAt: Number(row?.addedAt) || now,
     candidate: {
-      provider: "youtube",
+      provider,
       providerItemId,
       title: text(candidate?.title, 300) || providerItemId,
       artists: Array.isArray(candidate?.artists) ? candidate.artists.map(value => text(value, 100)).filter(Boolean).slice(0, 8) : [],
       album: text(candidate?.album, 200),
       durationMs: Math.max(0, Math.min(86400000, Number(candidate?.durationMs) || 0)),
-      sourceUrl: `https://www.youtube.com/watch?v=${providerItemId}`
+      sourceUrl
     }
   };
 }
@@ -84,6 +86,14 @@ function createPlaylistLibrary(options = {}) {
     if (!collections.has(id)) return { ok: false, code: "playlist_not_found" };
     selectedId = id;
     return { ok: true, code: "playlist_selected", collection: metadata(active()), tracks: active().tracks };
+  }
+
+  function selectRandom(random = Math.random) {
+    const userLists = [...collections.values()].filter(row => !row.purpose && row.tracks.length);
+    const choices = userLists.length ? userLists : [...collections.values()].filter(row => row.tracks.length);
+    if (!choices.length) return { ok: false, code: "playlist_empty" };
+    const index = Math.min(choices.length - 1, Math.floor(Math.max(0, Number(random()) || 0) * choices.length));
+    return select(choices[index].id);
   }
 
   function rename(id, name) {
@@ -186,7 +196,7 @@ function createPlaylistLibrary(options = {}) {
     return { index: { version: 2, selectedId, history: { enabled: historyEnabled, destinationId: historyDestinationId }, collections: metadataRows }, pages };
   }
 
-  return Object.freeze({ active, capture, capturePlayed, configureHistory, create, ensureChatCollection, exportStorage, remove, rename, replace, restore, select, status });
+  return Object.freeze({ active, capture, capturePlayed, configureHistory, create, ensureChatCollection, exportStorage, remove, rename, replace, restore, select, selectRandom, status });
 }
 
 module.exports = { CHAT_HISTORY_PURPOSE, MAX_COLLECTIONS, MAX_TRACKS, MAX_USER_COLLECTIONS, PAGE_SIZE, createPlaylistLibrary, normalizeTrack };

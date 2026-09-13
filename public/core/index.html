@@ -67,7 +67,7 @@
           value="65" /></label
       ><button id="resetTheme" type="button">RESET THEME</button>
       <div class="developerModeControl">
-        <label class="checkLabel" title="Show advanced developer-only controls in feature pages."
+        <label class="checkLabel" title="Show advanced controls intended for operators who manage their own API applications."
           ><input id="developerMode" type="checkbox" /> DEVELOPER MODE</label
         >
       </div>
@@ -78,6 +78,7 @@
       ><button class="tabButton" data-tab="fixtures" type="button">
         FIXTURES</button
       ><button class="tabButton" data-tab="widget" type="button">WIDGET</button
+      ><button class="tabButton" data-tab="updates" type="button">UPDATES</button
       ><button
         id="featuresTab"
         class="tabButton"
@@ -119,6 +120,7 @@
                 <option value="all">ALL LIGHTS</option>
                 <option value="brand:hue">ALL HUE</option>
                 <option value="brand:wiz">ALL WIZ</option>
+                <option value="brand:govee">ALL GOVEE (ALPHA)</option>
               </select></label
             ><label
               >COLOR OR DIRECTIVE<input
@@ -191,10 +193,10 @@
                   min="1"
                   max="100"
                   value="100" /></label
-              ><label class="checkLabel"
+              ><label class="checkLabel" title="Allow the parser to correct small spelling mistakes in color names and commands."
                 ><input id="parserFuzzy" type="checkbox" checked /> TYPO
                 MATCHING</label
-              ><label class="checkLabel"
+              ><label class="checkLabel" title="Understand words such as deep, pale, warm, and cool when viewers request a color."
                 ><input id="parserDescriptors" type="checkbox" checked /> COLOR
                 DESCRIPTORS</label
               >
@@ -247,6 +249,13 @@
             ><button id="pairHueManual" type="button" disabled>2 // PAIR SELECTED BRIDGE</button
             ><button id="discoverWiz" type="button">DISCOVER WIZ</button>
           </div>
+          <details class="providerSetupCard goveeSetup" open>
+            <summary class="providerSetupHead"><div><span>OPTIONAL LOCAL DEVICE SUPPORT</span><h4>GOVEE LAN</h4></div><span class="alphaBadge">ALPHA</span></summary>
+            <p>RaveLink controls compatible Govee lights directly over your home network. No Govee cloud password or API key is needed.</p>
+            <ol><li>Open the <strong>Govee Home</strong> app and select a light.</li><li>Open that light's settings and turn on <strong>LAN Control</strong>. Repeat this for every light you want to use.</li><li>Keep this computer and the lights on the same network, then select <strong>Find Govee Lights</strong>.</li></ol>
+            <div class="actions"><button id="discoverGovee" type="button">FIND GOVEE LIGHTS</button></div>
+            <details><summary>Compatibility and troubleshooting</summary><p>Only Govee models that expose LAN Control can be discovered. If nothing appears, confirm the light is powered on, LAN Control is enabled, and your router does not isolate wireless devices from this computer.</p></details>
+          </details>
           <div id="fixtureActionResult" class="result" hidden></div>
         </div>
         <div class="cluster">
@@ -256,6 +265,7 @@
               >BRAND<select id="fixtureBrand">
                 <option value="hue">PHILIPS HUE</option>
                 <option value="wiz">WIZ</option>
+                <option value="govee">GOVEE (ALPHA)</option>
               </select></label
             ><label
               >FIXTURE ID<input id="fixtureId" placeholder="desk-left" /></label
@@ -280,13 +290,13 @@
                 type="password"
                 placeholder="192.168.x.x"
                 autocomplete="new-password" /></label
-            ><label class="checkLabel"
+            ><label class="checkLabel" title="Include this fixture when RaveLink sends lighting commands."
               ><input id="fixtureEnabled" type="checkbox" checked />
               ENABLED</label
-            ><label class="checkLabel"
+            ><label class="checkLabel" title="Allow Twitch color commands to control this fixture. Turn it off for operator-only lights."
               ><input id="fixtureTwitch" type="checkbox" checked /> TWITCH
               CONTROL</label
-            ><label class="checkLabel"
+            ><label class="checkLabel" title="Temporarily reveal saved network addresses in the fixture form."
               ><input id="showFixtureAddresses" type="checkbox" /> SHOW
               ADDRESSES</label
             >
@@ -372,7 +382,7 @@
             <button id="generateWidget" type="button">GENERATE WIDGET</button
             ><button id="rebuildWidget" type="button" title="Rotate the intake token and generate matching replacement code in one step">REBUILD DEPLOYMENT</button
             ><button id="copyWidget" type="button">COPY</button
-            ><label class="checkLabel"
+            ><label class="checkLabel" title="Temporarily reveal tokens and network values in the generated widget output."
               ><input id="showWidgetSensitive" type="checkbox" /> SHOW SENSITIVE
               VALUES</label
             >
@@ -386,6 +396,39 @@
           ></textarea>
           <div id="widgetNotice" class="notice" role="status"></div>
           <div id="widgetConnectionNotice" class="notice" role="status"></div>
+        </div>
+      </section>
+      <section class="panel" data-panel="updates" hidden>
+        <div class="panelTitle">
+          <div>
+            <span>CORE MAINTENANCE</span>
+            <h2>SAFE UPDATES</h2>
+          </div>
+          <span id="updateStatus" class="statusLine">LOADING</span>
+        </div>
+        <div class="telemetryGrid">
+          <div><span>INSTALLED</span><strong id="installedVersion">UNKNOWN</strong></div>
+          <div><span>LATEST</span><strong id="latestVersion">NOT CHECKED</strong></div>
+          <div><span>STAGED</span><strong id="stagedVersion">NONE</strong></div>
+          <div><span>ROLLBACK</span><strong id="rollbackVersion">NONE</strong></div>
+        </div>
+        <div class="cluster">
+          <h3>RELEASE CHECKS</h3>
+          <label class="checkLabel" title="Ask GitHub for the newest stable RaveLink release when the server starts. Nothing is downloaded or installed automatically."><input id="checkUpdatesOnLaunch" type="checkbox" /> CHECK FOR STABLE GITHUB RELEASES WHEN RAVELINK STARTS</label>
+          <div class="actions">
+            <button id="saveUpdatePreference" type="button">SAVE PREFERENCE</button>
+            <button id="checkForUpdate" type="button">CHECK NOW</button>
+            <button id="downloadUpdate" type="button" disabled>DOWNLOAD AND VERIFY</button>
+          </div>
+          <div id="updateNotice" class="notice" role="status" aria-live="polite">AUTOMATIC CHECKS ARE OPT-IN. UPDATES ARE NEVER INSTALLED WITHOUT YOUR ACTION.</div>
+        </div>
+        <div class="cluster">
+          <h3>INSTALL OR RECOVER</h3>
+          <div class="actions">
+            <button id="applyUpdate" type="button" disabled>INSTALL VERIFIED UPDATE</button>
+            <button id="rollbackUpdate" class="danger" type="button" disabled>ROLL BACK</button>
+          </div>
+          <p class="sub">INSTALLING CREATES A LOCAL SNAPSHOT, PRESERVES SETTINGS AND INSTALLED FEATURES, THEN RESTARTS. A FAILED STARTUP RESTORES THE PREVIOUS VERSION AUTOMATICALLY.</p>
         </div>
       </section>
       <section class="panel" data-panel="features" hidden>

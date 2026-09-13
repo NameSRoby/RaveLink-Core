@@ -12,6 +12,7 @@ const createTwitchColorDirectiveService = require("../../domains/twitch/twitch-c
 const createColorCommandService = require("../../domains/twitch/color-command.service");
 const createHueBridgeAdapter = require("../../adapters/brands/hue-bridge.adapter");
 const createWizBridgeAdapter = require("../../adapters/brands/wiz-bridge.adapter");
+const createGoveeLanAdapter = require("../../adapters/brands/govee-lan.adapter");
 const colorSeedDefault = require("../../domains/colors/color-library.seed.json");
 const fixtureSeedDefault = require("../../domains/fixtures/fixtures.seed.json");
 const createFixtureSecretVault = require("../../domains/fixtures/fixture-secret-vault");
@@ -26,6 +27,7 @@ const TWITCH_COLOR_CONFIG_DEFAULT = Object.freeze({
   prefixes: Object.freeze({
     hue: "",
     wiz: "wiz",
+    govee: "govee",
     other: ""
   }),
   fixturePrefixes: Object.freeze({})
@@ -99,11 +101,13 @@ module.exports = function createLightingCore(options = {}) {
     dryRun: options.dryRun === true,
     log: options.log || console
   });
+  const goveeBridge = createGoveeLanAdapter({ dryRun: options.dryRun === true, log: options.log || console });
   let reconcilePromise = Promise.resolve();
   const reconcileTransports = fixtures => {
     reconcilePromise = reconcilePromise.then(() => Promise.allSettled([
       hueBridge.reconcileFixtures(fixtures),
-      Promise.resolve(wizBridge.reconcileFixtures(fixtures))
+      Promise.resolve(wizBridge.reconcileFixtures(fixtures)),
+      Promise.resolve(goveeBridge.reconcileFixtures(fixtures))
     ]));
     return reconcilePromise;
   };
@@ -112,7 +116,7 @@ module.exports = function createLightingCore(options = {}) {
   async function shutdown() {
     unsubscribeFixtures();
     await reconcilePromise;
-    await Promise.allSettled([hueBridge.shutdown(), Promise.resolve(wizBridge.shutdown())]);
+    await Promise.allSettled([hueBridge.shutdown(), Promise.resolve(wizBridge.shutdown()), Promise.resolve(goveeBridge.shutdown())]);
   }
   const colorCommandService = createColorCommandService({
     twitchColorConfig,
@@ -121,7 +125,8 @@ module.exports = function createLightingCore(options = {}) {
     fixtureSecretVault,
     directiveService,
     hueBridge,
-    wizBridge
+    wizBridge,
+    goveeBridge
   });
 
   return Object.freeze({
@@ -133,6 +138,7 @@ module.exports = function createLightingCore(options = {}) {
     colorCommandService,
     hueBridge,
     wizBridge,
+    goveeBridge,
     shutdown
   });
 };
