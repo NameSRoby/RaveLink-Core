@@ -59,5 +59,11 @@ module.exports = function createRouting({ storePath, colorLibrary }) {
     const rule = state.rules.find(row => row.id === String(id || ""));
     return rule ? structuredClone(rule) : null;
   }
-  return Object.freeze({ snapshot, save, resolve, resolveGroup, parserOptions: () => ({ ...state.parser }) });
+  function resolveAll() {
+    if (invalid || state.mode === 'off') return { managed: true, error: invalid ? 'twitch_routing_storage_invalid' : 'channel_point_lighting_disabled' };
+    const rules = state.rules.filter(row => row.enabled);
+    const fixtureIds = [...new Set(rules.flatMap(row => row.fixtureIds))];
+    return { managed: true, prefix: 'all', fixtureIds, ruleIds: rules.map(row => row.id), ...(fixtureIds.length ? {} : { error: 'no_twitch_assignments_matched' }) };
+  }
+  return Object.freeze({ snapshot, save, resolve, resolveAll, resolveGroup, parserOptions: () => ({ ...state.parser }) });
 };

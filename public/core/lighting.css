@@ -4,7 +4,9 @@
   gap: 10px;
 }
 #twitchLightProgram summary { cursor: pointer; font-weight: 800; font-size: 12px; }
+.effectProgram{min-width:0;margin:16px 0;padding:14px;border:1px solid var(--edge);border-radius:7px;background:#080c16}.effectProgram>summary{color:#c8d8ff}.effectProgram>p,.effectHelp{color:var(--muted);font-size:12px;line-height:1.45}.switchLabel{display:flex;align-items:center;grid-template-columns:none;gap:9px;width:max-content;max-width:100%;margin:12px 0}.switchLabel>input{position:absolute;width:1px;height:1px;min-height:0;margin:0;opacity:0;clip-path:inset(50%);pointer-events:none}.toggleSwitch{position:relative;width:44px;height:23px;flex:0 0 auto;border:1px solid #405071;border-radius:20px;background:#111827;transition:.18s}.toggleSwitch:after{content:"";position:absolute;top:3px;left:3px;width:15px;height:15px;border-radius:50%;background:#91a0bd;transition:.18s}.switchLabel>input:checked+.toggleSwitch{border-color:#169347;background:#075c2a;box-shadow:0 0 10px #075c2a}.switchLabel>input:checked+.toggleSwitch:after{left:24px;background:#e8fff0}.switchLabel>input:focus-visible+.toggleSwitch{outline:2px solid #527cc3;outline-offset:2px}.effectFixtureGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.effectFixtureGrid .switchLabel{width:100%;margin:0;padding:8px;border:1px solid #1f2c4f;border-radius:6px}.effectExamples{display:flex;min-width:0;flex-wrap:wrap;align-items:center;gap:7px;margin-top:14px;color:var(--muted);font-size:11px}.effectExamples code{max-width:100%;overflow-wrap:anywhere;white-space:normal;padding:5px 7px;border:1px solid #1f2c4f;border-radius:4px;background:#05070d;color:#c9d8ff}@media(max-width:900px){.effectFixtureGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.effectFixtureGrid{grid-template-columns:1fr}.effectProgram{padding:10px}}
 #twitchProgramControls { border: 0; padding: 12px 0 0; margin: 0; min-width: 0; }
+.effectGuide{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:14px}.effectGuide span{padding:8px;border:1px solid #1f2c4f;border-radius:5px;color:var(--muted);font-size:10px}.effectGuide strong{display:block;margin-bottom:3px;color:#c9d8ff}@media(max-width:900px){.effectGuide{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.effectGuide{grid-template-columns:1fr}}
 .twitchPreview { display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; }
 #twitchPreviewSwatch { display: block; width: 36px; height: 36px; flex: 0 0 36px; border: 1px solid var(--edge); }
 #twitchPreviewResult { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; font-size: 12px; }
@@ -34,6 +36,28 @@
 .overlaySourceTools { display: grid; grid-template-columns: minmax(280px,1fr) 130px auto auto; align-items: end; gap: 10px; margin: 0 0 12px; padding: 10px 0 12px; border-bottom: 1px solid var(--edge); }
 .overlaySourceTools[hidden] { display: none; }
 .overlaySourceTools .statusLine { align-self: center; white-space: nowrap; }
+
+.profileIntro { margin: 0 0 14px; color: #aabce8; }
+.profileQuickAccess{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(122,151,204,.18)}.profileQuickAccess>div>span{display:block;color:var(--muted);font-size:10px;font-weight:900;letter-spacing:1px}.profileQuickAccess .actions{margin-top:7px}.profileQuickButton{min-height:32px;padding:5px 10px}
+.lightSubtabs { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--edge); }
+.lightSubtabs button.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+.commandGuideGrid{display:grid;grid-template-columns:minmax(280px,.72fr) minmax(360px,1.28fr);gap:14px}.commandGuideCard{min-width:0;margin-top:14px}.commandGuideCard .sectionHead{align-items:flex-start}.commandGuideText{min-height:340px;max-height:62vh;margin:12px 0 0;padding:14px;overflow:auto;border:1px solid #27395f;border-radius:6px;background:#05070d;color:#d4e0ff;font:12px/1.55 Consolas,"Courier New",monospace;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}.commandGuideDetailed{min-height:480px}@media(max-width:900px){.commandGuideGrid{grid-template-columns:1fr}.commandGuideText,.commandGuideDetailed{min-height:280px;max-height:none}}
+.labSettingsGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.labSettingsGrid .switchLabel{align-self:end}.labFixtureGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.labFixtureCard{padding:12px;border:1px solid var(--edge);border-radius:7px;background:#080c16}.labFixtureCard.excluded{border-color:#765c12;opacity:.78}.labFixtureHead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.labFixtureHead strong,.labFixtureHead span{display:block}.labFixtureHead span{margin-top:3px;color:var(--muted);font-size:10px}.labCapabilityRow{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.labCapabilityRow span{padding:4px 6px;border:1px solid #27395f;border-radius:4px;color:#b9c8e8;font-size:9px}.labPreviewWorkspace{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(320px,1.2fr);gap:18px}.labMap{min-height:330px}.layoutMarker.previewTarget{border-color:var(--ok);background:#075c2a;box-shadow:0 0 22px rgba(25,255,106,.75)}.labPresetGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}.labPresetGrid article{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px;border:1px solid var(--edge);border-radius:6px;background:#080c16}.labPresetGrid strong,.labPresetGrid code{display:block}.labPresetGrid code{margin-top:5px;color:#c9d8ff;overflow-wrap:anywhere}.labPresetGrid .actions{margin:0;flex:0 0 auto}@media(max-width:900px){.labSettingsGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.labFixtureGrid,.labPreviewWorkspace,.labPresetGrid{grid-template-columns:1fr}}@media(max-width:560px){.labSettingsGrid{grid-template-columns:1fr}.labPresetGrid article{align-items:flex-start;flex-direction:column}}
+.labRouteCreator{grid-template-columns:minmax(180px,1fr) minmax(160px,.7fr) auto}.labChaseRouteGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}.labChaseRouteCard{padding:12px;border:1px solid var(--edge);border-radius:7px;background:#080c16}.labChaseRouteCard code{display:block;margin-top:4px;color:#c9d8ff}.labChaseRouteCard .effectFixtureGrid{grid-template-columns:1fr}.labChaseRouteCard .effectFixtureGrid .switchLabel{margin:0}@media(max-width:900px){.labChaseRouteGrid{grid-template-columns:1fr}}@media(max-width:560px){.labRouteCreator{grid-template-columns:1fr}}
+.effectFixtureRoute{min-width:0;padding:8px;border:1px solid #1f2c4f;border-radius:6px;background:#070b14}.effectFixtureRoute .switchLabel{padding:5px;border:0}.effectFixtureRoute .effectPrefixSwitch{margin-top:4px;color:var(--muted)}.effectPrefixField{display:grid;gap:4px;margin:5px;color:var(--muted);font-size:10px}.effectPrefixField input{min-width:0}
+.layoutWorkspace{display:grid;grid-template-columns:minmax(320px,1.35fr) minmax(280px,.65fr);gap:18px}.lightingRoomMap{position:relative;min-height:420px;overflow:hidden;border:1px solid #405071;border-radius:8px;background:linear-gradient(rgba(70,94,140,.11) 1px,transparent 1px),linear-gradient(90deg,rgba(70,94,140,.11) 1px,transparent 1px),#060912;background-size:10% 10%;touch-action:none}.lightingRoomMap:after{content:"REAR";position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:var(--muted);font-size:10px;letter-spacing:1px}.roomFrontLabel{position:absolute;top:8px;left:50%;transform:translateX(-50%);color:var(--muted);font-size:10px;letter-spacing:1px}.layoutMarker{position:absolute;z-index:2;display:flex;align-items:center;justify-content:center;width:34px;height:34px;min-height:0;padding:0;border:2px solid #7ca4ee;border-radius:50%;background:#142340;color:#fff;font-size:10px;transform:translate(-50%,-50%);box-shadow:0 0 12px #254d8a;user-select:none}.layoutMarker.strip{width:76px;height:18px;border-radius:5px;transform:translate(-50%,-50%) rotate(var(--rotation))}.layoutMarker.selected{border-color:var(--ok);box-shadow:0 0 16px rgba(25,255,106,.55)}.layoutControls{display:grid;align-content:start;gap:12px}.layoutCoordinateGrid{grid-template-columns:1fr}.layoutCoordinateGrid label{grid-template-columns:1fr auto}.layoutCoordinateGrid input{grid-column:1/-1}.segmentCapabilityGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.segmentCapabilityGrid article{padding:12px;border:1px solid var(--edge);border-radius:7px;background:#080c16}.segmentCapabilityGrid strong,.segmentCapabilityGrid span{display:block}.segmentCapabilityGrid span{margin-top:7px;color:var(--muted);font-size:12px;line-height:1.4}@media(max-width:900px){.layoutWorkspace{grid-template-columns:1fr}.segmentCapabilityGrid{grid-template-columns:1fr}.lightingRoomMap{min-height:360px}}@media(max-width:560px){.lightingRoomMap{min-height:300px}}
+.profileToolbar { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; align-items: end; }
+.profileToolbar .checkLabel { min-height: 42px; }
+.profileSharedTarget { margin: 12px 0; padding: 12px; border: 1px solid var(--accent); background: #080d18; }
+.profileFixtureGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.profileFixtureCard { min-width: 0; padding: 12px; border: 1px solid var(--edge); background: #080d18; }
+.profileFixtureCard.routed { border-color: #47618e; }
+.profileFixtureHead { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.profileFixtureHead .sub { display: block; margin-top: 2px; }
+.profileTargetControls { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.profileTargetControls .checkLabel { min-height: 42px; }
+.profileTemperatureHelp { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 10px; }
+.profileFixtureCard:not(.routed) .profileTargetControls { opacity: .42; pointer-events: none; }
 
 .swatchRow,
 .discoveryActions,
@@ -81,6 +105,7 @@
 
 @media (max-width: 900px) {
   .controlGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profileToolbar { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 
 @media (max-width: 560px) {
@@ -93,4 +118,7 @@
   .fixtureZoneSettings .fixtureZoneField { width: 100%; }
   .swatchRow #applyColor { margin-left: 0; width: 100%; }
   .overlaySourceTools { grid-template-columns: 1fr; align-items: stretch; }
+  .profileToolbar,
+  .profileFixtureGrid,
+  .profileTargetControls { grid-template-columns: 1fr; }
 }

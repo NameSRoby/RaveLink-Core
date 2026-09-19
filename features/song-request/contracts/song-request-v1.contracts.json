@@ -6,24 +6,61 @@
       "methods": {
         "status": {
           "request": {
-            "type": ["object", "null"],
+            "type": [
+              "object",
+              "null"
+            ],
             "additionalProperties": false,
             "properties": {
-              "offset": { "type": "integer", "minimum": 0 },
-              "limit": { "type": "integer", "minimum": 1, "maximum": 25 }
+              "offset": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 25
+              }
             }
           },
           "response": {
             "type": "object",
-            "required": ["ok", "selectedId", "collections", "tracks", "page", "limits"],
+            "required": [
+              "ok",
+              "selectedId",
+              "collections",
+              "tracks",
+              "page",
+              "limits"
+            ],
             "properties": {
-              "ok": { "const": true },
-              "selectedId": { "type": "string", "maxLength": 40 },
-              "collections": { "type": "array", "maxItems": 21 },
-              "tracks": { "type": "array", "maxItems": 25 },
-              "page": { "type": "object" },
-              "limits": { "type": "object" },
-              "import": { "type": ["object", "null"] }
+              "ok": {
+                "const": true
+              },
+              "selectedId": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "collections": {
+                "type": "array",
+                "maxItems": 21
+              },
+              "tracks": {
+                "type": "array",
+                "maxItems": 25
+              },
+              "page": {
+                "type": "object"
+              },
+              "limits": {
+                "type": "object"
+              },
+              "import": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
             }
           }
         }
@@ -36,25 +73,67 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["action"],
+            "required": [
+              "action"
+            ],
             "properties": {
-              "action": { "enum": ["create", "rename", "delete", "select", "play_random", "import", "cancel_import", "configure_history"] },
-              "collectionId": { "type": "string", "maxLength": 40 },
-              "name": { "type": "string", "maxLength": 80 },
-              "url": { "type": "string", "maxLength": 500 },
-              "enabled": { "type": "boolean" },
-              "destinationId": { "type": "string", "maxLength": 40 }
+              "action": {
+                "enum": [
+                  "create",
+                  "rename",
+                  "delete",
+                  "select",
+                  "play_random",
+                  "import",
+                  "cancel_import",
+                  "configure_history"
+                ]
+              },
+              "collectionId": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "destinationId": {
+                "type": "string",
+                "maxLength": 40
+              }
             }
           },
           "response": {
             "type": "object",
-            "required": ["ok", "code"],
+            "required": [
+              "ok",
+              "code"
+            ],
             "properties": {
-              "ok": { "type": "boolean" },
-              "code": { "type": "string", "maxLength": 80 },
-              "collection": { "type": "object" },
-              "selectedId": { "type": "string", "maxLength": 40 },
-              "import": { "type": "object" }
+              "ok": {
+                "type": "boolean"
+              },
+              "code": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "collection": {
+                "type": "object"
+              },
+              "selectedId": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "import": {
+                "type": "object"
+              }
             }
           }
         }
@@ -509,10 +588,7 @@
               },
               "playbackSource": {
                 "enum": [
-                  "youtube",
-                  "tidal",
-                  "spotify",
-                  "apple-music"
+                  "youtube"
                 ]
               },
               "primary": {
@@ -665,94 +741,6 @@
       }
     },
     {
-      "capability": "song.playback.observe.v1",
-      "methods": {
-        "observe": {
-          "request": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "provider",
-              "sourceId",
-              "available"
-            ],
-            "properties": {
-              "provider": {
-                "type": "string",
-                "minLength": 2,
-                "maxLength": 40
-              },
-              "sourceId": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 120
-              },
-              "available": {
-                "type": "boolean"
-              },
-              "title": {
-                "type": "string",
-                "maxLength": 200
-              },
-              "artists": {
-                "type": "array",
-                "maxItems": 8,
-                "items": {
-                  "type": "string",
-                  "maxLength": 100
-                }
-              },
-              "album": {
-                "type": "string",
-                "maxLength": 200
-              },
-              "status": {
-                "enum": [
-                  "playing",
-                  "paused",
-                  "stopped"
-                ]
-              },
-              "positionMs": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 86400000
-              },
-              "durationMs": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 86400000
-              },
-              "observedAt": {
-                "type": "integer",
-                "minimum": 0
-              }
-            }
-          },
-          "response": {
-            "type": "object",
-            "required": [
-              "ok",
-              "code"
-            ],
-            "properties": {
-              "ok": {
-                "type": "boolean"
-              },
-              "code": {
-                "type": "string",
-                "maxLength": 40
-              },
-              "revision": {
-                "type": "integer",
-                "minimum": 0
-              }
-            }
-          }
-        }
-      }
-    },
-    {
       "capability": "song.playback.events.v1",
       "events": {
         "changed": {
@@ -777,169 +765,6 @@
                 "object",
                 "null"
               ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "capability": "song.observer.admin.v1",
-      "methods": {
-        "status": {
-          "request": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": false,
-            "properties": {}
-          },
-          "response": {
-            "type": "object",
-            "required": [
-              "ok",
-              "supported",
-              "lifecycle",
-              "playbackSource"
-            ],
-            "properties": {
-              "ok": {
-                "type": "boolean"
-              },
-              "supported": {
-                "type": "boolean"
-              },
-              "lifecycle": {
-                "type": "string",
-                "maxLength": 40
-              },
-              "playbackSource": {
-                "enum": [
-                  "youtube",
-                  "tidal",
-                  "spotify",
-                  "apple-music"
-                ]
-              },
-              "selectedProvider": {
-                "enum": [
-                  "tidal",
-                  "spotify",
-                  "apple-music"
-                ]
-              },
-              "error": {
-                "type": "string",
-                "maxLength": 80
-              },
-              "pid": {
-                "type": "integer",
-                "minimum": 0
-              },
-              "lastObservedAt": {
-                "type": "integer",
-                "minimum": 0
-              },
-              "lastError": {
-                "type": "string",
-                "maxLength": 80
-              },
-              "forwarding": {
-                "type": "boolean"
-              },
-              "pending": {
-                "type": "boolean"
-              },
-              "counters": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "control": {
-          "request": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "action"
-            ],
-            "properties": {
-              "action": {
-                "enum": [
-                  "start",
-                  "stop",
-                  "select"
-                ]
-              },
-              "source": {
-                "enum": [
-                  "youtube",
-                  "tidal",
-                  "spotify",
-                  "apple-music"
-                ]
-              }
-            }
-          },
-          "response": {
-            "type": "object",
-            "required": [
-              "ok",
-              "supported",
-              "lifecycle",
-              "playbackSource"
-            ],
-            "properties": {
-              "ok": {
-                "type": "boolean"
-              },
-              "supported": {
-                "type": "boolean"
-              },
-              "lifecycle": {
-                "type": "string",
-                "maxLength": 40
-              },
-              "playbackSource": {
-                "enum": [
-                  "youtube",
-                  "tidal",
-                  "spotify",
-                  "apple-music"
-                ]
-              },
-              "selectedProvider": {
-                "enum": [
-                  "tidal",
-                  "spotify",
-                  "apple-music"
-                ]
-              },
-              "error": {
-                "type": "string",
-                "maxLength": 80
-              },
-              "pid": {
-                "type": "integer",
-                "minimum": 0
-              },
-              "lastObservedAt": {
-                "type": "integer",
-                "minimum": 0
-              },
-              "lastError": {
-                "type": "string",
-                "maxLength": 80
-              },
-              "forwarding": {
-                "type": "boolean"
-              },
-              "pending": {
-                "type": "boolean"
-              },
-              "counters": {
-                "type": "object"
-              }
             }
           }
         }
@@ -1044,36 +869,83 @@
       "methods": {
         "status": {
           "request": {
-            "type": ["object", "null"],
+            "type": [
+              "object",
+              "null"
+            ],
             "additionalProperties": false,
             "properties": {}
           },
           "response": {
             "type": "object",
-            "required": ["ok", "configured", "policy"],
+            "required": [
+              "ok",
+              "configured",
+              "policy"
+            ],
             "properties": {
-              "ok": { "type": "boolean" },
-              "configured": { "type": "boolean" },
-              "mode": { "type": "string", "enum": ["keyless", "official"] },
-              "officialConfigured": { "type": "boolean" },
-              "keylessAvailable": { "type": "boolean" },
-              "availableModes": { "type": "array", "maxItems": 2, "items": { "type": "string", "enum": ["keyless", "official"] } },
-              "keyless": { "type": "object" },
-              "unavailable": { "type": "boolean" },
-              "vault": { "type": "string", "maxLength": 40 },
-              "cacheEntries": { "type": "integer", "minimum": 0, "maximum": 100 },
-              "inFlight": { "type": "integer", "minimum": 0, "maximum": 32 },
-              "quota": { "type": "object" },
-              "limits": { "type": "object" },
-              "lastError": { "type": "string", "maxLength": 120 },
-              "policy": { "type": "object" },
-              "soundcloud": {
-                "type": "object",
-                "properties": {
-                  "configured": { "type": "boolean" },
-                  "available": { "type": "boolean" },
-                  "unavailable": { "type": "boolean" }
+              "ok": {
+                "type": "boolean"
+              },
+              "configured": {
+                "type": "boolean"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "keyless",
+                  "official"
+                ]
+              },
+              "officialConfigured": {
+                "type": "boolean"
+              },
+              "keylessAvailable": {
+                "type": "boolean"
+              },
+              "availableModes": {
+                "type": "array",
+                "maxItems": 2,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "keyless",
+                    "official"
+                  ]
                 }
+              },
+              "keyless": {
+                "type": "object"
+              },
+              "unavailable": {
+                "type": "boolean"
+              },
+              "vault": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "cacheEntries": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "inFlight": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 32
+              },
+              "quota": {
+                "type": "object"
+              },
+              "limits": {
+                "type": "object"
+              },
+              "lastError": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "policy": {
+                "type": "object"
               }
             }
           }
@@ -1088,36 +960,78 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "apiKey": { "type": "string", "minLength": 20, "maxLength": 200 },
-              "mode": { "type": "string", "enum": ["keyless", "official"] },
-              "policy": { "type": "object" }
+              "apiKey": {
+                "type": "string",
+                "minLength": 20,
+                "maxLength": 200
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "keyless",
+                  "official"
+                ]
+              },
+              "policy": {
+                "type": "object"
+              }
             }
           },
           "response": {
             "type": "object",
-            "required": ["ok"],
+            "required": [
+              "ok"
+            ],
             "properties": {
-              "ok": { "type": "boolean" },
-              "configured": { "type": "boolean" },
-              "mode": { "type": "string", "enum": ["keyless", "official"] },
-              "error": { "type": "string", "maxLength": 80 },
-              "policy": { "type": "object" }
+              "ok": {
+                "type": "boolean"
+              },
+              "configured": {
+                "type": "boolean"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "keyless",
+                  "official"
+                ]
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "policy": {
+                "type": "object"
+              }
             }
           }
         },
         "clear": {
           "request": {
-            "type": ["object", "null"],
+            "type": [
+              "object",
+              "null"
+            ],
             "additionalProperties": false,
             "properties": {}
           },
           "response": {
             "type": "object",
-            "required": ["ok", "configured"],
+            "required": [
+              "ok",
+              "configured"
+            ],
             "properties": {
-              "ok": { "type": "boolean" },
-              "configured": { "type": "boolean" },
-              "error": { "type": "string", "maxLength": 80 }
+              "ok": {
+                "type": "boolean"
+              },
+              "configured": {
+                "type": "boolean"
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              }
             }
           }
         }
@@ -1125,3 +1039,5 @@
     }
   ]
 }
+
+

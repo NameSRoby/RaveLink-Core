@@ -1,6 +1,6 @@
 const OVERLAY_BLOCK_KINDS = Object.freeze(["label", "title", "artists", "album", "artwork", "meta", "provider", "time", "progress", "queue"]);
 const OVERLAY_BLOCK_SIZES = Object.freeze(["inherit", "small", "medium", "large", "display"]);
-const OVERLAY_FONTS = Object.freeze(["inherit", "system", "serif", "mono"]);
+const OVERLAY_FONTS = Object.freeze(["inherit", "system", "serif", "mono", "cjk"]);
 const DEFAULT_OVERLAY = Object.freeze({
   version: 3, preset: "classic", flow: "column", anchor: "top-left", separated: false,
   width: 320, autoHeight: true, height: 130, contentAlign: "start", scale: 100,

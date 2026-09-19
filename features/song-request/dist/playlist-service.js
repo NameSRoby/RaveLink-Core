@@ -133,13 +133,12 @@ function createPlaylistService(options) {
 
   async function startImport(payload) {
     if (["running", "transferring"].includes(activeImport?.state)) return { ok: false, code: "playlist_import_busy" };
-    const soundcloud = /^https:\/\/(?:www\.|m\.)?soundcloud\.com\/|^https:\/\/on\.soundcloud\.com\//i.test(String(payload.url || ""));
-    const capability = soundcloud ? "soundcloud.catalog.v1" : "youtube.catalog.host.v1";
+    const capability = "youtube.catalog.host.v1";
     let started;
     try { started = await context.callCapability(capability, "import-playlist-start", { url: payload.url, limit: 2500 }, { timeoutMs: 2000 }); }
     catch { started = { ok: false, error: "playlist_import_unavailable" }; }
     if (!started?.ok) return { ok: false, code: started?.error || "playlist_import_unavailable" };
-    activeImport = { ...started, name: String(payload.name || "").slice(0, 80), provider: soundcloud ? "soundcloud" : "youtube", capability };
+    activeImport = { ...started, name: String(payload.name || "").slice(0, 80), provider: "youtube", capability };
     importRows = [];
     return { ok: true, code: "playlist_import_started", import: activeImport };
   }
@@ -167,3 +166,4 @@ function createPlaylistService(options) {
 }
 
 module.exports = { createPlaylistService };
+

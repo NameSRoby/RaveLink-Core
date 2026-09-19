@@ -1,7 +1,6 @@
 const path = require("node:path");
 const createFeatureHostRegistry = require("../../capabilities/feature-platform/host/feature-host-registry");
 const registerFeaturePlatformRoutes = require("../../capabilities/feature-platform/http/register-feature-platform.routes");
-const createWindowsMediaObserver = require("../../capabilities/feature-platform/providers/windows-media-observer");
 const createTwitchChatCommandRouter = require("../../capabilities/feature-platform/providers/twitch-chat-command-router");
 const { TWITCH_PUBLIC_CLIENT_ID } = require("../../capabilities/feature-platform/providers/twitch-public-client");
 
@@ -11,7 +10,6 @@ module.exports = function createFeaturePlatformExtension(options = {}) {
     let registry;
     let twitchOAuth;
     let youtubeCatalog;
-    let soundCloudCatalog;
     const chatCommands = createTwitchChatCommandRouter({
       submitSongRequest: payload => registry.request("song-request", "song.queue.submit.v1", "submit", payload, { timeoutMs: 12000 }),
       selfManageSongRequest: payload => registry.request("song-request", "song.queue.submit.v1", "self", payload, { timeoutMs: 1500 }),
@@ -61,23 +59,11 @@ module.exports = function createFeaturePlatformExtension(options = {}) {
       }
       return youtubeCatalog;
     }
-    function soundCloudProvider() {
-      if (!soundCloudCatalog) {
-        const { createSoundCloudCatalogProvider } = require("../../capabilities/feature-platform/providers/soundcloud-catalog-provider");
-        soundCloudCatalog = createSoundCloudCatalogProvider({ vaultPath: path.join(context.runtimeDir, "features", "soundcloud-catalog.vault.json"), egressGovernor: context.egressGovernor });
-      }
-      return soundCloudCatalog;
-    }
-    const mediaObserver = createWindowsMediaObserver({
-      observerPath: path.join(rootDir, "scripts", "windows-media-observer.ps1"),
-      onSnapshot: payload => registry.request("song-request", "song.playback.observe.v1", "observe", payload, { timeoutMs: 1000 })
-    });
     registry = createFeatureHostRegistry({
       featuresRoot: options.featuresRoot || path.join(rootDir, "features", "installed"),
       packageRoots: options.packageRoots || [path.join(rootDir, "feature-packages"), path.join(rootDir, "features")],
       runtimeRoot: options.runtimeRoot || path.join(context.runtimeDir, "features"),
       providers: {
-        "media.windows.now-playing.v1/control": payload => mediaObserver.control(payload),
         "twitch.host.v1/status": () => twitchProvider().ensureStatus(),
         "twitch.host.v1/configure": payload => twitchProvider().configure(payload),
         "twitch.host.v1/configure-monitor": payload => twitchProvider().configureMonitor(payload),
@@ -98,21 +84,12 @@ module.exports = function createFeaturePlatformExtension(options = {}) {
         "youtube.catalog.host.v1/import-playlist-status": payload => youtubeProvider().importPlaylistStatus(payload),
         "youtube.catalog.host.v1/import-playlist-page": payload => youtubeProvider().importPlaylistPage(payload),
         "youtube.catalog.host.v1/import-playlist-cancel": payload => youtubeProvider().importPlaylistCancel(payload),
-        "soundcloud.catalog.host.v1/status": () => soundCloudProvider().status(),
-        "soundcloud.catalog.host.v1/configure": payload => soundCloudProvider().configure(payload),
-        "soundcloud.catalog.host.v1/clear": () => soundCloudProvider().clear(),
-        "soundcloud.catalog.host.v1/resolve": payload => soundCloudProvider().resolve(payload),
-        "soundcloud.catalog.host.v1/import-playlist-start": payload => soundCloudProvider().importPlaylistStart(payload),
-        "soundcloud.catalog.host.v1/import-playlist-status": payload => soundCloudProvider().importPlaylistStatus(payload),
-        "soundcloud.catalog.host.v1/import-playlist-page": payload => soundCloudProvider().importPlaylistPage(payload),
-        "soundcloud.catalog.host.v1/import-playlist-cancel": payload => soundCloudProvider().importPlaylistCancel(payload),
         ...(options.providers || {})
       },
       allowUnsafeRuntime: options.allowUnsafeRuntime === true
     });
     registerFeaturePlatformRoutes(context.app, { registry });
     const unsubscribeLifecycle = registry.subscribeLifecycle(snapshot => {
-      if (!snapshot?.features?.some(row => row.id === "song-request" && row.lifecycle === "active")) void mediaObserver.stop();
       const twitchActive = snapshot?.features?.some(row => row.id === "twitch-integration" && row.lifecycle === "active");
       if (!twitchActive) twitchOAuth?.suspendMonitor?.();
       else if (twitchOAuth) void twitchOAuth.ensureStatus();
@@ -126,10 +103,8 @@ module.exports = function createFeaturePlatformExtension(options = {}) {
       owner: "feature-platform",
       registry,
       startup,
-      mediaObserver,
       async shutdown() {
         unsubscribeLifecycle?.();
-        await mediaObserver.stop();
         await twitchOAuth?.shutdown?.();
         return registry.shutdown();
       }

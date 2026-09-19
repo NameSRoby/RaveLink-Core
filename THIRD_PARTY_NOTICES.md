@@ -21,4 +21,4 @@ The installed `node_modules` packages include their own package metadata and lic
 ## Protocol References
 
 - WiZ local control documentation was used to implement the local `setPilot` protocol. No WiZ source code is included.
-- Twitch, YouTube, StreamElements, Philips Hue, WiZ, Spotify, SoundCloud, and OBS are trademarks or services of their respective owners. RaveLink Core is not endorsed by them.
+- Twitch, YouTube, StreamElements, Philips Hue, WiZ, Spotify, and OBS are trademarks or services of their respective owners. RaveLink Core is not endorsed by them.

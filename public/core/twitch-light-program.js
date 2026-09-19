@@ -1,6 +1,6 @@
-export function initTwitchLightProgram({ request, initialState, getFixtures, changed = () => {} }) {
+export function initTwitchLightProgram({ request, initialState, initialEffectState = null, getFixtures, changed = () => {} }) {
   const $ = id => document.getElementById(id);
-  let state = initialState, draftRules = [], busy = false, selectedFixture = '';
+  let state = initialState, draftRules = [], busy = false, selectedFixture = '', effectState = initialEffectState;
   const notice = text => { $('twitchProgramNotice').textContent = text; };
   const markDirty = () => notice('UNSAVED CHANGES // SELECT SAVE PROGRAM TO APPLY THIS ROUTING');
   const fixtureName = row => `${row.name || row.id}${row.missing ? ' (missing)' : !row.enabled || !row.twitchEnabled ? ' (Twitch disabled)' : ''}`;
@@ -19,6 +19,66 @@ export function initTwitchLightProgram({ request, initialState, getFixtures, cha
     const fixtures = getFixtures(), known = new Set(fixtures.map(row => row.id));
     const missing = draftRules.flatMap(row => row.fixtureIds).filter(id => !known.has(id)).map(id => ({ id, missing: true }));
     return [...fixtures, ...missing];
+  }
+  function renderEffectRouteSummary() {
+    const output = $('twitchEffectRouteSummary');
+    if (!output) return;
+    const allowed = effectState?.fixtureIds || [], prefixes = effectState?.prefixes || {};
+    const prefixed = allowed.filter(id => prefixes[id]);
+    output.textContent = `${allowed.length} IN DEFAULT ALL-FIXTURE ROUTE // ${prefixed.length} ALSO HAVE SUBSET PREFIXES // INDEPENDENT FROM NORMAL COLOR ROUTING.`;
+    output.className = 'notice';
+  }
+  function renderEffectFixtures() {
+    const container = $('twitchEffectFixtures');
+    if (!container) return;
+    const selected = new Set(effectState?.fixtureIds || []), prefixes = effectState?.prefixes || {};
+    const rows = getFixtures().filter(row => row.enabled !== false && row.twitchEnabled === true && ['hue', 'wiz', 'govee'].includes(String(row.brand).toLowerCase()));
+    container.replaceChildren(...rows.map(row => {
+      const card = document.createElement('article'); card.className = 'effectFixtureRoute';
+      const label = document.createElement('label'); label.className = 'switchLabel'; label.title = `Allow ${row.name || row.id} to run dynamic Twitch effects.`;
+      const input = document.createElement('input'); input.type = 'checkbox'; input.checked = selected.has(row.id); input.dataset.effectFixtureId = row.id;
+      const slider = document.createElement('span'); slider.className = 'toggleSwitch'; slider.setAttribute('aria-hidden', 'true');
+      const text = document.createElement('span'); text.textContent = `${row.name || row.id} // ${String(row.brand).toUpperCase()}`;
+      label.append(input, slider, text);
+      const prefixLabel = document.createElement('label'); prefixLabel.className = 'switchLabel effectPrefixSwitch'; prefixLabel.title = 'Require this prefix for dynamic commands targeting the fixture.';
+      const prefixToggle = document.createElement('input'); prefixToggle.type = 'checkbox'; prefixToggle.checked = Boolean(prefixes[row.id]); prefixToggle.dataset.effectPrefixToggle = row.id;
+      const prefixSlider = document.createElement('span'); prefixSlider.className = 'toggleSwitch'; prefixSlider.setAttribute('aria-hidden', 'true');
+      const prefixText = document.createElement('span'); prefixText.textContent = 'REQUIRE PREFIX'; prefixLabel.append(prefixToggle, prefixSlider, prefixText);
+      const prefixField = document.createElement('label'); prefixField.className = 'effectPrefixField'; prefixField.append(document.createTextNode('PREFIX'));
+      const prefixInput = document.createElement('input'); prefixInput.value = prefixes[row.id] || ''; prefixInput.maxLength = 32; prefixInput.placeholder = 'desk'; prefixInput.dataset.effectPrefixInput = row.id; prefixInput.setAttribute('aria-label', `${row.name || row.id} dynamic prefix`); prefixField.append(prefixInput);
+      const dirtyEffect = () => { $('twitchEffectsNotice').textContent = 'UNSAVED DYNAMIC COMMAND CHANGES'; };
+      const sync = () => { prefixToggle.disabled = !input.checked; prefixField.hidden = !input.checked || !prefixToggle.checked; if (!prefixToggle.checked) prefixInput.value = ''; };
+      input.onchange = () => { if (!input.checked) prefixToggle.checked = false; sync(); dirtyEffect(); };
+      prefixToggle.onchange = () => { sync(); if (prefixToggle.checked) prefixInput.focus(); dirtyEffect(); };
+      prefixInput.oninput = dirtyEffect; sync(); card.append(label, prefixLabel, prefixField); return card;
+    }));
+    if (!rows.length) { const empty = document.createElement('span'); empty.className = 'emptyDropZone'; empty.textContent = 'NO TWITCH-ENABLED FIXTURES'; container.append(empty); }
+    renderEffectRouteSummary();
+  }
+  async function loadEffects() {
+    try {
+      effectState = await request('/twitch/light-effects');
+      $('twitchEffectsEnabled').checked = effectState.enabled === true;
+      $('twitchEffectsReturn').checked = effectState.returnEffect === true;
+      renderEffectFixtures();
+    } catch (error) { $('twitchEffectsNotice').textContent = error.message; }
+  }
+  async function saveEffects() {
+    if (!effectState) return;
+    const fixtureIds = [...$('twitchEffectFixtures').querySelectorAll('[data-effect-fixture-id]:checked')].map(item => item.dataset.effectFixtureId);
+    const prefixes = {};
+    for (const id of fixtureIds) {
+      const toggle = $('twitchEffectFixtures').querySelector(`[data-effect-prefix-toggle="${CSS.escape(id)}"]`);
+      if (!toggle?.checked) continue;
+      const value = $('twitchEffectFixtures').querySelector(`[data-effect-prefix-input="${CSS.escape(id)}"]`)?.value.trim().toLowerCase() || '';
+      if (value === 'all' || !/^[a-z][a-z0-9_-]{0,31}$/.test(value)) { $('twitchEffectsNotice').textContent = 'Every enabled dynamic prefix must begin with a letter and use only letters, numbers, underscores, or hyphens. ALL is reserved for every fixture.'; return; }
+      prefixes[id] = value;
+    }
+    try {
+      effectState = await request('/twitch/light-effects', { method: 'POST', body: JSON.stringify({ revision: effectState.revision, enabled: $('twitchEffectsEnabled').checked, returnEffect: $('twitchEffectsReturn').checked, fixtureIds, prefixes }) });
+      renderEffectFixtures();
+      $('twitchEffectsNotice').textContent = effectState.enabled ? `DYNAMIC COMMANDS ENABLED FOR ${effectState.fixtureIds.length} FIXTURE${effectState.fixtureIds.length === 1 ? '' : 'S'}.` : 'DYNAMIC COMMANDS ARE OFF.';
+    } catch (error) { $('twitchEffectsNotice').textContent = error.message === 'twitch_effects_conflict' ? 'Dynamic command settings changed in another window. Refresh the page.' : error.message; }
   }
   function ownerOf(id) { return draftRules.find(row => row.fixtureIds.includes(id)); }
   function moveFixture(id, destination) {
@@ -111,12 +171,16 @@ export function initTwitchLightProgram({ request, initialState, getFixtures, cha
   $('addTwitchFixtureGroup').onclick = () => { draftRules.push({ id: crypto.randomUUID(), name: 'New group', prefix: '', enabled: true, fixtureIds: [] }); renderBoard(); markDirty(); };
   for (const id of ['twitchRoutingMode', 'parserFuzzy', 'parserDescriptors', 'parserDefaultBrightness']) $(id).addEventListener('change', markDirty);
   $('saveTwitchProgram').onclick = save;
+  $('saveTwitchEffects').onclick = saveEffects;
+  for (const id of ['twitchEffectsEnabled', 'twitchEffectsReturn']) $(id).onchange = () => { $('twitchEffectsNotice').textContent = 'UNSAVED DYNAMIC COMMAND CHANGES'; };
   $('moveSelectedFixture').onclick = () => moveFixture(selectedFixture, $('fixtureDestination').value);
   $('refreshTwitchProgram').onclick = async () => { if (dirty() && !confirm('Discard unsaved Twitch fixture layout edits?')) return; try { accept(await request('/twitch/lights')); notice('Program refreshed.'); } catch (error) { notice(error.message); } };
   $('previewTwitchColor').onclick = async () => {
-    try { const result = await request('/twitch/lights/preview', { method: 'POST', body: JSON.stringify({ text: $('twitchColorExample').value }) }); $('twitchPreviewSwatch').style.backgroundColor = /^#[0-9a-f]{6}$/i.test(result.hex) ? result.hex : 'transparent'; $('twitchPreviewResult').textContent = `${result.hex || 'Brightness only'} // ${result.brightnessPercent}% // ${result.targets.length} targets, ${result.skippedTargets} skipped\n${result.targets.join(', ')}${dirty() ? '\nSaved program preview; unsaved edits are not applied.' : ''}`; }
+    try { const result = await request('/twitch/lights/preview', { method: 'POST', body: JSON.stringify({ text: $('twitchColorExample').value }) }); $('twitchPreviewSwatch').style.backgroundColor = /^#[0-9a-f]{6}$/i.test(result.hex) ? result.hex : 'transparent'; $('twitchPreviewResult').textContent = result.effect ? `${String(result.effect).toUpperCase()}${result.speed ? ` // ${String(result.speed).toUpperCase()}` : ''} // ${result.targets.length} effect targets\n${result.targets.join(', ')}` : `${result.hex || 'Brightness only'} // ${result.brightnessPercent}% // ${result.targets.length} targets, ${result.skippedTargets} skipped\n${result.targets.join(', ')}${dirty() ? '\nSaved program preview; unsaved edits are not applied.' : ''}`; }
     catch (error) { $('twitchPreviewSwatch').style.backgroundColor = 'transparent'; $('twitchPreviewResult').textContent = error.message; }
   };
   if (state?.ok) accept(state); else { notice(state?.error || 'Twitch program unavailable.'); $('twitchProgramControls').disabled = true; }
-  return { refreshFixtures: renderBoard };
+  if (effectState?.ok) { $('twitchEffectsEnabled').checked = effectState.enabled === true; $('twitchEffectsReturn').checked = effectState.returnEffect === true; renderEffectFixtures(); }
+  else void loadEffects();
+  return { refreshFixtures: () => { renderBoard(); renderEffectFixtures(); } };
 }

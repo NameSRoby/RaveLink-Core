@@ -12,10 +12,10 @@ function text(value, maximum) {
 
 function normalizeTrack(row, now) {
   const candidate = row?.candidate || row;
-  const provider = candidate?.provider === "soundcloud" ? "soundcloud" : "youtube";
+  const provider = "youtube";
   const providerItemId = text(candidate?.providerItemId, 160);
-  if (provider === "youtube" ? !/^[A-Za-z0-9_-]{11}$/.test(providerItemId) : !/^soundcloud:tracks:[A-Za-z0-9_-]+$/.test(providerItemId)) return null;
-  const sourceUrl = provider === "youtube" ? `https://www.youtube.com/watch?v=${providerItemId}` : text(candidate?.sourceUrl, 500);
+  if (!/^[A-Za-z0-9_-]{11}$/.test(providerItemId)) return null;
+  const sourceUrl = `https://www.youtube.com/watch?v=${providerItemId}`;
   return {
     id: provider === "youtube" ? `pl_${providerItemId}` : `pl_${crypto.createHash("sha256").update(`${provider}:${providerItemId}`).digest("hex").slice(0, 20)}`,
     identity: `${provider}:${providerItemId}`,
@@ -200,3 +200,4 @@ function createPlaylistLibrary(options = {}) {
 }
 
 module.exports = { CHAT_HISTORY_PURPOSE, MAX_COLLECTIONS, MAX_TRACKS, MAX_USER_COLLECTIONS, PAGE_SIZE, createPlaylistLibrary, normalizeTrack };
+

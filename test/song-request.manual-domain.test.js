@@ -127,17 +127,14 @@ test("versioned snapshots restore bounded state and reject corruption", () => {
   assert.equal(restored.status().counts.queued, 1);
 });
 
-test("one persisted playback source controls the overlay projection", () => {
+test("playback source remains fixed to the embedded YouTube player", () => {
   const queue = createSongQueue({ now: () => 100 });
-  queue.observe({ provider: "spotify", sourceId: "Spotify.exe", available: true, title: "Spotify track", status: "playing", observedAt: 100 });
   assert.equal(queue.playbackStatus().primary, null);
-  assert.equal(queue.configurePlaybackSource({ source: "spotify" }).playbackSource, "spotify");
+  assert.equal(queue.configurePlaybackSource({ source: "spotify" }).playbackSource, "youtube");
   assert.equal(queue.playbackStatus().primary, null);
-  queue.observe({ provider: "spotify", sourceId: "Spotify.exe", available: true, title: "Fresh Spotify track", status: "playing", observedAt: 101 });
-  assert.equal(queue.playbackStatus().primary.title, "Fresh Spotify track");
   const restored = createSongQueue();
   assert.equal(restored.importSnapshot(queue.exportSnapshot()).ok, true);
-  assert.equal(restored.playbackStatus().playbackSource, "spotify");
+  assert.equal(restored.playbackStatus().playbackSource, "youtube");
 });
 
 test("legacy snapshots migrate implicit Song Request responses to off", () => {

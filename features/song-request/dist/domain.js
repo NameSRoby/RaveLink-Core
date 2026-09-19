@@ -4,7 +4,7 @@ const { RESPONSE_KINDS } = require("./chat-responses");
 const { DEFAULT_CATALOG_POLICY, catalogPolicyFrom } = require("./catalog-policy");
 
 const SNAPSHOT_VERSION = 11;
-const PLAYBACK_SOURCES = Object.freeze(["youtube", "tidal", "spotify", "apple-music"]);
+const PLAYBACK_SOURCES = Object.freeze(["youtube"]);
 const DEFAULTS = Object.freeze({ maxQueue: 200, maxRecent: 250, maxPerRequester: 5, maxPerVip: 10, maxDurationMs: 600000 });
 const RECENT_REQUESTER_LIMIT = 10;
 const MAX_MODERATION_ENTRIES = 250;
@@ -306,8 +306,7 @@ function createSongQueue(options = {}) {
     const candidate = candidateFrom(payload.candidate, query);
     if (!candidate) return response(false, "rejected", { reason: "candidate_invalid" });
     if (requestProviders && (!requestProviders.has(candidate.provider)
-      || candidate.provider === "youtube" && !/^[A-Za-z0-9_-]{11}$/.test(candidate.providerItemId)
-      || candidate.provider === "soundcloud" && !/^soundcloud:tracks:[A-Za-z0-9_-]+$/.test(candidate.providerItemId))) {
+      || candidate.provider === "youtube" && !/^[A-Za-z0-9_-]{11}$/.test(candidate.providerItemId))) {
       return response(false, "rejected", { reason: "youtube_reference_required" });
     }
     if (candidate.durationMs > limits.maxDurationMs) return response(false, "rejected", { reason: "duration_limit" });
@@ -595,8 +594,7 @@ function createSongQueue(options = {}) {
       const storedRequester = text(row?.requesterKey || row?.requesterId, 160);
       if (!candidate || !requestId || !storedRequester) continue;
       if (requestProviders && (!requestProviders.has(candidate.provider)
-        || candidate.provider === "youtube" && !/^[A-Za-z0-9_-]{11}$/.test(candidate.providerItemId)
-        || candidate.provider === "soundcloud" && !/^soundcloud:tracks:[A-Za-z0-9_-]+$/.test(candidate.providerItemId))) continue;
+      || candidate.provider === "youtube" && !/^[A-Za-z0-9_-]{11}$/.test(candidate.providerItemId))) continue;
       restored.push({
         id: text(row.id, 160) || `restored_${restored.length + 1}`,
         requestId,
@@ -650,3 +648,4 @@ function createSongQueue(options = {}) {
 }
 
 module.exports = { DEFAULTS, DEFAULT_CATALOG_POLICY, DEFAULT_OVERLAY, DRIVER_LEASE_MS, OVERLAY_BLOCK_KINDS, PLAYBACK_SOURCES, RECENT_REQUESTER_LIMIT, RESPONSE_KINDS, SNAPSHOT_VERSION, createSongQueue };
+

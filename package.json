@@ -1,6 +1,6 @@
 {
   "name": "ravelink-core",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "RaveLink Core for modular local lighting, Twitch, and creator features on Windows",
   "license": "Apache-2.0",
   "homepage": "https://github.com/NameSRoby/RaveLink-Core#readme",
@@ -27,6 +27,9 @@
     "yauzl": "3.4.0",
     "yazl": "3.3.1",
     "youtubei.js": "18.0.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.58.2"
   },
   "optionalDependencies": {
     "hue-sync": "^0.1.3",

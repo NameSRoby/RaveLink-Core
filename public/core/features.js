@@ -144,7 +144,7 @@ export async function initFeaturePlatform() {
     try {
       install.disabled = true;
       await api(`/api/features/${encodeURIComponent(install.dataset.featureInstall)}/install`, { method: "POST", body: "{}" });
-      notice(`${install.dataset.featureInstall} installed and disabled.`);
+      notice(`${install.dataset.featureInstall} installed and enabled.`);
       await refresh();
     } catch (error) { notice(error.message, true); }
   };

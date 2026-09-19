@@ -112,7 +112,7 @@ async function activate(nextContext) {
   persistenceBackoffMs = 1000;
   persistedPlaylistPageCount = 0;
   for (const status of Object.values(optionalStatus)) Object.assign(status, { attempted: 0, succeeded: 0, failed: 0, lastError: "" });
-  queue = createSongQueue({ requestProviders: ["youtube", "soundcloud"] });
+  queue = createSongQueue({ requestProviders: ["youtube"] });
   playlists = createPlaylistService({ context, queue, schedulePersistence, publishChange });
   try {
     const stored = await context.callCapability("ravelink.storage.v1", "get", { key: "queue-state-v1" }, { timeoutMs: 1000 });
@@ -139,13 +139,6 @@ async function activate(nextContext) {
     }
   } catch {}
   await playlists.activate();
-  const source = queue.playbackStatus().playbackSource;
-  if (source !== "youtube") {
-    try {
-      await context.callCapability("media.windows.now-playing.v1", "control", { action: "select", provider: source }, { timeoutMs: 1000 });
-      await context.callCapability("media.windows.now-playing.v1", "control", { action: "start" }, { timeoutMs: 1000 });
-    } catch {}
-  }
 }
 
 async function handleRequest(request) {
@@ -155,8 +148,6 @@ async function handleRequest(request) {
     "song.queue.admin.v1": ["moderate", "configure", "settle"],
     "song.playback.read.v1": ["status"],
     "song.playback.driver.v1": ["pull", "acknowledge"],
-    "song.playback.observe.v1": ["observe"],
-    "song.observer.admin.v1": ["status", "control"],
     "song.overlay.read.v1": ["status"],
     "song.overlay.admin.v1": ["configure"],
     "song.catalog.read.v1": ["status"],
@@ -171,12 +162,10 @@ async function handleRequest(request) {
   if (request.capability === "song.playlist.read.v1") return playlists.read(request.payload, request);
   if (request.capability === "song.playlist.admin.v1") return playlists.mutate(request.payload || {}, request);
   if (request.capability === "song.catalog.read.v1") {
-    let soundcloud = { ok: true, configured: false, unavailable: true };
-    try { soundcloud = await context.callCapability("soundcloud.catalog.v1", "status", null, { timeoutMs: 1500 }); } catch {}
     try {
       const provider = await context.callCapability("youtube.catalog.host.v1", "status", null, { timeoutMs: 1500 });
-      return { ...provider, soundcloud, policy: queue.status().catalogPolicy };
-    } catch { return { ok: true, configured: false, unavailable: true, soundcloud, policy: queue.status().catalogPolicy }; }
+      return { ...provider, policy: queue.status().catalogPolicy };
+    } catch { return { ok: true, configured: false, unavailable: true, policy: queue.status().catalogPolicy }; }
   }
   if (request.capability === "song.catalog.admin.v1") {
     if (request.method === "clear") {
@@ -195,50 +184,22 @@ async function handleRequest(request) {
   }
   if (request.capability === "song.playback.read.v1") return queue.playbackStatus();
   if (request.capability === "song.overlay.read.v1") return queue.overlayStatus();
-  if (request.capability === "song.observer.admin.v1") {
-    const action = request.method === "status" ? "status" : String(request.payload?.action || "");
-    if (action === "select") {
-      const selected = queue.configurePlaybackSource({ source: request.payload?.source });
-      if (!selected.ok) return { ok: false, supported: true, lifecycle: "stopped", playbackSource: selected.playbackSource, error: selected.code };
-      let observer;
-      try {
-        observer = selected.playbackSource === "youtube"
-          ? await context.callCapability("media.windows.now-playing.v1", "control", { action: "stop" }, { timeoutMs: 2000 })
-          : await context.callCapability("media.windows.now-playing.v1", "control", { action: "select", provider: selected.playbackSource }, { timeoutMs: 2000 });
-        if (selected.playbackSource !== "youtube") observer = await context.callCapability("media.windows.now-playing.v1", "control", { action: "start" }, { timeoutMs: 1000 });
-      } catch {
-        observer = { ok: false, supported: false, lifecycle: "unavailable", error: "windows_media_observer_unavailable" };
-      }
-      schedulePersistence();
-      publishPlayback(selected);
-      return { ...observer, playbackSource: selected.playbackSource };
-    }
-    try {
-      const observer = await context.callCapability("media.windows.now-playing.v1", "control", { action }, { timeoutMs: action === "stop" ? 2000 : 1000 });
-      return { ...observer, playbackSource: queue.playbackStatus().playbackSource };
-    } catch {
-      return { ok: false, supported: false, lifecycle: "unavailable", playbackSource: queue.playbackStatus().playbackSource, error: "windows_media_observer_unavailable" };
-    }
-  }
   let effectiveRequest = request;
   if (request.capability === "song.queue.submit.v1" && request.method === "submit"
-    && (!request.payload?.candidate || ["youtube", "soundcloud"].includes(request.payload.candidate.provider)
-      || /^https:\/\/(?:www\.|m\.)?soundcloud\.com\/|^https:\/\/on\.soundcloud\.com\//i.test(String(request.payload?.query || "")))) {
+    && (!request.payload?.candidate || request.payload.candidate.provider === "youtube")) {
     const payload = request.payload || {};
-    const soundCloudLink = /^https:\/\/(?:www\.|m\.)?soundcloud\.com\/|^https:\/\/on\.soundcloud\.com\//i.test(String(payload.query || ""));
-    const useSoundCloud = payload.candidate?.provider === "soundcloud" || soundCloudLink;
     const videoId = /^[A-Za-z0-9_-]{11}$/.test(String(payload.candidate?.providerItemId || "")) ? payload.candidate.providerItemId : "";
     const queueState = queue.status();
     let resolved;
     try {
-      resolved = await context.callCapability(useSoundCloud ? "soundcloud.catalog.v1" : "youtube.catalog.host.v1", "resolve", {
+      resolved = await context.callCapability("youtube.catalog.host.v1", "resolve", {
         query: payload.query,
         videoId,
         policy: { ...queueState.catalogPolicy, maxDurationMs: queueState.limits.maxDurationMs },
         maxDurationMs: queueState.limits.maxDurationMs
       }, { timeoutMs: videoId ? 4000 : 9000 });
     } catch {
-      resolved = { ok: false, reason: useSoundCloud ? "soundcloud_catalog_unavailable" : "youtube_catalog_unavailable" };
+      resolved = { ok: false, reason: "youtube_catalog_unavailable" };
     }
     if (resolved?.ok) effectiveRequest = { ...request, payload: { ...payload, candidate: resolved.candidate } };
     else {
@@ -294,3 +255,4 @@ async function deactivate() {
 }
 
 module.exports = { activate, deactivate, handleRequest };
+

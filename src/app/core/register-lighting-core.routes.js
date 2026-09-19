@@ -4,10 +4,18 @@
 const crypto = require("node:crypto");
 
 function publicFixture(fixture = {}) {
+  const storedRange = fixture.extras?.colorTemperatureMired;
+  const brand = String(fixture.brand || "");
+  const temperatureMinimum = brand === "hue" && Number(storedRange?.maximum) > 0
+    ? Math.round(1000000 / Number(storedRange.maximum))
+    : brand === "wiz" ? 2200 : 2000;
+  const temperatureMaximum = brand === "hue" && Number(storedRange?.minimum) > 0
+    ? Math.round(1000000 / Number(storedRange.minimum))
+    : brand === "wiz" ? 6500 : 9000;
   return {
     id: String(fixture.id || ""),
     name: String(fixture.name || fixture.id || ""),
-    brand: String(fixture.brand || ""),
+    brand,
     zone: String(fixture.zone || ""),
     enabled: fixture.enabled !== false,
     engineEnabled: fixture.engineEnabled === true,
@@ -17,7 +25,8 @@ function publicFixture(fixture = {}) {
     bridgeIpConfigured: Boolean(fixture.bridgeIp),
     deviceIpConfigured: Boolean(fixture.ip),
     entertainmentConfigured: Boolean(fixture.bridgeId || fixture.entertainmentAreaId),
-    credentialsConfigured: Boolean(fixture.username || fixture.clientKey)
+    credentialsConfigured: Boolean(fixture.username || fixture.clientKey),
+    temperatureRange: { minimumKelvin: temperatureMinimum, maximumKelvin: temperatureMaximum }
   };
 }
 
@@ -113,6 +122,8 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
       profile,
       capabilities,
       twitchLightRouting: core.twitchLightRouting.snapshot(),
+      twitchLightEffects: core.twitchLightEffects.snapshot(),
+      lightingLayout: core.lightingLayout.snapshot(),
       fixtures: {
         version: fixtureVersion,
         limits: core.fixtureRegistry.getLimits(),
@@ -228,6 +239,69 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
       next(error);
     }
   });
+  app.get("/lighting-profiles", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(core.lightingProfiles.snapshot());
+  });
+  app.get("/lighting-layout", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(core.lightingLayout.snapshot());
+  });
+  app.post("/lighting-layout", (req, res) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    if (hasForeignOrigin(req)) return res.status(403).json({ ok: false, error: "same_origin_required" });
+    const result = core.lightingLayout.save(req.body || {});
+    res.status(result.ok ? 200 : result.error === "lighting_layout_conflict" ? 409 : 400).json(result);
+  });
+  app.get("/lighting-lab", (req, res) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    if (hasForeignOrigin(req)) return res.status(403).json({ ok: false, error: "same_origin_required" });
+    res.setHeader("Cache-Control", "no-store");
+    const fixtures = core.fixtureRegistry.getFixtures().map(publicFixture);
+    const connectivity = new Map(core.fixtureRegistry.getConnectivitySnapshot().rows.map(row => [row.id, row]));
+    const settings = core.lightingLab.snapshot();
+    const capabilities = fixtures.map(row => ({ id: row.id, name: row.name, brand: row.brand, enabled: row.enabled,
+      connectivity: connectivity.get(row.id)?.status || "unknown", latencyOffsetMs: Number(settings.latencyOffsets?.[row.id] || 0),
+      excluded: settings.excludedFixtureIds.includes(row.id), rgb: ["hue", "wiz", "govee"].includes(row.brand),
+      tunableWhite: ["hue", "wiz"].includes(row.brand), spatial: Boolean(core.lightingLayout.placement(row.id)),
+      segments: false, segmentReason: row.brand === "hue" ? "Hue API v2 Gradient transport required" : row.brand === "govee" ? "Govee cloud segment capability required" : "No independent segment transport" }));
+    res.json({ ...settings, capabilities });
+  });
+  app.post("/lighting-lab", (req, res) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    if (hasForeignOrigin(req)) return res.status(403).json({ ok: false, error: "same_origin_required" });
+    const result = core.lightingLab.save(req.body || {});
+    res.status(result.ok ? 200 : result.error === "lighting_lab_conflict" ? 409 : 400).json(result);
+  });
+  app.delete("/lighting-lab/history", (req, res) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    if (hasForeignOrigin(req)) return res.status(403).json({ ok: false, error: "same_origin_required" });
+    res.json(core.lightingLab.clearHistory());
+  });
+  app.post("/lighting-profiles", (req, res) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    const result = core.lightingProfiles.save(req.body || {});
+    res.status(result.ok ? 200 : 400).json(result);
+  });
+  app.delete("/lighting-profiles/:id", (req, res) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    const result = core.lightingProfiles.remove(req.params.id);
+    res.status(result.ok ? 200 : 404).json(result);
+  });
+  app.post("/lighting-profiles/default/apply", async (req, res, next) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    try {
+      const result = await core.lightingProfiles.applyDefault();
+      res.status(result.ok ? 200 : 409).json(result);
+    } catch (error) { next(error); }
+  });
+  app.post("/lighting-profiles/:id/apply", async (req, res, next) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
+    try {
+      const result = await core.lightingProfiles.apply(req.params.id);
+      res.status(result.ok ? 200 : result.error === "lighting_profile_not_found" ? 404 : 409).json(result);
+    } catch (error) { next(error); }
+  });
   app.get('/twitch/lights', (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     const result = core.twitchLightRouting.snapshot();
@@ -250,6 +324,27 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
       const result = await core.colorCommandService.applyColorText(req.body?.text, { preview: true });
       res.status(result.ok ? 200 : 400).json(result);
     } catch (error) { next(error); }
+  });
+  app.post('/twitch/lights/test', async (req, res, next) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: 'local_request_required' });
+    if (hasForeignOrigin(req)) return res.status(403).json({ ok: false, error: 'same_origin_required' });
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      const result = await core.colorCommandService.applyColorText(req.body?.text);
+      res.status(result.ok ? 200 : 400).json(result);
+    } catch (error) { next(error); }
+  });
+  app.get('/twitch/light-effects', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const result = core.twitchLightEffects.snapshot();
+    res.status(result.ok ? 200 : 503).json(result);
+  });
+  app.post('/twitch/light-effects', (req, res) => {
+    if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: 'local_request_required' });
+    if (hasForeignOrigin(req)) return res.status(403).json({ ok: false, error: 'same_origin_required' });
+    res.setHeader('Cache-Control', 'no-store');
+    const result = core.twitchLightEffects.save(req.body || {});
+    res.status(result.ok ? 200 : result.error === 'twitch_effects_conflict' ? 409 : 400).json(result);
   });
   app.get("/fixtures", (req, res) => {
     res.json({

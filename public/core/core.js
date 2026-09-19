@@ -7,6 +7,7 @@ let twitchProgramUi;
 let widgetSecurityStatus = {};
 let songRequestAvailable = false;
 let coreUpdateStatus = null;
+window.RaveLinkCoreUi = { request: (...args) => request(...args), fixtures: () => fixtures.slice(), showResult: (...args) => showResult(...args) };
 
 async function request(path, options = {}) {
   const headers = { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(options.headers || {}) };
@@ -60,70 +61,6 @@ function showResult(id, value, failed = false) {
   }
   output.style.color = failed ? "var(--bad)" : "#c9d8ff";
 }
-
-const buttonExplanations = {
-  discoverHue: "Search the local network for Philips Hue bridges. After discovery, the next pairing step will be shown.",
-  pairHueManual: "Connect to the selected Hue bridge after pressing its physical link button.",
-  discoverWiz: "Search the local network for WiZ lights and choose which fixtures to add.",
-  discoverGovee: "Search for Govee lights with LAN Control enabled. This adapter is an alpha feature.",
-  refreshFixtures: "Reload saved fixtures and their current connection state.",
-  saveFixture: "Save the fixture information currently entered in this form.",
-  clearFixture: "Clear the fixture form without deleting saved fixtures.",
-  applyColor: "Send the entered color and brightness to the selected lights.",
-  generateWidget: "Generate the StreamElements widget using the selected rewards and secure intake token.",
-  testIntakeToken: "Verify the entered widget token with a harmless request that cannot change lights.",
-  copyWidget: "Copy the generated widget code to the clipboard.",
-  themeButton: "Open HUD color and Developer Mode settings.",
-  resetTheme: "Restore the default RaveLink HUD colors."
-};
-const tooltip = document.createElement("div");
-tooltip.className = "hudTooltip";
-tooltip.hidden = true;
-tooltip.setAttribute("role", "tooltip");
-document.body.append(tooltip);
-let tooltipTimer = 0;
-let tooltipButton = null;
-function buttonExplanation(button) {
-  const explicit = button.dataset.tooltip || button.getAttribute("title") || buttonExplanations[button.id];
-  if (explicit) {
-    button.dataset.tooltip = explicit;
-    button.removeAttribute("title");
-    return explicit;
-  }
-  const text = button.textContent.trim().replace(/\s+/g, " ");
-  if (button.matches("[data-tab]")) return `Open the ${text.toLowerCase()} workspace.`;
-  if (button.matches("[data-theme]")) return `Apply the ${text.toLowerCase()} HUD color theme.`;
-  return text ? `Run the ${text.toLowerCase()} action.` : "Activate this control.";
-}
-function hideButtonTooltip() {
-  clearTimeout(tooltipTimer);
-  tooltipTimer = 0;
-  tooltipButton = null;
-  tooltip.hidden = true;
-}
-document.addEventListener("pointerover", event => {
-  const button = event.target.closest?.("button");
-  if (!button || button === tooltipButton) return;
-  hideButtonTooltip();
-  tooltipButton = button;
-  const explanation = buttonExplanation(button);
-  tooltipTimer = setTimeout(() => {
-    if (tooltipButton !== button) return;
-    tooltip.textContent = explanation;
-    tooltip.hidden = false;
-    const rect = button.getBoundingClientRect();
-    const left = Math.min(window.innerWidth - tooltip.offsetWidth - 12, Math.max(12, rect.left));
-    const below = rect.bottom + 8;
-    const top = below + tooltip.offsetHeight <= window.innerHeight - 8 ? below : Math.max(8, rect.top - tooltip.offsetHeight - 8);
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${top}px`;
-  }, 1200);
-}, true);
-document.addEventListener("pointerout", event => {
-  if (!tooltipButton || event.relatedTarget && tooltipButton.contains(event.relatedTarget)) return;
-  if (event.target === tooltipButton || tooltipButton.contains(event.target)) hideButtonTooltip();
-}, true);
-window.addEventListener("blur", hideButtonTooltip);
 
 function maskedAddress(value) {
   return redactDisplayString(value || "hidden");
@@ -576,6 +513,28 @@ byId("colorPicker").oninput = () => { byId("colorText").value = byId("colorPicke
 byId("brightness").oninput = () => { byId("brightnessValue").value = `${byId("brightness").value}%`; };
 document.querySelectorAll("[data-color]").forEach(button => button.onclick = () => { byId("colorText").value = button.dataset.color; });
 
+async function runControlRoutingTest(text) {
+  const output = byId("controlRoutingTestResult");
+  output.hidden = false;
+  output.style.color = "#c9d8ff";
+  output.textContent = "ROUTING COMMAND...";
+  try {
+    const result = await request("/twitch/lights/test", { method: "POST", body: JSON.stringify({ text }) });
+    const targets = Array.isArray(result.targets) ? result.targets : [];
+    output.textContent = result.effect
+      ? `${String(result.effect).toUpperCase()} // ${targets.length} TARGETS${result.synchronized ? " // SYNCHRONIZED" : ""}\n${targets.join(", ") || "No active targets"}`
+      : `${result.hex || result.directiveType || "COLOR"} // ${Number(result.sent || 0)} SENT // ${Number(result.failed || 0)} FAILED\n${targets.join(", ") || "No active targets"}`;
+  } catch (error) {
+    output.textContent = error.message;
+    output.style.color = "var(--bad)";
+  }
+}
+byId("runControlRoutingTest").onclick = () => runControlRoutingTest(byId("controlRoutingTestInput").value);
+byId("stopControlRoutingTest").onclick = () => runControlRoutingTest("stop");
+byId("controlRoutingTestInput").addEventListener("keydown", event => {
+  if (event.key === "Enter") { event.preventDefault(); void runControlRoutingTest(event.currentTarget.value); }
+});
+
 byId("baseUrl").value = location.origin;
 function applyWidgetSensitiveVisibility() {
   const reveal = byId("showWidgetSensitive").checked;
@@ -795,7 +754,7 @@ async function boot() {
     renderCoreUpdateStatus(await request("/system/update/status"));
     renderFixtures();
     applyWidgetSecurity(status.widgetSecurity);
-    twitchProgramUi = await import('/twitch-light-program.js').then(module => module.initTwitchLightProgram({ request, initialState: status.twitchLightRouting, getFixtures: () => fixtures, changed: groups => { fixtureGroups = groups; renderLightTargets(); } }));
+    twitchProgramUi = await import('/twitch-light-program.js').then(module => module.initTwitchLightProgram({ request, initialState: status.twitchLightRouting, initialEffectState: status.twitchLightEffects, getFixtures: () => fixtures, changed: groups => { fixtureGroups = groups; renderLightTargets(); } }));
     if (status.capabilities?.features === true) { byId("featuresTab").hidden = false; await import("/features.js").then(module => module.initFeaturePlatform()); }
     if (status.capabilities?.mods === true) { byId("modsTab").hidden = false; await import("/mods.js").then(module => module.initModPlatform()); }
   } catch (error) {

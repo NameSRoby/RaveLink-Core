@@ -277,10 +277,12 @@ module.exports = function createFeatureHostRegistry(options = {}) {
     const installed = await packageManager.install(featureId);
     if (!installed.ok) return installed;
     await discover();
-    stateStore.setEnabled(installed.featureId, false, "installed");
-    notifyLifecycle();
     const row = catalog.get(installed.featureId);
-    return row ? { ok: true, installed: true, feature: rowStatus(row) } : { ok: false, error: "feature_install_discovery_failed" };
+    if (!row) return { ok: false, error: "feature_install_discovery_failed" };
+    const started = await enable(installed.featureId, { persist: true, reason: "installed" });
+    return started.lifecycle === "active"
+      ? { ok: true, installed: true, feature: rowStatus(row) }
+      : { ok: false, installed: true, error: "feature_activation_failed", feature: rowStatus(row) };
   }
 
   async function uninstall(featureId, uninstallOptions = {}) {

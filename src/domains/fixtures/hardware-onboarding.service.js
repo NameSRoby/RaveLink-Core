@@ -209,7 +209,8 @@ module.exports = function createHardwareOnboardingService(options = {}) {
       modelId: text(row.modelId, 64),
       productName: text(row.productName, 96),
       type: text(row.type, 96),
-      uniqueId: text(row.uniqueId, 128)
+      uniqueId: text(row.uniqueId, 128),
+      colorTemperatureMired: row.colorTemperatureMired
     })).filter(row => row.lightId > 0);
     hueSetups.set(setupToken, {
       bridge: paired.bridge,
@@ -279,6 +280,8 @@ module.exports = function createHardwareOnboardingService(options = {}) {
         extras: {
           productName: light.productName,
           modelId: light.modelId,
+          type: light.type,
+          colorTemperatureMired: light.colorTemperatureMired,
           hueBridgeCapabilities: setup.capabilities
         }
       };

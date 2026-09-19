@@ -99,6 +99,14 @@
     </nav>
     <main>
       <section class="panel active" data-panel="lights">
+        <div class="actions lightSubtabs" role="tablist" aria-label="Lights workspaces">
+          <button class="active" data-light-tab="control" type="button">DIRECT CONTROL</button>
+          <button data-light-tab="profiles" type="button">LIGHT PROFILES</button>
+          <button data-light-tab="commands" type="button">LIGHT COMMANDS</button>
+          <button data-light-tab="layout" type="button">ROOM LAYOUT <span class="alphaBadge">ALPHA</span></button>
+          <button data-light-tab="lab" type="button">LIGHT LAB</button>
+        </div>
+        <div data-light-panel="control">
         <div class="panelTitle">
           <div>
             <span>DIRECT CONTROL</span>
@@ -112,6 +120,7 @@
           <div><span>HUE</span><strong id="hueCount">0</strong></div>
           <div><span>WIZ</span><strong id="wizCount">0</strong></div>
         </div>
+        <div class="profileQuickAccess"><div><span>QUICK PROFILES</span><div id="lightingProfileQuickBar" class="actions"><span class="effectHelp">NO SAVED PROFILES</span></div></div><span id="lightingProfileQuickStatus" class="statusLine"></span></div>
         <div class="cluster">
           <h3>COLOR COMMAND</h3>
           <div class="controlGrid">
@@ -177,6 +186,12 @@
           </div>
           <pre id="colorResult" class="result" hidden></pre>
         </div>
+        <div class="cluster routingTestConsole">
+          <div class="sectionHead"><div><h3>TEST SAVED ROUTING</h3><p>Try a viewer command through the current Twitch groups, prefixes, dynamic-effect permissions, and real fixture adapters.</p></div></div>
+          <div class="commandRow"><label>VIEWER COMMAND OR GROUP PREFIX<input id="controlRoutingTestInput" maxlength="96" placeholder="desk fade red, blue slow" autocomplete="off" /></label><button id="runControlRoutingTest" type="button">RUN ROUTED TEST</button></div>
+          <div class="actions"><button id="stopControlRoutingTest" type="button">STOP DEFAULT ROUTE EFFECTS</button></div>
+          <pre id="controlRoutingTestResult" class="result" hidden></pre>
+        </div>
         <details class="cluster" id="twitchLightProgram">
           <summary>TWITCH CHANNEL-POINT PROGRAM</summary>
           <fieldset id="twitchProgramControls">
@@ -216,6 +231,24 @@
               <button id="moveSelectedFixture" type="button">MOVE</button>
             </div>
             <div id="twitchFixtureBoard" class="fixtureBoard"></div>
+            <details class="effectProgram" id="twitchEffectProgram">
+              <summary>DYNAMIC COLOR COMMANDS</summary>
+              <p>Let viewers run distinct synchronized and spatial effects with <strong>cycle</strong>, <strong>fade</strong>, <strong>breathe</strong>, <strong>rainbow</strong>, <strong>wave</strong>, <strong>sweep</strong>, <strong>ripple</strong>, or <strong>chase</strong>. Spatial commands use saved room positions. A new static color ends that effect session: selected fixtures take the new color and its other fixtures return to their previous lighting.</p>
+              <label class="switchLabel" title="Allow dynamic commands on the fixtures selected below."><input id="twitchEffectsEnabled" type="checkbox" /><span class="toggleSwitch" aria-hidden="true"></span><span>ALLOW DYNAMIC COMMANDS</span></label>
+              <label class="switchLabel" title="When an effect ends, run a short spatial settle pulse and restore the last state RaveLink sent before the effect."><input id="twitchEffectsReturn" type="checkbox" /><span class="toggleSwitch" aria-hidden="true"></span><span>ANIMATED RETURN TO PREVIOUS LIGHTING</span></label>
+              <p class="effectHelp">The return animation uses each fixture’s last state from this server session, including RGB, brightness, and white mode. Fixtures without a known previous state simply stop.</p>
+              <p class="effectHelp"><strong>ALL</strong> means all fixtures routed in the relevant program. Unrouted and disabled fixtures remain untouched.</p>
+              <div>
+                <h4>FIXTURES ALLOWED TO RUN EFFECTS</h4>
+                <p class="effectHelp">Dynamic routing is independent from the normal color-command board above. Commands without a prefix affect every enabled fixture. Optional fixture prefixes select smaller subsets, and fixtures sharing a prefix run together.</p>
+                <div id="twitchEffectFixtures" class="effectFixtureGrid"></div>
+                <div id="twitchEffectRouteSummary" class="notice" role="status"></div>
+              </div>
+              <div class="effectGuide"><span><strong>CYCLE</strong>synchronized hard color steps</span><span><strong>FADE</strong>whole-room smooth blends</span><span><strong>BREATHE</strong>synchronized brightness pulse</span><span><strong>RAINBOW</strong>spatially spread spectrum</span><span><strong>WAVE</strong>moving spatial color gradient</span><span><strong>SWEEP</strong>directional bright pulse</span><span><strong>RIPPLE</strong>pulse expanding from its origin</span><span><strong>CHASE</strong>hard steps with a fixture gap</span></div>
+              <div class="effectExamples"><strong>EXAMPLES</strong><code>cycle red, green, blue</code><code>all fade purple, cyan slow</code><code>breathe deep blue</code><code>rainbow</code><code>wave red, green, blue</code><code>sweep cyan, purple</code><code>ripple white, blue</code><code>chase red, green, blue</code><code>stop</code></div>
+              <div class="actions"><button id="saveTwitchEffects" type="button">SAVE DYNAMIC COMMANDS</button></div>
+              <div id="twitchEffectsNotice" class="notice" role="status"></div>
+            </details>
             <div class="commandRow">
               <label
                 >REQUEST PREVIEW<input
@@ -233,6 +266,122 @@
           </fieldset>
           <div id="twitchProgramNotice" class="notice" role="status"></div>
         </details>
+        </div>
+        <div data-light-panel="profiles" hidden>
+        <div class="panelTitle">
+          <div><span>WHOLE-ROOM PRESETS</span><h2>LIGHT PROFILES</h2></div>
+          <button id="applyDefaultLightingProfile" type="button">APPLY DEFAULT</button>
+        </div>
+        <p class="profileIntro">Route any set of fixtures into a profile, then restore all of them with one button. Each fixture can use an RGB color or its dedicated tunable-white LEDs.</p>
+        <div class="cluster">
+          <h3>PROFILE</h3>
+          <div class="profileToolbar">
+            <label>SAVED PROFILE<select id="lightingProfileSelect"><option value="">NEW PROFILE</option></select></label>
+            <label>NAME<input id="lightingProfileName" maxlength="72" placeholder="Streaming" /></label>
+            <label>SETTINGS<select id="lightingProfileStrategy"><option value="individual">EACH FIXTURE INDIVIDUALLY</option><option value="shared">SAME SETTINGS FOR ALL</option></select></label>
+            <label class="checkLabel" title="This profile is used by the Apply Default button."><input id="lightingProfileDefault" type="checkbox" /> DEFAULT PROFILE</label>
+          </div>
+          <div id="sharedLightingTarget" class="profileSharedTarget" hidden></div>
+          <div class="actions">
+            <button id="saveLightingProfile" type="button">SAVE PROFILE</button>
+            <button id="applyLightingProfile" type="button">APPLY PROFILE</button>
+            <button id="newLightingProfile" type="button">NEW</button>
+            <button id="deleteLightingProfile" class="danger" type="button">DELETE</button>
+          </div>
+          <div id="lightingProfileResult" class="result" hidden></div>
+        </div>
+        <div class="cluster">
+          <div class="sectionHead"><div><h3>ROUTED FIXTURES</h3><p>Select the fixtures this profile controls. White temperature uses the bulb's white LEDs when the model supports them.</p></div></div>
+          <div id="lightingProfileFixtures" class="profileFixtureGrid"></div>
+        </div>
+        </div>
+        <div data-light-panel="commands" hidden>
+          <div class="panelTitle">
+            <div><span>VIEWER REFERENCE</span><h2>LIGHT COMMANDS</h2></div>
+            <button id="refreshLightCommands" type="button" title="Reload the guide from the currently saved routes and command settings.">REFRESH</button>
+          </div>
+          <p class="profileIntro">This guide follows your saved Twitch routes, prefixes, parser options, colors, and dynamic-effect settings. Copy the compact version into a small panel, or use the detailed version where viewers have more room.</p>
+          <div id="lightCommandsStatus" class="notice" role="status">OPEN THIS TAB TO BUILD THE ACTIVE COMMAND GUIDE.</div>
+          <div class="commandGuideGrid">
+            <section class="cluster commandGuideCard">
+              <div class="sectionHead"><div><h3>COMPACT PANEL LIST</h3><p>Short syntax and examples for a Twitch panel or chat command.</p></div><button id="copyCompactLightCommands" type="button" title="Copy the compact active command guide.">COPY COMPACT</button></div>
+              <pre id="compactLightCommands" class="commandGuideText" tabindex="0"></pre>
+            </section>
+            <section class="cluster commandGuideCard">
+              <div class="sectionHead"><div><h3>DETAILED COMMAND GUIDE</h3><p>Full explanations, active prefixes, effects, speeds, and available color names.</p></div><button id="copyDetailedLightCommands" type="button" title="Copy the detailed active command guide.">COPY DETAILED</button></div>
+              <pre id="detailedLightCommands" class="commandGuideText commandGuideDetailed" tabindex="0"></pre>
+            </section>
+          </div>
+        </div>
+        <div data-light-panel="layout" hidden>
+          <div class="panelTitle"><div><span>SPATIAL EFFECTS</span><h2>ROOM LAYOUT <span class="alphaBadge">ALPHA</span></h2></div><button id="saveLightingLayout" type="button">SAVE LAYOUT</button></div>
+          <p class="profileIntro">Place fixtures on a simple overhead room map. Dynamic sweep, wave, and ripple effects use these positions while every brand remains on the shared effect clock. Wi-Fi does not measure a bulb's physical location, so placement is manual.</p>
+          <div class="cluster routingTestConsole">
+            <div class="sectionHead"><div><h3>TEST SAVED TWITCH ROUTING</h3><p>Send a command through the same saved fixture groups, prefixes, effect allowlist, and adapters used by a real channel-point redemption.</p></div></div>
+            <div class="commandRow"><label>COMMAND OR GROUP PREFIX<input id="layoutRoutingTestInput" maxlength="96" placeholder="desk sweep red, blue slow" /></label><button id="runLayoutRoutingTest" type="button">RUN ROUTED TEST</button></div>
+            <div class="actions"><button id="stopLayoutRoutingTest" type="button">STOP DEFAULT ROUTE EFFECTS</button></div>
+            <pre id="layoutRoutingTestResult" class="result" hidden></pre>
+          </div>
+          <div class="layoutWorkspace cluster">
+            <div>
+              <div id="lightingRoomMap" class="lightingRoomMap" role="application" aria-label="Room fixture layout"><span class="roomFrontLabel">FRONT</span></div>
+              <p class="effectHelp">Select a fixture, then click or drag it to its real position. Height does not change this overhead view but is saved for future vertical effects.</p>
+            </div>
+            <div class="layoutControls">
+              <label>ROOM NAME<input id="lightingRoomName" maxlength="72" value="Streaming room" /></label>
+              <label>FIXTURE<select id="layoutFixtureSelect"></select></label>
+              <div class="formGrid layoutCoordinateGrid"><label>LEFT / RIGHT<input id="layoutX" type="range" min="0" max="100" value="50" /><output id="layoutXValue">50%</output></label><label>FRONT / REAR<input id="layoutY" type="range" min="0" max="100" value="50" /><output id="layoutYValue">50%</output></label><label>HEIGHT<input id="layoutZ" type="range" min="0" max="100" value="50" /><output id="layoutZValue">50%</output></label></div>
+              <label>FIXTURE SHAPE<select id="layoutKind"><option value="point">BULB / POINT LIGHT</option><option value="strip">LED STRIP</option></select></label>
+              <label id="layoutRotationLabel" hidden>STRIP DIRECTION<input id="layoutRotation" type="range" min="0" max="359" value="0" /><output id="layoutRotationValue">0 deg</output></label>
+              <div class="actions"><button id="placeLayoutFixture" type="button">PLACE OR UPDATE</button><button id="removeLayoutFixture" class="danger" type="button">REMOVE POSITION</button></div>
+              <div id="lightingLayoutResult" class="notice" role="status"></div>
+            </div>
+          </div>
+          <div class="cluster">
+            <div class="sectionHead"><div><h3>LED STRIP SECTIONS</h3><p>Section prefixes will appear only after an installed transport proves that it can address segments independently.</p></div><span class="alphaBadge">CAPABILITY-GATED</span></div>
+            <div class="segmentCapabilityGrid">
+              <article><strong>HUE GRADIENT</strong><span>Requires Hue Entertainment API v2. The current v1-compatible stream can control only the full fixture.</span></article>
+              <article><strong>GOVEE SEGMENTS</strong><span>Available through Govee's credentialed cloud capability on supported models. The current private LAN adapter controls the full fixture.</span></article>
+              <article><strong>WIZ DUAL ZONE</strong><span>WiZ exposes a zone ratio, not independently colored addressable sections.</span></article>
+            </div>
+            <p class="effectHelp">RaveLink will not create section prefixes that silently recolor the complete strip. When a segment-capable transport is added, sections can be grouped, locked together, and routed through the same chat-prefix system.</p>
+          </div>
+        </div>
+        <div data-light-panel="lab" hidden>
+          <div class="panelTitle"><div><span>CALIBRATION + SAFETY</span><h2>LIGHT LAB</h2></div><button id="refreshLightingLab" type="button">REFRESH</button></div>
+          <p class="profileIntro">Tune mixed-brand effects, temporarily protect fixtures, inspect capabilities, preview routing, and review recent commands.</p>
+          <div class="cluster">
+            <div class="sectionHead"><div><h3>EFFECT BEHAVIOR</h3><p>These limits apply to viewer-run dynamic effects. Zero duration and repeat count allow an effect to continue until stopped.</p></div></div>
+            <div class="labSettingsGrid">
+              <label>MAXIMUM BRIGHTNESS<input id="labBrightnessLimit" type="range" min="10" max="100" value="100" /><output id="labBrightnessLimitValue">100%</output></label>
+              <label>DURATION SECONDS<input id="labDurationSeconds" type="number" min="0" max="3600" value="0" /></label>
+              <label>REPEAT COUNT<input id="labRepeatCount" type="number" min="0" max="100" value="0" /></label>
+              <label>COOLDOWN SECONDS<input id="labCooldownSeconds" type="number" min="0" max="600" value="0" /></label>
+              <label>CHASE GAP MS<input id="labChaseGap" type="number" min="50" max="2000" step="25" value="250" /></label>
+              <label>SPATIAL DIRECTION<select id="labSpatialDirection"><option value="left-right">LEFT TO RIGHT</option><option value="right-left">RIGHT TO LEFT</option><option value="front-rear">FRONT TO REAR</option><option value="rear-front">REAR TO FRONT</option><option value="clockwise">CLOCKWISE</option><option value="from-fixture">OUTWARD FROM FIXTURE</option></select></label>
+              <label>SPATIAL ORIGIN<select id="labSpatialOrigin"><option value="">ROOM CENTER</option></select></label>
+              <label class="switchLabel" title="Restore the last state immediately when the main Dynamic Commands animated-return option is off."><input id="labRestorePrevious" type="checkbox" /><span class="toggleSwitch" aria-hidden="true"></span><span>IMMEDIATE RESTORE WHEN RETURN ANIMATION IS OFF</span></label>
+            </div>
+            <div class="actions"><button id="saveLightingLab" type="button">SAVE LIGHT LAB</button></div><div id="lightingLabNotice" class="notice" role="status"></div>
+          </div>
+          <div class="cluster">
+            <div class="sectionHead"><div><h3>FIXTURE HEALTH + MANUAL TIMING</h3><p>Connection tests measure network round trips, not when a light visibly changes, so they never alter synchronization automatically. If one fixture consistently leads or trails, use a small visual adjustment: positive advances a slow fixture and negative delays a fast fixture.</p></div><button id="calibrateLightingLatency" type="button">TEST ALL CONNECTIONS</button></div>
+            <div id="lightingLabFixtures" class="labFixtureGrid"></div>
+          </div>
+          <div class="cluster labPreviewWorkspace">
+            <div><div class="sectionHead"><div><h3>ROUTING PREVIEW</h3><p>Resolve a command and highlight its fixtures without sending anything to hardware.</p></div></div><div class="commandRow"><label>VIEWER COMMAND<input id="labPreviewCommand" maxlength="96" placeholder="desk sweep red, blue slow" /></label><button id="runLabPreview" type="button">PREVIEW ROUTE</button></div><pre id="labPreviewResult" class="result" hidden></pre></div>
+            <div id="lightingLabMap" class="lightingRoomMap labMap" aria-label="Lighting route preview"><span class="roomFrontLabel">FRONT</span></div>
+          </div>
+          <div class="cluster">
+            <div class="sectionHead"><div><h3>COMMAND PRESETS</h3><p>Save favorite palettes and effect commands, then load or run them through current routing.</p></div></div>
+            <div class="commandRow"><label>PRESET NAME<input id="labPresetName" maxlength="48" placeholder="Neon sweep" /></label><label>COMMAND<input id="labPresetCommand" maxlength="96" placeholder="sweep cyan, purple slow" /></label><button id="addLabPreset" type="button">ADD PRESET</button></div>
+            <div id="lightingLabPresets" class="labPresetGrid"></div>
+          </div>
+          <div class="cluster">
+            <div class="sectionHead"><div><h3>RECENT LIGHT COMMANDS</h3><p>Shows the bounded in-memory delivery history for this server session.</p></div><button id="clearLightingHistory" type="button">CLEAR HISTORY</button></div>
+            <div class="tableWrap"><table><thead><tr><th>TIME</th><th>SOURCE</th><th>COMMAND</th><th>TARGETS</th><th>RESULT</th></tr></thead><tbody id="lightingLabHistory"><tr><td colspan="5">NO COMMANDS RECORDED</td></tr></tbody></table></div>
+          </div>
+        </div>
       </section>
       <section class="panel" data-panel="fixtures" hidden>
         <div class="panelTitle">
@@ -575,5 +724,8 @@
       </section>
     </main>
     <script src="/core.js"></script>
+    <script src="/usability-tooltips.js"></script>
+    <script src="/lighting-profiles.js"></script>
+    <script src="/lighting-commands.js"></script>
   </body>
 </html>

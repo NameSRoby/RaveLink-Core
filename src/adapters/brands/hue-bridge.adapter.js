@@ -259,8 +259,6 @@ module.exports = function createHueBridgeAdapter(options = {}) {
   function fixtureSupportsHueEntertainment(target = {}) {
     const capabilities = getHueFixtureCapabilities(target);
     if (capabilities.supportsEntertainment === false) return false;
-    if (capabilities.forceHttp === true) return false;
-    if (capabilities.bridgeModelId === "BSB001") return false;
     return true;
   }
 
@@ -535,11 +533,12 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       ? input.entertainmentAreas
       : [];
     const bridgeModelId = String(bridgeConfig.modelid || bridgeConfig.modelId || "").trim().toUpperCase();
-    // [DEV] Hue Bridge v1 model BSB001 only supports the legacy local API and
-    // [DEV] should stay on REST/HTTP mode. Entertainment credentials are not used.
+    // BSB001 keeps its legacy HTTP REST fallback. If the operator has explicit
+    // Entertainment credentials, allow the bounded DTLS runtime to try them;
+    // handshake failures are suppressed and fall back to REST.
     const isLegacyBridgeV1 = bridgeModelId === "BSB001";
     const supportsHttps = !isLegacyBridgeV1;
-    const supportsEntertainment = !isLegacyBridgeV1 && Boolean(clientKey);
+    const supportsEntertainment = Boolean(clientKey);
     return {
       bridgeModelId,
       bridgeSoftwareVersion: String(bridgeConfig.swversion || bridgeConfig.swVersion || "").trim(),
@@ -770,7 +769,11 @@ module.exports = function createHueBridgeAdapter(options = {}) {
           type: String(rawLight?.type || "").trim(),
           productName: String(rawLight?.productname || "").trim(),
           uniqueId: String(rawLight?.uniqueid || "").trim(),
-          swVersion: String(rawLight?.swversion || "").trim()
+          swVersion: String(rawLight?.swversion || "").trim(),
+          colorTemperatureMired: {
+            minimum: clampNumber(rawLight?.capabilities?.control?.ct?.min, 100, 1000, 153),
+            maximum: clampNumber(rawLight?.capabilities?.control?.ct?.max, 100, 1000, 500)
+          }
         });
       }
       lights.sort((a, b) => Number(a.lightId || 0) - Number(b.lightId || 0));
@@ -915,7 +918,9 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     }
 
     const transportDesired = normalizeTransportMode(transportMode);
-    const entertainmentEnabled = transportDesired === "entertainment" || transportDesired === "auto";
+    // Tunable-white commands must reach the REST state endpoint. Entertainment
+    // frames carry RGB values and cannot preserve a requested Hue `ct` mode.
+    const entertainmentEnabled = state?.__forceRest !== true && !Number.isFinite(Number(state?.ct)) && (transportDesired === "entertainment" || transportDesired === "auto");
     const entertainmentRgb = resolveHueEntertainmentRgb(state);
     const entertainmentReadyGroups = new Map();
     const restTargets = [];

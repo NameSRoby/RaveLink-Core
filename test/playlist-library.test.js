@@ -51,13 +51,12 @@ test("playlist library de-duplicates and caps imported tracks", () => {
   assert.equal(library.replace(collection.id, rows).collection.count, MAX_TRACKS);
 });
 
-test("playlist library preserves official SoundCloud playlist tracks", () => {
+test("playlist library rejects non-YouTube tracks", () => {
   const library = createPlaylistLibrary({ now: () => 1000 });
-  const collection = library.create({ name: "SoundCloud", provider: "soundcloud", sourceId: "soundcloud:playlists:42" }).collection;
-  const result = library.replace(collection.id, [{ provider: "soundcloud", providerItemId: "soundcloud:tracks:7", title: "Track", artists: ["Artist"], sourceUrl: "https://soundcloud.com/artist/track" }], { provider: "soundcloud" });
-  assert.equal(result.collection.count, 1);
-  assert.equal(result.tracks[0].candidate.provider, "soundcloud");
-  assert.equal(result.tracks[0].candidate.sourceUrl, "https://soundcloud.com/artist/track");
+  const collection = library.create({ name: "YouTube only" }).collection;
+  const result = library.replace(collection.id, [{ provider: "other", providerItemId: "other:7", title: "Track", artists: ["Artist"] }], { provider: "other" });
+  assert.equal(result.collection.count, 0);
+  assert.deepEqual(result.tracks, []);
 });
 
 test("the required chat archive is protected and its history policy is explicit", () => {
