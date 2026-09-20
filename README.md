@@ -41,7 +41,7 @@ Govee LAN support works only with models that expose **LAN Control** in the Gove
 
 ## Song Request And YouTube Playback
 
-Song Request is optional and can be installed during setup or later from **Features**. It supports text lookup, direct YouTube links, FIFO requests, server playlists, moderation controls, and a customizable now-playing OBS overlay. Multilingual titles are kept in Unicode, and the overlay includes Windows CJK font fallbacks for Japanese, Chinese, and Korean text.
+Song Request is optional and can be installed during setup or later from **Features**. It supports text lookup, direct YouTube links, FIFO requests, server playlists, moderation controls, and a customizable now-playing OBS overlay. The **Now Playing Sources** panel can also display the current Spotify, Apple Music, or TIDAL Windows media session in that overlay. These desktop sources only observe media information already exposed by Windows; they do not add song-request search or playback for those services. Multilingual titles are preserved as UTF-8, and the observer and overlay include Japanese, Chinese, and Korean support.
 
 Playback uses YouTube's official embedded player. A video can still refuse embedded playback because its owner disabled embedding or because YouTube applies age, region, account, or content restrictions. Those decisions are controlled by YouTube and can make an otherwise valid request skip or fail. Improving failure handling and candidate selection remains work in progress; RaveLink Core does not download or restream YouTube media as a fallback.
 

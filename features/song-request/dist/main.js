@@ -139,6 +139,13 @@ async function activate(nextContext) {
     }
   } catch {}
   await playlists.activate();
+  const source = queue.playbackStatus().playbackSource;
+  if (source !== "youtube") {
+    try {
+      await context.callCapability("media.windows.now-playing.v1", "control", { action: "select", provider: source }, { timeoutMs: 1000 });
+      await context.callCapability("media.windows.now-playing.v1", "control", { action: "start" }, { timeoutMs: 1000 });
+    } catch {}
+  }
 }
 
 async function handleRequest(request) {
@@ -148,6 +155,8 @@ async function handleRequest(request) {
     "song.queue.admin.v1": ["moderate", "configure", "settle"],
     "song.playback.read.v1": ["status"],
     "song.playback.driver.v1": ["pull", "acknowledge"],
+    "song.playback.observe.v1": ["observe"],
+    "song.observer.admin.v1": ["status", "control"],
     "song.overlay.read.v1": ["status"],
     "song.overlay.admin.v1": ["configure"],
     "song.catalog.read.v1": ["status"],
@@ -184,6 +193,31 @@ async function handleRequest(request) {
   }
   if (request.capability === "song.playback.read.v1") return queue.playbackStatus();
   if (request.capability === "song.overlay.read.v1") return queue.overlayStatus();
+  if (request.capability === "song.observer.admin.v1") {
+    const action = request.method === "status" ? "status" : String(request.payload?.action || "");
+    if (action === "select") {
+      const selected = queue.configurePlaybackSource({ source: request.payload?.source });
+      if (!selected.ok) return { ok: false, supported: true, lifecycle: "stopped", playbackSource: selected.playbackSource, error: selected.code };
+      let observer;
+      try {
+        observer = selected.playbackSource === "youtube"
+          ? await context.callCapability("media.windows.now-playing.v1", "control", { action: "stop" }, { timeoutMs: 2000 })
+          : await context.callCapability("media.windows.now-playing.v1", "control", { action: "select", provider: selected.playbackSource }, { timeoutMs: 2000 });
+        if (selected.playbackSource !== "youtube") observer = await context.callCapability("media.windows.now-playing.v1", "control", { action: "start" }, { timeoutMs: 1000 });
+      } catch {
+        observer = { ok: false, supported: false, lifecycle: "unavailable", error: "windows_media_observer_unavailable" };
+      }
+      schedulePersistence();
+      publishPlayback(selected);
+      return { ...observer, playbackSource: selected.playbackSource };
+    }
+    try {
+      const observer = await context.callCapability("media.windows.now-playing.v1", "control", { action }, { timeoutMs: action === "stop" ? 2000 : 1000 });
+      return { ...observer, playbackSource: queue.playbackStatus().playbackSource };
+    } catch {
+      return { ok: false, supported: false, lifecycle: "unavailable", playbackSource: queue.playbackStatus().playbackSource, error: "windows_media_observer_unavailable" };
+    }
+  }
   let effectiveRequest = request;
   if (request.capability === "song.queue.submit.v1" && request.method === "submit"
     && (!request.payload?.candidate || request.payload.candidate.provider === "youtube")) {
@@ -255,4 +289,3 @@ async function deactivate() {
 }
 
 module.exports = { activate, deactivate, handleRequest };
-

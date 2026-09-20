@@ -1,6 +1,7 @@
 const path = require("node:path");
 const createFeatureHostRegistry = require("../../capabilities/feature-platform/host/feature-host-registry");
 const registerFeaturePlatformRoutes = require("../../capabilities/feature-platform/http/register-feature-platform.routes");
+const createWindowsMediaObserver = require("../../capabilities/feature-platform/providers/windows-media-observer");
 const createTwitchChatCommandRouter = require("../../capabilities/feature-platform/providers/twitch-chat-command-router");
 const { TWITCH_PUBLIC_CLIENT_ID } = require("../../capabilities/feature-platform/providers/twitch-public-client");
 
@@ -59,11 +60,16 @@ module.exports = function createFeaturePlatformExtension(options = {}) {
       }
       return youtubeCatalog;
     }
+    const mediaObserver = createWindowsMediaObserver({
+      observerPath: path.join(rootDir, "scripts", "windows-media-observer.ps1"),
+      onSnapshot: payload => registry.request("song-request", "song.playback.observe.v1", "observe", payload, { timeoutMs: 1000 })
+    });
     registry = createFeatureHostRegistry({
       featuresRoot: options.featuresRoot || path.join(rootDir, "features", "installed"),
       packageRoots: options.packageRoots || [path.join(rootDir, "feature-packages"), path.join(rootDir, "features")],
       runtimeRoot: options.runtimeRoot || path.join(context.runtimeDir, "features"),
       providers: {
+        "media.windows.now-playing.v1/control": payload => mediaObserver.control(payload),
         "twitch.host.v1/status": () => twitchProvider().ensureStatus(),
         "twitch.host.v1/configure": payload => twitchProvider().configure(payload),
         "twitch.host.v1/configure-monitor": payload => twitchProvider().configureMonitor(payload),
@@ -90,6 +96,7 @@ module.exports = function createFeaturePlatformExtension(options = {}) {
     });
     registerFeaturePlatformRoutes(context.app, { registry });
     const unsubscribeLifecycle = registry.subscribeLifecycle(snapshot => {
+      if (!snapshot?.features?.some(row => row.id === "song-request" && row.lifecycle === "active")) void mediaObserver.stop();
       const twitchActive = snapshot?.features?.some(row => row.id === "twitch-integration" && row.lifecycle === "active");
       if (!twitchActive) twitchOAuth?.suspendMonitor?.();
       else if (twitchOAuth) void twitchOAuth.ensureStatus();
@@ -103,8 +110,10 @@ module.exports = function createFeaturePlatformExtension(options = {}) {
       owner: "feature-platform",
       registry,
       startup,
+      mediaObserver,
       async shutdown() {
         unsubscribeLifecycle?.();
+        await mediaObserver.stop();
         await twitchOAuth?.shutdown?.();
         return registry.shutdown();
       }

@@ -127,14 +127,18 @@ test("versioned snapshots restore bounded state and reject corruption", () => {
   assert.equal(restored.status().counts.queued, 1);
 });
 
-test("playback source remains fixed to the embedded YouTube player", () => {
+test("playback source switches between YouTube and observed Windows media sessions", () => {
   const queue = createSongQueue({ now: () => 100 });
   assert.equal(queue.playbackStatus().primary, null);
-  assert.equal(queue.configurePlaybackSource({ source: "spotify" }).playbackSource, "youtube");
+  assert.equal(queue.configurePlaybackSource({ source: "spotify" }).playbackSource, "spotify");
+  assert.equal(queue.observe({ provider: "spotify", sourceId: "Spotify.exe", available: true, title: "美波 - カワキヲアメク", artists: ["美波"], status: "playing" }).ok, true);
+  assert.equal(queue.playbackStatus().primary.title, "美波 - カワキヲアメク");
+  assert.equal(queue.configurePlaybackSource({ source: "apple-music" }).playbackSource, "apple-music");
   assert.equal(queue.playbackStatus().primary, null);
+  assert.equal(queue.configurePlaybackSource({ source: "unsupported" }).ok, false);
   const restored = createSongQueue();
   assert.equal(restored.importSnapshot(queue.exportSnapshot()).ok, true);
-  assert.equal(restored.playbackStatus().playbackSource, "youtube");
+  assert.equal(restored.playbackStatus().playbackSource, "apple-music");
 });
 
 test("legacy snapshots migrate implicit Song Request responses to off", () => {

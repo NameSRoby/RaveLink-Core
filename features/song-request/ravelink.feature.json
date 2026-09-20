@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "song-request",
   "name": "Song Request",
-  "description": "Song Request with YouTube search, official embedded playback, playlists, moderation, and a configurable now-playing overlay.",
-  "version": "0.13.7",
+  "description": "YouTube Song Request with playlists, moderation, and an overlay that can also observe supported Windows media sessions.",
+  "version": "0.13.8",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
@@ -17,6 +17,7 @@
     "twitch.redemptions.v1?",
     "twitch.rewards.manage.v1?",
     "diagnostics.publish.v1?",
+    "media.windows.now-playing.v1?",
     "youtube.catalog.host.v1?"
   ],
   "provides": [
@@ -28,7 +29,9 @@
     "song.queue.events.v1",
     "song.playback.read.v1",
     "song.playback.driver.v1",
+    "song.playback.observe.v1",
     "song.playback.events.v1",
+    "song.observer.admin.v1",
     "song.overlay.read.v1",
     "song.overlay.admin.v1",
     "song.overlay.events.v1",
@@ -113,6 +116,19 @@
         ]
       },
       {
+        "id": "now-playing",
+        "title": "Now Playing Sources",
+        "entry": "ui/now-playing.html",
+        "surface": "panel",
+        "embedHosts": [],
+        "imageHosts": [],
+        "capabilities": [
+          "song.observer.admin.v1",
+          "song.playback.read.v1",
+          "song.playback.events.v1"
+        ]
+      },
+      {
         "id": "obs-overlay",
         "title": "OBS Overlay",
         "entry": "ui/obs-overlay.html",
@@ -148,11 +164,11 @@
   "integrity": {
     "algorithm": "sha256",
     "files": {
-      "contracts/song-request-v1.contracts.json": "affac17dc73e975c6cf7e82baebea48f89e04ec80cab148af8456dd5f539434a",
+      "contracts/song-request-v1.contracts.json": "a44efb4fbe592abd59b94c717e7ce92c7248d7deeeb525b98080dbc9fa79bbd7",
       "dist/catalog-policy.js": "c9eddb6a09351c7cf79ad7fd0ba66543e266781bac73aea4817adceead4d9893",
       "dist/chat-responses.js": "3e23b630597b982fe9a28ec057514ded002a68f17a0e6e14c8d33a80029749dd",
-      "dist/domain.js": "6901cb364da46e6518ae21d61346a2e85407dfd005c6bff835cc94ecfe1e0196",
-      "dist/main.js": "7680b612bd77190e977e7dbf217ceff4bd337d0facdd5f826b1fa7a5025fe56e",
+      "dist/domain.js": "ccc33cb92497612d5f665001199dc5ab54f3e3dbdf05d3fa6fa022e7bd06eaea",
+      "dist/main.js": "23722ccf07dab41b0b572709fafd9493ead912910f33e3a35f4d943134302198",
       "dist/overlay-config.js": "b1e724c25faf55bb2d1e8847f22617ae57ae6d91e308ce17cd6eae3cb477d009",
       "dist/playlist-library.js": "ba0c4d98d149a76f273b9bced8be9cb05fb330b24f5e4c6e37deed572b4eff7d",
       "dist/playlist-service.js": "63a2980ba0b4564c0d1cb3a0daf193750575e1387bb83588728829a19fce8875",
@@ -160,6 +176,7 @@
       "schemas/queue-v1.schema.json": "8e3b16d16c6195437e74df7ff9a70276f7c3a6eb48907029e4ee5e50858af5d2",
       "schemas/response-intent-v1.schema.json": "2805e15cd0d74c455c4f445e9c73f7a671d5223a9a931e253856bbd801de8646",
       "schemas/settlement-v1.schema.json": "06404c47b368a98e73c90d4adc9f3256efde94d10f994d76e864f70f0101c95c",
+      "ui/now-playing.html": "2fa5e49c25aac336b484215b3b0d0d9ec22663c1378633e012dfa6a63b992098",
       "ui/obs-overlay.html": "fa2885a660da8a379503dbe51451595c8fbfa226dceba9c0204735893615a185",
       "ui/overlay-editor.html": "2557ea42d569b02adfad9de7535273ca1372b2a3663eaa0a583bba95119ac1ff",
       "ui/player.html": "c21843629020bdc7f1bce0965d8609bfac72908d9c303e3cb643f32184288b1e",

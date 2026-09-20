@@ -12,12 +12,19 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-feature-ui-"));
   const installed = path.join(root, "installed", "song-request");
   fs.cpSync(path.join(__dirname, "..", "features", "song-request"), installed, { recursive: true });
+  const desktopObserver = { lifecycle: "stopped", selectedProvider: "spotify", observations: 0 };
   const created = createCoreServer({
     rootDir: path.join(__dirname, ".."), runtimeDir: path.join(root, "runtime"), dryRun: true,
     capabilities: { features: true },
     extend: createFeaturePlatformExtension({
       featuresRoot: path.join(root, "installed"), runtimeRoot: path.join(root, "runtime", "features"), allowUnsafeRuntime: true,
       providers: {
+        "media.windows.now-playing.v1/control": async payload => {
+          if (payload.action === "select") desktopObserver.selectedProvider = payload.provider;
+          if (payload.action === "start") desktopObserver.lifecycle = "active";
+          if (payload.action === "stop") desktopObserver.lifecycle = "stopped";
+          return { ok: true, supported: true, lifecycle: desktopObserver.lifecycle, selectedProvider: desktopObserver.selectedProvider, counters: { observations: desktopObserver.observations } };
+        },
         "youtube.catalog.host.v1/status": async () => ({ ok: true, configured: true, mode: "keyless" }),
         "youtube.catalog.host.v1/resolve": async payload => ({ ok: true, candidate: { provider: "youtube", providerItemId: payload.videoId || "M7lc1UVf-VE", title: unicodeTitle, artists: ["美波 / Minami"], durationMs: 285920 } })
       }
@@ -44,12 +51,12 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   const snapshot = await fetch(`${base}/api/features`).then(response => response.json());
   const deniedStream = await fetch(`${base}/api/features-stream`, { headers: { origin: 'https://untrusted.invalid' } });
   assert.equal(deniedStream.status, 403);
-  assert.equal(snapshot.features[0].uiContributions.length, 5);
-  assert.deepEqual(snapshot.features[0].uiContributions.map(row => row.surface), ["panel", "panel", "panel", "overlay", "panel"]);
+  assert.equal(snapshot.features[0].uiContributions.length, 6);
+  assert.deepEqual(snapshot.features[0].uiContributions.map(row => row.surface), ["panel", "panel", "panel", "panel", "overlay", "panel"]);
   assert.equal((await fetch(`${base}/health`).then(response => response.json())).capabilities.songRequest, true);
   const playerResponse = await fetch(`${base}/features-ui/song-request/player`);
   assert.equal(playerResponse.status, 200);
-  for (const pageId of ["request-queue", "server-playlist"]) {
+  for (const pageId of ["request-queue", "server-playlist", "now-playing"]) {
     const response = await fetch(`${base}/features-ui/song-request/${pageId}`);
     assert.equal(response.status, 200);
   }
@@ -120,6 +127,23 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   await playlistSurface.getByRole("button", { name: "Import" }).waitFor();
   await playlistSurface.locator("#collections").waitFor();
   assert.equal(await playlistSurface.locator("body").evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true);
+  const sourcesPopup = await context.newPage();
+  await sourcesPopup.goto(`${base}/features-ui/song-request/now-playing`, { waitUntil: "domcontentloaded" });
+  const sourcesSurface = sourcesPopup.locator("#surface").contentFrame();
+  await sourcesSurface.locator("#source").selectOption("spotify");
+  await sourcesSurface.locator("#select").click();
+  await sourcesSurface.locator("#notice").filter({ hasText: "SPOTIFY is now the overlay source" }).waitFor();
+  assert.equal(await sourcesSurface.locator("#select").isEnabled(), true);
+  await sourcesSurface.locator("#source").selectOption("apple-music");
+  await sourcesSurface.locator("#select").click();
+  await sourcesSurface.locator("#notice").filter({ hasText: "APPLE-MUSIC is now the overlay source" }).waitFor();
+  assert.equal(await sourcesSurface.locator("#select").isEnabled(), true);
+  await featureCall("song.playback.observe.v1", "observe", { provider: "apple-music", sourceId: "Apple.Music", available: true, title: unicodeTitle, artists: ["美波 / Minami"], album: "カワキヲアメク", status: "playing", positionMs: 5000, durationMs: 285920, observedAt: Date.now() });
+  await sourcesSurface.locator("#title").filter({ hasText: unicodeTitle }).waitFor();
+  await sourcesSurface.locator("#source").selectOption("youtube");
+  await sourcesSurface.locator("#select").click();
+  await sourcesSurface.locator("#notice").filter({ hasText: "YOUTUBE is now the overlay source" }).waitFor();
+  await sourcesPopup.close();
   if (process.env.RAVELINK_CAPTURE_UI === '1') {
     const output = path.join(__dirname, '..', 'runtime', 'logs');
     fs.mkdirSync(output, { recursive: true });
@@ -242,7 +266,7 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   await embeddedPlayer.contentFrame().locator('#surface').contentFrame().locator('#openOverlay').click();
   await workspace.locator('[data-page="obs-overlay"].active').waitFor();
   await workspace.locator('.overlaySourceTools').waitFor({ state: 'visible' });
-  assert.equal(await workspace.locator('.overlaySourceTools input').first().inputValue(), `${base}/features-ui/song-request/obs-overlay?v=0.13.7`);
+  assert.equal(await workspace.locator('.overlaySourceTools input').first().inputValue(), `${base}/features-ui/song-request/obs-overlay?v=0.13.8`);
   assert.equal(await workspace.locator('.overlaySourceTools input').nth(1).inputValue(), '360 x 150');
   const compactOverlay = await context.newPage();
   await compactOverlay.addInitScript(() => {

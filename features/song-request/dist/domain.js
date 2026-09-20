@@ -4,7 +4,7 @@ const { RESPONSE_KINDS } = require("./chat-responses");
 const { DEFAULT_CATALOG_POLICY, catalogPolicyFrom } = require("./catalog-policy");
 
 const SNAPSHOT_VERSION = 11;
-const PLAYBACK_SOURCES = Object.freeze(["youtube"]);
+const PLAYBACK_SOURCES = Object.freeze(["youtube", "tidal", "spotify", "apple-music"]);
 const DEFAULTS = Object.freeze({ maxQueue: 200, maxRecent: 250, maxPerRequester: 5, maxPerVip: 10, maxDurationMs: 600000 });
 const RECENT_REQUESTER_LIMIT = 10;
 const MAX_MODERATION_ENTRIES = 250;
@@ -105,7 +105,7 @@ function createSongQueue(options = {}) {
 
   function configurePlaybackSource(payload = {}) {
     const source = text(payload.source, 40).toLowerCase();
-    if (!PLAYBACK_SOURCES.includes(source)) return { ok: false, code: "playback_source_invalid", ...playbackStatus() };
+    if (!PLAYBACK_SOURCES.includes(source)) return { ...playbackStatus(), ok: false, code: "playback_source_invalid" };
     if (source !== playbackSource) {
       playbackSource = source;
       observations.clear();
@@ -648,4 +648,3 @@ function createSongQueue(options = {}) {
 }
 
 module.exports = { DEFAULTS, DEFAULT_CATALOG_POLICY, DEFAULT_OVERLAY, DRIVER_LEASE_MS, OVERLAY_BLOCK_KINDS, PLAYBACK_SOURCES, RECENT_REQUESTER_LIMIT, RESPONSE_KINDS, SNAPSHOT_VERSION, createSongQueue };
-

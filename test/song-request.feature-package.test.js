@@ -16,11 +16,11 @@ test("Song Request is a verified first-party feature package, not a mod", async 
   assert.deepEqual(verified.manifest.provides, [
     "song.playlist.read.v1", "song.playlist.admin.v1",
     "song.queue.read.v1", "song.queue.submit.v1", "song.queue.admin.v1", "song.queue.events.v1",
-    "song.playback.read.v1", "song.playback.driver.v1", "song.playback.events.v1",
+    "song.playback.read.v1", "song.playback.driver.v1", "song.playback.observe.v1", "song.playback.events.v1", "song.observer.admin.v1",
     "song.overlay.read.v1", "song.overlay.admin.v1", "song.overlay.events.v1",
     "song.catalog.read.v1", "song.catalog.admin.v1"
   ]);
-  assert.deepEqual(verified.manifest.contributes.pages.map(page => [page.id, page.surface]), [["player", "panel"], ["request-queue", "panel"], ["server-playlist", "panel"], ["obs-overlay", "overlay"], ["overlay-editor", "panel"]]);
+  assert.deepEqual(verified.manifest.contributes.pages.map(page => [page.id, page.surface]), [["player", "panel"], ["request-queue", "panel"], ["server-playlist", "panel"], ["now-playing", "panel"], ["obs-overlay", "overlay"], ["overlay-editor", "panel"]]);
   assert.equal(fs.existsSync(path.join(root, "ravelink.mod.json")), false);
 });
 
@@ -65,6 +65,15 @@ test("overlay refreshes playback clocks without rebuilding the marquee", () => {
   assert.match(html, /else syncPlaybackData\(current\);lastRenderedPlayback=current/);
   assert.match(html, /Yu Gothic UI/);
   assert.match(html, /cjk:CJK_FALLBACK/);
+});
+
+test("Now Playing Sources can switch Windows media providers repeatedly", () => {
+  const html = fs.readFileSync(path.join(root, "ui", "now-playing.html"), "utf8");
+  assert.match(html, /value="tidal"/);
+  assert.match(html, /value="spotify"/);
+  assert.match(html, /value="apple-music"/);
+  assert.match(html, /for\(const button of document\.querySelectorAll\("button"\)\)button\.disabled=false/);
+  assert.doesNotMatch(html, /postMessage\([^\n]+,"\*"\)/);
 });
 
 test("Song Request keeps multilingual titles intact through queue state", () => {
