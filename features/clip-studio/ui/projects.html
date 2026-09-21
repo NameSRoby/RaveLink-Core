@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Clip Studio</title>
+  <style>
+    :root{color-scheme:dark;font-family:Arial,sans-serif;background:#080b13;color:#f6f8ff}*{box-sizing:border-box}body{margin:0;padding:18px}h1{margin:0 0 8px}.eyebrow{color:#89a9ee;font-size:12px;letter-spacing:.12em}.card{margin-top:18px;padding:18px;border:1px solid #26385f;border-radius:8px;background:#0c1220}.alpha{display:inline-block;padding:4px 8px;border:1px solid #d69300;border-radius:999px;color:#ffc33d;font-size:11px;font-weight:700}.muted{color:#aebfe9;line-height:1.55}.status{color:#53ef91;font-weight:700}.steps{display:grid;gap:10px;margin-top:16px}.step{padding:12px;border:1px solid #26385f;border-radius:6px;color:#bcd0ff}.step strong{display:block;color:#fff;margin-bottom:4px}
+  </style>
+</head>
+<body>
+  <div class="eyebrow">OPTIONAL VIDEO TOOL</div>
+  <h1>Clip Studio <span class="alpha">INFRASTRUCTURE</span></h1>
+  <p class="muted">Clip Studio is installed through RaveLink's verified package system. This foundation reserves the isolated feature boundary, project capability, and update path without installing video models or starting background analysis.</p>
+  <section class="card">
+    <div id="status" class="status">CHECKING PACKAGE STATUS...</div>
+    <div class="steps">
+      <div class="step"><strong>Current stage</strong>Package lifecycle and user surface only.</div>
+      <div class="step"><strong>Later updates</strong>Local file projects, resumable analysis jobs, transcripts, scene markers, and explainable clip candidates.</div>
+      <div class="step"><strong>Resource use now</strong>No video scanning, model loading, media worker, or background processing.</div>
+    </div>
+  </section>
+  <script>
+    const channel='ravelink-feature-ui-v1';let sequence=0;const pending=new Map();
+    function call(capability,method,payload){return new Promise((resolve,reject)=>{const id=String(++sequence);pending.set(id,{resolve,reject});parent.postMessage({channel,type:'call',id,capability,method,payload},'*')})}
+    addEventListener('message',event=>{const message=event.data;if(message?.channel!==channel||message.type!=='response'||!pending.has(message.id))return;const task=pending.get(message.id);pending.delete(message.id);message.ok?task.resolve(message.value):task.reject(new Error(message.error||'Request failed'))});
+    call('video.projects.read.v1','status',null).then(value=>{document.getElementById('status').textContent=value.message}).catch(error=>{const node=document.getElementById('status');node.textContent=error.message;node.style.color='#ff6b7d'});
+  </script>
+</body>
+</html>

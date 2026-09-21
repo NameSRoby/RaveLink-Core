@@ -4,6 +4,7 @@ const registerFeaturePlatformRoutes = require("../../capabilities/feature-platfo
 const createWindowsMediaObserver = require("../../capabilities/feature-platform/providers/windows-media-observer");
 const createTwitchChatCommandRouter = require("../../capabilities/feature-platform/providers/twitch-chat-command-router");
 const { TWITCH_PUBLIC_CLIENT_ID } = require("../../capabilities/feature-platform/providers/twitch-public-client");
+const { OFFICIAL_FEATURE_SOURCES } = require("../../capabilities/feature-platform/packages/official-feature-sources");
 
 module.exports = function createFeaturePlatformExtension(options = {}) {
   return function attachFeaturePlatform(context) {
@@ -67,6 +68,8 @@ module.exports = function createFeaturePlatformExtension(options = {}) {
     registry = createFeatureHostRegistry({
       featuresRoot: options.featuresRoot || path.join(rootDir, "features", "installed"),
       packageRoots: options.packageRoots || [path.join(rootDir, "feature-packages"), path.join(rootDir, "features")],
+      remoteSources: options.remoteSources || (options.packageRoots ? [] : OFFICIAL_FEATURE_SOURCES),
+      fetchImpl: options.featureFetch,
       runtimeRoot: options.runtimeRoot || path.join(context.runtimeDir, "features"),
       providers: {
         "media.windows.now-playing.v1/control": payload => mediaObserver.control(payload),

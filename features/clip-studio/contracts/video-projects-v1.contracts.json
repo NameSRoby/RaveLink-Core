@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "contracts": [
+    {
+      "capability": "video.projects.read.v1",
+      "methods": {
+        "status": {
+          "request": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok", "phase", "active", "projects", "message"],
+            "additionalProperties": false,
+            "properties": {
+              "ok": { "const": true },
+              "phase": { "const": "infrastructure" },
+              "active": { "type": "boolean" },
+              "projects": { "type": "integer", "minimum": 0, "maximum": 0 },
+              "message": { "type": "string", "maxLength": 240 }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

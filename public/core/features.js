@@ -63,13 +63,14 @@ function render() {
   }).join("") : '<tr><td colspan="5">NO FEATURES INSTALLED</td></tr>';
   const installedIds = new Set(state.features.map(row => row.id));
   const installable = available.features.filter(row => !installedIds.has(row.id));
-  byId("availableFeatureRows").innerHTML = installable.length ? installable.map(row => `<tr><td><div class="modIdentity"><strong>${escapeHtml(row.name)}</strong><span>${escapeHtml(row.description || row.id)}</span></div></td><td>${escapeHtml(row.version)}</td><td class="resourceCell">LIMIT ${Number(row.resources?.activeRssMiB || 0).toFixed(0)} MiB<br><span>${Math.ceil(Number(row.bytes || 0) / 1024)} KiB PACKAGE</span></td><td><button type="button" data-feature-install="${escapeHtml(row.id)}">INSTALL</button></td></tr>`).join("") : '<tr><td colspan="4">NO PACKAGES AVAILABLE</td></tr>';
+  byId("availableFeatureRows").innerHTML = installable.length ? installable.map(row => `<tr><td><div class="modIdentity"><strong>${escapeHtml(row.name)}</strong><span>${escapeHtml(row.description || row.id)}</span></div></td><td>${escapeHtml(row.version)}</td><td class="resourceCell">LIMIT ${Number(row.resources?.activeRssMiB || 0).toFixed(0)} MiB<br><span>${row.downloadRequired ? "DOWNLOAD FROM GITHUB" : `${Math.ceil(Number(row.bytes || 0) / 1024)} KiB PACKAGE`}</span></td><td><button type="button" data-feature-install="${escapeHtml(row.id)}" data-feature-download="${row.downloadRequired ? "1" : "0"}">${row.downloadRequired ? "DOWNLOAD & INSTALL" : "INSTALL"}</button></td></tr>`).join("") : '<tr><td colspan="4">NO PACKAGES AVAILABLE</td></tr>';
 }
 
 async function refresh() {
   const [snapshot, packages] = await Promise.all([api("/api/features"), api("/api/features-available")]);
   available = packages;
   acceptSnapshot(snapshot);
+  if (packages.warnings?.length) notice("Some downloadable features could not be checked. Confirm internet access and try Refresh.", true);
 }
 
 function notice(message, bad = false) {
@@ -141,6 +142,7 @@ export async function initFeaturePlatform() {
   byId("availableFeatureRows").onclick = async event => {
     const install = event.target.closest("[data-feature-install]");
     if (!install) return;
+    if (install.dataset.featureDownload === "1" && !confirm(`Download and install ${install.dataset.featureInstall} from the official RaveLink GitHub repository? The package will be verified before it is activated.`)) return;
     try {
       install.disabled = true;
       await api(`/api/features/${encodeURIComponent(install.dataset.featureInstall)}/install`, { method: "POST", body: "{}" });

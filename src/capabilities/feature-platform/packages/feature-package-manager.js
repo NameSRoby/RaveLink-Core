@@ -1,10 +1,11 @@
 // [TITLE] Module: feature-platform/packages/feature-package-manager.js
-// [TITLE] Purpose: verified local install and removal of bundled first-party features
+// [TITLE] Purpose: verified install, update, rollback, and removal of first-party features
 
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { verifyFeaturePackageDirectory } = require("./feature-package-integrity");
+const { downloadRemotePackage, fetchRemoteManifest, validateOfficialSource } = require("./remote-feature-package");
 
 const FEATURE_ID_RE = /^[a-z][a-z0-9-]{1,63}$/;
 
@@ -49,6 +50,8 @@ module.exports = function createFeaturePackageManager(options = {}) {
   const installedRoot = path.resolve(options.installedRoot || path.join(process.cwd(), "features", "installed"));
   const packageRoots = (Array.isArray(options.packageRoots) ? options.packageRoots : [options.packageRoot])
     .filter(Boolean).map(value => path.resolve(value));
+  const remoteSources = (Array.isArray(options.remoteSources) ? options.remoteSources : [])
+    .map(validateOfficialSource).filter(Boolean);
   const runtimeRoot = path.resolve(options.runtimeRoot || path.join(process.cwd(), "runtime", "features"));
   const rollbackRoot = path.join(installedRoot, ".rollback");
   let mutation = Promise.resolve();
@@ -69,8 +72,44 @@ module.exports = function createFeaturePackageManager(options = {}) {
     return packages;
   }
 
-  async function listAvailable() {
+  async function availablePackages() {
     const packages = await bundledPackages();
+    const warnings = [];
+    for (const source of remoteSources) {
+      const remote = await fetchRemoteManifest(source, { fetchImpl: options.fetchImpl, timeoutMs: options.remoteTimeoutMs, limits: options.packageLimits });
+      if (!remote.ok) {
+        warnings.push({ featureId: source.id, source: source.displaySource, error: remote.error });
+        continue;
+      }
+      const current = packages.get(source.id);
+      if (!current || compareVersions(remote.manifest.version, current.verified.manifest.version) > 0) {
+        packages.set(source.id, {
+          kind: "remote",
+          source,
+          remote,
+          verified: { manifest: remote.manifest, totalBytes: 0 }
+        });
+      }
+    }
+    return { packages, warnings };
+  }
+
+  async function stagePackage(source, staging) {
+    if (source.kind === "remote") {
+      const downloaded = await downloadRemotePackage(source.source, staging, {
+        remote: source.remote,
+        fetchImpl: options.fetchImpl,
+        timeoutMs: options.remoteTimeoutMs,
+        limits: options.packageLimits
+      });
+      if (!downloaded.ok) throw new Error(downloaded.error || "remote_feature_download_failed");
+      return;
+    }
+    await fs.promises.cp(source.source, staging, { recursive: true, errorOnExist: true, force: false });
+  }
+
+  async function listAvailable() {
+    const { packages, warnings } = await availablePackages();
     const features = [];
     for (const { verified } of packages.values()) {
       const target = path.join(installedRoot, verified.manifest.id);
@@ -87,11 +126,13 @@ module.exports = function createFeaturePackageManager(options = {}) {
         rollbackAvailable: await pathExists(path.join(rollbackRoot, verified.manifest.id)),
         permissions: { ...verified.manifest.permissions },
         resources: { ...verified.manifest.resources },
-        bytes: verified.totalBytes
+        bytes: verified.totalBytes,
+        source: packages.get(verified.manifest.id)?.kind === "remote" ? "github" : "bundled",
+        downloadRequired: packages.get(verified.manifest.id)?.kind === "remote"
       });
     }
     features.sort((a, b) => a.id.localeCompare(b.id));
-    return { ok: true, total: features.length, features };
+    return { ok: true, total: features.length, features, warnings };
   }
 
   function serialize(operation) {
@@ -111,7 +152,7 @@ module.exports = function createFeaturePackageManager(options = {}) {
     return serialize(async () => {
       const featureId = String(featureIdRaw || "");
       if (!FEATURE_ID_RE.test(featureId)) return { ok: false, error: "invalid_feature_id" };
-      const packages = await bundledPackages();
+      const { packages } = await availablePackages();
       const source = packages.get(featureId);
       if (!source) return { ok: false, error: "feature_package_not_available" };
       const target = path.join(installedRoot, featureId);
@@ -120,7 +161,7 @@ module.exports = function createFeaturePackageManager(options = {}) {
       const staging = path.join(installedRoot, `.${featureId}.install-${process.pid}-${crypto.randomBytes(4).toString("hex")}`);
       if (!inside(installedRoot, staging) || !inside(installedRoot, target)) return { ok: false, error: "feature_install_path_invalid" };
       try {
-        await fs.promises.cp(source.source, staging, { recursive: true, errorOnExist: true, force: false });
+        await stagePackage(source, staging);
         const verified = await verifyFeaturePackageDirectory(staging, { limits: options.packageLimits });
         if (!verified.ok || verified.manifest.id !== featureId) throw new Error(verified.error || "feature_staging_verification_failed");
         await fs.promises.rename(staging, target);
@@ -141,7 +182,7 @@ module.exports = function createFeaturePackageManager(options = {}) {
       if (!inside(installedRoot, target) || !await pathExists(target)) return { ok: false, error: "feature_not_installed" };
       const current = await verifyFeaturePackageDirectory(target, { limits: options.packageLimits });
       if (!current.ok) return { ok: false, error: "installed_feature_invalid", detail: current.error };
-      const packages = await bundledPackages();
+      const { packages } = await availablePackages();
       const source = packages.get(featureId);
       if (!source) return { ok: false, error: "feature_package_not_available" };
       if (compareVersions(source.verified.manifest.version, current.manifest.version) <= 0) {
@@ -152,7 +193,7 @@ module.exports = function createFeaturePackageManager(options = {}) {
       const staging = path.join(installedRoot, `.${featureId}.update-${process.pid}-${crypto.randomBytes(4).toString("hex")}`);
       let movedCurrent = false;
       try {
-        await fs.promises.cp(source.source, staging, { recursive: true, errorOnExist: true, force: false });
+        await stagePackage(source, staging);
         const staged = await verifyFeaturePackageDirectory(staging, { limits: options.packageLimits });
         if (!staged.ok || staged.manifest.id !== featureId) throw new Error(staged.error || "feature_staging_verification_failed");
         if (await pathExists(rollback)) await fs.promises.rm(rollback, { recursive: true, force: true });

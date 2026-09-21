@@ -21,6 +21,9 @@ module.exports = function createFeatureHostRegistry(options = {}) {
   const packageManager = options.packageManager || createFeaturePackageManager({
     installedRoot: featuresRoot,
     packageRoots: options.packageRoots || [],
+    remoteSources: options.remoteSources || [],
+    fetchImpl: options.fetchImpl,
+    remoteTimeoutMs: options.remoteTimeoutMs,
     runtimeRoot,
     packageLimits: options.packageLimits
   });

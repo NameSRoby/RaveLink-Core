@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "id": "clip-studio",
+  "name": "Clip Studio",
+  "description": "Optional video indexing and explainable clip-candidate infrastructure. Analysis engines will arrive in later package updates.",
+  "version": "0.1.0",
+  "publisher": "ravelink",
+  "entry": "dist/main.js",
+  "engine": {
+    "featureApi": "^1.0.0",
+    "node": ">=22"
+  },
+  "consumes": [],
+  "provides": [
+    "video.projects.read.v1"
+  ],
+  "contracts": [
+    "contracts/video-projects-v1.contracts.json"
+  ],
+  "permissions": {
+    "network": [],
+    "storage": false,
+    "secrets": [],
+    "process": false,
+    "hardware": []
+  },
+  "resources": {
+    "idleCpuPercent": 0.1,
+    "idleRssMiB": 24,
+    "activeRssMiB": 32,
+    "timers": 0,
+    "minTimerMs": 1000,
+    "ipcFrameBytes": 16384,
+    "inFlightCalls": 1,
+    "queuedCalls": 2,
+    "externalInFlight": 0,
+    "storageBytes": 0,
+    "historyEntries": 0,
+    "shutdownGraceMs": 1000
+  },
+  "contributes": {
+    "pages": [
+      {
+        "id": "projects",
+        "title": "Projects",
+        "entry": "ui/projects.html",
+        "surface": "panel",
+        "embedHosts": [],
+        "imageHosts": [],
+        "capabilities": [
+          "video.projects.read.v1"
+        ]
+      }
+    ]
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "files": {
+      "THIRD_PARTY_NOTICES.md": "167b88313d7c1abe02e226ace0a1ca59ef963d378685c574b096f20569b502d2",
+      "contracts/video-projects-v1.contracts.json": "300c1e824118792240836725beb123156a9816a28d281059b784854c6d4f84a4",
+      "dist/main.js": "3f8e3da276021793b228172534cb317f4311ea7630886045d45b8d11351d4cb9",
+      "ui/projects.html": "02bb97618370d4c8532944e897c98cbf2fc9e0af07cca1e0a851126b203b1d20"
+    }
+  }
+}
