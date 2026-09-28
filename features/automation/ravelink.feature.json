@@ -110,8 +110,8 @@
     "files": {
       "contracts/automation-v1.contracts.json": "fecbd51e37712a2a1931adbb795de6a5ada31f33d1ab040eca7c648b96c825c9",
       "dist/animation-engine.js": "340228de97d4fd5032d248b6095bc72abfda237c0bc4ee3d4bd274ed13d632a7",
-      "dist/main.js": "22707e30eea7d9ae978316b64ba71d39c868cf0a04d642afbd8158434c111635",
-      "ui/automations.html": "565c5ec398cf2029d798e5e5ee336c9eb0552d67cc7ee669bc3de14ed353a560",
+      "dist/main.js": "e2acd2c8b266554ef1a7de018165e84f01057b67aed695aec3a7d01058375ddc",
+      "ui/automations.html": "04fc08cc3342154271b14f2afb9f5b2a346dde66119dd21c2adefade437f24de",
       "dist/donation-policy.js": "967c986b6848c1ac4771cd03c4146f1f4c191e6c3e3f0470586a5d1721d4cdeb",
       "dist/kofi-webhook.js": "6456cf2d7bab0c7451200fef8c7bef95eb4137fd119dce2aa9ef9afaf3ee84dd",
       "dist/visual-alert-engine.js": "a28dcbce98b4208b7c119841a762782d44c7cfeae035ec11eeddbdd9de53477e",
