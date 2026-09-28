@@ -3,10 +3,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { boundedLimits, isSafePackagePath } = require("../../../shared/packages/package-directory-integrity");
 const { validateFeatureManifestV1 } = require("../contracts/feature-manifest-v1");
+const { OFFICIAL_FEATURE_REVISION } = require("./official-feature-sources");
 
 const MANIFEST_NAME = "ravelink.feature.json";
 const OFFICIAL_HOST = "raw.githubusercontent.com";
-const OFFICIAL_PREFIX = "/NameSRoby/RaveLink-Core/refs/heads/main/features/";
+const OFFICIAL_PREFIX = `/NameSRoby/RaveLink-Core/${OFFICIAL_FEATURE_REVISION}/features/`;
 
 function validateOfficialSource(source) {
   if (!source || typeof source !== "object" || !/^[a-z][a-z0-9-]{1,63}$/.test(String(source.id || ""))) return null;
