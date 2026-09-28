@@ -139,6 +139,30 @@ test("a static Twitch color cancels an active effect only after resolving its ro
   assert.deepEqual(cancelled, ['hue-one']);
 });
 
+test("an unsupported power phrase is refundable and cannot cancel an active effect or send light state", async () => {
+  let sends = 0, cancellations = 0;
+  const service = createColorCommandService({
+    twitchColorConfig: {
+      getSnapshot: () => ({ defaultTarget: "both", autoDefaultTarget: false, prefixes: {}, fixturePrefixes: {} }),
+      splitPrefixedColorText: text => ({ text, target: null, fixtureId: null, prefix: null }),
+      parseColorTarget: (target, fallback) => ["hue", "wiz", "both"].includes(target) ? target : fallback
+    },
+    twitchLightRouting: { resolve: text => ({ managed: true, text, fixtureIds: ["hue-one", "wiz-one"], prefix: "", ruleIds: ["active"] }) },
+    fixtureRegistry: {
+      listTwitchBy: brand => [{ id: "hue-one", brand: "hue", zone: "hue" }, { id: "wiz-one", brand: "wiz", zone: "wiz" }].filter(row => !brand || row.brand === brand),
+      parseZoneList: () => ["all"], resolveZone: () => ""
+    },
+    directiveService: { parseTwitchColorDirective: () => ({ ok: false, error: "unsupported_power_command", refundRecommended: true }) },
+    hueBridge: { sendState: async () => { sends += 1; } },
+    wizBridge: { sendState: async () => { sends += 1; } },
+    twitchLightEffects: { resolve: () => ({ matched: false }), cancelForStaticTargets: () => { cancellations += 1; } }
+  });
+  const result = await service.applyColorText("turn off");
+  assert.deepEqual(result, { ok: false, target: "both", error: "unsupported_power_command", refundRecommended: true });
+  assert.equal(sends, 0);
+  assert.equal(cancellations, 0);
+});
+
 test("a prefixed chase route may overlap normal routing and supplies its selected fixtures", async () => {
   let handled;
   const fixtures = [{ id: 'hue-one', brand: 'hue' }, { id: 'wiz-one', brand: 'wiz' }];

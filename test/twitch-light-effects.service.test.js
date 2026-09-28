@@ -17,15 +17,17 @@ function setup(t, labOverrides = {}) {
   let at = 1000, interval = null;
   const colors = { red: '#ff0000', green: '#00ff00', blue: '#0000ff', cyan: '#00ffff', purple: '#8000ff', 'deep blue': '#001080' };
   const labSettings = { brightnessLimit: 100, durationSeconds: 0, repeatCount: 0, cooldownSeconds: 0, restorePrevious: false, spatialDirection: 'left-right', spatialOriginFixtureId: '', chaseGapMs: 250, ...labOverrides };
+  const defaultAdapters = {
+    hue: { sendState: async (rows, state) => calls.push({ brand: 'hue', rows, state }), getTelemetry: () => ({ entertainment: { reason: 'entertainment_temporarily_suppressed' } }) },
+    wiz: { sendState: async (rows, state) => calls.push({ brand: 'wiz', rows, state }) },
+    govee: { sendState: async (rows, state) => calls.push({ brand: 'govee', rows, state }) }
+  };
   const service = createEffects({
     storePath: path.join(root, 'effects.json'),
     fixtureRegistry: { listTwitchBy: () => fixtures },
     directiveService: { parseTwitchColorDirective: text => colors[text] ? { ok: true, hex: colors[text] } : { ok: false } },
-    adapters: {
-      hue: { sendState: async (rows, state) => calls.push({ brand: 'hue', rows, state }), getTelemetry: () => ({ entertainment: { reason: 'entertainment_temporarily_suppressed' } }) },
-      wiz: { sendState: async (rows, state) => calls.push({ brand: 'wiz', rows, state }) },
-      govee: { sendState: async (rows, state) => calls.push({ brand: 'govee', rows, state }) }
-    },
+    adapters: { ...defaultAdapters, ...(labOverrides.adapters || {}) },
+    ...(labOverrides.lightingLayout ? { lightingLayout: labOverrides.lightingLayout } : {}),
     lightingLab: {
       settings: () => ({ ...labSettings }), isExcluded: id => (labOverrides.excludedFixtureIds || []).includes(id),
       latencyFor: id => Number(labOverrides.latencyOffsets?.[id] || 0), previousState: id => labOverrides.previousStates?.[id] || null,
@@ -34,7 +36,9 @@ function setup(t, labOverrides = {}) {
     now: () => at,
     setInterval: fn => { interval = fn; return { unref() {} }; },
     clearInterval: () => { interval = null; },
-    ...(labOverrides.setTimeout ? { setTimeout: labOverrides.setTimeout } : {})
+    ...(labOverrides.setTimeout ? { setTimeout: labOverrides.setTimeout } : {}),
+    ...(labOverrides.clearTimeout ? { clearTimeout: labOverrides.clearTimeout } : {}),
+    ...(labOverrides.shutdownWaitMs ? { shutdownWaitMs: labOverrides.shutdownWaitMs } : {})
   });
   return { service, calls, fixtures, advance(ms) { at += ms; return service.tick(); }, interval: () => interval };
 }
@@ -181,6 +185,67 @@ test('lab limits cap brightness, stop duration, restore prior state, and enforce
   assert.deepEqual(service.snapshot().activeFixtureIds, []);
   assert.equal(calls.some(row => row.state.bri === 12), true);
   assert.equal((await service.handle('cycle red, blue', { fixtureIds: ['old-hue'] })).error, 'no_effect_enabled_fixtures_matched');
+});
+
+test('expiration contains return-animation failures instead of rejecting the engine tick', async t => {
+  let layoutCalls = 0;
+  const { service, advance } = setup(t, {
+    durationSeconds: 0.001,
+    previousStates: { 'desk-wiz': { brand: 'wiz', value: { on: true, r: 3, g: 4, b: 5, dimming: 55 } } },
+    lightingLayout: { spatialOffset() {
+      layoutCalls += 1;
+      if (layoutCalls > 1) throw Object.assign(new Error('layout unavailable'), { code: 'LAYOUT_DOWN' });
+      return 0;
+    } }
+  });
+  service.save({ revision: 0, enabled: true, returnEffect: true, fixtureIds: ['desk-wiz'] });
+  await service.handle('cycle red, blue', { fixtureIds: ['desk-wiz'] });
+  await assert.doesNotReject(() => advance(501));
+  await new Promise(resolve => setImmediate(resolve));
+  const state = service.snapshot();
+  assert.deepEqual(state.activeFixtureIds, []);
+  assert.equal(state.diagnostics.faultCount, 1);
+  assert.equal(state.diagnostics.lastFault.stage, 'restore');
+  assert.equal(state.diagnostics.lastFault.code, 'LAYOUT_DOWN');
+  await service.shutdown();
+});
+
+test('effect lifecycle remains available through repeated adapter failures and expirations', async t => {
+  const rejectedAdapter = { sendState: async () => { throw Object.assign(new Error('device offline'), { code: 'DEVICE_OFFLINE' }); } };
+  const { service, advance } = setup(t, {
+    durationSeconds: 0.001,
+    restorePrevious: true,
+    previousStates: { 'desk-wiz': { brand: 'wiz', value: { on: true, r: 1, g: 2, b: 3, dimming: 40 } } },
+    adapters: { wiz: rejectedAdapter }
+  });
+  service.save({ revision: 0, enabled: true, fixtureIds: ['desk-wiz'] });
+  for (let index = 0; index < 250; index += 1) {
+    const started = await service.handle(index % 2 ? 'fade red, blue fast' : 'cycle red, blue fast', { fixtureIds: ['desk-wiz'] });
+    assert.equal(started.ok, true);
+    await advance(501);
+  }
+  await new Promise(resolve => setImmediate(resolve));
+  const state = service.snapshot();
+  assert.deepEqual(state.activeFixtureIds, []);
+  assert.equal(state.diagnostics.faultCount >= 500, true);
+  assert.equal(state.diagnostics.lastFault.code, 'DEVICE_OFFLINE');
+  await service.shutdown();
+});
+
+test('shutdown has a bounded wait when an offline adapter never settles a restore', async t => {
+  const never = new Promise(() => {});
+  const { service, advance } = setup(t, {
+    durationSeconds: 0.001,
+    restorePrevious: true,
+    shutdownWaitMs: 5,
+    previousStates: { 'desk-wiz': { brand: 'wiz', value: { on: true, r: 1, g: 2, b: 3, dimming: 40 } } },
+    adapters: { wiz: { sendState: () => never } }
+  });
+  service.save({ revision: 0, enabled: true, fixtureIds: ['desk-wiz'] });
+  await service.handle('cycle red, blue', { fixtureIds: ['desk-wiz'] });
+  await advance(501);
+  await assert.doesNotReject(() => service.shutdown());
+  assert.deepEqual(service.snapshot().activeFixtureIds, []);
 });
 
 test('a negative timing adjustment delays a faster fixture on the shared phase clock', async t => {

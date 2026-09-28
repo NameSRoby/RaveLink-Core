@@ -131,10 +131,10 @@ module.exports = function createLightingCore(options = {}) {
   });
   let reconcilePromise = Promise.resolve();
   const reconcileTransports = fixtures => {
-    reconcilePromise = reconcilePromise.then(() => Promise.allSettled([
-      hueBridge.reconcileFixtures(fixtures),
-      Promise.resolve(wizBridge.reconcileFixtures(fixtures)),
-      Promise.resolve(goveeBridge.reconcileFixtures(fixtures))
+    reconcilePromise = reconcilePromise.catch(() => null).then(() => Promise.allSettled([
+      Promise.resolve().then(() => hueBridge.reconcileFixtures(fixtures)),
+      Promise.resolve().then(() => wizBridge.reconcileFixtures(fixtures)),
+      Promise.resolve().then(() => goveeBridge.reconcileFixtures(fixtures))
     ]));
     return reconcilePromise;
   };
@@ -142,7 +142,7 @@ module.exports = function createLightingCore(options = {}) {
   void reconcileTransports(fixtureRegistry.getFixtures());
   async function shutdown() {
     unsubscribeFixtures();
-    twitchLightEffects.shutdown();
+    await twitchLightEffects.shutdown();
     await reconcilePromise;
     await Promise.allSettled([hueBridge.shutdown(), Promise.resolve(wizBridge.shutdown()), Promise.resolve(goveeBridge.shutdown())]);
   }

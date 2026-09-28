@@ -62,6 +62,30 @@ test("EventSub monitor does not subscribe to chat when chat intake is disabled",
   monitor.stop();
 });
 
+test("EventSub monitor subscribes to configured Twitch alert events and dispatches them", async () => {
+  FakeSocket.instances.length = 0;
+  const subscriptions = [], events = [];
+  const monitor = createMonitor({
+    WebSocket: FakeSocket,
+    getCredentials: () => ({ userId: "user-1" }),
+    getSubscriptionConfig: () => ({ redemptions: false, chat: false, events: [
+      { type: "channel.follow", version: "2", condition: { broadcaster_user_id: "user-1", moderator_user_id: "user-1" } },
+      { type: "channel.raid", version: "1", condition: { to_broadcaster_user_id: "user-1" } }
+    ] }),
+    createSubscription: async input => { subscriptions.push(input); return { ok: true }; },
+    onEvent: async (type, event, metadata) => events.push({ type, event, messageId: metadata.message_id })
+  });
+  monitor.start();
+  const socket = FakeSocket.instances[0];
+  socket.emit({ metadata: { message_id: "welcome-alerts", message_type: "session_welcome" }, payload: { session: { id: "session-alerts", keepalive_timeout_seconds: 10 } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(subscriptions.map(row => row.type), ["channel.follow", "channel.raid"]);
+  socket.emit({ metadata: { message_id: "raid-1", message_type: "notification" }, payload: { subscription: { type: "channel.raid" }, event: { from_broadcaster_user_name: "Raider" } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(events, [{ type: "channel.raid", event: { from_broadcaster_user_name: "Raider" }, messageId: "raid-1" }]);
+  monitor.stop();
+});
+
 test("EventSub monitor rejects reconnect URLs outside Twitch's fixed secure origin", () => {
   FakeSocket.instances.length = 0;
   const monitor = createMonitor({

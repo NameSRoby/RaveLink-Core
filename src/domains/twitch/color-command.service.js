@@ -56,7 +56,7 @@ module.exports = function createColorCommandService(options = {}) {
       if (effect.matched) return effect;
     }
     const directive = directiveService.parseTwitchColorDirective(text);
-    if (!directive.ok) return { ok: false, target, error: directive.error || "invalid color text" };
+    if (!directive.ok) return { ok: false, target, error: directive.error || "invalid color text", ...(directive.refundRecommended === true ? { refundRecommended: true } : {}) };
     const result = { ok: true, target, usedPrefix: prefixed.prefix || null, fixtureTargetId: fixed?.id || null, hueZones: [], wizZones: [], goveeZones: [], hueTargets: 0, wizTargets: 0, goveeTargets: 0, hueDelivery: { sent: 0, failed: 0 }, wizDelivery: { sent: 0, failed: 0 }, goveeDelivery: { sent: 0, failed: 0, alpha: true }, directiveType: directive.type, colorMatch: directive.matchedName || "", fuzzy: directive.fuzzy || null };
     Object.assign(result, { preview: requestOptions.preview === true, targets: [], modifiers: directive.modifiers || {}, hex: directive.hex || '', baseHex: directive.baseHex || '', brightnessPercent: directive.brightnessPercent, ruleIds: route?.ruleIds || [] });
 

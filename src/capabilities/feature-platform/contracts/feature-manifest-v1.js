@@ -1,6 +1,10 @@
 const { isSafePackagePath } = require("../../../shared/packages/package-directory-integrity");
 const { RESOURCE_LIMITS } = require("../../supervised-runtime/resource-limits-v1");
 
+// Verified first-party feature packages may declare bounded animation/audio cadence.
+// Third-party mods continue to use the shared 1000 ms minimum in their own validator.
+const FEATURE_RESOURCE_LIMITS = Object.freeze({ ...RESOURCE_LIMITS, minTimerMs: [50, 86400000, "integer"] });
+
 const MANIFEST_SCHEMA_VERSION = 1;
 const FEATURE_API_MAJOR = 1;
 const ID_RE = /^[a-z][a-z0-9-]{1,63}$/;
@@ -73,8 +77,8 @@ function validateFeatureManifestV1(input) {
   for (const flag of ["storage", "process"]) if (permissions[flag] !== undefined && typeof permissions[flag] !== "boolean") error(errors, `$.permissions.${flag}`, "invalid_flag");
 
   const resources = record(input.resources) ? input.resources : {};
-  if (!record(input.resources) || Object.keys(resources).some(key => !Object.hasOwn(RESOURCE_LIMITS, key))) error(errors, "$.resources", "invalid_resources");
-  for (const [key, [minimum, maximum, kind]] of Object.entries(RESOURCE_LIMITS)) {
+  if (!record(input.resources) || Object.keys(resources).some(key => !Object.hasOwn(FEATURE_RESOURCE_LIMITS, key))) error(errors, "$.resources", "invalid_resources");
+  for (const [key, [minimum, maximum, kind]] of Object.entries(FEATURE_RESOURCE_LIMITS)) {
     const value = resources[key];
     if (typeof value !== "number" || !Number.isFinite(value) || (kind === "integer" && !Number.isInteger(value)) || value < minimum || value > maximum) error(errors, `$.resources.${key}`, "resource_limit");
   }

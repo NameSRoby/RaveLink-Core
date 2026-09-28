@@ -3,7 +3,7 @@
   "id": "twitch-integration",
   "name": "Twitch Integration",
   "description": "Optional Twitch Device Code authorization, redemption settlement, EventSub foundation, and chat transport.",
-  "version": "0.7.0",
+  "version": "0.10.3",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
@@ -20,7 +20,8 @@
     "twitch.rewards.read.v1",
     "twitch.rewards.admin.v1",
     "twitch.redemptions.v1",
-    "twitch.chat.send.v1"
+    "twitch.chat.send.v1",
+    "twitch.rewards.catalog.v1"
   ],
   "contracts": [
     "contracts/twitch-integration-v1.contracts.json"
@@ -74,9 +75,9 @@
   "integrity": {
     "algorithm": "sha256",
     "files": {
-      "contracts/twitch-integration-v1.contracts.json": "2aec7c45085375a264ebda3087954cba7363774900009dbb1154c61a601250fd",
-      "dist/main.js": "2eebf66b5714ec9695b73ccb895e21d072b78a5b377701ee1039e94d2637e37e",
-      "ui/connection.html": "1dbcb40d17e68ad3a80916379d9f499f62fd5e6d39dc7e1c00b6b1847e7ad654"
+      "contracts/twitch-integration-v1.contracts.json": "0f274c0b01c1612ec07131c686eb1a4b9da96fbe5704e3f167dbb418ad60274e",
+      "dist/main.js": "1e0a06ed6e466bc56b49fc2f675c3a07efe3d49e8eaa8504a2548aa88819f701",
+      "ui/connection.html": "2aaa6c36cd19127e56dad71eaea2c84981690007d1531a4aa35668c49b600ce2"
     }
   }
 }

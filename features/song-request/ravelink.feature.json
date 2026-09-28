@@ -3,7 +3,7 @@
   "id": "song-request",
   "name": "Song Request",
   "description": "YouTube Song Request with playlists, moderation, and an overlay that can also observe supported Windows media sessions.",
-  "version": "0.13.8",
+  "version": "0.13.10",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
@@ -176,7 +176,7 @@
       "schemas/queue-v1.schema.json": "8e3b16d16c6195437e74df7ff9a70276f7c3a6eb48907029e4ee5e50858af5d2",
       "schemas/response-intent-v1.schema.json": "2805e15cd0d74c455c4f445e9c73f7a671d5223a9a931e253856bbd801de8646",
       "schemas/settlement-v1.schema.json": "06404c47b368a98e73c90d4adc9f3256efde94d10f994d76e864f70f0101c95c",
-      "ui/now-playing.html": "2fa5e49c25aac336b484215b3b0d0d9ec22663c1378633e012dfa6a63b992098",
+      "ui/now-playing.html": "0ac434eb55e86005a103df91148f5a5e6701d6d3f3df14b22eb1f52ff55b259c",
       "ui/obs-overlay.html": "fa2885a660da8a379503dbe51451595c8fbfa226dceba9c0204735893615a185",
       "ui/overlay-editor.html": "2557ea42d569b02adfad9de7535273ca1372b2a3663eaa0a583bba95119ac1ff",
       "ui/player.html": "c21843629020bdc7f1bce0965d8609bfac72908d9c303e3cb643f32184288b1e",

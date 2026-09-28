@@ -4,6 +4,8 @@
 
 RaveLink Core is a local Windows control app for streamer lighting and optional Twitch-powered features. It runs from the system tray and opens its control surface at `http://127.0.0.1:5050`.
 
+**0.6.3.5 is a prerelease.** It is intended for testing the new Alerts / TTS foundation and remote-only feature installer. Automatic stable-update checks do not install prereleases.
+
 ## What It Does
 
 - Discovers, pairs, groups, and controls Philips Hue and WiZ lights, with compatible Govee LAN lights available as an Alpha feature.
@@ -14,14 +16,15 @@ RaveLink Core is a local Windows control app for streamer lighting and optional 
 - Generates a small StreamElements widget when OAuth-free Twitch event intake is preferred.
 - Adds native Twitch OAuth, chat, managed Channel Points rewards, completion and refund handling, and broadcaster chat responses as an optional feature.
 - Adds YouTube Song Request, server playlists, moderation, playback controls, and configurable OBS overlays as an optional feature.
+- Adds **Alerts / TTS** as an optional prerelease feature for synchronized lighting alerts, Twitch event and Channel Points triggers, donation moderation, and a local OBS alert overlay.
 - Keeps optional features and community mods isolated from the lighting core.
 
 ## Install
 
 1. Open the latest GitHub release.
-2. Download `RaveLink-Core-Windows-v0.6.3-setup-installer.exe`.
-3. Choose an installation folder and the optional features you want.
-4. Launch **RaveLink Core** from the Start menu or desktop shortcut.
+2. Download `RaveLink-Core-Windows-v0.6.3.5-setup-installer.exe` from the 0.6.3.5 prerelease.
+3. Choose an installation folder and any optional features you want. The base installer contains Core only and downloads only the selected feature packages from this official repository.
+4. Launch **RaveLink Core** from the Start menu or desktop shortcut. Optional features can also be installed or removed later under **Packages**.
 
 The installer includes the application runtime and production dependencies. Node.js and npm are not required. Installing over an existing RaveLink Core installation updates program files while preserving local configuration, fixtures, playlists, optional-feature data, and rollback state.
 
@@ -39,9 +42,21 @@ Unprefixed dynamic commands affect every fixture enabled in the dynamic route. O
 
 Govee LAN support works only with models that expose **LAN Control** in the Govee Home app. Enable it for each light and keep the light and RaveLink computer on the same local network. Some Govee models do not offer LAN Control and cannot be used by this Alpha integration.
 
+## Alerts / TTS Prerelease
+
+Alerts / TTS can create reusable lighting alerts, attach them to available Twitch events or Channel Points rewards, and display privacy-filtered test messages in its local OBS/browser overlay. Donation settings keep payment identities out of alert output and use only the public display name supplied for the message.
+
+Local TTS remains work in progress. The package-management page is available, but no speech engine or voice pack is published yet. Engines, languages, voices, and future custom-voice tools will be separate integrity-checked downloads from this repository and will never be included in the base installer unless the user explicitly installs them.
+
+The donation moderation and visual test flow work locally. Live Ko-fi webhook receipt, hosted or self-hosted relay setup, chat delivery, and speech playback remain under development.
+
+## Clip Studio Alpha
+
+Clip Studio is an optional package foundation for future local video indexing, timestamp suggestions, titles, and clip candidates. Video processing and export are not active in this prerelease.
+
 ## Song Request And YouTube Playback
 
-Song Request is optional and can be installed during setup or later from **Features**. It supports text lookup, direct YouTube links, FIFO requests, server playlists, moderation controls, and a customizable now-playing OBS overlay. The **Now Playing Sources** panel can also display the current Spotify, Apple Music, or TIDAL Windows media session in that overlay. These desktop sources only observe media information already exposed by Windows; they do not add song-request search or playback for those services. Multilingual titles are preserved as UTF-8, and the observer and overlay include Japanese, Chinese, and Korean support.
+Song Request is optional and installs on demand from **Packages** using the official RaveLink GitHub repository. It supports text lookup, direct YouTube links, FIFO requests, server playlists, moderation controls, and a customizable now-playing OBS overlay. The **Now Playing Sources** panel can also display the current Spotify, Apple Music, or TIDAL Windows media session in that overlay. These desktop sources only observe media information already exposed by Windows; they do not add song-request search or playback for those services. Multilingual titles are preserved as UTF-8, and the observer and overlay include Japanese, Chinese, and Korean support.
 
 Playback uses YouTube's official embedded player. A video can still refuse embedded playback because its owner disabled embedding or because YouTube applies age, region, account, or content restrictions. Those decisions are controlled by YouTube and can make an otherwise valid request skip or fail. Improving failure handling and candidate selection remains work in progress; RaveLink Core does not download or restream YouTube media as a fallback.
 
@@ -55,7 +70,7 @@ RaveLink Core listens on the local machine by default. OAuth grants, light crede
 
 ## Portable Version
 
-The release also includes a self-contained ZIP. Extract the complete folder, then run `RaveLink-Core.exe`. Do not move the executable away from its accompanying folders. Optional feature packages are included but are not activated automatically.
+The release also includes a self-contained ZIP. Extract the complete folder, then run `RaveLink-Core.exe`. Do not move the executable away from its accompanying folders. Optional feature payloads are not bundled; install the ones you want from **Packages**, which downloads integrity-checked files from the official RaveLink GitHub repository.
 
 ## Uninstall
 

@@ -8,7 +8,6 @@ let widgetSecurityStatus = {};
 let songRequestAvailable = false;
 let coreUpdateStatus = null;
 window.RaveLinkCoreUi = { request: (...args) => request(...args), fixtures: () => fixtures.slice(), showResult: (...args) => showResult(...args) };
-
 async function request(path, options = {}) {
   const headers = { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(options.headers || {}) };
   const response = await fetch(path, { ...options, headers });
@@ -16,17 +15,14 @@ async function request(path, options = {}) {
   if (!response.ok || body.ok === false) throw new Error(body.error || `HTTP ${response.status}`);
   return body;
 }
-
 const sensitiveDisplayKey = /(?:authorization|cookie|credential|password|secret|token|jwt|username|clientkey)/i;
 const networkDisplayKey = /(?:ip|host|url|bridgeid|deviceid)$/i;
-
 function redactDisplayString(value) {
   return String(value ?? "")
     .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, address => `${address.split(".").slice(0, 2).join(".")}.x.x`)
     .replace(/\beyJ[A-Za-z0-9_-]{12,}(?:\.[A-Za-z0-9_-]{8,}){1,2}\b/g, "[REDACTED TOKEN]")
     .replace(/\b[a-fA-F0-9]{24,}\b/g, value => `${value.slice(0, 4)}...[REDACTED]`);
 }
-
 function safeDisplayValue(value, key = "", depth = 0) {
   if (sensitiveDisplayKey.test(key) && !/(?:configured|present)$/i.test(key)) return "[REDACTED]";
   if (networkDisplayKey.test(key)) return value ? redactDisplayString(value) : value;
@@ -35,7 +31,6 @@ function safeDisplayValue(value, key = "", depth = 0) {
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).slice(0, 40).map(([childKey, child]) => [childKey, safeDisplayValue(child, childKey, depth + 1)]));
   return typeof value === "string" ? redactDisplayString(value) : value;
 }
-
 function showResult(id, value, failed = false) {
   const output = byId(id);
   output.hidden = false;
@@ -61,11 +56,9 @@ function showResult(id, value, failed = false) {
   }
   output.style.color = failed ? "var(--bad)" : "#c9d8ff";
 }
-
 function maskedAddress(value) {
   return redactDisplayString(value || "hidden");
 }
-
 function setUnavailable(element, unavailable, reason = "") {
   if (!element) return;
   element.disabled = Boolean(unavailable);
@@ -179,6 +172,7 @@ async function selectDiscoveredHue(target) {
   try {
     const selected = await request("/hardware/discovery/select", { method: "POST", body: JSON.stringify({ selectionToken: target.selectionToken }) });
     byId("fixtureBrand").value = "hue";
+    syncFixtureBrandUi();
     byId("fixtureBridgeIp").value = selected.address || "";
     syncHuePairButton();
     const output = byId("fixtureActionResult");
@@ -330,6 +324,7 @@ developerMode.onchange = () => {
 };
 
 function clearFixtureForm() {
+  byId("fixtureBrand").value = "hue";
   byId("fixtureId").value = "";
   byId("fixtureName").value = "";
   byId("fixtureZone").value = "";
@@ -341,8 +336,19 @@ function clearFixtureForm() {
   byId("showFixtureAddresses").checked = false;
   byId("fixtureIp").type = "password";
   byId("fixtureBridgeIp").type = "password";
+  syncFixtureBrandUi();
 }
 
+function syncFixtureBrandUi() {
+  const brand = byId("fixtureBrand").value;
+  document.querySelectorAll("[data-fixture-brand]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.fixtureBrand === brand)));
+  document.querySelectorAll("[data-fixture-brands]").forEach(field => { field.hidden = !field.dataset.fixtureBrands.split(" ").includes(brand); });
+}
+byId("fixtureBrand").addEventListener("change", syncFixtureBrandUi);
+document.querySelectorAll("[data-fixture-brand]").forEach(button => button.addEventListener("click", () => {
+  Object.assign(byId("fixtureBrand"), { value: button.dataset.fixtureBrand }).dispatchEvent(new Event("change", { bubbles: true }));
+}));
+syncFixtureBrandUi();
 byId("showFixtureAddresses").onchange = () => {
   const type = byId("showFixtureAddresses").checked ? "text" : "password";
   byId("fixtureIp").type = type;
@@ -429,6 +435,7 @@ byId("fixtureRows").onclick = async event => {
     try {
       const detail = (await request(`/fixtures/${encodeURIComponent(row.id)}/edit`)).fixture;
       byId("fixtureBrand").value = detail.brand;
+      syncFixtureBrandUi();
       byId("fixtureId").value = detail.id;
       byId("fixtureName").value = detail.name || detail.id;
       byId("fixtureZone").value = detail.zone || "";

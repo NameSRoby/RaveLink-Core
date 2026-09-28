@@ -11,6 +11,7 @@ function createTwitchEventSubMonitor(options = {}) {
   const onSessionActivity = options.onSessionActivity || (() => {});
   const onRedemption = options.onRedemption || (async () => {});
   const onChat = options.onChat || (async () => {});
+  const onEvent = options.onEvent || (async () => {});
   const now = options.now || Date.now;
   const random = options.random || Math.random;
   let socket = null;
@@ -89,7 +90,8 @@ function createTwitchEventSubMonitor(options = {}) {
         : null,
       config.chat === true
         ? { type: "channel.chat.message", version: "1", condition: { broadcaster_user_id: credentials.userId, user_id: credentials.userId } }
-        : null
+        : null,
+      ...(Array.isArray(config.events) ? config.events : [])
     ].filter(Boolean);
     const active = [];
     for (const definition of definitions) {
@@ -103,15 +105,15 @@ function createTwitchEventSubMonitor(options = {}) {
     reconnectAttempts = 0;
     lastError = "";
   }
-  function dispatch(type, event) {
+  function dispatch(type, event, metadata) {
     if (inFlight >= MAX_IN_FLIGHT) { counters.dropped += 1; return; }
     inFlight += 1;
     counters.notifications += 1;
     if (type === "channel.channel_points_custom_reward_redemption.add") counters.redemptions += 1;
     if (type === "channel.chat.message") counters.chatMessages += 1;
-    const handler = type === "channel.channel_points_custom_reward_redemption.add" ? onRedemption
-      : type === "channel.chat.message" ? onChat : null;
-    Promise.resolve(handler?.(event)).catch(error => {
+    const handler = type === "channel.channel_points_custom_reward_redemption.add" ? () => onRedemption(event)
+      : type === "channel.chat.message" ? () => onChat(event) : () => onEvent(type, event, metadata);
+    Promise.resolve(handler()).catch(error => {
       counters.handlerFailures += 1;
       lastError = String(error?.code || error?.message || "twitch_event_handler_failed").slice(0, 120);
     }).finally(() => { inFlight -= 1; });
@@ -161,7 +163,7 @@ function createTwitchEventSubMonitor(options = {}) {
         return;
       }
       if (metadata.message_type === "revocation") { lastError = "twitch_eventsub_subscription_revoked"; return; }
-      if (metadata.message_type === "notification") dispatch(payload?.payload?.subscription?.type, payload?.payload?.event || {});
+      if (metadata.message_type === "notification") dispatch(payload?.payload?.subscription?.type, payload?.payload?.event || {}, metadata);
     };
     candidate.onerror = () => { lastError = "twitch_eventsub_socket_error"; };
     candidate.onclose = () => {

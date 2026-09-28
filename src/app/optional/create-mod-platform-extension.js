@@ -31,7 +31,7 @@ module.exports = function createModPlatformExtension(options = {}) {
     });
     const inbox = createModDropInbox({ inboxRoot, packageManager, log: options.log || console });
     registry.discover();
-    void inbox.start();
+    inbox.start().catch(error => (options.log || console).warn?.(`[MOD INBOX] startup unavailable: ${error?.message || error}`));
     const routes = registerModPlatformRoutes(context.app, {
       express: context.express,
       registry,

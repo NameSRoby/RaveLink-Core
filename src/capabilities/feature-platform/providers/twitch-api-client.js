@@ -2,6 +2,10 @@ const TWITCH_IDENTITY = "https://id.twitch.tv/oauth2";
 const TWITCH_HELIX = "https://api.twitch.tv/helix";
 const DEFAULT_SCOPES = Object.freeze([
   "channel:manage:redemptions",
+  "channel:read:subscriptions",
+  "channel:read:hype_train",
+  "moderator:read:followers",
+  "bits:read",
   "channel:read:vips",
   "moderation:read",
   "user:read:chat",
@@ -217,6 +221,29 @@ function createTwitchApiClient(options = {}) {
     return { ok: true, rewardId, title: text(reward.title, 45) || title, cost: Number(reward.cost || cost), manageable: true };
   }
 
+  async function listRewards(input = {}) {
+    const credentials = input.credentials || {};
+    const broadcasterId = text(input.broadcasterId || credentials.userId, 80);
+    const accessToken = text(credentials.accessToken, 2048);
+    const clientId = text(credentials.clientId, 80);
+    if (!broadcasterId || !accessToken || !clientId) return { ok: false, error: "twitch_reward_catalog_invalid" };
+    const headers = { Authorization: `Bearer ${accessToken}`, "Client-Id": clientId };
+    const query = new URLSearchParams({ broadcaster_id: broadcasterId });
+    const visible = await request(`${TWITCH_HELIX}/channel_points/custom_rewards?${query}`, { headers });
+    if (!visible.ok) return { ok: false, error: visible.status === 401 ? "twitch_reauthorization_required" : "twitch_reward_catalog_failed", status: visible.status, retryable: visible.status === 429 || visible.status >= 500 };
+    const manageableQuery = new URLSearchParams({ broadcaster_id: broadcasterId, only_manageable_rewards: "true" });
+    const manageableResult = await request(`${TWITCH_HELIX}/channel_points/custom_rewards?${manageableQuery}`, { headers });
+    if (!manageableResult.ok) return { ok: false, error: manageableResult.status === 401 ? "twitch_reauthorization_required" : "twitch_reward_catalog_failed", status: manageableResult.status, retryable: manageableResult.status === 429 || manageableResult.status >= 500 };
+    const manageableIds = new Set((Array.isArray(manageableResult.body.data) ? manageableResult.body.data : []).map(row => text(row?.id, 160)).filter(Boolean));
+    const rewards = (Array.isArray(visible.body.data) ? visible.body.data : []).slice(0, 50).map(row => ({
+      id: text(row?.id, 160), title: text(row?.title, 45), prompt: text(row?.prompt, 200),
+      cost: Math.max(1, Math.trunc(Number(row?.cost) || 1)), enabled: row?.is_enabled !== false,
+      paused: row?.is_paused === true, userInputRequired: row?.is_user_input_required === true,
+      manageable: manageableIds.has(text(row?.id, 160))
+    })).filter(row => row.id && row.title);
+    return { ok: true, rewards };
+  }
+
   async function setRewardPaused(input = {}) {
     const credentials = input.credentials || {};
     const broadcasterId = text(input.broadcasterId || credentials.userId, 80);
@@ -316,7 +343,7 @@ function createTwitchApiClient(options = {}) {
     return { ok: true, moderators: moderators.ids, vips: vips.ids.filter(id => !moderators.ids.includes(id)) };
   }
 
-  return Object.freeze({ beginDeviceAuthorization, pollDeviceAuthorization, refreshUserAccessToken, validateToken, revokeToken, inspectReward, createReward, setRewardPaused, createEventSubSubscription, listRequesterRoles, settleRedemption, sendChat });
+  return Object.freeze({ beginDeviceAuthorization, pollDeviceAuthorization, refreshUserAccessToken, validateToken, revokeToken, inspectReward, listRewards, createReward, setRewardPaused, createEventSubSubscription, listRequesterRoles, settleRedemption, sendChat });
 }
 
 module.exports = { ALLOWED_SCOPES, DEFAULT_SCOPES, normalizeScopes, createTwitchApiClient };

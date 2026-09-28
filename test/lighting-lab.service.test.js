@@ -23,7 +23,7 @@ test('lighting lab persists bounded calibration, exclusions, presets, and sessio
   assert.deepEqual(service.resolveChaseRoute('deskfx chase red, blue'), { managed: true, prefix: 'deskfx', text: 'chase red, blue', fixtureIds: ['desk-hue', 'shelf-wiz'], ruleIds: ['chase:desk-fx'], chaseRoute: true });
   assert.equal(service.resolveChaseRoute('deskfx cycle red, blue'), null);
   service.rememberState('desk-hue', 'hue', { on: true, bri: 120 });
-  assert.deepEqual(service.previousState('desk-hue'), { brand: 'hue', value: { on: true, bri: 120 } });
+  assert.deepEqual(service.previousState('desk-hue'), { brand: 'hue', value: { on: true, bri: 120 }, generation: 1 });
   service.record({ source: 'twitch', command: 'red', targets: ['desk-hue'], sent: 1 });
   assert.equal(service.snapshot().history[0].command, 'red');
   assert.equal(service.clearHistory().history.length, 0);

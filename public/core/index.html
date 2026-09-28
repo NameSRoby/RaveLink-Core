@@ -393,12 +393,17 @@
         </div>
         <div class="cluster">
           <h3>DISCOVER AND CONNECT</h3>
-          <div class="actions">
+          <div class="fixtureBrandChooser"><span>BRAND</span><select id="fixtureBrand" class="choiceSelectHidden" aria-label="Fixture brand">
+              <option value="hue">PHILIPS HUE</option>
+              <option value="wiz">WIZ</option>
+              <option value="govee">GOVEE (ALPHA)</option>
+            </select><div class="choiceCardGrid"><button type="button" data-fixture-brand="hue"><strong>PHILIPS HUE</strong><span>Bridge-connected lights with native transitions and white control.</span></button><button type="button" data-fixture-brand="wiz"><strong>WIZ</strong><span>Direct local-network control using the light's device address.</span></button><button type="button" data-fixture-brand="govee"><strong>GOVEE <small>ALPHA</small></strong><span>Direct LAN control for compatible models with LAN Control enabled.</span></button></div></div>
+          <div class="actions" data-fixture-brands="hue">
             <button id="discoverHue" type="button">1 // DISCOVER HUE</button
-            ><button id="pairHueManual" type="button" disabled>2 // PAIR SELECTED BRIDGE</button
-            ><button id="discoverWiz" type="button">DISCOVER WIZ</button>
+            ><button id="pairHueManual" type="button" disabled>2 // PAIR SELECTED BRIDGE</button>
           </div>
-          <details class="providerSetupCard goveeSetup" open>
+          <div class="actions" data-fixture-brands="wiz"><button id="discoverWiz" type="button">FIND WIZ LIGHTS</button></div>
+          <details class="providerSetupCard goveeSetup" data-fixture-brands="govee" open>
             <summary class="providerSetupHead"><div><span>OPTIONAL LOCAL DEVICE SUPPORT</span><h4>GOVEE LAN</h4></div><span class="alphaBadge">ALPHA</span></summary>
             <p>RaveLink controls compatible Govee lights directly over your home network. No Govee cloud password or API key is needed.</p>
             <ol><li>Open the <strong>Govee Home</strong> app and select a light.</li><li>Open that light's settings and turn on <strong>LAN Control</strong>. Repeat this for every light you want to use.</li><li>Keep this computer and the lights on the same network, then select <strong>Find Govee Lights</strong>.</li></ol>
@@ -411,29 +416,23 @@
           <h3>ADD OR UPDATE FIXTURE</h3>
           <div class="fixtureForm">
             <label
-              >BRAND<select id="fixtureBrand">
-                <option value="hue">PHILIPS HUE</option>
-                <option value="wiz">WIZ</option>
-                <option value="govee">GOVEE (ALPHA)</option>
-              </select></label
-            ><label
               >FIXTURE ID<input id="fixtureId" placeholder="desk-left" /></label
             ><label
               >NAME<input id="fixtureName" placeholder="Desk left" /></label
             ><label>ZONE<input id="fixtureZone" placeholder="desk" /></label
-            ><label
+            ><label id="fixtureLightIdField" data-fixture-brands="hue"
               >LIGHT ID<input
                 id="fixtureLightId"
                 type="number"
                 min="1"
                 value="1" /></label
-            ><label
+            ><label id="fixtureIpField" data-fixture-brands="wiz govee"
               >DEVICE IP<input
                 id="fixtureIp"
                 type="password"
                 placeholder="192.168.x.x"
                 autocomplete="new-password" /></label
-            ><label
+            ><label id="fixtureBridgeIpField" data-fixture-brands="hue"
               >BRIDGE IP<input
                 id="fixtureBridgeIp"
                 type="password"
@@ -482,8 +481,9 @@
           </div>
           <span id="widgetStatus" class="statusLine">CHECKING TOKEN</span>
         </div>
-        <div class="cluster">
-          <h3>1 // SECURE INTAKE</h3>
+        <p class="workflowIntro">Create a secure bridge from StreamElements to this local server in three steps. Use this only when Twitch Integration is set to StreamElements Widget.</p>
+        <div class="cluster workflowStep">
+          <div class="workflowHeading"><span>1</span><div><h3>CONNECT THE WIDGET</h3><p>Create or verify the private token that allows your deployed widget to contact this server.</p></div></div>
           <div class="formGrid">
             <label
               >LOCAL BRIDGE URL<input
@@ -516,8 +516,8 @@
             <button id="refreshWidgetConnection" type="button" title="Check whether the deployed StreamElements widget is reaching this server">CHECK DEPLOYMENT</button>
           </div>
         </div>
-        <div class="cluster">
-          <h3>2 // REWARD ROUTING</h3>
+        <div class="cluster workflowStep">
+          <div class="workflowHeading"><span>2</span><div><h3>CHOOSE WHAT EACH REWARD DOES</h3><p>Paste only the Twitch reward IDs you want the widget to forward. Empty routes remain disabled.</p></div></div>
           <div class="formGrid">
             <label>CHANGE LIGHTS REWARD ID<input id="colorRewardId" /></label
             ><label>TEACH COLOR REWARD ID<input id="teachRewardId" /></label
@@ -525,8 +525,8 @@
           </div>
           <div id="settlementNotice" class="notice" role="status">CONVEYOR MODE // SUPPLY REWARD IDS FROM YOUR TWITCH DASHBOARD; THE WIDGET HAS NO TWITCH AUTHORIZATION OR HELIX ACCESS</div>
         </div>
-        <div class="cluster">
-          <h3>3 // GENERATED WIDGET</h3>
+        <div class="cluster workflowStep">
+          <div class="workflowHeading"><span>3</span><div><h3>GENERATE AND INSTALL</h3><p>Generate the code, copy it into the StreamElements Custom Widget JavaScript editor, save it, then check the deployment above.</p></div></div>
           <div class="actions outputActions">
             <button id="generateWidget" type="button">GENERATE WIDGET</button
             ><button id="rebuildWidget" type="button" title="Rotate the intake token and generate matching replacement code in one step">REBUILD DEPLOYMENT</button

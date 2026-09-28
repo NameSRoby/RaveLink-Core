@@ -51,7 +51,13 @@ module.exports = function createLightingLabService(options = {}) {
   }
   function isExcluded(id) { return state.excludedFixtureIds.includes(String(id)); }
   function latencyFor(id) { return Number(state.latencyOffsets[String(id)] || 0); }
-  function rememberState(id, brand, value) { if (ID_RE.test(String(id)) && value && typeof value === "object") lastStates.set(String(id), { brand: String(brand), value: cloneJsonSafe(value, {}) }); }
+  function rememberState(id, brand, value) {
+    const key = String(id);
+    if (!ID_RE.test(key) || !value || typeof value !== "object") return 0;
+    const generation = Math.max(0, Number(lastStates.get(key)?.generation || 0)) + 1;
+    lastStates.set(key, { brand: String(brand), value: cloneJsonSafe(value, {}), generation });
+    return generation;
+  }
   function previousState(id) { return cloneJsonSafe(lastStates.get(String(id)), null); }
   function record(entry = {}) {
     const row = { at: new Date().toISOString(), source: boundedText(entry.source || "lighting", 24), command: boundedText(entry.command, 96),

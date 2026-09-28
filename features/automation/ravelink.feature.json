@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "id": "automation",
+  "name": "Alerts / TTS",
+  "description": "Create visual and lighting alerts, choose trusted triggers, and manage local text-to-speech setup.",
+  "version": "0.14.0",
+  "publisher": "ravelink",
+  "entry": "dist/main.js",
+  "engine": {
+    "featureApi": "^1.0.0",
+    "node": ">=22"
+  },
+  "consumes": [
+    "ravelink.storage.v1?",
+    "lighting.output.v1?",
+    "twitch.rewards.catalog.v1?",
+    "alerts.tts.packages.v1?"
+  ],
+  "provides": [
+    "automation.animation.profiles.read.v1",
+    "automation.animation.profiles.admin.v1",
+    "automation.animation.execution.admin.v1",
+    "automation.animation.execution.events.v1",
+    "automation.twitch.events.v1",
+    "alerts.donation.settings.v1",
+    "alerts.visual.read.v1",
+    "alerts.visual.admin.v1",
+    "alerts.visual.events.v1",
+    "alerts.tts.setup.v1"
+  ],
+  "contracts": [
+    "contracts/automation-v1.contracts.json"
+  ],
+  "permissions": {
+    "network": [],
+    "storage": true,
+    "secrets": [],
+    "process": false,
+    "hardware": []
+  },
+  "resources": {
+    "idleCpuPercent": 0.1,
+    "idleRssMiB": 32,
+    "activeRssMiB": 48,
+    "timers": 8,
+    "minTimerMs": 50,
+    "ipcFrameBytes": 32768,
+    "inFlightCalls": 2,
+    "queuedCalls": 4,
+    "externalInFlight": 0,
+    "storageBytes": 524288,
+    "historyEntries": 64,
+    "shutdownGraceMs": 1500
+  },
+  "contributes": {
+    "pages": [
+      {
+        "id": "automations",
+        "title": "Alerts / TTS",
+        "entry": "ui/automations.html",
+        "surface": "panel",
+        "embedHosts": [],
+        "imageHosts": [],
+        "capabilities": [
+          "automation.animation.profiles.read.v1",
+          "automation.animation.profiles.admin.v1",
+          "automation.animation.execution.admin.v1",
+          "automation.animation.execution.events.v1"
+        ]
+      },
+      {
+        "id": "donations",
+        "title": "Donation setup",
+        "entry": "ui/donations.html",
+        "surface": "panel",
+        "embedHosts": [],
+        "imageHosts": [],
+        "capabilities": [
+          "alerts.donation.settings.v1",
+          "alerts.visual.admin.v1"
+        ]
+      },
+      {
+        "id": "tts",
+        "title": "TTS Setup",
+        "entry": "ui/tts.html",
+        "surface": "panel",
+        "embedHosts": [],
+        "imageHosts": [],
+        "capabilities": [
+          "alerts.tts.setup.v1"
+        ]
+      },
+      {
+        "id": "alert-overlay",
+        "title": "Alert Overlay",
+        "entry": "ui/alert-overlay.html",
+        "surface": "overlay",
+        "embedHosts": [],
+        "imageHosts": [],
+        "capabilities": [
+          "alerts.visual.read.v1",
+          "alerts.visual.events.v1"
+        ]
+      }
+    ]
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "files": {
+      "contracts/automation-v1.contracts.json": "fecbd51e37712a2a1931adbb795de6a5ada31f33d1ab040eca7c648b96c825c9",
+      "dist/animation-engine.js": "340228de97d4fd5032d248b6095bc72abfda237c0bc4ee3d4bd274ed13d632a7",
+      "dist/main.js": "22707e30eea7d9ae978316b64ba71d39c868cf0a04d642afbd8158434c111635",
+      "ui/automations.html": "565c5ec398cf2029d798e5e5ee336c9eb0552d67cc7ee669bc3de14ed353a560",
+      "dist/donation-policy.js": "967c986b6848c1ac4771cd03c4146f1f4c191e6c3e3f0470586a5d1721d4cdeb",
+      "dist/kofi-webhook.js": "6456cf2d7bab0c7451200fef8c7bef95eb4137fd119dce2aa9ef9afaf3ee84dd",
+      "dist/visual-alert-engine.js": "a28dcbce98b4208b7c119841a762782d44c7cfeae035ec11eeddbdd9de53477e",
+      "ui/donations.html": "fd5ac492679981d94143b3e1a0dda88613b2448138c35c19c246c8a8b28cbf13",
+      "ui/alert-overlay.html": "3cd869971c3ccca09425195ec63a89ecc32626be8a1dc31a66515e9ddb4ede31",
+      "ui/tts.html": "e9e54e21f26a9d1c66fa953ca2d6d0c514e947b2cab289d359682b4b6acdc0fc"
+    }
+  }
+}

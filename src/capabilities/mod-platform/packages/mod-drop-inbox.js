@@ -97,7 +97,10 @@ module.exports = function createModDropInbox(options = {}) {
   function scheduleScan() {
     if (stopped) return;
     clearTimeout(timer);
-    timer = setTimeout(() => { timer = null; void scan(); }, SCAN_DEBOUNCE_MS);
+    timer = setTimeout(() => {
+      timer = null;
+      scan().catch(error => log.warn?.(`[MOD INBOX] scan unavailable: ${error?.message || error}`));
+    }, SCAN_DEBOUNCE_MS);
     timer.unref?.();
   }
 

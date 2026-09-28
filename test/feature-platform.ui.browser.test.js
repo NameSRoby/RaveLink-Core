@@ -130,7 +130,13 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   const sourcesPopup = await context.newPage();
   await sourcesPopup.goto(`${base}/features-ui/song-request/now-playing`, { waitUntil: "domcontentloaded" });
   const sourcesSurface = sourcesPopup.locator("#surface").contentFrame();
+  assert.equal(await sourcesSurface.locator(".sourceCard").count(), 4);
+  assert.equal(await sourcesSurface.locator("#youtubeSourceNote").isVisible(), true);
+  assert.equal(await sourcesSurface.locator("#observerControls").isVisible(), false);
   await sourcesSurface.locator("#source").selectOption("spotify");
+  assert.equal(await sourcesSurface.locator('[data-source="spotify"]').getAttribute("aria-pressed"), "true");
+  assert.equal(await sourcesSurface.locator("#youtubeSourceNote").isVisible(), false);
+  assert.equal(await sourcesSurface.locator("#observerControls").isVisible(), true);
   await sourcesSurface.locator("#select").click();
   await sourcesSurface.locator("#notice").filter({ hasText: "SPOTIFY is now the overlay source" }).waitFor();
   assert.equal(await sourcesSurface.locator("#select").isEnabled(), true);
@@ -266,7 +272,7 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   await embeddedPlayer.contentFrame().locator('#surface').contentFrame().locator('#openOverlay').click();
   await workspace.locator('[data-page="obs-overlay"].active').waitFor();
   await workspace.locator('.overlaySourceTools').waitFor({ state: 'visible' });
-  assert.equal(await workspace.locator('.overlaySourceTools input').first().inputValue(), `${base}/features-ui/song-request/obs-overlay?v=0.13.8`);
+  assert.equal(await workspace.locator('.overlaySourceTools input').first().inputValue(), `${base}/features-ui/song-request/obs-overlay?v=0.13.10`);
   assert.equal(await workspace.locator('.overlaySourceTools input').nth(1).inputValue(), '360 x 150');
   const compactOverlay = await context.newPage();
   await compactOverlay.addInitScript(() => {

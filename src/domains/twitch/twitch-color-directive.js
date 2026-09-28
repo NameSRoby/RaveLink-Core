@@ -1,7 +1,17 @@
 const { hsvToRgb255, rgbToHex, createHueStateFromRgb, createHueStateWhite, createWizStateFromRgb, createWizStateWhite } = require('../colors/color-space');
 const { extractDescriptors, applyDescriptors } = require('../colors/color-descriptors');
 const RANDOM_COLOR_TOKENS = new Set(['random', 'rand', 'rnd']);
+const POWER_ACTION_TOKENS = new Set(['turn', 'switch', 'power', 'shut']);
+const POWER_ONLY_TOKENS = new Set(['please', 'turn', 'switch', 'power', 'shut', 'the', 'all', 'light', 'lights', 'back', 'on', 'off']);
 const TWITCH_COLOR_BRIGHTNESS = Object.freeze({ hueBriBright: 254, hueBriDim: 178, wizDimmingBright: 100, wizDimmingDim: 70 });
+
+function isUnsupportedPowerCommand(source) {
+  const tokens = String(source || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+  const hasPowerState = tokens.includes('on') || tokens.includes('off');
+  if (!hasPowerState) return false;
+  if (tokens.some(token => POWER_ACTION_TOKENS.has(token))) return true;
+  return tokens.every(token => POWER_ONLY_TOKENS.has(token));
+}
 
 module.exports = function createTwitchColorDirectiveService(options = {}) {
   const colorLibrary = options.colorLibrary;
@@ -10,6 +20,7 @@ module.exports = function createTwitchColorDirectiveService(options = {}) {
     const settings = { allowFuzzy: true, allowDescriptors: true, defaultBrightness: 100, ...options.getParserOptions?.(), ...overrides };
     const source = String(rawText || '').replace(/\s+/g, ' ').trim();
     if (!source || source.length > 96) return { ok: false, error: source ? 'color_text_too_long' : 'missing color text' };
+    if (isUnsupportedPowerCommand(source)) return { ok: false, error: 'unsupported_power_command', refundRecommended: true };
     let brightness = '', percent = null;
     const words = [];
     for (const word of source.split(' ')) {

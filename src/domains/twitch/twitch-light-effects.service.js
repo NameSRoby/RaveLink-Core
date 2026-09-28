@@ -31,9 +31,12 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
   const now = typeof options.now === "function" ? options.now : Date.now;
   const schedule = typeof options.setInterval === "function" ? options.setInterval : setInterval;
   const unschedule = typeof options.clearInterval === "function" ? options.clearInterval : clearInterval;
-  let config = structuredClone(DEFAULT), invalid = false, timer = null, ticking = false, sessionSequence = 0;
-  const active = new Map(), cooldownUntil = new Map(), restoreGenerations = new Map();
+  let config = structuredClone(DEFAULT), invalid = false, timer = null, ticking = false, sessionSequence = 0, shuttingDown = false;
+  let faultCount = 0, lastFault = null;
+  const active = new Map(), cooldownUntil = new Map(), restoreGenerations = new Map(), pendingTasks = new Set(), delayedTimers = new Set(), faultReportAfter = new Map();
   const scheduleOnce = typeof options.setTimeout === "function" ? options.setTimeout : setTimeout;
+  const unscheduleOnce = typeof options.clearTimeout === "function" ? options.clearTimeout : clearTimeout;
+  const shutdownWaitMs = clamp(options.shutdownWaitMs || 2000, 1, 10000);
 
   for (const file of [storePath, `${storePath}.bak`]) {
     if (!fs.existsSync(file)) continue;
@@ -56,7 +59,7 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
       && Object.keys(value).every(key => ["version", "revision", "enabled", "returnEffect", "fixtureIds", "prefixes"].includes(key)));
   }
   function snapshot() {
-    return { ok: !invalid, ...structuredClone(config), returnEffect: config.returnEffect === true, prefixes: structuredClone(config.prefixes || {}), activeFixtureIds: [...active.keys()].sort(), supportedCommands: [...EFFECTS, "stop"], ...(invalid ? { error: "twitch_effects_storage_invalid" } : {}) };
+    return { ok: !invalid, ...structuredClone(config), returnEffect: config.returnEffect === true, prefixes: structuredClone(config.prefixes || {}), activeFixtureIds: [...active.keys()].sort(), supportedCommands: [...EFFECTS, "stop"], diagnostics: { faultCount, lastFault }, ...(invalid ? { error: "twitch_effects_storage_invalid" } : {}) };
   }
   function save(input = {}) {
     if (invalid) return { ok: false, error: "twitch_effects_storage_invalid" };
@@ -125,8 +128,36 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
     return fixtureRegistry.listTwitchBy().filter(row => routed.has(row.id) && allowed.has(row.id) && !lightingLab?.isExcluded?.(row.id) && ["hue", "wiz", "govee"].includes(String(row.brand).toLowerCase()));
   }
   function invalidateRestore(id) { restoreGenerations.set(String(id), Number(restoreGenerations.get(String(id)) || 0) + 1); }
+  function reportFault(error, stage, fixtureId = "") {
+    faultCount += 1;
+    lastFault = { stage, fixtureId: String(fixtureId || ""), code: String(error?.code || error?.name || "effect_operation_failed"), at: now() };
+    const reportKey = `${stage}:${lastFault.fixtureId}`, reportAt = Number(faultReportAfter.get(reportKey) || 0);
+    if (lastFault.at >= reportAt) {
+      if (!faultReportAfter.has(reportKey) && faultReportAfter.size >= 256) faultReportAfter.delete(faultReportAfter.keys().next().value);
+      faultReportAfter.set(reportKey, lastFault.at + 5000);
+      try { lightingLab?.record?.({ source: "effect", command: stage, ok: false, targets: fixtureId ? [String(fixtureId)] : [], sent: 0, detail: lastFault.code }); } catch {}
+    }
+  }
+  function supervise(action, stage, fixtureId = "", track = true) {
+    let task;
+    try { task = Promise.resolve(action()); }
+    catch (error) { reportFault(error, stage, fixtureId); return Promise.resolve(); }
+    if (track) pendingTasks.add(task);
+    task.then(
+      () => { if (track) pendingTasks.delete(task); },
+      error => { if (track) pendingTasks.delete(task); reportFault(error, stage, fixtureId); }
+    );
+    return task;
+  }
   function later(id, generation, delayMs, action) {
-    const timerHandle = scheduleOnce(() => { if (restoreGenerations.get(String(id)) === generation) void action(); }, Math.max(0, Math.round(delayMs)));
+    if (shuttingDown) return;
+    let timerHandle = null, fired = false;
+    timerHandle = scheduleOnce(() => {
+      fired = true;
+      if (timerHandle !== null) delayedTimers.delete(timerHandle);
+      if (!shuttingDown && restoreGenerations.get(String(id)) === generation) supervise(action, "delayed_restore", id);
+    }, Math.max(0, Math.round(delayMs)));
+    if (!fired) delayedTimers.add(timerHandle);
     timerHandle?.unref?.();
   }
   async function restore(entry, options = {}) {
@@ -135,7 +166,7 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
     const adapter = adapters[String(entry.fixture.brand).toLowerCase()];
     const generation = Number(restoreGenerations.get(entry.fixture.id) || 0) + 1;
     restoreGenerations.set(entry.fixture.id, generation);
-    const finish = async () => { try { await adapter?.sendState?.([entry.fixture], entry.previousState.value); } catch {} };
+    const finish = async () => adapter?.sendState?.([entry.fixture], entry.previousState.value);
     if (config.returnEffect !== true || options.animate === false || !entry.lastFrame) return finish();
     const offset = lightingLayout?.spatialOffset?.(entry.fixture.id, "sweep", entry.fixtureIndex, entry.fixtureCount, entry.settings)
       ?? (entry.fixtureIndex / Math.max(1, entry.fixtureCount - 1));
@@ -151,7 +182,7 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
       if (!entry) continue;
       active.delete(key); stopped += 1;
       if (entry.settings.cooldownSeconds > 0) cooldownUntil.set(key, now() + (entry.settings.cooldownSeconds * 1000));
-      if (options.restore !== false) void restore(entry, options);
+      if (options.restore !== false && !shuttingDown) supervise(() => restore(entry, options), "restore", key);
       else invalidateRestore(key);
     }
     if (!active.size && timer) { unschedule(timer); timer = null; }
@@ -165,14 +196,14 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
     for (const entry of affected) {
       active.delete(entry.fixture.id);
       if (targets.has(entry.fixture.id)) invalidateRestore(entry.fixture.id);
-      else void restore(entry, { force: true, animate: true });
+      else if (!shuttingDown) supervise(() => restore(entry, { force: true, animate: true }), "static_override_restore", entry.fixture.id);
     }
     if (!active.size && timer) { unschedule(timer); timer = null; }
     return { stopped: affected.length, restoredFixtureIds: affected.filter(entry => !targets.has(entry.fixture.id) && entry.previousState?.value).map(entry => entry.fixture.id) };
   }
   function ensureTimer() {
     if (timer) return;
-    timer = schedule(() => { void tick(); }, ENGINE_TICK_MS);
+    timer = schedule(() => { supervise(() => tick(), "engine_tick"); }, ENGINE_TICK_MS);
     timer?.unref?.();
   }
 
@@ -226,6 +257,7 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
     try {
       const at = now();
       for (const [id, entry] of active) {
+        try {
         const limits = [entry.settings.durationSeconds > 0 ? entry.settings.durationSeconds * 1000 : 0,
           entry.settings.repeatCount > 0 ? entry.command.durationMs * entry.command.colors.length * entry.settings.repeatCount : 0].filter(Boolean);
         const durationMs = limits.length ? Math.min(...limits) : 0;
@@ -265,7 +297,10 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
         // Start every due adapter in this same engine turn. A slow Hue HTTP
         // response must not hold the WiZ/Govee clock; adapter failures remain
         // isolated and a later absolute deadline catches up without drift.
-        void Promise.resolve(dispatch(entry.fixture, frame, smooth && !initialFrame ? cadence : 0)).catch(() => null);
+        supervise(() => dispatch(entry.fixture, frame, smooth && !initialFrame ? cadence : 0), "dispatch", id, false);
+        } catch (error) {
+          reportFault(error, "render", id);
+        }
       }
     } finally { ticking = false; }
   }
@@ -295,7 +330,21 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
     return result;
   }
   function cancelFixtureIds(ids) { return stopFixtures(Array.isArray(ids) ? ids : []); }
-  function shutdown() { stopAll(); }
+  async function shutdown() {
+    shuttingDown = true;
+    if (timer) { unschedule(timer); timer = null; }
+    for (const handle of delayedTimers) unscheduleOnce(handle);
+    delayedTimers.clear();
+    stopFixtures([...active.keys()], { restore: false });
+    if (pendingTasks.size) {
+      let deadline;
+      await Promise.race([
+        Promise.allSettled([...pendingTasks]),
+        new Promise(resolve => { deadline = setTimeout(resolve, shutdownWaitMs); })
+      ]);
+      clearTimeout(deadline);
+    }
+  }
 
   return Object.freeze({ snapshot, save, parse, resolve, handle, cancelFixtureIds, cancelForStaticTargets, tick, shutdown });
 };

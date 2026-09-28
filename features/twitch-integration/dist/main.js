@@ -17,6 +17,7 @@ async function handleRequest(request) {
     "twitch.oauth.admin.v1/poll": ["poll", 6000],
     "twitch.oauth.admin.v1/disconnect": ["disconnect", 1500],
     "twitch.rewards.read.v1/inspect": ["inspect-reward", 6000],
+    "twitch.rewards.catalog.v1/list": ["list-rewards", 6000],
     "twitch.rewards.admin.v1/create": ["create-reward", 6000],
     "twitch.redemptions.v1/settle": ["settle", 6000],
     "twitch.chat.send.v1/send": ["send-chat", 6000]

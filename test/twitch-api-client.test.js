@@ -106,6 +106,23 @@ test("Twitch chat sends as the authorized local broadcaster account", async () =
   assert.deepEqual(JSON.parse(calls[0].init.body), { broadcaster_id: "user-1", sender_id: "user-1", message: "Request accepted" });
 });
 
+test("Twitch reward catalog labels app-manageable rewards without exposing credentials", async () => {
+  const calls = [];
+  const api = createTwitchApiClient({ fetch: async (url, init) => {
+    calls.push({ url: String(url), init });
+    const manageable = String(url).includes("only_manageable_rewards=true");
+    return response(200, { data: manageable ? [{ id: "managed" }] : [
+      { id: "managed", title: "Flash", prompt: "Celebrate", cost: 500, is_enabled: true, is_paused: false, is_user_input_required: false },
+      { id: "manual", title: "Hydrate", prompt: "", cost: 100, is_enabled: true, is_paused: true, is_user_input_required: false }
+    ] });
+  } });
+  const result = await api.listRewards({ credentials: { clientId: "client123456", accessToken: "secret-token", userId: "broadcaster-1" } });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.rewards.map(row => [row.id, row.manageable]), [["managed", true], ["manual", false]]);
+  assert.equal(JSON.stringify(result).includes("secret-token"), false);
+  assert.equal(calls.length, 2);
+});
+
 test("Twitch chat reports a dropped Helix message as a delivery failure", async () => {
   const api = createTwitchApiClient({ fetch: async () => response(200, { data: [{ message_id: "message-1", is_sent: false, drop_reason: { code: "automod", message: "Message rejected" } }] }) });
   const result = await api.sendChat({ credentials: { clientId: "client123456", accessToken: "token", userId: "user-1" }, message: "Request accepted" });

@@ -6,16 +6,16 @@ const path = require("node:path");
 const createFeaturePackageManager = require("../src/capabilities/feature-platform/packages/feature-package-manager");
 const { OFFICIAL_FEATURE_SOURCES } = require("../src/capabilities/feature-platform/packages/official-feature-sources");
 
-const packageRoot = path.join(__dirname, "..", "features", "clip-studio");
+const featuresRoot = path.join(__dirname, "..", "features");
 
 function repositoryFetch({ tamper = "", oversized = false } = {}) {
   return async url => {
     const parsed = new URL(url);
-    const marker = "/features/clip-studio/";
-    const index = parsed.pathname.indexOf(marker);
-    if (index < 0) return new Response("missing", { status: 404 });
-    const relative = decodeURIComponent(parsed.pathname.slice(index + marker.length));
-    const file = path.join(packageRoot, ...relative.split("/"));
+    const match = parsed.pathname.match(/\/features\/([a-z0-9-]+)\/(.+)$/);
+    if (!match) return new Response("missing", { status: 404 });
+    const featureId = match[1];
+    const relative = decodeURIComponent(match[2]);
+    const file = path.join(featuresRoot, featureId, ...relative.split("/"));
     if (!fs.existsSync(file)) return new Response("missing", { status: 404 });
     let body = fs.readFileSync(file);
     if (relative === tamper) body = Buffer.concat([body, Buffer.from("tampered")]);
@@ -24,7 +24,7 @@ function repositoryFetch({ tamper = "", oversized = false } = {}) {
   };
 }
 
-test("remote Clip Studio is advertised from GitHub metadata and installs only after download", async t => {
+test("every official optional feature is advertised from GitHub and installs only after download", async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-remote-feature-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const manager = createFeaturePackageManager({
@@ -35,14 +35,14 @@ test("remote Clip Studio is advertised from GitHub metadata and installs only af
     fetchImpl: repositoryFetch()
   });
   const available = await manager.listAvailable();
-  assert.equal(available.total, 1);
-  assert.equal(available.features[0].id, "clip-studio");
-  assert.equal(available.features[0].source, "github");
-  assert.equal(available.features[0].downloadRequired, true);
-  assert.equal(fs.existsSync(path.join(root, "installed", "clip-studio")), false);
-  const installed = await manager.install("clip-studio");
-  assert.equal(installed.ok, true, JSON.stringify(installed));
-  assert.equal(fs.existsSync(path.join(root, "installed", "clip-studio", "dist", "main.js")), true);
+  assert.equal(available.total, 4);
+  assert.deepEqual(available.features.map(row => row.id), ["automation", "clip-studio", "song-request", "twitch-integration"]);
+  assert.ok(available.features.every(row => row.source === "github" && row.downloadRequired === true && row.installed === false));
+  for (const featureId of available.features.map(row => row.id)) {
+    const installed = await manager.install(featureId);
+    assert.equal(installed.ok, true, JSON.stringify(installed));
+    assert.equal(fs.existsSync(path.join(root, "installed", featureId, "dist", "main.js")), true);
+  }
 });
 
 test("remote install rejects a hash mismatch and leaves no partial package", async t => {

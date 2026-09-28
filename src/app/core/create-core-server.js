@@ -133,7 +133,7 @@ module.exports = function createCoreServer(options = {}) {
     requestShutdown: options.requestShutdown
   });
   extension = typeof options.extend === "function"
-    ? options.extend({ app, express, rootDir, runtimeDir, egressGovernor, widgetController, twitchIntakeGate })
+    ? options.extend({ app, express, rootDir, runtimeDir, egressGovernor, widgetController, twitchIntakeGate, lightingCore: core })
     : null;
   coreUpdates.startLaunchCheck();
   if (typeof extension?.shutdown === "function") {
