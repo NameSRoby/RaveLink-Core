@@ -6,6 +6,8 @@ const createWindowsMediaObserver = require("../../capabilities/feature-platform/
 const createTwitchChatCommandRouter = require("../../capabilities/feature-platform/providers/twitch-chat-command-router");
 const { TWITCH_PUBLIC_CLIENT_ID } = require("../../capabilities/feature-platform/providers/twitch-public-client");
 const { OFFICIAL_FEATURE_SOURCES } = require("../../capabilities/feature-platform/packages/official-feature-sources");
+const { OFFICIAL_TTS_PAYLOADS } = require("../../capabilities/feature-platform/packages/official-tts-payloads");
+const createTtsPayloadManager = require("../../capabilities/feature-platform/packages/tts-payload-manager");
 const { hexToRgb, createHueStateFromRgb, createWizStateFromRgb } = require("../../domains/colors/color-space");
 
 function providerError(code, message, retryable = false) {
@@ -18,7 +20,7 @@ function twitchEventAmount(type, event = {}) {
   return Number.isFinite(value) ? Math.max(0, Math.min(1000000, Math.round(value))) : undefined;
 }
 
-function createTtsPackageProvider(registry, sources = OFFICIAL_FEATURE_SOURCES) {
+function createTtsPackageProvider(registry, sources = OFFICIAL_FEATURE_SOURCES, payloadManager = null) {
   const allowed = new Set(sources.map(row => row.id).filter(id => /^tts-[a-z0-9-]{1,58}$/.test(id)));
   const project = row => ({
     id: String(row.id), name: String(row.name || row.id).slice(0, 80), version: String(row.version || "").slice(0, 40),
@@ -28,24 +30,31 @@ function createTtsPackageProvider(registry, sources = OFFICIAL_FEATURE_SOURCES) 
   });
   function admit(payload) {
     const id = String(payload?.featureId || "");
-    if (!allowed.has(id)) throw providerError("tts_package_not_allowed", "The requested TTS package is not in the official RaveLink catalog");
-    return id;
+    if (allowed.has(id)) return { id, kind: "feature" };
+    if (/^tts-(?:runtime|voice)-[a-z0-9-]{1,52}$/.test(id) && payloadManager) return { id, kind: "payload" };
+    throw providerError("tts_package_not_allowed", "The requested TTS package is not in the official RaveLink catalog");
   }
   return Object.freeze({
     async status() {
       const result = await registry.listAvailable();
-      return { ok: true, packages: (result.features || []).filter(row => allowed.has(row.id)).slice(0, 16).map(project), warnings: (result.warnings || []).filter(row => allowed.has(row.featureId)).length };
+      const payloads = payloadManager ? await payloadManager.status() : { packages: [] };
+      const featureRows = (result.features || []).filter(row => allowed.has(row.id)).map(project);
+      const payloadRows = (payloads.packages || []).map(project);
+      return { ok: true, packages: [...featureRows, ...payloadRows].slice(0, 16), warnings: (result.warnings || []).filter(row => allowed.has(row.featureId)).length };
     },
     async install(payload) {
-      const featureId = admit(payload), result = await registry.install(featureId);
+      const admitted = admit(payload), featureId = admitted.id;
+      const result = admitted.kind === "payload" ? await payloadManager.install(featureId) : await registry.install(featureId);
       return { ok: result?.ok === true, featureId, code: result?.ok ? "tts_package_installed" : String(result?.error || "tts_package_install_failed").slice(0, 80) };
     },
     async update(payload) {
-      const featureId = admit(payload), result = await registry.update(featureId);
+      const admitted = admit(payload), featureId = admitted.id;
+      const result = admitted.kind === "payload" ? await payloadManager.install(featureId) : await registry.update(featureId);
       return { ok: result?.ok === true, featureId, code: result?.ok ? "tts_package_updated" : String(result?.error || "tts_package_update_failed").slice(0, 80) };
     },
     async remove(payload) {
-      const featureId = admit(payload), result = await registry.uninstall(featureId, { deleteData: payload?.deleteData === true });
+      const admitted = admit(payload), featureId = admitted.id;
+      const result = admitted.kind === "payload" ? await payloadManager.remove(featureId) : await registry.uninstall(featureId, { deleteData: payload?.deleteData === true });
       return { ok: result?.ok === true, featureId, code: result?.ok ? "tts_package_removed" : String(result?.error || "tts_package_remove_failed").slice(0, 80) };
     }
   });
@@ -332,12 +341,18 @@ function createFeaturePlatformExtension(options = {}) {
       onSnapshot: payload => registry.request("song-request", "song.playback.observe.v1", "observe", payload, { timeoutMs: 1000 })
     });
     const applyLightingOutput = createLightingOutputProvider(context);
+    const featureRuntimeRoot = options.runtimeRoot || path.join(context.runtimeDir, "features");
+    const ttsPayloadManager = createTtsPayloadManager({
+      root: path.join(featureRuntimeRoot, "tts-payloads"),
+      catalog: options.ttsPayloadCatalog || OFFICIAL_TTS_PAYLOADS,
+      fetchImpl: options.featureFetch
+    });
     registry = createFeatureHostRegistry({
       featuresRoot: options.featuresRoot || path.join(rootDir, "features", "installed"),
       packageRoots: options.packageRoots || [path.join(rootDir, "feature-packages"), path.join(rootDir, "features")],
       remoteSources: options.remoteSources || (options.packageRoots ? [] : OFFICIAL_FEATURE_SOURCES),
       fetchImpl: options.featureFetch,
-      runtimeRoot: options.runtimeRoot || path.join(context.runtimeDir, "features"),
+      runtimeRoot: featureRuntimeRoot,
       providers: {
         "lighting.output.v1/apply": applyLightingOutput,
         "media.windows.now-playing.v1/control": payload => mediaObserver.control(payload),
@@ -362,10 +377,10 @@ function createFeaturePlatformExtension(options = {}) {
         "youtube.catalog.host.v1/import-playlist-status": payload => youtubeProvider().importPlaylistStatus(payload),
         "youtube.catalog.host.v1/import-playlist-page": payload => youtubeProvider().importPlaylistPage(payload),
         "youtube.catalog.host.v1/import-playlist-cancel": payload => youtubeProvider().importPlaylistCancel(payload),
-        "alerts.tts.packages.v1/status": () => createTtsPackageProvider(registry).status(),
-        "alerts.tts.packages.v1/install": payload => createTtsPackageProvider(registry).install(payload),
-        "alerts.tts.packages.v1/update": payload => createTtsPackageProvider(registry).update(payload),
-        "alerts.tts.packages.v1/remove": payload => createTtsPackageProvider(registry).remove(payload),
+        "alerts.tts.packages.v1/status": () => createTtsPackageProvider(registry, OFFICIAL_FEATURE_SOURCES, ttsPayloadManager).status(),
+        "alerts.tts.packages.v1/install": payload => createTtsPackageProvider(registry, OFFICIAL_FEATURE_SOURCES, ttsPayloadManager).install(payload),
+        "alerts.tts.packages.v1/update": payload => createTtsPackageProvider(registry, OFFICIAL_FEATURE_SOURCES, ttsPayloadManager).update(payload),
+        "alerts.tts.packages.v1/remove": payload => createTtsPackageProvider(registry, OFFICIAL_FEATURE_SOURCES, ttsPayloadManager).remove(payload),
         ...(options.providers || {})
       },
       allowUnsafeRuntime: options.allowUnsafeRuntime === true

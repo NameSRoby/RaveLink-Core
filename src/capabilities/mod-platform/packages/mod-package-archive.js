@@ -24,11 +24,13 @@ const DEFAULT_ARCHIVE_LIMITS = Object.freeze({
 const WINDOWS_RESERVED_NAME_RE = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
 const WINDOWS_UNSAFE_RE = /[<>:"|?*\u0000-\u001f]/;
 
-function boundedArchiveLimits(overrides = {}) {
+function boundedArchiveLimits(overrides = {}, ceilings = DEFAULT_ARCHIVE_LIMITS) {
   const out = {};
   for (const [key, fallback] of Object.entries(DEFAULT_ARCHIVE_LIMITS)) {
+    const ceiling = Number(ceilings[key]);
+    const maximum = Number.isFinite(ceiling) && ceiling >= fallback ? ceiling : fallback;
     const value = Number(overrides[key]);
-    out[key] = Number.isFinite(value) && value > 0 ? Math.min(value, fallback) : fallback;
+    out[key] = Number.isFinite(value) && value > 0 ? Math.min(value, maximum) : fallback;
   }
   return out;
 }
@@ -84,7 +86,7 @@ function addPathEntry(pathKinds, relative, kind) {
 }
 
 async function extractZipArchive(archivePath, destinationPath, options = {}) {
-  const limits = boundedArchiveLimits(options.limits);
+  const limits = boundedArchiveLimits(options.limits, options.limitCeilings);
   const archive = path.resolve(String(archivePath || ""));
   const destination = path.resolve(String(destinationPath || ""));
   let stat;

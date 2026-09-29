@@ -36,6 +36,7 @@ function buildProcessPermissions(options = {}) {
   if (!support.fsRead) missing.push("filesystem_read_policy");
   if (!support.network) missing.push("network_policy");
   if (permissions.process === true && !support.childProcess) missing.push("child_process_policy");
+  if (permissions.nativeAddons === true && !support.addons) missing.push("native_addon_policy");
 
   if (missing.length && !allowUnsafeRuntime) {
     return {
@@ -59,6 +60,7 @@ function buildProcessPermissions(options = {}) {
       }
     }
     if (permissions.process === true && support.childProcess) execArgv.push("--allow-child-process");
+    if (permissions.nativeAddons === true && support.addons) execArgv.push("--allow-addons");
   }
   return {
     ok: true,

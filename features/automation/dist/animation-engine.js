@@ -48,6 +48,8 @@ function normalizeProfile(raw) {
     smoothness: Math.round(clamp(raw.smoothness, 0, 100, 65)),
     durationMs: Math.round(clamp(raw.durationMs, 800, 10000, 2400)),
     restorePrevious: raw.restorePrevious !== false,
+    speechEnabled: raw.speechEnabled === true,
+    speechText: text(raw.speechText, 500),
     triggerId,
     triggerLabel: text(raw.triggerLabel || raw.triggerRewardTitle, 80),
     triggerMinimum: Math.round(clamp(raw.triggerMinimum, 0, 1000000, 0)),

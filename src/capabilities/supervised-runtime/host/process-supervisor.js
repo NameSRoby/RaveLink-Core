@@ -60,6 +60,7 @@ module.exports = function createProcessSupervisor(options = {}) {
   const apiMajor = boundedInt(options.apiMajor, 1, 99, 1);
   const modRoot = path.resolve(String(options.modRoot || ""));
   const storageRoot = path.resolve(String(options.storageRoot || path.join(modRoot, ".data")));
+  const runtimeAssetsRoot = options.runtimeAssetsRoot ? path.resolve(String(options.runtimeAssetsRoot)) : "";
   const platformRoot = path.resolve(String(options.platformRoot || path.join(__dirname, "..")));
   const bootstrapPath = path.resolve(String(options.bootstrapPath || path.join(__dirname, "..", "runtime", "worker-bootstrap.js")));
   const startupTimeoutMs = boundedInt(options.startupTimeoutMs, 100, 30000, DEFAULT_STARTUP_TIMEOUT_MS);
@@ -383,6 +384,7 @@ module.exports = function createProcessSupervisor(options = {}) {
       modRoot: paths.root,
       storageRoot,
       platformRoot,
+      runtimeAssetsRoot,
       allowUnsafeRuntime: permissionOptions.allowUnsafeRuntime,
       support: permissionOptions.support
     });
@@ -399,7 +401,8 @@ module.exports = function createProcessSupervisor(options = {}) {
       entryPath: paths.entry,
       provides: manifest.provides,
       consumes: manifest.consumes,
-      maxFrameBytes: manifest.resources.ipcFrameBytes
+      maxFrameBytes: manifest.resources.ipcFrameBytes,
+      runtimeAssetsRoot
     }), "utf8").toString("base64url");
     expectedStop = false;
     handshakeAuthorized = false;

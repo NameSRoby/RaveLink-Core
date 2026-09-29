@@ -70,11 +70,11 @@ function validateFeatureManifestV1(input) {
   if (!contracts.length) error(errors, "$.contracts", "contract_required");
 
   const permissions = record(input.permissions) ? input.permissions : {};
-  if (!record(input.permissions) || Object.keys(permissions).some(key => !["network", "storage", "secrets", "process", "hardware"].includes(key))) error(errors, "$.permissions", "invalid_permissions");
+  if (!record(input.permissions) || Object.keys(permissions).some(key => !["network", "storage", "secrets", "process", "nativeAddons", "hardware"].includes(key))) error(errors, "$.permissions", "invalid_permissions");
   const network = strings(permissions.network || [], "$.permissions.network", errors, { maximum: 16, length: 253, valid: value => HOST_RE.test(value) && !value.includes("*") && !value.endsWith(".local") });
   const secrets = strings(permissions.secrets || [], "$.permissions.secrets", errors, { maximum: 16, length: 80, valid: value => /^[a-z][a-z0-9._-]*$/.test(value) });
   const hardware = strings(permissions.hardware || [], "$.permissions.hardware", errors, { maximum: 16, length: 80, valid: value => /^[a-z][a-z0-9._-]*$/.test(value) });
-  for (const flag of ["storage", "process"]) if (permissions[flag] !== undefined && typeof permissions[flag] !== "boolean") error(errors, `$.permissions.${flag}`, "invalid_flag");
+  for (const flag of ["storage", "process", "nativeAddons"]) if (permissions[flag] !== undefined && typeof permissions[flag] !== "boolean") error(errors, `$.permissions.${flag}`, "invalid_flag");
 
   const resources = record(input.resources) ? input.resources : {};
   if (!record(input.resources) || Object.keys(resources).some(key => !Object.hasOwn(FEATURE_RESOURCE_LIMITS, key))) error(errors, "$.resources", "invalid_resources");
@@ -129,7 +129,7 @@ function validateFeatureManifestV1(input) {
     schemaVersion: 1, id, name, description, version, publisher: "ravelink", entry,
     engine: Object.freeze({ featureApi: engine.featureApi, node: engine.node }),
     consumes: Object.freeze(consumes), provides: Object.freeze(provides), contracts: Object.freeze(contracts),
-    permissions: Object.freeze({ network: Object.freeze(network), storage: permissions.storage === true, secrets: Object.freeze(secrets), process: permissions.process === true, hardware: Object.freeze(hardware) }),
+    permissions: Object.freeze({ network: Object.freeze(network), storage: permissions.storage === true, secrets: Object.freeze(secrets), process: permissions.process === true, nativeAddons: permissions.nativeAddons === true, hardware: Object.freeze(hardware) }),
     resources: Object.freeze({ ...resources }),
     contributes: Object.freeze({ pages: Object.freeze(pages.map(page => Object.freeze(page))) }),
     integrity: Object.freeze({ algorithm: "sha256", files: Object.freeze(integrityFiles) })

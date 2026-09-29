@@ -35,8 +35,8 @@ test("every official optional feature is advertised from GitHub and installs onl
     fetchImpl: repositoryFetch()
   });
   const available = await manager.listAvailable();
-  assert.equal(available.total, 4);
-  assert.deepEqual(available.features.map(row => row.id), ["automation", "clip-studio", "song-request", "twitch-integration"]);
+  assert.equal(available.total, 5);
+  assert.deepEqual(available.features.map(row => row.id), ["automation", "clip-studio", "song-request", "tts-engine-local", "twitch-integration"]);
   assert.ok(available.features.every(row => row.source === "github" && row.downloadRequired === true && row.installed === false));
   for (const featureId of available.features.map(row => row.id)) {
     const installed = await manager.install(featureId);

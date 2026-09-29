@@ -3,7 +3,7 @@
   "id": "automation",
   "name": "Alerts / TTS",
   "description": "Create visual and lighting alerts, choose trusted triggers, and manage local text-to-speech setup.",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
@@ -14,7 +14,10 @@
     "ravelink.storage.v1?",
     "lighting.output.v1?",
     "twitch.rewards.catalog.v1?",
-    "alerts.tts.packages.v1?"
+    "alerts.tts.packages.v1?",
+    "alerts.tts.catalog.v1?",
+    "alerts.tts.admin.v1?",
+    "alerts.tts.queue.v1?"
   ],
   "provides": [
     "automation.animation.profiles.read.v1",
@@ -108,16 +111,17 @@
   "integrity": {
     "algorithm": "sha256",
     "files": {
-      "contracts/automation-v1.contracts.json": "fecbd51e37712a2a1931adbb795de6a5ada31f33d1ab040eca7c648b96c825c9",
-      "dist/animation-engine.js": "340228de97d4fd5032d248b6095bc72abfda237c0bc4ee3d4bd274ed13d632a7",
-      "dist/main.js": "e2acd2c8b266554ef1a7de018165e84f01057b67aed695aec3a7d01058375ddc",
-      "ui/automations.html": "04fc08cc3342154271b14f2afb9f5b2a346dde66119dd21c2adefade437f24de",
+      "contracts/automation-v1.contracts.json": "08b5e69b465bdd5cdbae09b1df34488b28aa111e53e35ef8c2464dcf1f348fc0",
+      "dist/animation-engine.js": "0b85ac18ea0fe92f4a896965dafc8f97fe48919981948142ec71ad02d799ffac",
+      "dist/main.js": "9d8262bf0a47661000658434f50c98e49989616c051c2836cec211b9ed91d652",
+      "dist/tts-settings.js": "140e4fbedcb8c9d1b9a9480fe9d37a182ae10414fb279956921688b09353c164",
+      "ui/automations.html": "d2d5c642914c86a53575789c1a300a3ccfa0d6f42ad94ab0789e64074807e249",
       "dist/donation-policy.js": "967c986b6848c1ac4771cd03c4146f1f4c191e6c3e3f0470586a5d1721d4cdeb",
       "dist/kofi-webhook.js": "6456cf2d7bab0c7451200fef8c7bef95eb4137fd119dce2aa9ef9afaf3ee84dd",
       "dist/visual-alert-engine.js": "a28dcbce98b4208b7c119841a762782d44c7cfeae035ec11eeddbdd9de53477e",
       "ui/donations.html": "fd5ac492679981d94143b3e1a0dda88613b2448138c35c19c246c8a8b28cbf13",
       "ui/alert-overlay.html": "3cd869971c3ccca09425195ec63a89ecc32626be8a1dc31a66515e9ddb4ede31",
-      "ui/tts.html": "e9e54e21f26a9d1c66fa953ca2d6d0c514e947b2cab289d359682b4b6acdc0fc"
+      "ui/tts.html": "d7a7e66e7c0486e1ce310603b8e0f5540a534e70198993c0b91e2138b652b8a5"
     }
   }
 }

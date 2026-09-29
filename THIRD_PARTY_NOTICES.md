@@ -23,6 +23,7 @@ Transitive production packages currently use MIT, ISC, BSD-2-Clause, BSD-3-Claus
 ## Optional Feature Packages
 
 - **Clip Studio 0.1.0 infrastructure** - first-party RaveLink code only. It bundles no FFmpeg binary, machine-learning runtime, model weights, or other third-party processing payload. The downloadable package carries its own `THIRD_PARTY_NOTICES.md`; future engine and model updates must update both notice files before publication.
+- **RaveLink TTS Kitten English 1.0.0** - separately downloaded optional payload containing Sherpa ONNX 1.13.8 and the KittenTTS Nano English model, both under Apache License 2.0. The payload includes its own attribution notice and Apache license text. It is not included in the Core installer or portable archive.
 
 ## Protocol References
 

@@ -26,6 +26,13 @@ const OFFICIAL_FEATURE_SOURCES = Object.freeze([
     displaySource: "RaveLink GitHub repository"
   }),
   Object.freeze({
+    id: "tts-engine-local",
+    name: "Local TTS Engine",
+    description: "Isolated local speech runtime foundation. Voice and synthesis payloads install separately after review.",
+    baseUrl: `${GITHUB_RAW_ROOT}tts-engine-local/`,
+    displaySource: "RaveLink GitHub repository"
+  }),
+  Object.freeze({
     id: "twitch-integration",
     name: "Twitch Integration",
     description: "Twitch OAuth, EventSub, Channel Points rewards, chat responses, and redemption settlement.",

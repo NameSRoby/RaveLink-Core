@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "contracts": [
+    {
+      "capability": "alerts.tts.catalog.v1",
+      "methods": {
+        "status": {
+          "request": { "type": ["object", "null"], "additionalProperties": false, "properties": {} },
+          "response": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ok", "engineName", "engineVersion", "voices", "outputs", "active", "queued"],
+            "properties": {
+              "ok": { "const": true },
+              "engineName": { "type": "string", "maxLength": 80 },
+              "engineVersion": { "type": "string", "maxLength": 40 },
+              "active": { "type": "boolean" },
+              "queued": { "type": "integer", "minimum": 0, "maximum": 10 },
+              "voices": {
+                "type": "array", "maxItems": 64,
+                "items": {
+                  "type": "object", "additionalProperties": false,
+                  "required": ["id", "name", "language", "isDefault"],
+                  "properties": {
+                    "id": { "type": "string", "maxLength": 80 },
+                    "name": { "type": "string", "maxLength": 80 },
+                    "language": { "type": "string", "maxLength": 40 },
+                    "isDefault": { "type": "boolean" }
+                  }
+                }
+              },
+              "outputs": {
+                "type": "array", "maxItems": 32,
+                "items": {
+                  "type": "object", "additionalProperties": false,
+                  "required": ["id", "name", "language", "isDefault"],
+                  "properties": {
+                    "id": { "type": "string", "maxLength": 80 },
+                    "name": { "type": "string", "maxLength": 80 },
+                    "language": { "type": "string", "maxLength": 40 },
+                    "isDefault": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "alerts.tts.admin.v1",
+      "methods": {
+        "preview": {
+          "request": {
+            "type": "object", "additionalProperties": false,
+            "required": ["text", "version", "voiceId", "outputId", "volume", "rate", "pitch", "queuePolicy"],
+            "properties": {
+              "text": { "type": "string", "minLength": 1, "maxLength": 300 },
+              "version": { "const": 1 },
+              "voiceId": { "type": "string", "maxLength": 80 },
+              "outputId": { "type": "string", "maxLength": 80 },
+              "volume": { "type": "integer", "minimum": 0, "maximum": 100 },
+              "rate": { "type": "number", "minimum": 0.5, "maximum": 2 },
+              "pitch": { "type": "number", "minimum": 0.5, "maximum": 2 },
+              "queuePolicy": { "enum": ["queue", "replace", "skip-when-busy"] }
+            }
+          },
+          "response": {
+            "type": "object", "additionalProperties": false,
+            "required": ["ok", "code", "utteranceId"],
+            "properties": {
+              "ok": { "type": "boolean" },
+              "code": { "type": "string", "maxLength": 80 },
+              "utteranceId": { "type": "string", "maxLength": 80 }
+            }
+          }
+        },
+        "cancel-all": {
+          "request": { "type": ["object", "null"], "additionalProperties": false, "properties": {} },
+          "response": {
+            "type": "object", "additionalProperties": false,
+            "required": ["ok", "code"],
+            "properties": {
+              "ok": { "type": "boolean" },
+              "code": { "type": "string", "maxLength": 80 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "alerts.tts.queue.v1",
+      "methods": {
+        "enqueue": {
+          "request": {
+            "type": "object", "additionalProperties": false, "required": ["text"],
+            "properties": {
+              "text": { "type": "string", "minLength": 1, "maxLength": 500 },
+              "voiceId": { "type": "string", "maxLength": 80 },
+              "outputId": { "type": "string", "maxLength": 80 },
+              "volume": { "type": "number", "minimum": 0, "maximum": 100 },
+              "rate": { "type": "number", "minimum": 0.5, "maximum": 2 },
+              "pitch": { "type": "number", "minimum": 0.5, "maximum": 2 },
+              "queuePolicy": { "enum": ["queue", "replace", "skip-when-busy"] },
+              "correlationId": { "type": "string", "maxLength": 80 }
+            }
+          },
+          "response": {
+            "type": "object", "additionalProperties": false, "required": ["ok", "code", "utteranceId"],
+            "properties": {
+              "ok": { "type": "boolean" }, "code": { "type": "string", "maxLength": 80 }, "utteranceId": { "type": "string", "maxLength": 80 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "alerts.tts.events.v1",
+      "events": {
+        "queued": { "type": "object", "additionalProperties": false, "required": ["utteranceId", "code"], "properties": { "utteranceId": { "type": "string", "maxLength": 80 }, "code": { "type": "string", "maxLength": 80 } } },
+        "started": { "type": "object", "additionalProperties": false, "required": ["utteranceId", "code"], "properties": { "utteranceId": { "type": "string", "maxLength": 80 }, "code": { "type": "string", "maxLength": 80 } } },
+        "completed": { "type": "object", "additionalProperties": false, "required": ["utteranceId", "code"], "properties": { "utteranceId": { "type": "string", "maxLength": 80 }, "code": { "type": "string", "maxLength": 80 } } },
+        "canceled": { "type": "object", "additionalProperties": false, "required": ["utteranceId", "code"], "properties": { "utteranceId": { "type": "string", "maxLength": 80 }, "code": { "type": "string", "maxLength": 80 } } },
+        "failed": { "type": "object", "additionalProperties": false, "required": ["utteranceId", "code"], "properties": { "utteranceId": { "type": "string", "maxLength": 80 }, "code": { "type": "string", "maxLength": 80 } } }
+      }
+    }
+  ]
+}

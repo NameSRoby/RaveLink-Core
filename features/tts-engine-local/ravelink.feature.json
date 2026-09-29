@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "id": "tts-engine-local",
+  "name": "Local TTS Engine",
+  "description": "Isolated local speech runtime foundation. Voice and synthesis payloads install separately after review.",
+  "version": "1.0.0",
+  "publisher": "ravelink",
+  "entry": "dist/main.js",
+  "engine": {
+    "featureApi": "^1.0.0",
+    "node": ">=22"
+  },
+  "consumes": [],
+  "provides": [
+    "alerts.tts.catalog.v1",
+    "alerts.tts.admin.v1",
+    "alerts.tts.queue.v1",
+    "alerts.tts.events.v1"
+  ],
+  "contracts": [
+    "contracts/tts-runtime-v1.contracts.json"
+  ],
+  "permissions": {
+    "network": [],
+    "storage": false,
+    "secrets": [],
+    "process": true,
+    "nativeAddons": true,
+    "hardware": []
+  },
+  "resources": {
+    "idleCpuPercent": 0.1,
+    "idleRssMiB": 48,
+    "activeRssMiB": 192,
+    "timers": 2,
+    "minTimerMs": 1000,
+    "ipcFrameBytes": 16384,
+    "inFlightCalls": 2,
+    "queuedCalls": 12,
+    "externalInFlight": 0,
+    "storageBytes": 0,
+    "historyEntries": 0,
+    "shutdownGraceMs": 3000
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "files": {
+      "THIRD_PARTY_NOTICES.md": "2610517cafc5c264f084600169358ad5f4f1b9e9ad06a60e80516bd1de9637ca",
+      "contracts/tts-runtime-v1.contracts.json": "263b479b4e627ce180883a509364049dc6cb4a6046b4ee3ca5bd75c4654151b3",
+      "dist/main.js": "638dda26bdca41e351c2e166035c2c376e5f32cb835aa433c0a5b90c30da0cc9"
+    }
+  }
+}

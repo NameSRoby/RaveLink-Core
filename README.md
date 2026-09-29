@@ -4,7 +4,7 @@
 
 RaveLink Core is a local Windows control app for streamer lighting and optional Twitch-powered features. It runs from the system tray and opens its control surface at `http://127.0.0.1:5050`.
 
-**0.6.3.5 is a prerelease.** It is intended for testing the new Alerts / TTS foundation and remote-only feature installer. Automatic stable-update checks do not install prereleases.
+**0.6.4 adds optional local speech to Alerts / TTS.** The base download stays small: optional features, the speech runtime, and its voice model download only when selected by the user.
 
 ## What It Does
 
@@ -16,13 +16,13 @@ RaveLink Core is a local Windows control app for streamer lighting and optional 
 - Generates a small StreamElements widget when OAuth-free Twitch event intake is preferred.
 - Adds native Twitch OAuth, chat, managed Channel Points rewards, completion and refund handling, and broadcaster chat responses as an optional feature.
 - Adds YouTube Song Request, server playlists, moderation, playback controls, and configurable OBS overlays as an optional feature.
-- Adds **Alerts / TTS** as an optional prerelease feature for synchronized lighting alerts, Twitch event and Channel Points triggers, donation moderation, and a local OBS alert overlay.
+- Adds **Alerts / TTS** as an optional feature for synchronized lighting alerts, Twitch event and Channel Points triggers, donation moderation, a local OBS alert overlay, and locally generated speech.
 - Keeps optional features and community mods isolated from the lighting core.
 
 ## Install
 
 1. Open the latest GitHub release.
-2. Download `RaveLink-Core-Windows-v0.6.3.5-setup-installer.exe` from the 0.6.3.5 prerelease.
+2. Download `RaveLink-Core-Windows-v0.6.4-setup-installer.exe` from the 0.6.4 release.
 3. Choose an installation folder and any optional features you want. The base installer contains Core only and downloads only the selected feature packages from this official repository.
 4. Launch **RaveLink Core** from the Start menu or desktop shortcut. Optional features can also be installed or removed later under **Packages**.
 
@@ -42,13 +42,13 @@ Unprefixed dynamic commands affect every fixture enabled in the dynamic route. O
 
 Govee LAN support works only with models that expose **LAN Control** in the Govee Home app. Enable it for each light and keep the light and RaveLink computer on the same local network. Some Govee models do not offer LAN Control and cannot be used by this Alpha integration.
 
-## Alerts / TTS Prerelease
+## Alerts / TTS
 
 Alerts / TTS can create reusable lighting alerts, attach them to available Twitch events or Channel Points rewards, and display privacy-filtered test messages in its local OBS/browser overlay. Donation settings keep payment identities out of alert output and use only the public display name supplied for the message.
 
-Local TTS remains work in progress. The package-management page is available, but no speech engine or voice pack is published yet. Engines, languages, voices, and future custom-voice tools will be separate integrity-checked downloads from this repository and will never be included in the base installer unless the user explicitly installs them.
+Local TTS is optional. Install the **Local TTS Engine** and **Kitten English Voice** from Alerts / TTS when speech is wanted; neither is included in the installer or portable archive. The first voice pack offers eight English voice styles, local Windows playback, volume and speed controls, a ten-message queue, replace/skip behavior, previews, cancellation, and fixed spoken messages on alert profiles. Downloads are accepted only from this repository's fixed release assets and are checked by exact size, SHA-256, archive limits, and package metadata before activation.
 
-The donation moderation and visual test flow work locally. Live Ko-fi webhook receipt, hosted or self-hosted relay setup, chat delivery, and speech playback remain under development.
+Donation preview speech uses only the public display alias and the moderated message; payment names, email addresses, and other payment identity fields never enter alert output. Live Ko-fi webhook receipt, hosted or self-hosted relay setup, and donation chat delivery remain work in progress. Additional languages and Custom Voice Tools are planned as separate optional downloads.
 
 ## Clip Studio Alpha
 

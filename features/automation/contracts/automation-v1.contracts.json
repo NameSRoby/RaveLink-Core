@@ -842,11 +842,62 @@
           "response": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["ok", "providerAvailable", "packages", "warnings"],
+            "required": ["ok", "providerAvailable", "packages", "warnings", "runtimeAvailable", "runtime", "defaults"],
             "properties": {
               "ok": { "const": true },
               "providerAvailable": { "type": "boolean" },
+              "runtimeAvailable": { "type": "boolean" },
               "warnings": { "type": "integer", "minimum": 0, "maximum": 16 },
+              "runtime": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["engineName", "engineVersion", "voices", "outputs", "active", "queued"],
+                "properties": {
+                  "engineName": { "type": "string", "maxLength": 80 },
+                  "engineVersion": { "type": "string", "maxLength": 40 },
+                  "active": { "type": "boolean" },
+                  "queued": { "type": "integer", "minimum": 0, "maximum": 10 },
+                  "voices": {
+                    "type": "array", "maxItems": 64,
+                    "items": {
+                      "type": "object", "additionalProperties": false,
+                      "required": ["id", "name", "language", "isDefault"],
+                      "properties": {
+                        "id": { "type": "string", "maxLength": 80 },
+                        "name": { "type": "string", "maxLength": 80 },
+                        "language": { "type": "string", "maxLength": 40 },
+                        "isDefault": { "type": "boolean" }
+                      }
+                    }
+                  },
+                  "outputs": {
+                    "type": "array", "maxItems": 32,
+                    "items": {
+                      "type": "object", "additionalProperties": false,
+                      "required": ["id", "name", "language", "isDefault"],
+                      "properties": {
+                        "id": { "type": "string", "maxLength": 80 },
+                        "name": { "type": "string", "maxLength": 80 },
+                        "language": { "type": "string", "maxLength": 40 },
+                        "isDefault": { "type": "boolean" }
+                      }
+                    }
+                  }
+                }
+              },
+              "defaults": {
+                "type": "object", "additionalProperties": false,
+                "required": ["version", "voiceId", "outputId", "volume", "rate", "pitch", "queuePolicy"],
+                "properties": {
+                  "version": { "const": 1 },
+                  "voiceId": { "type": "string", "maxLength": 80 },
+                  "outputId": { "type": "string", "maxLength": 80 },
+                  "volume": { "type": "integer", "minimum": 0, "maximum": 100 },
+                  "rate": { "type": "number", "minimum": 0.5, "maximum": 2 },
+                  "pitch": { "type": "number", "minimum": 0.5, "maximum": 2 },
+                  "queuePolicy": { "enum": ["queue", "replace", "skip-when-busy"] }
+                }
+              },
               "packages": {
                 "type": "array",
                 "maxItems": 16,
@@ -889,6 +940,79 @@
             "properties": {
               "ok": { "type": "boolean" },
               "featureId": { "type": "string", "maxLength": 64 },
+              "code": { "type": "string", "maxLength": 80 }
+            }
+          }
+        },
+        "save": {
+          "request": {
+            "type": "object", "additionalProperties": false,
+            "properties": {
+              "voiceId": { "type": "string", "maxLength": 80 },
+              "outputId": { "type": "string", "maxLength": 80 },
+              "volume": { "type": "number" },
+              "rate": { "type": "number" },
+              "pitch": { "type": "number" },
+              "queuePolicy": { "type": "string", "maxLength": 30 }
+            }
+          },
+          "response": {
+            "type": "object", "additionalProperties": false,
+            "required": ["ok", "code", "defaults"],
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "tts_defaults_saved" },
+              "defaults": {
+                "type": "object", "additionalProperties": false,
+                "required": ["version", "voiceId", "outputId", "volume", "rate", "pitch", "queuePolicy"],
+                "properties": {
+                  "version": { "const": 1 },
+                  "voiceId": { "type": "string", "maxLength": 80 },
+                  "outputId": { "type": "string", "maxLength": 80 },
+                  "volume": { "type": "integer", "minimum": 0, "maximum": 100 },
+                  "rate": { "type": "number", "minimum": 0.5, "maximum": 2 },
+                  "pitch": { "type": "number", "minimum": 0.5, "maximum": 2 },
+                  "queuePolicy": { "enum": ["queue", "replace", "skip-when-busy"] }
+                }
+              }
+            }
+          }
+        },
+        "preview": {
+          "request": {
+            "type": "object", "additionalProperties": false, "required": ["text"],
+            "properties": {
+              "text": { "type": "string", "maxLength": 500 },
+              "settings": {
+                "type": "object", "additionalProperties": false,
+                "properties": {
+                  "voiceId": { "type": "string", "maxLength": 80 },
+                  "outputId": { "type": "string", "maxLength": 80 },
+                  "volume": { "type": "number" },
+                  "rate": { "type": "number" },
+                  "pitch": { "type": "number" },
+                  "queuePolicy": { "type": "string", "maxLength": 30 }
+                }
+              }
+            }
+          },
+          "response": {
+            "type": "object", "additionalProperties": false,
+            "required": ["ok", "code", "utteranceId"],
+            "properties": {
+              "ok": { "type": "boolean" },
+              "code": { "type": "string", "maxLength": 80 },
+              "utteranceId": { "type": "string", "maxLength": 80 }
+            }
+          }
+        },
+        "cancel": {
+          "request": { "type": ["object", "null"], "additionalProperties": false, "properties": {} },
+          "response": {
+            "type": "object", "additionalProperties": false,
+            "required": ["ok", "code"],
+            "properties": {
+              "ok": { "type": "boolean" },
               "code": { "type": "string", "maxLength": 80 }
             }
           }

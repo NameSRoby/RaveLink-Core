@@ -20,7 +20,7 @@ for (const entry of fs.readdirSync(featureRoot, { withFileTypes: true })) {
   const manifest = path.join(featureRoot, entry.name, "ravelink.feature.json");
   if (!fs.existsSync(manifest)) continue;
   const featureNotices = path.join(featureRoot, entry.name, "THIRD_PARTY_NOTICES.md");
-  if (entry.name === "clip-studio" && !fs.existsSync(featureNotices)) errors.push("Clip Studio package notice is missing");
+  if (["clip-studio", "tts-engine-local"].includes(entry.name) && !fs.existsSync(featureNotices)) errors.push(`${entry.name} package notice is missing`);
 }
 
 if (/\*\*hue-sync\*\*[^\n]+MIT License/i.test(notices)) errors.push("hue-sync is incorrectly labelled MIT; its installed metadata declares Apache-2.0");
@@ -28,4 +28,4 @@ if (errors.length) {
   for (const error of errors) console.error(`[THIRD-PARTY] ${error}`);
   process.exit(1);
 }
-console.log("[THIRD-PARTY] Direct production dependencies and Clip Studio notices are present.");
+console.log("[THIRD-PARTY] Direct production dependencies and optional package notices are present.");

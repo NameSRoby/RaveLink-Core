@@ -85,6 +85,7 @@ module.exports = function createFeatureHostRegistry(options = {}) {
       permissions: {
         network: [...row.manifest.permissions.network], storage: row.manifest.permissions.storage,
         secrets: [...row.manifest.permissions.secrets], process: row.manifest.permissions.process,
+        nativeAddons: row.manifest.permissions.nativeAddons,
         hardware: [...row.manifest.permissions.hardware]
       },
       resources: { ...row.manifest.resources },
@@ -229,6 +230,7 @@ module.exports = function createFeatureHostRegistry(options = {}) {
         manifest: row.manifest,
         modRoot: row.rootPath,
         storageRoot: path.join(runtimeRoot, "data", row.id),
+        runtimeAssetsRoot: row.id === "tts-engine-local" ? path.join(runtimeRoot, "tts-payloads") : "",
         allowUnsafeRuntime: options.allowUnsafeRuntime === true,
         onBrokerRequest: (capability, method, payload, callOptions) => callProvider(row.manifest, capability, method, payload, callOptions),
         onBrokerEvent: (capability, event, payload) => publishFeatureEvent(row, capability, event, payload),

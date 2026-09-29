@@ -4,6 +4,7 @@ const { buildProcessPermissions } = require("../../supervised-runtime/host/proce
 const { validateFeatureManifestV1 } = require("../contracts/feature-manifest-v1");
 
 module.exports = function createFeatureProcessSupervisor(options = {}) {
+  const runtimeAssetsRoot = options.runtimeAssetsRoot ? path.resolve(String(options.runtimeAssetsRoot)) : "";
   return createProcessSupervisor({
     ...options,
     workloadKind: "feature",
@@ -14,8 +15,9 @@ module.exports = function createFeatureProcessSupervisor(options = {}) {
     validateManifest: validateFeatureManifestV1,
     buildPermissions: permissionOptions => buildProcessPermissions({
       ...permissionOptions,
-      additionalReadRoots: [path.join(__dirname, "..", "..", "supervised-runtime")]
+      additionalReadRoots: [path.join(__dirname, "..", "..", "supervised-runtime"), ...(runtimeAssetsRoot ? [runtimeAssetsRoot] : [])]
     }),
+    runtimeAssetsRoot,
     platformRoot: options.platformRoot || path.join(__dirname, "..", "..", "supervised-runtime"),
     bootstrapPath: options.bootstrapPath || path.join(__dirname, "..", "..", "supervised-runtime", "runtime", "worker-bootstrap.js")
   });

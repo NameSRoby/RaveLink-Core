@@ -18,7 +18,7 @@ function createFeatureRuntimeHarness(feature, options = {}) {
 
   async function start() {
     if (active) return;
-    await feature.activate(Object.freeze({ featureId: options.featureId || "song-request", callCapability, publishEvent }));
+    await feature.activate(Object.freeze({ featureId: options.featureId || "song-request", callCapability, publishEvent, runtimeAssetsRoot: String(options.runtimeAssetsRoot || "") }));
     active = true;
   }
 

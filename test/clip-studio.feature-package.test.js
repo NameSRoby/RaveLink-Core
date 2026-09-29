@@ -13,7 +13,7 @@ test("Clip Studio infrastructure is a verified optional first-party package", as
   assert.equal(verified.ok, true, JSON.stringify(verified));
   assert.equal(verified.manifest.id, "clip-studio");
   assert.equal(verified.manifest.version, "0.1.0");
-  assert.deepEqual(verified.manifest.permissions, { network: [], storage: false, secrets: [], process: false, hardware: [] });
+  assert.deepEqual(verified.manifest.permissions, { network: [], storage: false, secrets: [], process: false, nativeAddons: false, hardware: [] });
   assert.deepEqual(verified.manifest.provides, ["video.projects.read.v1"]);
   assert.equal(fs.existsSync(path.join(root, "THIRD_PARTY_NOTICES.md")), true);
   const contracts = await compileFeatureContracts(root, verified.manifest);
