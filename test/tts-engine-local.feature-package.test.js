@@ -24,6 +24,7 @@ test("Local TTS Engine creates bounded PCM WAV data and normalizes queued speech
   assert.equal(task.voiceId, "kitten-en-0");
   assert.equal(task.volume, 100);
   assert.equal(task.rate, 2);
+  assert.equal(feature._test.normalizeTask({ text: "Silent preview", volume: 0 }).volume, 0);
   const wav = feature._test.wavBuffer(new Float32Array([0, 1, -1]), 24000, 50);
   assert.equal(wav.subarray(0, 4).toString(), "RIFF");
   assert.equal(wav.subarray(8, 12).toString(), "WAVE");

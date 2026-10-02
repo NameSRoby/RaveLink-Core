@@ -67,7 +67,8 @@ function cancelAll() {
 function normalizeTask(payload = {}) {
   const text = String(payload.text || "").normalize("NFC").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 500);
   if (!text) return null;
-  return { id: crypto.randomUUID(), text, voiceId: VOICES.some(row => row.id === payload.voiceId) ? payload.voiceId : VOICES[0].id, volume: Math.round(Math.max(0, Math.min(100, Number(payload.volume) || 85))), rate: Math.max(0.5, Math.min(2, Number(payload.rate) || 1)), canceled: false };
+  const requestedVolume = Number(payload.volume), requestedRate = Number(payload.rate);
+  return { id: crypto.randomUUID(), text, voiceId: VOICES.some(row => row.id === payload.voiceId) ? payload.voiceId : VOICES[0].id, volume: Math.round(Math.max(0, Math.min(100, Number.isFinite(requestedVolume) ? requestedVolume : 85))), rate: Math.max(0.5, Math.min(2, Number.isFinite(requestedRate) ? requestedRate : 1)), canceled: false };
 }
 function enqueue(payload = {}) {
   if (!active) return { ok: false, code: "tts_runtime_stopping", utteranceId: "" };

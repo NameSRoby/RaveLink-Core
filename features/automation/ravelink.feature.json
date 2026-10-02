@@ -111,9 +111,9 @@
   "integrity": {
     "algorithm": "sha256",
     "files": {
-      "contracts/automation-v1.contracts.json": "08b5e69b465bdd5cdbae09b1df34488b28aa111e53e35ef8c2464dcf1f348fc0",
+      "contracts/automation-v1.contracts.json": "a09c80f6a97de760d8e62dabd2ba460f198c4eac4597958c6df7f2e6ac569ecc",
       "dist/animation-engine.js": "0b85ac18ea0fe92f4a896965dafc8f97fe48919981948142ec71ad02d799ffac",
-      "dist/main.js": "9d8262bf0a47661000658434f50c98e49989616c051c2836cec211b9ed91d652",
+      "dist/main.js": "5ad7963ebcb374d250af08f1a74996a44fc34357cca21deb5d99f80a38e9963e",
       "dist/tts-settings.js": "140e4fbedcb8c9d1b9a9480fe9d37a182ae10414fb279956921688b09353c164",
       "ui/automations.html": "d2d5c642914c86a53575789c1a300a3ccfa0d6f42ad94ab0789e64074807e249",
       "dist/donation-policy.js": "967c986b6848c1ac4771cd03c4146f1f4c191e6c3e3f0470586a5d1721d4cdeb",
@@ -121,7 +121,7 @@
       "dist/visual-alert-engine.js": "a28dcbce98b4208b7c119841a762782d44c7cfeae035ec11eeddbdd9de53477e",
       "ui/donations.html": "fd5ac492679981d94143b3e1a0dda88613b2448138c35c19c246c8a8b28cbf13",
       "ui/alert-overlay.html": "3cd869971c3ccca09425195ec63a89ecc32626be8a1dc31a66515e9ddb4ede31",
-      "ui/tts.html": "d7a7e66e7c0486e1ce310603b8e0f5540a534e70198993c0b91e2138b652b8a5"
+      "ui/tts.html": "12ecab9b03cea8aa98e8b9ae9dc55143002568a524c238b3e018708e0b0fdc41"
     }
   }
 }

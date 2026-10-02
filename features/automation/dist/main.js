@@ -98,7 +98,7 @@ async function handleRequest(request) {
       const method = { install: "install", update: "update", remove: "remove" }[action];
       if (!method) return { ok: false, featureId: String(request.payload?.featureId || ""), code: "tts_package_action_invalid" };
       try {
-        return await context.callCapability("alerts.tts.packages.v1", method, { featureId: request.payload.featureId, deleteData: request.payload.deleteData === true }, { timeoutMs: 30000 });
+        return await context.callCapability("alerts.tts.packages.v1", method, { featureId: request.payload.featureId, deleteData: request.payload.deleteData === true }, { timeoutMs: 5000 });
       } catch { return { ok: false, featureId: String(request.payload?.featureId || ""), code: "tts_package_manager_unavailable" }; }
     }
     if (request.method === "save") {

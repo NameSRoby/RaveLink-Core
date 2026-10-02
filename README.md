@@ -46,13 +46,13 @@ Govee LAN support works only with models that expose **LAN Control** in the Gove
 
 Alerts / TTS can create reusable lighting alerts, attach them to available Twitch events or Channel Points rewards, and display privacy-filtered test messages in its local OBS/browser overlay. Donation settings keep payment identities out of alert output and use only the public display name supplied for the message.
 
-Local TTS is optional. Install the **Local TTS Engine** and **Kitten English Voice** from Alerts / TTS when speech is wanted; neither is included in the installer or portable archive. The first voice pack offers eight English voice styles, local Windows playback, volume and speed controls, a ten-message queue, replace/skip behavior, previews, cancellation, and fixed spoken messages on alert profiles. Downloads are accepted only from this repository's fixed release assets and are checked by exact size, SHA-256, archive limits, and package metadata before activation.
+Local TTS is optional. Install the **Local TTS Engine** and **Kitten English Voice** from Alerts / TTS when speech is wanted; neither is included in the installer or portable archive. The first voice pack offers eight English voice styles, local Windows playback, volume and speed controls, a ten-message queue, replace/skip behavior, previews, cancellation, and fixed spoken messages on alert profiles. Downloads run as visible background jobs so the server remains responsive, and RaveLink safely pauses and restores the speech engine when voice files change. Downloads are accepted only from this repository's fixed release assets and are checked by exact size, SHA-256, archive limits, and package metadata before activation.
 
 Donation preview speech uses only the public display alias and the moderated message; payment names, email addresses, and other payment identity fields never enter alert output. Live Ko-fi webhook receipt, hosted or self-hosted relay setup, and donation chat delivery remain work in progress. Additional languages and Custom Voice Tools are planned as separate optional downloads.
 
 ## Clip Studio Alpha
 
-Clip Studio is an optional package foundation for future local video indexing, timestamp suggestions, titles, and clip candidates. Video processing and export are not active in this prerelease.
+Clip Studio is an optional Alpha package foundation for future local video indexing, timestamp suggestions, titles, and clip candidates. Video processing and export are not active yet.
 
 ## Song Request And YouTube Playback
 

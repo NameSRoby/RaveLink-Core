@@ -904,7 +904,7 @@
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["id", "name", "version", "description", "installed", "installedVersion", "updateAvailable", "bytes", "source", "downloadRequired"],
+                  "required": ["id", "name", "version", "description", "installed", "installedVersion", "updateAvailable", "bytes", "source", "downloadRequired", "operation", "operationCode"],
                   "properties": {
                     "id": { "type": "string", "maxLength": 64 },
                     "name": { "type": "string", "maxLength": 80 },
@@ -915,7 +915,9 @@
                     "updateAvailable": { "type": "boolean" },
                     "bytes": { "type": "integer", "minimum": 0, "maximum": 2147483648 },
                     "source": { "const": "github" },
-                    "downloadRequired": { "const": true }
+                    "downloadRequired": { "const": true },
+                    "operation": { "enum": ["idle", "running", "succeeded", "failed"] },
+                    "operationCode": { "type": "string", "maxLength": 80 }
                   }
                 }
               }
