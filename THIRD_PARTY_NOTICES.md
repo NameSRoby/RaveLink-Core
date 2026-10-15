@@ -7,7 +7,8 @@ RaveLink Core includes or interoperates with the following third-party component
   the action-factory finder from `render/src/helpers/findCreateAction.ts`.
   Credit: Inrixia and TidaLuna contributors. Complete license, provenance and
   modification notices ship in `integrations/tidal-desktop/LICENSE.TidaLuna`
-  and `integrations/tidal-desktop/NOTICE.md`, including the installable bundle.
+  and `integrations/tidal-desktop/NOTICE.md` in source. Windows downloads place
+  the same companion and notices under `packages/tidal-desktop`, including its installable bundle.
   The adapted file remains Ms-PL; other companion code is first-party Apache-2.0.
   Upstream: https://github.com/Inrixia/TidaLuna . The full Luna platform and TIDAL
   application are not bundled. Electron is supplied by the user's installed TIDAL app.

@@ -1,5 +1,6 @@
 const path = require('node:path');
-const installer = require('../integrations/tidal-desktop/installer.cjs');
+const companionRoot = require('../src/shared/packages/resolve-tidal-companion')(path.resolve(__dirname,'..'));
+const installer = require(path.join(companionRoot,'installer.cjs'));
 const args = process.argv.slice(2), mode = args[0] || 'status';
 function option(name, fallback) { const index = args.indexOf(name); return index < 0 ? fallback : args[index + 1]; }
 try {

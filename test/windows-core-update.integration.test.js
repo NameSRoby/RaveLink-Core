@@ -33,6 +33,7 @@ test("Windows updater preserves mutable data and can restore managed files", { s
   write(release, "RELEASE_BUILD.json", JSON.stringify({ version: "0.6.2", channel: "release" }));
   write(release, "src/app/core/create-core-server.js", "new program");
   write(release, "RaveLink-Core.exe", "new host");
+  write(release, "packages/tidal-desktop/installer.cjs", "new companion");
   write(release, "runtime/RaveLink-Core-Node.exe", "new node");
   fs.mkdirSync(path.dirname(archive), { recursive: true });
   const zipped = spawnSync("powershell.exe", ["-NoProfile", "-Command", "Compress-Archive -Path (Join-Path $env:RAVELINK_TEST_RELEASE '*') -DestinationPath $env:RAVELINK_TEST_ARCHIVE -Force"], {
@@ -47,6 +48,7 @@ test("Windows updater preserves mutable data and can restore managed files", { s
   assert.equal(apply.status, 0, `${apply.stdout}\n${apply.stderr}`);
   assert.equal(fs.readFileSync(path.join(root, "src/app/core/create-core-server.js"), "utf8"), "new program");
   assert.equal(fs.existsSync(path.join(root, "src/old.js")), false);
+  assert.equal(fs.readFileSync(path.join(root,"packages/tidal-desktop/installer.cjs"),"utf8"),"new companion");
   assert.equal(fs.readFileSync(path.join(root, "runtime/user-state.json"), "utf8"), "preserve runtime");
   assert.equal(fs.readFileSync(path.join(root, "config/user.json"), "utf8"), "preserve config");
   assert.equal(fs.readFileSync(path.join(root, "features/installed/custom/state.json"), "utf8"), "preserve feature");
@@ -55,5 +57,6 @@ test("Windows updater preserves mutable data and can restore managed files", { s
   assert.equal(rollback.status, 0, `${rollback.stdout}\n${rollback.stderr}`);
   assert.equal(fs.readFileSync(path.join(root, "src/old.js"), "utf8"), "old program");
   assert.equal(fs.existsSync(path.join(root, "src/app/core/create-core-server.js")), false);
+  assert.equal(fs.existsSync(path.join(root,"packages/tidal-desktop/installer.cjs")),false);
   assert.equal(fs.readFileSync(path.join(root, "runtime/user-state.json"), "utf8"), "preserve runtime");
 });

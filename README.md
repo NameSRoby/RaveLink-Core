@@ -13,7 +13,7 @@ RaveLink Core is a local Windows app for streamer lighting, music requests and o
 
 Windows 10 or 11, 64-bit, is required. Node.js and npm are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-For portable use, extract **RaveLink-Core-Windows-v0.7.0-self-contained.zip** completely and run `RaveLink-Core.exe`. The normal ZIP includes the same app in a directory wrapper. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
+For portable use, extract **RaveLink-Core-Windows-v0.7.0-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
 
 ## Lighting
 
