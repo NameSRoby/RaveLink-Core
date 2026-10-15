@@ -68,3 +68,21 @@ test("Windows media observer rejects mismatched source applications and unsuppor
   assert.equal((await observer.control({ action: "select", provider: "unknown" })).error, "media_provider_invalid");
   await observer.stop();
 });
+
+test('Windows artwork is bounded local JPEG data and survives into the selected playback card', () => {
+  const normalize = createWindowsMediaObserver.normalizeMediaSnapshot;
+  const image = 'data:image/jpeg;base64,/9j/YWJj';
+  const snapshot = {schemaVersion:2,available:true,source:'TIDAL.Desktop',title:'Current',artist:'Artist',album:'Album',artworkUrl:image,status:'Paused',durationMs:180000,positionMs:42000};
+  const safe = normalize(snapshot, 'tidal'); assert.equal(safe.artworkUrl, image);
+  for (const artworkUrl of ['https://untrusted.example/image.jpg','data:image/svg+xml,<svg/>',image+'a'.repeat(12288)]) assert.equal(normalize({...snapshot,artworkUrl},'tidal').artworkUrl, '');
+  const queue = require('../features/song-request/dist/domain').createSongQueue();
+  queue.configurePlaybackSource({source:'tidal'}); queue.observe(safe);
+  const playback = queue.playbackStatus(); assert.equal(playback.primary.artworkUrl, image); assert.equal(playback.primary.album, 'Album');
+  assert.equal(playback.observed[0].artworkUrl, undefined, 'large artwork is sent once in primary, not duplicated across observations');
+});
+test('SoundCloud playlist artwork survives portable normalization without accepting arbitrary image hosts', () => {
+  const {normalizeTrack} = require('../features/song-request/dist/portable-track');
+  const original = {provider:'soundcloud',providerItemId:'293',title:'Track',artworkUrl:'https://i1.sndcdn.com/artworks-test-large.jpg'};
+  assert.equal(normalizeTrack(normalizeTrack(original)).candidate.artworkUrl, original.artworkUrl);
+  for (const artworkUrl of ['https://i1.sndcdn.com.evil.example/image.jpg','https://user:password@i1.sndcdn.com/image.jpg','data:image/svg+xml,evil']) assert.equal(normalizeTrack({...original,artworkUrl}).candidate.artworkUrl, undefined);
+});

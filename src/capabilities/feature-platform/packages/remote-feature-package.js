@@ -18,6 +18,7 @@ function validateOfficialSource(source) {
   if (!base.pathname.endsWith(expectedSuffix)) return null;
   return Object.freeze({
     id: String(source.id),
+    minimumVersion: /^\d+\.\d+\.\d+$/.test(source.minimumVersion || "") ? source.minimumVersion : "",
     name: String(source.name || source.id).slice(0, 80),
     description: String(source.description || "").slice(0, 500),
     baseUrl: base.toString(),

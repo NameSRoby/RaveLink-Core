@@ -2,7 +2,24 @@
 
 RaveLink Core includes or interoperates with the following third-party components. Their respective licenses remain in effect.
 
+- **Inrixia/TidaLuna** — Microsoft Public License (Ms-PL), revision
+  `4b8c306737fb53423d5c0138e24a367f0c268cf0`. The RaveLink TIDAL companion adapts
+  the action-factory finder from `render/src/helpers/findCreateAction.ts`.
+  Credit: Inrixia and TidaLuna contributors. Complete license, provenance and
+  modification notices ship in `integrations/tidal-desktop/LICENSE.TidaLuna`
+  and `integrations/tidal-desktop/NOTICE.md`, including the installable bundle.
+  The adapted file remains Ms-PL; other companion code is first-party Apache-2.0.
+  Upstream: https://github.com/Inrixia/TidaLuna . The full Luna platform and TIDAL
+  application are not bundled. Electron is supplied by the user's installed TIDAL app.
+
+- **SoundCloud HTML5 Widget API** ? loaded on demand from `https://w.soundcloud.com/player/api.js` when the user chooses SoundCloud playback or public playlist import. Media and attribution remain in the visible official player. The SDK and SoundCloud audio are not bundled. Documentation: https://developers.soundcloud.com/docs/api/html5-widget .
+
 ## Bundled Runtime And Libraries
+
+- **Simple Icons** — YouTube, TIDAL and SoundCloud provider glyphs, CC0-1.0.
+  Source: https://github.com/simple-icons/simple-icons . The Song Request package
+  includes provenance and the complete license in `THIRD_PARTY_NOTICES.md` and
+  `LICENSE.SimpleIcons.txt`.
 
 - **Node.js 24.13.0 Windows runtime** - Node.js license. The unmodified executable is renamed `RaveLink-Core-Node.exe`; its complete license is installed as `runtime/NODE-LICENSE.txt`.
 - **axios** - MIT License.
@@ -23,7 +40,6 @@ Transitive production packages currently use MIT, ISC, BSD-2-Clause, BSD-3-Claus
 ## Optional Feature Packages
 
 - **Clip Studio 0.1.0 infrastructure** - first-party RaveLink code only. It bundles no FFmpeg binary, machine-learning runtime, model weights, or other third-party processing payload. The downloadable package carries its own `THIRD_PARTY_NOTICES.md`; future engine and model updates must update both notice files before publication.
-- **RaveLink TTS Kitten English 1.0.0** - separately downloaded optional payload containing Sherpa ONNX 1.13.8 and the KittenTTS Nano English model, both under Apache License 2.0. The payload includes its own attribution notice and Apache license text. It is not included in the Core installer or portable archive.
 
 ## Protocol References
 

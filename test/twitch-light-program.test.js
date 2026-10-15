@@ -7,6 +7,7 @@ const createColors = require('../src/domains/colors/color-library.service');
 const createParser = require('../src/domains/twitch/twitch-color-directive');
 const createRouting = require('../src/domains/twitch/twitch-light-routing');
 const createServer = require('../src/app/core/create-core-server');
+const rewardEvent = (id, rewardId, input) => ({ detail: { listener: 'redemption-latest', event: { redemption: { id, user_input: input, user_name: 'viewer', reward: { id: rewardId } } } } });
 function setup(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'twitch-light-program-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -100,6 +101,25 @@ test('StreamElements reward input normalizes color and routes active versus pref
   const direct = await fetch(`${base}/color`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ groupId: 'desk-rule', text: 'blue' }) }).then(response => response.json());
   assert.deepEqual(direct.targets, ['right']);
   assert.equal((await fetch(`${base}/light-groups`)).status, 404);
+});
+test('a taught color is immediately usable by the next redemption and cannot be overwritten', async t => {
+  const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'twitch-teach-color-'));
+  const { app, services } = createServer({ runtimeDir, dryRun: true, widgetIntakeToken: 'teach-token' });
+  const core = services.lightingCore;
+  core.fixtureRegistry.upsertFixture({ id: 'desk', brand: 'wiz', ip: '192.0.2.80', twitchEnabled: true, engineEnabled: true });
+  core.twitchLightRouting.save({ ...core.twitchLightRouting.snapshot(), teaching: { preview: false, chatSuccess: false, chatFailure: false }, rules: [rule('active-fixtures', '', ['desk'])] });
+  const server = await new Promise(resolve => { const listener = app.listen(0, '127.0.0.1', () => resolve(listener)); });
+  t.after(async () => { await services.lifecycle.stopAll(); await new Promise(resolve => server.close(resolve)); fs.rmSync(runtimeDir, { recursive: true, force: true }); });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const redeem = async (id, rewardId, input) => fetch(`${base}/widget/events`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer teach-token' }, body: JSON.stringify({ contract: 'widget.events.v2', source: 'streamelements', widgetConfig: { colorRewardId: 'lights', teachRewardId: 'teach' }, eventEnvelope: rewardEvent(id, rewardId, input) }) }).then(response => response.json());
+  const taught = await redeem('teach-1', 'teach', 'ocean glow #12abef');
+  assert.equal(taught.result.changed, true);
+  const used = await redeem('color-1', 'lights', 'ocean glow');
+  assert.equal(used.result.hex, '#12abef');
+  const duplicate = await redeem('teach-2', 'teach', 'ocean glow #654321');
+  assert.equal(duplicate.result.changed, false);
+  assert.equal(duplicate.result.reason, 'name_exists_custom');
+  assert.equal(duplicate.desiredStatus, 'CANCELED');
 });
 test('legacy lighting groups migrate once into canonical fixture rules', t => {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fixture-group-migration-'));

@@ -290,7 +290,7 @@ module.exports = function createColorLibraryService(options = {}) {
 
     if (BASE_COLORS[name]) {
       return {
-        ok: true,
+        ok: false,
         changed: false,
         reason: "name_exists_base",
         refundRecommended: true,
@@ -302,7 +302,7 @@ module.exports = function createColorLibraryService(options = {}) {
     if (customColors[name]) {
       const existing = String(customColors[name]).toLowerCase();
       return {
-        ok: true,
+        ok: false,
         changed: false,
         reason: existing === hex ? "already_exists" : "name_exists_custom",
         refundRecommended: true,
@@ -314,7 +314,7 @@ module.exports = function createColorLibraryService(options = {}) {
     const existingHex = findColorByHex(hex);
     if (existingHex) {
       return {
-        ok: true,
+        ok: false,
         changed: false,
         reason: "hex_exists",
         refundRecommended: true,

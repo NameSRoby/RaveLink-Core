@@ -40,14 +40,14 @@ function createYoutubePlaylistImportProvider(options = {}) {
     const controller = new AbortController();
     const job = { id: jobId, state: "running", playlistId, title: "", items: [], count: 0, truncated: false, error: "", createdAt: Number(now()), updatedAt: Number(now()), controller };
     jobs.set(jobId, job);
-    Promise.resolve(keyless.importPlaylist({ playlistId, limit: Math.min(2500, Math.max(1, Number(input.limit) || 2500)), signal: controller.signal }))
+    Promise.resolve(keyless.importPlaylist({ playlistId, limit: Math.min(10000, Math.max(1, Number(input.limit) || 10000)), signal: controller.signal }))
       .then(result => {
         if (job.state === "canceled") return;
         job.updatedAt = Number(now());
         if (!result?.ok) { job.state = "failed"; job.error = text(result?.reason || "youtube_playlist_unavailable", 120); return; }
         job.state = "complete";
         job.title = text(result.playlist?.title, 120) || playlistId;
-        job.items = Array.isArray(result.items) ? result.items.slice(0, 2500) : [];
+        job.items = Array.isArray(result.items) ? result.items.slice(0, 10000) : [];
         job.count = job.items.length;
         job.truncated = result.truncated === true;
       })

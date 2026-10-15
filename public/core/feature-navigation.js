@@ -19,9 +19,9 @@ window.addEventListener('message', event => {
   for (const [id, view] of views) {
     const frame = [...view.panel.querySelectorAll('.featurePageFrame')].find(item => item.contentWindow === event.source);
     if (!frame) continue;
-    if (event.data.type === 'feature-ready') present(frame);
+    if (event.data.type === 'feature-ready') { frame.dataset.ready='true'; present(frame); if(frame.playlistStart){frame.contentWindow.postMessage(frame.playlistStart,location.origin);frame.playlistStart=null;} }
     if (event.data.type === 'feature-height' && Number.isFinite(event.data.height)) frame.style.height = `${Math.max(240, Math.min(16000, Math.ceil(event.data.height)))}px`;
-    if (event.data.type === 'feature-open') openFeaturePage(id, event.data.pageId);
+    if (event.data.type === 'feature-open') { if(id==='song-request'&&frame.dataset.pageId==='server-playlist'&&event.data.pageId==='player'&&event.data.startPlayback===true&&['youtube','soundcloud'].includes(event.data.provider))view.startPlaylist(event.data.provider);else openFeaturePage(id,event.data.pageId); }
     if (event.data.type === 'feature-call-complete' && event.data.featureId === id && /^[a-z][a-z0-9.]{1,79}$/.test(event.data.capability) && /^[a-z][a-z0-9-]{0,39}$/.test(event.data.method)) {
       window.dispatchEvent(new CustomEvent('ravelink:feature-call-complete', { detail: { featureId: id, capability: event.data.capability, method: event.data.method } }));
     }
@@ -48,7 +48,11 @@ export function selectMainTab(key) {
 }
 
 export function syncFeatureNavigation(features) {
-  const ids = new Set(features.map(row => row.id));
+  // A workspace is useful only while its package is running and contributes
+  // at least one page. Disabled/crashed packages remain manageable in Packages,
+  // and backend-only payloads never become empty tabs.
+  const visibleFeatures = features.filter(feature => feature.lifecycle === 'active' && (feature.uiContributions || []).length > 0);
+  const ids = new Set(visibleFeatures.map(row => row.id));
   for (const [id, view] of views) {
     if (ids.has(id)) continue;
     if (!view.panel.hidden) selectMainTab('features');
@@ -56,7 +60,7 @@ export function syncFeatureNavigation(features) {
     view.panel.remove();
     views.delete(id);
   }
-  for (const feature of features) {
+  for (const feature of visibleFeatures) {
     const signature = JSON.stringify([feature.version, feature.pid, feature.lifecycle, feature.uiContributions]);
     let view = views.get(feature.id);
     if (!view) {
@@ -68,7 +72,8 @@ export function syncFeatureNavigation(features) {
       panel.className = 'panel featureWorkspace';
       panel.dataset.panel = tab.dataset.tab;
       panel.hidden = true;
-      document.getElementById('tabs').append(tab);
+      const moreNav = document.getElementById('moreNav');
+      document.getElementById('tabs').insertBefore(tab, moreNav || null);
       document.querySelector('[data-panel="features"]').after(panel);
       view = { tab, panel, signature: '', open: () => {} };
       tab.onclick = () => { selectMainTab(tab.dataset.tab); view.open(); };
@@ -81,17 +86,6 @@ export function syncFeatureNavigation(features) {
     const heading = document.createElement('h2');
     heading.textContent = feature.name.toUpperCase();
     view.panel.append(heading);
-    if (feature.lifecycle !== 'active') {
-      const status = document.createElement('p');
-      status.textContent = feature.lifecycle.toUpperCase();
-      const manage = document.createElement('button');
-      manage.type = 'button';
-      manage.textContent = 'MANAGE FEATURE';
-      manage.onclick = () => selectMainTab('features');
-      view.panel.append(status, manage);
-      view.open = () => {};
-      continue;
-    }
     const tabs = document.createElement('nav');
     tabs.className = 'tabs featureSubtabs';
     tabs.setAttribute('aria-label', `${feature.name} views`);
@@ -112,7 +106,7 @@ export function syncFeatureNavigation(features) {
     overlaySizeLabel.textContent = 'OBS SOURCE SIZE';
     const overlaySize = document.createElement('input');
     overlaySize.readOnly = true;
-    overlaySize.value = feature.id === 'song-request' ? '360 x 150' : '1280 x 720';
+    overlaySize.value = '1280 x 720';
     overlaySizeLabel.append(overlaySize);
     const overlayNotice = document.createElement('span');
     overlayNotice.className = 'statusLine';
@@ -131,14 +125,14 @@ export function syncFeatureNavigation(features) {
         sourceUrl.searchParams.set('v', feature.version);
         overlayUrl.value = sourceUrl.href;
         overlayNotice.textContent = feature.id === 'song-request' && page.id === 'obs-overlay'
-          ? 'SET WIDTH 360 // HEIGHT 150 // KEEP SCALE 100%'
+          ? 'SET WIDTH 1280 // HEIGHT 720 // KEEP SCALE 100%'
           : 'PASTE THIS URL INTO OBS';
         overlayNotice.className = 'statusLine';
       }
       let frame = frames.get(page.id);
       if (!frame) {
         frame = document.createElement('iframe');
-        frame.className = 'featurePageFrame';
+        frame.className = 'featurePageFrame'; frame.dataset.pageId=page.id; if(feature.id==='song-request'&&page.id==='player')frame.allow='autoplay';
         frame.title = `${feature.name}: ${page.title}`;
         frame.referrerPolicy = 'no-referrer';
         // The host wrapper contains the existing opaque-origin contribution sandbox.
@@ -163,6 +157,7 @@ export function syncFeatureNavigation(features) {
       button.onclick = () => open(page);
       tabs.append(button);
     }
+    view.startPlaylist = provider => { const page=pages.find(row=>row.id==='player'); if(!page)return;selectMainTab(view.tab.dataset.tab);open(page);const frame=frames.get('player'),message={channel:'ravelink-feature-ui-v1',type:'playlist-start',provider};if(frame.dataset.ready==='true')frame.contentWindow.postMessage(message,location.origin);else frame.playlistStart=message; };
     view.panel.append(tabs, overlayTools, surface);
     view.open = pageId => {
       const requested = pages.find(page => page.id === pageId);

@@ -72,20 +72,17 @@ function setUnavailable(element, unavailable, reason = "") {
   }
   element.setAttribute("aria-disabled", unavailable ? "true" : "false");
 }
-
 function setStatus(id, text, tone = "") {
   const element = byId(id);
   element.textContent = text;
   element.className = `statusLine${tone ? ` ${tone}` : ""}`;
 }
-
 function configuredLightFixtures() {
   return fixtures.filter(row => {
     const connectivity = fixtureConnectivity.get(row.id);
     return row.enabled !== false && connectivity?.configured === true;
   });
 }
-
 function applyLightingReadiness() {
   const ready = configuredLightFixtures();
   const directReason = "Pair a Hue bridge or add a discovered WiZ or Govee fixture before controlling lights.";
@@ -287,6 +284,8 @@ const themes = {
   solar: { accent: "#d99a00", bg: "#090805", surface: "#27200b", text: "#fff9df", glow: 44 }
 };
 
+let themeEditRevision=0;
+const saveSharedTheme=createSharedThemeSaver(()=>{byId('glowValue').title='App colors are local; overlay theme sync could not be saved.'});
 function applyTheme(theme, persist = true) {
   const value = { ...themes.midnight, ...(theme || {}) };
   const root = document.documentElement.style;
@@ -302,7 +301,7 @@ function applyTheme(theme, persist = true) {
   byId("themeText").value = value.text;
   byId("themeGlow").value = value.glow;
   byId("glowValue").value = `${value.glow}%`;
-  if (persist) localStorage.setItem("ravelink.hud.theme", JSON.stringify(value));
+  if (persist) { themeEditRevision++; localStorage.setItem("ravelink.hud.theme", JSON.stringify(value)); saveSharedTheme(value); }
 }
 
 function customTheme() {
@@ -315,6 +314,7 @@ byId("resetTheme").onclick = () => applyTheme(themes.midnight);
 document.querySelectorAll("[data-theme]").forEach(button => button.onclick = () => applyTheme(themes[button.dataset.theme]));
 for (const id of ["themeAccent", "themeBg", "themeSurface", "themeText", "themeGlow"]) byId(id).oninput = () => applyTheme(customTheme());
 try { applyTheme(JSON.parse(localStorage.getItem("ravelink.hud.theme")), false); } catch { applyTheme(themes.midnight, false); }
+void (async()=>{const started=themeEditRevision;try{const response=await fetch('/api/presentation/theme',{cache:'no-store'}),body=await response.json();if(!body.ok||started!==themeEditRevision)return;if(body.revision>0){applyTheme(body.theme,false);localStorage.setItem('ravelink.hud.theme',JSON.stringify(body.theme))}else saveSharedTheme(customTheme())}catch{}})();
 const developerMode = byId("developerMode");
 developerMode.checked = localStorage.getItem("ravelink.hud.developerMode") === "true";
 document.documentElement.dataset.developerMode = String(developerMode.checked);

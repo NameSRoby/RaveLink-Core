@@ -1,0 +1,14 @@
+{
+  "version": "0.1.7",
+  "files": {
+    "LICENSE.RaveLink": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "LICENSE.TidaLuna": "5d195de727b837b0e17922f7c223c5f7e9a9400cd1204da9ac4c63a18ce5dcde",
+    "NOTICE.md": "2b8c5ee8f99b7917c8b96c3c5a3a34f13c472462df2c2fb3841c3857a6cff70c",
+    "injector.cjs": "9b21117c4ed7a923e0cab7cf813ee6132727cd039bb96dc5dba053e0be353c0c",
+    "native-bridge.cjs": "ccffa640c2d338dea75ccd3f803e184044159d6a73b1ebeb089aae804ba6c90f",
+    "package.json": "232cdc00682a3676ddaac1bf3a8615cf2eb49ba44920ab17b988c4c2ce24e4fb",
+    "preload.cjs": "7abc3370feeffc9452bf13dac5e39ca30c9eb3e1f58c3e97cb41a57b916378b7",
+    "renderer.js": "2a6ac1b08b535af528ca0919d43739d48112d79545e520031320331518a17ac8",
+    "transform.cjs": "271ab7914df536651abab4fc6e8362646f16731f241380e6227befc4baab2582"
+  }
+}

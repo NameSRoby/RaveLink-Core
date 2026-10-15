@@ -15,8 +15,12 @@ $SourcePatterns = @{
 }
 
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
+Add-Type -AssemblyName System.Drawing
 [void][Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
 [void][Windows.Media.Control.GlobalSystemMediaTransportControlsSession, Windows.Media.Control, ContentType = WindowsRuntime]
+$script:ArtworkKey = ''
+$script:ArtworkData = ''
+$script:ArtworkAttempt = [DateTime]::MinValue
 
 function Await-WinRt {
   param($Operation, [Type]$ResultType)
@@ -36,6 +40,39 @@ function Find-MediaSession {
     Select-Object -First 1
 }
 
+function Get-MediaArtwork {
+  param($Media, [string]$Key)
+  if ($Key -eq $script:ArtworkKey -and ($script:ArtworkData -or ((Get-Date) - $script:ArtworkAttempt).TotalSeconds -lt 15)) { return $script:ArtworkData }
+  $script:ArtworkKey = $Key
+  $script:ArtworkData = ''
+  $script:ArtworkAttempt = Get-Date
+  $stream = $null; $memory = $null; $image = $null; $small = $null; $output = $null; $graphics = $null
+  try {
+    if ($null -eq $Media.Thumbnail) { return '' }
+    $stream = Await-WinRt $Media.Thumbnail.OpenReadAsync() ([Windows.Storage.Streams.IRandomAccessStreamWithContentType])
+    $method = [System.IO.WindowsRuntimeStreamExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsStream' -and $_.GetParameters().Count -eq 1 } | Select-Object -First 1
+    $stream = $method.Invoke($null, @($stream))
+    if ($stream.Length -lt 1 -or $stream.Length -gt 1048576) { return '' }
+    $bytes = New-Object byte[] ([int]$stream.Length)
+    $loaded = 0
+    while ($loaded -lt $bytes.Length) { $read = $stream.Read($bytes, $loaded, $bytes.Length-$loaded); if ($read -eq 0) { return '' }; $loaded += $read }
+    $memory = [System.IO.MemoryStream]::new($bytes, $false)
+    $image = [System.Drawing.Image]::FromStream($memory)
+    if ($image.Width -gt 8192 -or $image.Height -gt 8192) { return '' }
+    $small = [System.Drawing.Bitmap]::new(128, 128)
+    $graphics = [System.Drawing.Graphics]::FromImage($small)
+    $graphics.Clear([System.Drawing.Color]::Black)
+    $scale = [Math]::Min(128.0 / $image.Width, 128.0 / $image.Height)
+    $width = [int]($image.Width * $scale); $height = [int]($image.Height * $scale)
+    $graphics.DrawImage($image, [int]((128 - $width) / 2), [int]((128 - $height) / 2), $width, $height)
+    $output = [System.IO.MemoryStream]::new()
+    $small.Save($output, [System.Drawing.Imaging.ImageFormat]::Jpeg)
+    if ($output.Length -le 9000) { $script:ArtworkData = 'data:image/jpeg;base64,' + [Convert]::ToBase64String($output.ToArray()) }
+    return $script:ArtworkData
+  } catch { return '' }
+  finally { foreach ($resource in @($graphics, $small, $image, $output, $memory, $stream)) { if ($null -ne $resource) { try { $resource.Dispose() } catch {} } } }
+}
+
 function Get-MediaSnapshot {
   param($Session)
   if ($null -eq $Session) {
@@ -51,6 +88,7 @@ function Get-MediaSnapshot {
     title = [string]$media.Title
     artist = [string]$media.Artist
     album = [string]$media.AlbumTitle
+    artworkUrl = Get-MediaArtwork $media (@($Session.SourceAppUserModelId, $media.Title, $media.Artist, $media.AlbumTitle) -join '|')
     status = [string]$playback.PlaybackStatus
     positionMs = [long]$timeline.Position.TotalMilliseconds
     durationMs = [long]$timeline.EndTime.TotalMilliseconds
@@ -64,12 +102,12 @@ $snapshot | ConvertTo-Json -Compress
 if ($Once) { exit 0 }
 
 $initialPositionBucket = if ($snapshot.available -and $snapshot.status -eq "Playing") { [long]($snapshot.positionMs / 2000) } else { [long]$snapshot.positionMs }
-$lastFingerprint = @($snapshot.available, $snapshot.title, $snapshot.artist, $snapshot.album, $snapshot.status, $initialPositionBucket, $snapshot.durationMs) -join "|"
+$lastFingerprint = @($snapshot.available, $snapshot.title, $snapshot.artist, $snapshot.album, $snapshot.status, $initialPositionBucket, $snapshot.durationMs, $snapshot.artworkUrl) -join "|"
 while ($true) {
   try {
     $snapshot = Get-MediaSnapshot (Find-MediaSession $manager)
     $positionBucket = if ($snapshot.available -and $snapshot.status -eq "Playing") { [long]($snapshot.positionMs / 2000) } else { [long]$snapshot.positionMs }
-    $fingerprint = @($snapshot.available, $snapshot.title, $snapshot.artist, $snapshot.album, $snapshot.status, $positionBucket, $snapshot.durationMs) -join "|"
+    $fingerprint = @($snapshot.available, $snapshot.title, $snapshot.artist, $snapshot.album, $snapshot.status, $positionBucket, $snapshot.durationMs, $snapshot.artworkUrl) -join "|"
     if ($fingerprint -ne $lastFingerprint) {
       $snapshot.observedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
       $snapshot | ConvertTo-Json -Compress

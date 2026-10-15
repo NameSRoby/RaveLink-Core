@@ -72,13 +72,18 @@ module.exports = function createFeaturePackageManager(options = {}) {
     return packages;
   }
 
-  async function availablePackages() {
+  async function availablePackages(selection = {}) {
     const packages = await bundledPackages();
     const warnings = [];
     for (const source of remoteSources) {
-      const remote = await fetchRemoteManifest(source, { fetchImpl: options.fetchImpl, timeoutMs: options.remoteTimeoutMs, limits: options.packageLimits });
+      if (selection.featureIds && !selection.featureIds.includes(source.id)) continue;
+      const remote = await fetchRemoteManifest(source, { fetchImpl: options.fetchImpl, timeoutMs: selection.timeoutMs || options.remoteTimeoutMs, limits: options.packageLimits });
       if (!remote.ok) {
         warnings.push({ featureId: source.id, source: source.displaySource, error: remote.error });
+        continue;
+      }
+      if (source.minimumVersion && compareVersions(remote.manifest.version, source.minimumVersion) < 0) {
+        warnings.push({ featureId: source.id, source: source.displaySource, error: "remote_feature_version_retired" });
         continue;
       }
       const current = packages.get(source.id);
@@ -108,10 +113,11 @@ module.exports = function createFeaturePackageManager(options = {}) {
     await fs.promises.cp(source.source, staging, { recursive: true, errorOnExist: true, force: false });
   }
 
-  async function listAvailable() {
-    const { packages, warnings } = await availablePackages();
+  async function listAvailable(selection = {}) {
+    const { packages, warnings } = await availablePackages(selection);
     const features = [];
     for (const { verified } of packages.values()) {
+      if (selection.featureIds && !selection.featureIds.includes(verified.manifest.id)) continue;
       const target = path.join(installedRoot, verified.manifest.id);
       const installed = await pathExists(target);
       const current = installed ? await verifyFeaturePackageDirectory(target, { limits: options.packageLimits }) : null;

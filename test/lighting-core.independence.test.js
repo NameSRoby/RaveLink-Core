@@ -161,7 +161,7 @@ test("core HTTP server declares absent capabilities and applies color independen
   assert.equal(diagnosticsResponse.status, 200);
   assert.equal(diagnostics.owner, "core");
   assert.equal(diagnostics.process.rssMiB > 0, true);
-  assert.deepEqual(diagnostics.process.ownedWork.map(row => `${row.owner}:${row.id}`), ["core:runtime-metrics", "core:egress-governor", "lighting.transports:hue-wiz-adapters"]);
+  assert.deepEqual(diagnostics.process.ownedWork.map(row => `${row.owner}:${row.id}`), ["core:runtime-metrics", "core:egress-governor", "lighting.transports:hue-wiz-adapters", "core:taught-color-preview"]);
   assert.equal(diagnostics.routes.some(row => row.route === "POST /color"), true);
   assert.equal(JSON.stringify(diagnostics).includes("wiz-core-http"), false);
   assert.equal(diagnostics.instrumentation.recurringTimers, 0);

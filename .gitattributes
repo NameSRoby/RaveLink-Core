@@ -1,4 +1,4 @@
+* text=auto eol=lf
 features/song-request/** text eol=lf
 features/twitch-integration/** text eol=lf
-features/automation/** text eol=lf
 features/clip-studio/** text eol=lf

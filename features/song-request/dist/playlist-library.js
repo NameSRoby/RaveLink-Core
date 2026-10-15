@@ -2,7 +2,8 @@ const crypto = require("node:crypto");
 
 const MAX_USER_COLLECTIONS = 20;
 const MAX_COLLECTIONS = MAX_USER_COLLECTIONS + 1;
-const MAX_TRACKS = 2500;
+const MAX_TRACKS = 10000;
+const DEFAULT_TRACKS = 5000;
 const PAGE_SIZE = 40;
 const CHAT_HISTORY_PURPOSE = "chat-history";
 
@@ -10,42 +11,22 @@ function text(value, maximum) {
   return String(value || "").normalize("NFKC").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, maximum);
 }
 
-function normalizeTrack(row, now) {
-  const candidate = row?.candidate || row;
-  const provider = "youtube";
-  const providerItemId = text(candidate?.providerItemId, 160);
-  if (!/^[A-Za-z0-9_-]{11}$/.test(providerItemId)) return null;
-  const sourceUrl = `https://www.youtube.com/watch?v=${providerItemId}`;
-  return {
-    id: provider === "youtube" ? `pl_${providerItemId}` : `pl_${crypto.createHash("sha256").update(`${provider}:${providerItemId}`).digest("hex").slice(0, 20)}`,
-    identity: `${provider}:${providerItemId}`,
-    addedAt: Number(row?.addedAt) || now,
-    candidate: {
-      provider,
-      providerItemId,
-      title: text(candidate?.title, 300) || providerItemId,
-      artists: Array.isArray(candidate?.artists) ? candidate.artists.map(value => text(value, 100)).filter(Boolean).slice(0, 8) : [],
-      album: text(candidate?.album, 200),
-      durationMs: Math.max(0, Math.min(86400000, Number(candidate?.durationMs) || 0)),
-      sourceUrl
-    }
-  };
-}
+const { normalizeTrack } = require('./portable-track');
 
 function createPlaylistLibrary(options = {}) {
   const now = typeof options.now === "function" ? options.now : Date.now;
   const collections = new Map();
   let selectedId = "";
+  let trackLimit = DEFAULT_TRACKS;
   let historyEnabled = false;
   let historyDestinationId = "";
 
-  function uniqueTracks(rows) {
-    const seen = new Set();
-    return (Array.isArray(rows) ? rows : []).map(row => normalizeTrack(row, Number(now()))).filter(row => {
-      if (!row || seen.has(row.identity)) return false;
-      seen.add(row.identity);
-      return true;
-    }).slice(0, MAX_TRACKS);
+  function portableTracks(rows) {
+    const ids = new Set();
+    return (Array.isArray(rows) ? rows : []).slice(0, MAX_TRACKS).map(row => normalizeTrack(row, Number(now()))).filter(Boolean).map(row => {
+      if (ids.has(row.id)) row.id = 'pl_' + crypto.randomUUID().replace(/-/g, '');
+      ids.add(row.id); return row;
+    });
   }
 
   function create(input = {}) {
@@ -77,7 +58,7 @@ function createPlaylistLibrary(options = {}) {
       collections: [...collections.values()].map(metadata),
       tracks: selected?.tracks.slice(offset, offset + limit) || [],
       page: { offset, limit, total: selected?.tracks.length || 0, hasMore: Boolean(selected && offset + limit < selected.tracks.length) },
-      limits: { collections: MAX_USER_COLLECTIONS, tracksPerCollection: MAX_TRACKS },
+      limits: { collections: MAX_USER_COLLECTIONS, tracksPerCollection: trackLimit, maximumTracks: MAX_TRACKS },
       history: { enabled: historyEnabled, destinationId: historyDestinationId }
     };
   }
@@ -88,9 +69,10 @@ function createPlaylistLibrary(options = {}) {
     return { ok: true, code: "playlist_selected", collection: metadata(active()), tracks: active().tracks };
   }
 
-  function selectRandom(random = Math.random) {
-    const userLists = [...collections.values()].filter(row => !row.purpose && row.tracks.length);
-    const choices = userLists.length ? userLists : [...collections.values()].filter(row => row.tracks.length);
+  function selectRandom(random = Math.random, provider = 'youtube') {
+    const playable = row => row.tracks.length && row.tracks.every(track => track.candidate.provider === provider);
+    const userLists = [...collections.values()].filter(row => !row.purpose && playable(row));
+    const choices = userLists.length ? userLists : [...collections.values()].filter(playable);
     if (!choices.length) return { ok: false, code: "playlist_empty" };
     const index = Math.min(choices.length - 1, Math.floor(Math.max(0, Number(random()) || 0) * choices.length));
     return select(choices[index].id);
@@ -119,7 +101,10 @@ function createPlaylistLibrary(options = {}) {
   function replace(id, rows, source = {}) {
     const collection = collections.get(id);
     if (!collection) return { ok: false, code: "playlist_not_found" };
-    collection.tracks = uniqueTracks(rows);
+    if (!Array.isArray(rows) || rows.length > trackLimit) return { ok: false, code: 'playlist_track_limit' };
+    const normalized = portableTracks(rows);
+    if (normalized.length !== rows.length) return { ok: false, code: 'playlist_track_invalid' };
+    collection.tracks = normalized;
     collection.provider = text(source.provider, 20) || collection.provider;
     collection.sourceId = text(source.sourceId, 100) || collection.sourceId;
     collection.updatedAt = Number(now());
@@ -155,13 +140,14 @@ function createPlaylistLibrary(options = {}) {
     const existingIndex = collection.tracks.findIndex(item => item.identity === track.identity);
     if (existingIndex >= 0) collection.tracks.splice(existingIndex, 1);
     collection.tracks.push(track);
-    if (collection.tracks.length > MAX_TRACKS) collection.tracks.shift();
+    if (collection.tracks.length > trackLimit) collection.tracks.shift();
     collection.updatedAt = Number(now());
     return { ok: true, code: existingIndex >= 0 ? "history_refreshed" : "history_saved", collection: metadata(collection) };
   }
 
   function restore(index, pagesById = {}) {
     collections.clear();
+    trackLimit = Math.max(DEFAULT_TRACKS, Math.min(MAX_TRACKS, Number(index?.trackLimit) || DEFAULT_TRACKS));
     for (const row of Array.isArray(index?.collections) ? index.collections.slice(0, MAX_COLLECTIONS) : []) {
       const id = text(row?.id, 40);
       if (!/^list_[a-f0-9]{16}$/.test(id)) continue;
@@ -173,7 +159,7 @@ function createPlaylistLibrary(options = {}) {
         sourceId: text(row.sourceId, 100),
         createdAt: Number(row.createdAt) || Number(now()),
         updatedAt: Number(row.updatedAt) || Number(now()),
-        tracks: uniqueTracks(pagesById[id])
+        tracks: portableTracks(pagesById[id])
       });
     }
     selectedId = collections.has(index?.selectedId) ? index.selectedId : (collections.keys().next().value || "");
@@ -193,10 +179,10 @@ function createPlaylistLibrary(options = {}) {
       }
       metadataRows.push({ ...metadata(collection), pageCount });
     }
-    return { index: { version: 2, selectedId, history: { enabled: historyEnabled, destinationId: historyDestinationId }, collections: metadataRows }, pages };
+    return { index: { version: 3, trackLimit, selectedId, history: { enabled: historyEnabled, destinationId: historyDestinationId }, collections: metadataRows }, pages };
   }
 
-  return Object.freeze({ active, capture, capturePlayed, configureHistory, create, ensureChatCollection, exportStorage, remove, rename, replace, restore, select, selectRandom, status });
+  return Object.freeze({ get: id => collections.get(id) || null, setTrackLimit(value) { if (!Number.isInteger(value) || value < DEFAULT_TRACKS || value > MAX_TRACKS || [...collections.values()].some(row => row.tracks.length > value)) return { ok: false, code: "playlist_capacity_invalid" }; trackLimit = value; return { ok: true }; }, active, capture, capturePlayed, configureHistory, create, ensureChatCollection, exportStorage, remove, rename, replace, restore, select, selectRandom, status });
 }
 
 module.exports = { CHAT_HISTORY_PURPOSE, MAX_COLLECTIONS, MAX_TRACKS, MAX_USER_COLLECTIONS, PAGE_SIZE, createPlaylistLibrary, normalizeTrack };

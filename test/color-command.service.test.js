@@ -3,6 +3,30 @@ const assert = require("node:assert/strict");
 
 const createColorCommandService = require("../src/domains/twitch/color-command.service");
 
+test("incomplete or malformed adapter counts cannot claim delivery or overwrite restore state", async () => {
+  const fixtures = [{ id: "one", brand: "hue" }, { id: "two", brand: "hue" }];
+  const remembered = [];
+  let report = { sent: 1, failed: 0 };
+  const service = createColorCommandService({
+    twitchColorConfig: { getSnapshot: () => ({}), splitPrefixedColorText: text => ({ text }), parseColorTarget: () => "hue" },
+    fixtureRegistry: { listTwitchBy: () => fixtures, parseZoneList: () => ["all"], resolveZone: () => "all" },
+    directiveService: { parseTwitchColorDirective: () => ({ ok: true, hueState: {}, wizState: {} }) },
+    hueBridge: { sendState: async () => report },
+    lightingLab: { rememberState: (...args) => remembered.push(args) }
+  });
+  const partial = await service.applyColorText("blue");
+  assert.deepEqual([partial.sent, partial.failed, partial.partial], [1, 1, true]);
+  assert.equal(remembered.length, 0);
+  for (report of [{}, { sent: NaN }, { sent: -1 }, { sent: 0.5 }]) {
+    const invalid = await service.applyColorText("blue");
+    assert.equal(invalid.ok, false);
+    assert.deepEqual([invalid.sent, invalid.failed], [0, 2]);
+  }
+  report = { sent: 999, failed: 0 };
+  assert.equal((await service.applyColorText("blue")).sent, 2);
+  assert.equal(remembered.length, 2);
+});
+
 test("color-command service routes a parsed color to independently enabled fixtures", async () => {
   const calls = [];
   const service = createColorCommandService({

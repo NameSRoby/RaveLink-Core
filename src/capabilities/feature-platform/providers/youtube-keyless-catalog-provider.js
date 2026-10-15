@@ -5,7 +5,7 @@ const MAX_VALIDATIONS = 3;
 const MAX_RESPONSE_BYTES = 512 * 1024;
 const MAX_PLAYLIST_RESPONSE_BYTES = 2 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 5000;
-const MAX_PLAYLIST_ITEMS = 2500;
+const MAX_PLAYLIST_ITEMS = 10000;
 const ALLOWED_PATHS = new Set(["/youtubei/v1/config", "/youtubei/v1/search", "/youtubei/v1/player", "/youtubei/v1/browse"]);
 
 function plainText(value, maximum = 300) {

@@ -18,9 +18,11 @@ const ACTION_KINDS = Object.freeze({
 const REASONS = Object.freeze({
   requester_limit: "you have reached your request limit", queue_full: "the queue is full", intake_paused: "requests are paused",
   requester_blocked: "you are blocked from Song Request", requester_timed_out: "you are temporarily blocked from Song Request",
-  song_blocked: "that song is blocked", item_duplicate: "that song is already queued or recently played",
+  song_blocked: "that song is blocked", item_duplicate: "that song is already queued or playing, or needs another song to play before it can be requested again",
   request_replay: "that request was already processed", youtube_reference_required: "a valid YouTube URL or video ID is required",
   candidate_invalid: "the song could not be validated", duration_limit: "the song is too long", entry_not_found: "the requested queue item was not found",
+  soundcloud_no_eligible_match: "no playable SoundCloud result passed the song and version filters", soundcloud_search_unavailable: "SoundCloud search is unavailable",
+  soundcloud_search_rate_limited: "SoundCloud search is temporarily rate limited", soundcloud_search_timeout: "SoundCloud search timed out", soundcloud_search_page_changed: "SoundCloud search is temporarily unavailable; a direct track link may work", soundcloud_query_invalid: "enter an artist and song name", soundcloud_link_invalid: "a public SoundCloud track link is required for this player",
   youtube_catalog_unconfigured: "YouTube search is not configured", youtube_catalog_unavailable: "YouTube search is unavailable",
   youtube_daily_budget_exhausted: "the daily YouTube search budget is exhausted", youtube_search_rate_limited: "YouTube search is temporarily rate limited",
   youtube_quota_or_key_rejected: "the YouTube API key or quota was rejected", youtube_api_timeout: "YouTube search timed out",
@@ -86,6 +88,7 @@ const MESSAGES = Object.freeze({
 });
 
 function composeChatResponse(request, result, state) {
+  if (result?.reason === "request_replay") return null;
   const kind = responseKind(request, result);
   const enabled = kind && state?.responses?.[kind] === true;
   const eligible = request?.payload?.notifyChat === true || (kind === "now_playing" || kind === "playback_failed") && result?.notifyChat === true;

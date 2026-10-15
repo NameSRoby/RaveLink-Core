@@ -2,10 +2,6 @@ const TWITCH_IDENTITY = "https://id.twitch.tv/oauth2";
 const TWITCH_HELIX = "https://api.twitch.tv/helix";
 const DEFAULT_SCOPES = Object.freeze([
   "channel:manage:redemptions",
-  "channel:read:subscriptions",
-  "channel:read:hype_train",
-  "moderator:read:followers",
-  "bits:read",
   "channel:read:vips",
   "moderation:read",
   "user:read:chat",
@@ -183,6 +179,21 @@ function createTwitchApiClient(options = {}) {
     return { ok: true, rewardId, exists: true, manageable, title: text(reward.title, 45) };
   }
 
+  async function inspectRedemption(input = {}) {
+    const credentials = input.credentials || {};
+    const broadcasterId = text(input.broadcasterId || credentials.userId, 80);
+    const rewardId = text(input.rewardId, 160), redemptionId = text(input.redemptionId, 160);
+    if (!broadcasterId || !rewardId || !redemptionId) return { ok: false, error: 'twitch_settlement_invalid' };
+    const query = new URLSearchParams({ broadcaster_id: broadcasterId, reward_id: rewardId, id: redemptionId });
+    const result = await request(`${TWITCH_HELIX}/channel_points/custom_rewards/redemptions?${query}`, {
+      headers: { Authorization: `Bearer ${text(credentials.accessToken, 2048)}`, 'Client-Id': text(credentials.clientId, 80) }
+    });
+    if (!result.ok) return { ok: false, error: result.status === 401 ? 'twitch_reauthorization_required' : 'twitch_redemption_inspection_failed' };
+    const row = result.body?.data?.find(item => item.id === redemptionId && item.reward?.id === rewardId && item.broadcaster_id === broadcasterId);
+    return row && ['UNFULFILLED', 'FULFILLED', 'CANCELED'].includes(row.status)
+      ? { ok: true, status: row.status } : { ok: false, error: 'twitch_redemption_not_found' };
+  }
+
   async function createReward(input = {}) {
     const credentials = input.credentials || {};
     const broadcasterId = text(input.broadcasterId || credentials.userId, 80);
@@ -343,7 +354,7 @@ function createTwitchApiClient(options = {}) {
     return { ok: true, moderators: moderators.ids, vips: vips.ids.filter(id => !moderators.ids.includes(id)) };
   }
 
-  return Object.freeze({ beginDeviceAuthorization, pollDeviceAuthorization, refreshUserAccessToken, validateToken, revokeToken, inspectReward, listRewards, createReward, setRewardPaused, createEventSubSubscription, listRequesterRoles, settleRedemption, sendChat });
+  return Object.freeze({ beginDeviceAuthorization, pollDeviceAuthorization, refreshUserAccessToken, validateToken, revokeToken, inspectReward, inspectRedemption, listRewards, createReward, setRewardPaused, createEventSubSubscription, listRequesterRoles, settleRedemption, sendChat });
 }
 
 module.exports = { ALLOWED_SCOPES, DEFAULT_SCOPES, normalizeScopes, createTwitchApiClient };

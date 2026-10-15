@@ -86,7 +86,9 @@
                   "play_random",
                   "import",
                   "cancel_import",
-                  "configure_history"
+                  "configure_history",
+                  "remove_track",
+                  "clear_tracks"
                 ]
               },
               "collectionId": {
@@ -107,6 +109,10 @@
               "destinationId": {
                 "type": "string",
                 "maxLength": 40
+              },
+              "trackId": {
+                "type": "string",
+                "maxLength": 80
               }
             }
           },
@@ -167,6 +173,26 @@
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 25
+              },
+              "moderationOffset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 500
+              },
+              "moderationLimit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 25
+              },
+              "moderationOnly": {
+                "type": "boolean"
+              },
+              "provider": {
+                "enum": [
+                  "youtube",
+                  "soundcloud",
+                  "tidal"
+                ]
               }
             }
           },
@@ -376,6 +402,8 @@
                   "timeout",
                   "untimeout",
                   "block_song",
+                  "timeout_song",
+                  "untimeout_song",
                   "unblock_song",
                   "volume",
                   "playback_start",
@@ -434,6 +462,22 @@
               "responseMessageId": {
                 "type": "string",
                 "maxLength": 160
+              },
+              "provider": {
+                "enum": [
+                  "youtube",
+                  "tidal",
+                  "soundcloud"
+                ]
+              },
+              "currentUid": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "source": {
+                "enum": [
+                  "youtube"
+                ]
               }
             }
           },
@@ -591,7 +635,8 @@
                   "youtube",
                   "tidal",
                   "spotify",
-                  "apple-music"
+                  "apple-music",
+                  "soundcloud"
                 ]
               },
               "primary": {
@@ -697,7 +742,8 @@
                   "progress",
                   "ended",
                   "failed",
-                  "skipped"
+                  "skipped",
+                  "paused"
                 ]
               },
               "positionMs": {
@@ -805,6 +851,10 @@
               "observedAt": {
                 "type": "integer",
                 "minimum": 0
+              },
+              "artworkUrl": {
+                "type": "string",
+                "maxLength": 12288
               }
             }
           },
@@ -897,11 +947,14 @@
                   "youtube",
                   "tidal",
                   "spotify",
-                  "apple-music"
+                  "apple-music",
+                  "soundcloud"
                 ]
               },
               "selectedProvider": {
                 "enum": [
+                  "youtube",
+                  "soundcloud",
                   "tidal",
                   "spotify",
                   "apple-music"
@@ -955,7 +1008,8 @@
                   "youtube",
                   "tidal",
                   "spotify",
-                  "apple-music"
+                  "apple-music",
+                  "soundcloud"
                 ]
               }
             }
@@ -984,11 +1038,14 @@
                   "youtube",
                   "tidal",
                   "spotify",
-                  "apple-music"
+                  "apple-music",
+                  "soundcloud"
                 ]
               },
               "selectedProvider": {
                 "enum": [
+                  "youtube",
+                  "soundcloud",
                   "tidal",
                   "spotify",
                   "apple-music"
@@ -1039,14 +1096,13 @@
           "response": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "ok",
-              "revision",
-              "config"
-            ],
             "properties": {
               "ok": {
-                "const": true
+                "type": "boolean"
+              },
+              "code": {
+                "type": "string",
+                "maxLength": 80
               },
               "revision": {
                 "type": "integer",
@@ -1054,6 +1110,114 @@
               },
               "config": {
                 "type": "object"
+              },
+              "activeProfileId": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "presets": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "maxLength": 40
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 200
+                    }
+                  }
+                }
+              },
+              "profiles": {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "updatedAt": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              },
+              "profile": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "config": {
+                    "type": "object"
+                  },
+                  "updatedAt": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            },
+            "required": [
+              "ok",
+              "revision",
+              "config",
+              "presets",
+              "profiles",
+              "activeProfileId"
+            ]
+          }
+        },
+        "preset": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "id"
+            ]
+          },
+          "response": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "config": {
+                "type": "object"
+              },
+              "code": {
+                "type": "string",
+                "maxLength": 80
               }
             }
           }
@@ -1073,20 +1237,23 @@
             "properties": {
               "config": {
                 "type": "object"
+              },
+              "expectedRevision": {
+                "type": "integer",
+                "minimum": 0
               }
             }
           },
           "response": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "ok",
-              "revision",
-              "config"
-            ],
             "properties": {
               "ok": {
-                "const": true
+                "type": "boolean"
+              },
+              "code": {
+                "type": "string",
+                "maxLength": 80
               },
               "revision": {
                 "type": "integer",
@@ -1094,8 +1261,210 @@
               },
               "config": {
                 "type": "object"
+              },
+              "activeProfileId": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "presets": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "maxLength": 40
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 200
+                    }
+                  }
+                }
+              },
+              "profiles": {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "updatedAt": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              },
+              "profile": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "config": {
+                    "type": "object"
+                  },
+                  "updatedAt": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
               }
-            }
+            },
+            "required": [
+              "ok",
+              "revision",
+              "config"
+            ]
+          }
+        },
+        "profile": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "save",
+                  "load",
+                  "delete"
+                ]
+              },
+              "id": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "config": {
+                "type": "object"
+              },
+              "expectedRevision": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "action"
+            ]
+          },
+          "response": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "code": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "config": {
+                "type": "object"
+              },
+              "activeProfileId": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "presets": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "maxLength": 40
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 200
+                    }
+                  }
+                }
+              },
+              "profiles": {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "updatedAt": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              },
+              "profile": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "config": {
+                    "type": "object"
+                  },
+                  "updatedAt": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            },
+            "required": [
+              "ok",
+              "revision",
+              "config"
+            ]
           }
         }
       }
@@ -1285,6 +1654,954 @@
               "error": {
                 "type": "string",
                 "maxLength": 80
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.tidal.experimental.v1",
+      "methods": {
+        "status": {
+          "request": {
+            "type": "null"
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 120
+              }
+            }
+          }
+        },
+        "submit": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "requestId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              }
+            },
+            "required": [
+              "query",
+              "requestId"
+            ]
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 120
+              }
+            }
+          }
+        },
+        "handoff": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "entryId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              }
+            },
+            "required": [
+              "entryId"
+            ]
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 120
+              }
+            }
+          }
+        },
+        "monitor": {
+          "request": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "response": {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ok"
+            ]
+          }
+        },
+        "enable": {
+          "request": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "companion": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "enum": [
+                  "status",
+                  "install",
+                  "uninstall",
+                  "update"
+                ]
+              },
+              "coreUrl": {
+                "type": "string",
+                "maxLength": 100
+              }
+            },
+            "required": [
+              "action"
+            ]
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 120
+              }
+            }
+          }
+        },
+        "catalog": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "status",
+                  "configure",
+                  "begin",
+                  "test",
+                  "disconnect",
+                  "clear",
+                  "reset-client"
+                ]
+              },
+              "clientId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "countryCode": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 2
+              },
+              "redirectUri": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "playlists": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "action"
+            ]
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 120
+              }
+            }
+          }
+        },
+        "review": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "entryId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "not-in-tidal"
+                ]
+              }
+            },
+            "required": [
+              "entryId",
+              "decision"
+            ]
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 120
+              }
+            }
+          }
+        },
+        "flush": {
+          "request": {
+            "type": "object",
+            "properties": {
+              "nativeQueueChanged": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "volume": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "percent"
+            ],
+            "properties": {
+              "percent": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.playlist.transfer.v1",
+      "methods": {
+        "action": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "enum": [
+                  "status",
+                  "account",
+                  "list_tidal",
+                  "upload_begin",
+                  "upload_chunk",
+                  "upload_headers",
+                  "preview_csv",
+                  "source_library",
+                  "read_tidal",
+                  "choose",
+                  "accept_matches",
+                  "match_tidal",
+                  "save_local",
+                  "write_tidal",
+                  "pause",
+                  "cancel",
+                  "resume",
+                  "reconcile",
+                  "export_csv",
+                  "export_report",
+                  "plan",
+                  "set_limit",
+                  "match",
+                  "save_matched",
+                  "save_export",
+                  "list_exports",
+                  "open_exports"
+                ]
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 8388608
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9999
+              },
+              "choice": {
+                "type": "integer",
+                "minimum": -1,
+                "maximum": 2
+              },
+              "jobId": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "collectionId": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "id": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "cursor": {
+                "type": "string",
+                "maxLength": 4096
+              },
+              "chunk": {
+                "type": "string",
+                "maxLength": 6000
+              },
+              "delimiter": {
+                "enum": [
+                  ",",
+                  ";",
+                  "\t"
+                ]
+              },
+              "revision": {
+                "type": "number"
+              },
+              "mapping": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "position": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "title": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "artists": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "album": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "duration_ms": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "isrc": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "source_provider": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "source_id": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "source_url": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "version": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "genres": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                }
+              },
+              "groupBy": {
+                "enum": [
+                  "single",
+                  "size",
+                  "artist",
+                  "album",
+                  "genre"
+                ]
+              },
+              "splitSize": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10000
+              },
+              "trackLimit": {
+                "type": "integer",
+                "minimum": 5000,
+                "maximum": 10000
+              },
+              "target": {
+                "enum": [
+                  "tidal",
+                  "youtube",
+                  "soundcloud"
+                ]
+              },
+              "report": {
+                "type": "boolean"
+              },
+              "threshold": {
+                "type": "integer",
+                "minimum": 50,
+                "maximum": 100
+              },
+              "review": {
+                "enum": [
+                  "all",
+                  "weakest",
+                  "needs_review",
+                  "unmatched"
+                ]
+              },
+              "adaptive": {
+                "type": "boolean"
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.player.preferences.v1",
+      "methods": {
+        "status": {
+          "request": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "player": {
+                "enum": [
+                  "youtube",
+                  "tidal",
+                  "soundcloud"
+                ]
+              }
+            }
+          }
+        },
+        "select": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "player"
+            ],
+            "properties": {
+              "player": {
+                "enum": [
+                  "youtube",
+                  "tidal",
+                  "soundcloud"
+                ]
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "player": {
+                "enum": [
+                  "youtube",
+                  "tidal",
+                  "soundcloud"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.soundcloud.player.v1",
+      "methods": {
+        "submit": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sound": {
+                "type": "object"
+              },
+              "sounds": {
+                "type": "array",
+                "maxItems": 40,
+                "items": {
+                  "type": "object"
+                }
+              },
+              "requestId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "uploadId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "driverId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "leaseId": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "start": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sound": {
+                "type": "object"
+              },
+              "sounds": {
+                "type": "array",
+                "maxItems": 40,
+                "items": {
+                  "type": "object"
+                }
+              },
+              "requestId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "uploadId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "driverId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "leaseId": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "release": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sound": {
+                "type": "object"
+              },
+              "sounds": {
+                "type": "array",
+                "maxItems": 40,
+                "items": {
+                  "type": "object"
+                }
+              },
+              "requestId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "uploadId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "driverId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "leaseId": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "import-start": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sound": {
+                "type": "object"
+              },
+              "sounds": {
+                "type": "array",
+                "maxItems": 40,
+                "items": {
+                  "type": "object"
+                }
+              },
+              "requestId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "uploadId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "driverId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "leaseId": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "import-append": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sound": {
+                "type": "object"
+              },
+              "sounds": {
+                "type": "array",
+                "maxItems": 40,
+                "items": {
+                  "type": "object"
+                }
+              },
+              "requestId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "uploadId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "driverId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "leaseId": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "import-save": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sound": {
+                "type": "object"
+              },
+              "sounds": {
+                "type": "array",
+                "maxItems": 40,
+                "items": {
+                  "type": "object"
+                }
+              },
+              "requestId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "uploadId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "driverId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "leaseId": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "submit-query": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "query",
+              "requestId"
+            ],
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 256
+              },
+              "requestId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
               }
             }
           }

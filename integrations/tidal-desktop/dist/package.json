@@ -1,0 +1,6 @@
+{
+  "name": "ravelink-tidal-companion",
+  "version": "0.1.7",
+  "main": "injector.cjs",
+  "private": true
+}

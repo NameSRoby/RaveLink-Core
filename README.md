@@ -2,86 +2,65 @@
 
 <img src="assets/RaveLink-Core.png" alt="RaveLink Core" width="96" height="96">
 
-RaveLink Core is a local Windows control app for streamer lighting and optional Twitch-powered features. It runs from the system tray and opens its control surface at `http://127.0.0.1:5050`.
+RaveLink Core is a local Windows app for streamer lighting, music requests and optional Twitch integration. It runs in the tray and opens at `http://127.0.0.1:5050`.
 
-**0.6.4 adds optional local speech to Alerts / TTS.** The base download stays small: optional features, the speech runtime, and its voice model download only when selected by the user.
+## Install 0.7.0
 
-## What It Does
+1. Download **RaveLink-Core-Windows-v0.7.0-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
+2. Choose an installation folder and optional features. Setup downloads and verifies only your selected features from this repository.
+3. Choose **Main**, **More** or **Hidden** placement for tabs. Change this later from the settings gear → **Choose tabs**.
+4. Launch from the Start menu or desktop shortcut. Use the tray icon to reopen, restart or exit.
 
-- Discovers, pairs, groups, and controls Philips Hue and WiZ lights, with compatible Govee LAN lights available as an Alpha feature.
-- Applies individual colors, brightness levels, tunable-white settings, reusable whole-room profiles, and synchronized multi-brand effects.
-- Routes ordinary color commands and dynamic effects independently, so each feature can use its own fixtures and optional viewer prefixes.
-- Understands natural requests such as `deep blue 60%`, `all warm white`, `cycle red, green, blue`, and `wall fade purple, cyan slow`.
-- Builds compact and detailed Light Commands guides from the currently active routes. Either guide can be copied into a Twitch panel or other viewer instructions.
-- Generates a small StreamElements widget when OAuth-free Twitch event intake is preferred.
-- Adds native Twitch OAuth, chat, managed Channel Points rewards, completion and refund handling, and broadcaster chat responses as an optional feature.
-- Adds YouTube Song Request, server playlists, moderation, playback controls, and configurable OBS overlays as an optional feature.
-- Adds **Alerts / TTS** as an optional feature for synchronized lighting alerts, Twitch event and Channel Points triggers, donation moderation, a local OBS alert overlay, and locally generated speech.
-- Keeps optional features and community mods isolated from the lighting core.
+Windows 10 or 11, 64-bit, is required. Node.js and npm are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-## Install
+For portable use, extract **RaveLink-Core-Windows-v0.7.0-self-contained.zip** completely and run `RaveLink-Core.exe`. The normal ZIP includes the same app in a directory wrapper. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
 
-1. Open the latest GitHub release.
-2. Download `RaveLink-Core-Windows-v0.6.4-setup-installer.exe` from the 0.6.4 release.
-3. Choose an installation folder and any optional features you want. The base installer contains Core only and downloads only the selected feature packages from this official repository.
-4. Launch **RaveLink Core** from the Start menu or desktop shortcut. Optional features can also be installed or removed later under **Packages**.
+## Lighting
 
-The installer includes the application runtime and production dependencies. Node.js and npm are not required. Installing over an existing RaveLink Core installation updates program files while preserving local configuration, fixtures, playlists, optional-feature data, and rollback state.
+- **Fixtures:** discover and pair Philips Hue and WiZ lights. Compatible Govee LAN models are supported as **Alpha** and must offer LAN Control in their app.
+- **Lights:** direct colors, brightness, tunable white, reusable profiles, natural-language color commands and independently routed synchronized effects.
+- **Light Commands:** copy viewer instructions generated from current routes.
+- **Room Layout (Alpha)** and **Light Lab:** enter physical positions, inspect capabilities and tune effects. Wi-Fi cannot determine room positions automatically.
+- **Widget:** generate an optional StreamElements widget for OAuth-free event intake.
 
-## Lighting Setup
+## Optional features
 
-Use **Fixtures** to discover and pair lights. Use **Lights** to assign normal viewer color routes, dynamic-effect routes, profiles, and optional prefixes.
+Install, update, roll back or remove features in **Packages**. Hiding a tab changes navigation only; it does not stop or uninstall a feature.
 
-- **Direct Control** sends a color or brightness immediately and includes a routed-command test box.
-- **Light Profiles** save per-fixture RGB, brightness, power, or dedicated white-temperature settings. Applying a profile stops effects on the fixtures it replaces.
-- **Light Commands** shows the command language that is active for the current routes and provides copyable compact and detailed viewer guides.
-- **Room Layout (Alpha)** stores fixture positions used by wave, sweep, ripple, rainbow, and chase effects. Positions are entered manually because Wi-Fi does not reveal a light's physical place in the room.
-- **Light Lab** provides effect limits, timing adjustment, spatial direction, route experiments, and capability information.
+**Twitch Integration** provides OAuth, EventSub, chat, managed Channel Points rewards, completion/refunds and optional chat responses. It works independently of Song Request.
 
-Unprefixed dynamic commands affect every fixture enabled in the dynamic route. Optional dynamic prefixes select a smaller subset. The `all` keyword affects only fixtures assigned to the relevant saved route; disabled and unrouted fixtures remain unchanged.
+**Song Request** provides song-name parsing, FIFO requests, server playlists, quick song/requester bans and timeouts, artwork, playback details and customizable OBS overlays. Library Play, Shuffle and Pick Random start the correct player with one click. Player selection persists.
 
-Govee LAN support works only with models that expose **LAN Control** in the Govee Home app. Enable it for each light and keep the light and RaveLink computer on the same local network. Some Govee models do not offer LAN Control and cannot be used by this Alpha integration.
+- **TIDAL:** sign in with your own account for catalog lookup and reviewed account-playlist transfers. The bundled desktop companion delivers requests in FIFO order, preserving your playlist. Ten upcoming requests enter native TIDAL at a time; additional requests wait locally. Close TIDAL before updating the companion. Account tokens remain encrypted locally; no developer client secret is bundled.
+- **SoundCloud (Alpha):** public song-name search, links and playlist import require no developer credentials. Playback uses the visible official widget. Public search can break with site changes; availability, ads and preview limits remain controlled by SoundCloud. Direct account-library writes are unavailable.
+- **YouTube:** lookup and official embeds. Uploader, age, region, account and content restrictions can prevent playback. Repeated failures and rapid skips can overload playback and may stop or crash the server. A prominent warning appears on the YouTube Player page. Stop playback if songs keep skipping. Media is not downloaded or restreamed to bypass restrictions.
 
-## Alerts / TTS
+**Now Playing Sources** follows local YouTube/SoundCloud playback or Spotify, Apple Music and TIDAL Windows media sessions. Spotify and Apple Music remain observation-only.
 
-Alerts / TTS can create reusable lighting alerts, attach them to available Twitch events or Channel Points rewards, and display privacy-filtered test messages in its local OBS/browser overlay. Donation settings keep payment identities out of alert output and use only the public display name supplied for the message.
+**Clip Studio (Alpha)** is package infrastructure; video analysis, suggestions and export are not active. **Community mods** are optional supervised third-party code; enable them only if you intend to review and run community packages.
 
-Local TTS is optional. Install the **Local TTS Engine** and **Kitten English Voice** from Alerts / TTS when speech is wanted; neither is included in the installer or portable archive. The first voice pack offers eight English voice styles, local Windows playback, volume and speed controls, a ten-message queue, replace/skip behavior, previews, cancellation, and fixed spoken messages on alert profiles. Downloads run as visible background jobs so the server remains responsive, and RaveLink safely pauses and restores the speech engine when voice files change. Downloads are accepted only from this repository's fixed release assets and are checked by exact size, SHA-256, archive limits, and package metadata before activation.
+**TTS, Alerts / TTS and Lighting Automation have been removed in 0.7.0.** No speech runtime or voice asset is shipped.
 
-Donation preview speech uses only the public display alias and the moderated message; payment names, email addresses, and other payment identity fields never enter alert output. Live Ko-fi webhook receipt, hosted or self-hosted relay setup, and donation chat delivery remain work in progress. Additional languages and Custom Voice Tools are planned as separate optional downloads.
+## Playlists and transfers
 
-## Clip Studio Alpha
+**Song Request → Server Playlist → Transfer this playlist** opens Source → Destination or CSV → Check matches. Provider logos, confidence percentages, threshold shortcuts and weakest-first review simplify matching.
 
-Clip Studio is an optional Alpha package foundation for future local video indexing, timestamp suggestions, titles, and clip candidates. Video processing and export are not active yet.
+Transfer between YouTube, SoundCloud and TIDAL catalogs or import/export CSV. YouTube and SoundCloud destinations save matched IDs locally. TIDAL can create reviewed, verified unlisted account playlists. Liked-song transfers and direct YouTube/SoundCloud account writes remain planned; permissions alone do not enable them.
 
-## Song Request And YouTube Playback
+Capacity defaults to 5,000 tracks and can increase to 10,000. Original order and deliberate repeats are retained. Destinations can be organized into one playlist, fixed-size parts, artist, album or genre where metadata exists. CSV downloads keep a local copy under **Saved CSV exports**, with an **Open exports folder** shortcut.
 
-Song Request is optional and installs on demand from **Packages** using the official RaveLink GitHub repository. It supports text lookup, direct YouTube links, FIFO requests, server playlists, moderation controls, and a customizable now-playing OBS overlay. The **Now Playing Sources** panel can also display the current Spotify, Apple Music, or TIDAL Windows media session in that overlay. These desktop sources only observe media information already exposed by Windows; they do not add song-request search or playback for those services. Multilingual titles are preserved as UTF-8, and the observer and overlay include Japanese, Chinese, and Korean support.
+## Updates, privacy and uninstall
 
-Playback uses YouTube's official embedded player. A video can still refuse embedded playback because its owner disabled embedding or because YouTube applies age, region, account, or content restrictions. Those decisions are controlled by YouTube and can make an otherwise valid request skip or fail. Improving failure handling and candidate selection remains work in progress; RaveLink Core does not download or restream YouTube media as a fallback.
+Optional GitHub checks detect stable releases. Updates verify checksums, preserve local data and retain a rollback snapshot. Failed startup health checks can restore the previous version; Updates also offers manual rollback.
 
-## Updates And Rollback
+Core binds to loopback by default. Credentials, grants, playlists, exports, tab choices and logs are created locally and excluded from publication. Supported secrets are protected for the current Windows user. Network connections occur for services you use, including GitHub downloads and update checks, Twitch, TIDAL, YouTube and SoundCloud.
 
-Release checks are optional. When enabled, RaveLink Core can detect a newer stable GitHub release, download its self-contained archive, verify its SHA-256 checksum, preserve local state, and install the update. Startup health confirmation automatically rolls back a failed update, and the Updates tab retains a manual rollback option after a successful update.
+Uninstall through Windows **Installed apps** or the Start menu; the uninstaller stops the tray host first.
 
-## Privacy And Local Data
+## Source and tests
 
-RaveLink Core listens on the local machine by default. OAuth grants, light credentials, playlists, runtime logs, and other private state are created locally after installation and are not included in published source or release archives. Supported secrets are protected for the current Windows user. Internet connections occur only for services you choose to configure, such as Twitch, GitHub release checks, or YouTube.
-
-## Portable Version
-
-The release also includes a self-contained ZIP. Extract the complete folder, then run `RaveLink-Core.exe`. Do not move the executable away from its accompanying folders. Optional feature payloads are not bundled; install the ones you want from **Packages**, which downloads integrity-checked files from the official RaveLink GitHub repository.
-
-## Uninstall
-
-Use **Installed apps** in Windows or the RaveLink Core Start menu entry. The uninstaller asks the tray host to stop before removing program files.
-
-## Requirements
-
-- Windows 10 or Windows 11, 64-bit
-- A local network connection for supported smart lights
-- Internet access only for online services you choose to use, such as Twitch, GitHub release checks, or YouTube
+Published source includes runtime code, first-party feature sources, licenses and relevant regression tests. Private state, logs, experiments and working archives are excluded. For source use, install a supported Node.js release, run `npm ci`, then `npm start`. Run `npm test`; browser tests also require `npx playwright install chromium`.
 
 ## License
 
-RaveLink Core is licensed under the Apache License 2.0. Third-party components retain their own licenses; see `THIRD_PARTY_NOTICES.md` in the installed folder.
+Apache-2.0. Third-party code and provider marks retain their licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

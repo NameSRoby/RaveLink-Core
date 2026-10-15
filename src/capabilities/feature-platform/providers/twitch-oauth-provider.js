@@ -1,4 +1,6 @@
 const fs = require("node:fs");
+const path = require("node:path");
+const createTransactionJournal = require('./twitch-transaction-journal');
 const { readJsonFileWithMetadata, writeJsonFile } = require("../../../shared/fs/json-file-store");
 const { protectTextMapWithWindowsDpapi, unprotectTextMapWithWindowsDpapi } = require("../../../shared/security/windows-dpapi");
 const { DEFAULT_SCOPES, normalizeScopes, createTwitchApiClient } = require("./twitch-api-client");
@@ -8,24 +10,9 @@ function text(value, maximum = 2048) { return String(value ?? "").trim().slice(0
 const REWARD_PURPOSES = new Set(["lights", "teach", "song_request"]);
 const DEFAULT_MONITOR_CONFIG = Object.freeze({ intakeMode: "native", songRequestChatEnabled: false });
 const TOKEN_VALIDATE_INTERVAL_MS = 60 * 60 * 1000;
-const VALIDATION_RETRY_MS = 60 * 1000;
 const ROLE_DIRECTORY_TTL_MS = 30 * 60 * 1000;
 const ROLE_DIRECTORY_RETRY_MS = 60 * 1000;
 const REWARD_CATALOG_TTL_MS = 30 * 1000;
-const TWITCH_ALERT_EVENTS = Object.freeze([
-  { id: "event:channel.follow", type: "channel.follow", version: "2", label: "New follower", scope: "moderator:read:followers", condition: "follow" },
-  { id: "event:channel.subscribe", type: "channel.subscribe", version: "1", label: "New subscription", scope: "channel:read:subscriptions" },
-  { id: "event:channel.subscription.message", type: "channel.subscription.message", version: "1", label: "Resubscription", scope: "channel:read:subscriptions" },
-  { id: "event:channel.subscription.gift", type: "channel.subscription.gift", version: "1", label: "Gifted subscriptions", scope: "channel:read:subscriptions" },
-  { id: "event:channel.cheer", type: "channel.cheer", version: "1", label: "Bits cheer", scope: "bits:read" },
-  { id: "event:channel.raid", type: "channel.raid", version: "1", label: "Incoming raid", scope: "", condition: "raid" },
-  { id: "event:stream.online", type: "stream.online", version: "1", label: "Stream started", scope: "" },
-  { id: "event:stream.offline", type: "stream.offline", version: "1", label: "Stream ended", scope: "" },
-  { id: "event:channel.hype_train.begin", type: "channel.hype_train.begin", version: "2", label: "Hype Train started", scope: "channel:read:hype_train" },
-  { id: "event:channel.hype_train.progress", type: "channel.hype_train.progress", version: "2", label: "Hype Train progress", scope: "channel:read:hype_train" },
-  { id: "event:channel.hype_train.end", type: "channel.hype_train.end", version: "2", label: "Hype Train ended", scope: "channel:read:hype_train" }
-]);
-
 function normalizeManagedRewards(input) {
   const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
   const result = {};
@@ -44,9 +31,15 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     ? text(options.defaultClientId, 80)
     : "";
   const now = options.now || Date.now;
-  const api = options.api || createTwitchApiClient(options);
+  const journal = createTransactionJournal({ filename: options.journalPath || (vaultPath ? path.join(path.dirname(vaultPath), 'twitch-transactions.json') : ''), now });
+  const rawApi = options.api || createTwitchApiClient(options);
+  const recovery = require("./twitch-authorization-recovery")({
+    getProfile: () => profile, setProfile: value => { profile = value; },
+    onInvalidated: () => { validatedSinceLoad = false; session = null; monitor?.stop?.(); clearRewardCatalog(); roleDirectory.clear(); roleDirectoryAfter = 0; },
+    onRevoked: reason => { lastError = `twitch_${reason}`; persist(); syncMonitor(); }
+  });
+  const api = recovery.guardApi(rawApi);
   const onIntakeModeChange = typeof options.onIntakeModeChange === "function" ? options.onIntakeModeChange : () => {};
-  const automationEventsEnabled = typeof options.automationEventsEnabled === "function" ? options.automationEventsEnabled : () => true;
   let profile = { clientId: defaultClientId, accessToken: "", refreshToken: "", userId: "", login: "", scopes: [], expiresAt: 0, managedRewards: {}, monitorConfig: { ...DEFAULT_MONITOR_CONFIG } };
   let session = null;
   let lastError = "";
@@ -57,6 +50,7 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
   let rewardReconcileInFlight = null;
   let rewardReconcileAfter = 0;
   let rewardPauseChain = Promise.resolve();
+  const rewardCreationInFlight = new Set();
   let rewardCatalog = [];
   let rewardCatalogAfter = 0;
   let rewardCatalogInFlight = null;
@@ -68,18 +62,15 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
   let roleDirectoryLastError = "";
   const monitorAvailable = typeof api.createEventSubSubscription === "function";
   function clearRewardCatalog() { rewardCatalog = []; rewardCatalogAfter = 0; }
-  function alertCatalog() {
-    return TWITCH_ALERT_EVENTS.map(row => ({ id: row.id, type: row.type, label: row.label, scope: row.scope, available: !row.scope || profile.scopes.includes(row.scope) }));
-  }
   function subscriptionScopes(type) {
     const fixed = { "channel.chat.message": "user:read:chat", "channel.channel_points_custom_reward_redemption.add": "channel:manage:redemptions" };
-    const scope = fixed[type] ?? TWITCH_ALERT_EVENTS.find(row => row.type === type)?.scope;
+    const scope = fixed[type];
     return scope ? [scope] : [];
   }
 
   function runBackground(operation, fallback = "twitch_background_operation_failed") {
     Promise.resolve().then(operation).catch(error => {
-      lastError = text(error?.code || error?.message || fallback, 120) || fallback;
+      if (error?.code !== "twitch_authorization_changed") lastError = text(error?.code || error?.message || fallback, 120) || fallback;
     });
   }
 
@@ -113,8 +104,11 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
         userId: text(decoded.plain.userId, 80), login: text(decoded.plain.login, 80),
         scopes: normalizeScopes(JSON.parse(decoded.plain.scopes || "[]"), []), expiresAt: Math.max(0, Number(decoded.plain.expiresAt || 0)),
         managedRewards: normalizeManagedRewards(JSON.parse(decoded.plain.managedRewards || "{}")),
-        monitorConfig: normalizeMonitorConfig(JSON.parse(decoded.plain.monitorConfig || "{}"))
+        monitorConfig: normalizeMonitorConfig(JSON.parse(decoded.plain.monitorConfig || "{}")),
+        rewardOwnerUserId: text(decoded.plain.rewardOwnerUserId || decoded.plain.userId, 80),
+        authorizationRecovery: recovery.normalize(JSON.parse(decoded.plain.authorizationRecovery || "{}"))
       };
+      if (recovery.snapshot().reauthorizationRequired) profile = { ...profile, accessToken: "", refreshToken: "", scopes: [], expiresAt: 0 };
     } catch (error) { lastError = text(error?.message || "twitch_vault_load_failed", 120); }
     publishIntakeMode();
   }
@@ -125,6 +119,7 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     const encoded = protectTextMapWithWindowsDpapi({
       clientId: profile.clientId, accessToken: profile.accessToken, refreshToken: profile.refreshToken,
       userId: profile.userId, login: profile.login, scopes: JSON.stringify(profile.scopes), expiresAt: String(profile.expiresAt),
+      rewardOwnerUserId: profile.rewardOwnerUserId || profile.userId, authorizationRecovery: JSON.stringify(recovery.snapshot()),
       managedRewards: JSON.stringify(profile.managedRewards || {}), monitorConfig: JSON.stringify(profile.monitorConfig || DEFAULT_MONITOR_CONFIG)
     });
     if (!encoded.ok) { lastError = text(encoded.error || "twitch_vault_encrypt_failed", 120); return false; }
@@ -133,9 +128,9 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
   }
 
   function status() {
-    const connected = Boolean(profile.accessToken && profile.refreshToken && profile.userId && profile.expiresAt > now());
+    const connected = Boolean(validatedSinceLoad && !recovery.snapshot().reauthorizationRequired && profile.accessToken && profile.refreshToken && profile.userId && profile.expiresAt > now());
     return {
-      ok: true, configured: Boolean(profile.clientId), connected,
+      ok: true, configured: Boolean(profile.clientId), connected, authorizationRecovery: recovery.snapshot(),
       authorizationStored: Boolean(profile.clientId && profile.refreshToken && profile.userId),
       authorizationRefreshing: Boolean(refreshInFlight), authorizationValidating: Boolean(validationInFlight), rewardSyncing: Boolean(rewardReconcileInFlight),
       login: profile.login, userId: profile.userId, scopes: [...profile.scopes], expiresAt: profile.expiresAt,
@@ -158,6 +153,7 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     const clientId = text(input.clientId, 80);
     if (!/^[a-z0-9]{10,80}$/i.test(clientId)) return { ...status(), ok: false, error: "twitch_client_id_invalid" };
     if (clientId !== profile.clientId) {
+      recovery.invalidate();
       monitor?.stop?.();
       clearRewardCatalog();
       profile = { clientId, accessToken: "", refreshToken: "", userId: "", login: "", scopes: [], expiresAt: 0, managedRewards: {}, monitorConfig: { ...DEFAULT_MONITOR_CONFIG } };
@@ -173,7 +169,8 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
   }
 
   async function clearClientId() {
-    const revoked = await api.revokeToken?.({ clientId: profile.clientId, accessToken: profile.accessToken });
+    const previous = credentials();
+    recovery.invalidate();
     monitor?.stop?.();
     clearRewardCatalog();
     profile = { clientId: "", accessToken: "", refreshToken: "", userId: "", login: "", scopes: [], expiresAt: 0, managedRewards: {}, monitorConfig: { ...DEFAULT_MONITOR_CONFIG } };
@@ -183,15 +180,19 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     roleDirectoryLastError = "";
     publishIntakeMode();
     session = null;
-    lastError = revoked?.ok === false ? text(revoked.error || "twitch_revoke_failed", 120) : "";
+    lastError = "";
     persist();
     syncMonitor();
+    await rawApi.revokeToken?.({ clientId: previous.clientId, accessToken: previous.accessToken });
     return status();
   }
 
   async function begin(input = {}) {
     const request = input && typeof input === "object" ? input : {};
     if (!profile.clientId) return { ...status(), ok: false, error: "twitch_client_id_required" };
+    recovery.invalidate();
+    profile = { ...profile, accessToken: "", refreshToken: "", scopes: [], expiresAt: 0 };
+    persist();
     const result = await api.beginDeviceAuthorization({ clientId: profile.clientId, scopes: request.scopes });
     if (!result.ok) { lastError = result.error; return { ...status(), ok: false, error: result.error }; }
     const timestamp = now();
@@ -213,20 +214,23 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
       clientId: profile.clientId, accessToken: result.accessToken, refreshToken: result.refreshToken,
       userId: validated.userId, login: validated.login, scopes: validated.scopes,
       expiresAt: now() + Math.max(0, validated.expiresIn || result.expiresIn) * 1000,
-      managedRewards: profile.managedRewards || {}, monitorConfig: profile.monitorConfig || { ...DEFAULT_MONITOR_CONFIG }
+      managedRewards: (profile.rewardOwnerUserId || profile.userId) === validated.userId ? profile.managedRewards || {} : {},
+      rewardOwnerUserId: validated.userId, authorizationRecovery: recovery.afterLogin(), monitorConfig: profile.monitorConfig || { ...DEFAULT_MONITOR_CONFIG }
     };
     session = null;
     validatedSinceLoad = true;
     validationAfter = now() + TOKEN_VALIDATE_INTERVAL_MS;
     lastError = "";
     persist();
+    monitor?.clearRevocations?.();
     syncMonitor();
     runBackground(() => refreshRoleDirectory(true), "twitch_role_refresh_failed");
     return status();
   }
 
   async function disconnect() {
-    const revoked = await api.revokeToken?.({ clientId: profile.clientId, accessToken: profile.accessToken });
+    const previous = credentials();
+    recovery.invalidate();
     profile = { ...profile, accessToken: "", refreshToken: "", userId: "", login: "", scopes: [], expiresAt: 0 };
     clearRewardCatalog();
     roleDirectory = new Map();
@@ -235,126 +239,18 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     roleDirectoryLastError = "";
     session = null;
     monitor?.stop?.();
-    lastError = revoked?.ok === false ? text(revoked.error || "twitch_revoke_failed", 120) : "";
+    lastError = "";
     persist();
+    await rawApi.revokeToken?.({ clientId: previous.clientId, accessToken: previous.accessToken });
     return status();
   }
 
   function credentials() { return { ...profile, scopes: [...profile.scopes] }; }
 
-  async function refreshAuthorization() {
-    if (refreshInFlight) return refreshInFlight;
-    refreshInFlight = (async () => {
-      if (!profile.clientId || !profile.refreshToken || !profile.userId) return { ok: false, error: "twitch_reauthorization_required", retryable: false };
-      const previousUserId = profile.userId;
-      const refreshed = await api.refreshUserAccessToken({ clientId: profile.clientId, refreshToken: profile.refreshToken });
-      if (!refreshed.ok) {
-        lastError = text(refreshed.error || "twitch_reauthorization_required", 120);
-        const definitive = refreshed.error === "twitch_reauthorization_required" && [400, 401].includes(Number(refreshed.status || 0));
-        profile = { ...profile, accessToken: "", expiresAt: 0, ...(definitive ? { refreshToken: "" } : {}) };
-        if (definitive) persist();
-        return { ok: false, error: lastError, status: refreshed.status || 0, retryable: !definitive };
-      }
-      // Device-flow refresh tokens rotate on use. Save the replacement before any
-      // later network operation so a validation outage cannot strand the grant.
-      profile = {
-        ...profile,
-        accessToken: refreshed.accessToken,
-        refreshToken: refreshed.refreshToken,
-        expiresAt: now() + Math.max(1, refreshed.expiresIn) * 1000
-      };
-      persist();
-      const validated = await api.validateToken(refreshed.accessToken);
-      if (!validated.ok || validated.clientId !== profile.clientId || validated.userId !== previousUserId) {
-        lastError = text(validated.error || "twitch_token_identity_mismatch", 120);
-        const definitive = validated.error === "twitch_token_invalid" || (validated.ok && (validated.clientId !== profile.clientId || validated.userId !== previousUserId));
-        profile = { ...profile, accessToken: "", expiresAt: 0, ...(definitive ? { refreshToken: "" } : {}) };
-        if (definitive) persist();
-        return { ok: false, error: lastError, retryable: !definitive };
-      }
-      profile = {
-        ...profile,
-        accessToken: refreshed.accessToken,
-        refreshToken: refreshed.refreshToken,
-        login: validated.login,
-        scopes: validated.scopes,
-        expiresAt: now() + Math.max(1, validated.expiresIn || refreshed.expiresIn) * 1000
-      };
-      session = null;
-      validatedSinceLoad = true;
-      validationAfter = now() + TOKEN_VALIDATE_INTERVAL_MS;
-      lastError = "";
-      persist();
-      syncMonitor();
-      runBackground(() => reconcileManagedRewards(true), "twitch_reward_sync_failed");
-      runBackground(() => refreshRoleDirectory(true), "twitch_role_refresh_failed");
-      return { ok: true };
-    })().finally(() => { refreshInFlight = null; });
-    return refreshInFlight;
-  }
-
-  async function withAuthorization(operation, requiredScopes = []) {
-    if (!profile.clientId || !profile.refreshToken || !profile.userId) return { ok: false, error: "twitch_not_connected", retryable: false };
-    if (!profile.accessToken || profile.expiresAt <= now()) {
-      const refreshed = await refreshAuthorization();
-      if (!refreshed.ok) return refreshed;
-    }
-    const missingScope = requiredScopes.find(scope => !profile.scopes.includes(scope));
-    if (missingScope) return { ok: false, error: "twitch_scope_missing", scope: missingScope, retryable: false };
-    let result = await operation(credentials());
-    if (result?.status !== 401 && result?.error !== "twitch_reauthorization_required") return result;
-    const refreshed = await refreshAuthorization();
-    if (!refreshed.ok) return refreshed;
-    result = await operation(credentials());
-    return result;
-  }
-
-  async function validateAuthorization(force = false) {
-    if (!profile.accessToken || !profile.clientId || !profile.userId) return { ok: false, error: "twitch_not_connected" };
-    if (!force && validationAfter > now()) return { ok: true, skipped: true };
-    if (validationInFlight) return validationInFlight;
-    validationInFlight = (async () => {
-      const previousScopes = [...profile.scopes];
-      const validated = await api.validateToken(profile.accessToken);
-      if (!validated.ok) {
-        lastError = text(validated.error || "twitch_validate_failed", 120);
-        validationAfter = now() + VALIDATION_RETRY_MS;
-        if (validated.error !== "twitch_token_invalid") return { ok: false, error: lastError, retryable: true };
-        profile = { ...profile, accessToken: "", expiresAt: 0 };
-        validatedSinceLoad = false;
-        persist();
-        monitor?.stop?.();
-        return refreshAuthorization();
-      }
-      if (validated.clientId !== profile.clientId || validated.userId !== profile.userId) {
-        lastError = "twitch_token_identity_mismatch";
-        profile = { ...profile, accessToken: "", refreshToken: "", userId: "", login: "", scopes: [], expiresAt: 0 };
-        validatedSinceLoad = false;
-        persist();
-        monitor?.stop?.();
-        return { ok: false, error: lastError, retryable: false };
-      }
-      profile = {
-        ...profile,
-        login: validated.login,
-        scopes: validated.scopes,
-        expiresAt: now() + Math.max(1, validated.expiresIn) * 1000
-      };
-      validatedSinceLoad = true;
-      validationAfter = now() + TOKEN_VALIDATE_INTERVAL_MS;
-      lastError = "";
-      persist();
-      syncMonitor(previousScopes.join("\0") !== profile.scopes.join("\0"));
-      runBackground(() => refreshRoleDirectory(true), "twitch_role_refresh_failed");
-      return { ok: true };
-    })().finally(() => { validationInFlight = null; });
-    return validationInFlight;
-  }
-
   function syncMonitor(restart = false) {
-    const connected = Boolean(profile.accessToken && profile.refreshToken && profile.userId && profile.expiresAt > now());
-    const redemptionAuthorized = profile.scopes.includes("channel:manage:redemptions");
-    if (connected && validatedSinceLoad && redemptionAuthorized && monitorAvailable && profile.monitorConfig?.intakeMode === "native") {
+    const connected = status().connected;
+    const anyAuthorized = canSubscribe("channel.channel_points_custom_reward_redemption.add", "1") || canSubscribe("channel.chat.message", "1");
+    if (connected && anyAuthorized && monitorAvailable && profile.monitorConfig?.intakeMode === "native") {
       if (restart) monitor?.restart?.();
       else monitor?.start?.();
     }
@@ -369,7 +265,7 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
       let changed = false;
       for (const [purpose, row] of Object.entries(profile.managedRewards || {})) {
         const inspected = await withAuthorization(current => api.inspectReward({ rewardId: row.rewardId, credentials: current }));
-        if (inspected?.ok && inspected.exists === false) { delete profile.managedRewards[purpose]; changed = true; }
+        if (inspected?.ok && inspected.exists === false && profile.managedRewards[purpose]?.rewardId === row.rewardId) { delete profile.managedRewards[purpose]; changed = true; clearRewardCatalog(); }
       }
       if (changed) persist();
       rewardReconcileAfter = now() + 30000;
@@ -390,21 +286,23 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     return status();
   }
 
-  async function settle(input) {
-    const rewardId = text(input?.rewardId, 160);
-    const managed = Object.values(profile.managedRewards || {}).some(row => row.rewardId === rewardId);
-    if (!managed) return { ok: false, error: "twitch_reward_not_managed", retryable: false };
-    if (input?.broadcasterId && text(input.broadcasterId, 80) !== profile.userId) {
-      return { ok: false, error: "twitch_broadcaster_mismatch", retryable: false };
-    }
-    return withAuthorization(current => api.settleRedemption({ ...input, credentials: current }), ["channel:manage:redemptions"]);
-  }
+  const authState = {
+    get profile() { return profile; }, set profile(value) { profile = value; },
+    get session() { return session; }, set session(value) { session = value; },
+    get lastError() { return lastError; }, set lastError(value) { lastError = value; },
+    get refreshInFlight() { return refreshInFlight; }, set refreshInFlight(value) { refreshInFlight = value; },
+    get validationInFlight() { return validationInFlight; }, set validationInFlight(value) { validationInFlight = value; },
+    get validationAfter() { return validationAfter; }, set validationAfter(value) { validationAfter = value; },
+    get validatedSinceLoad() { return validatedSinceLoad; }, set validatedSinceLoad(value) { validatedSinceLoad = value; },
+  };
+  const { refreshAuthorization, validateAuthorization, withAuthorization } = require('./twitch-authorization')(authState, { api, now, text, persist, credentials, syncMonitor, runBackground, reconcileManagedRewards, refreshRoleDirectory, monitorStop: () => monitor?.stop?.(), onScopesChanged: () => recovery.invalidate(), onAuthorizationLost: () => recovery.revoke({ type: "channel.channel_points_custom_reward_redemption.add", version: "1", reason: "authorization_revoked" }) });
+  const { settle, reviewTransactions, reconcileTransaction, receiveRedemption } = require('./twitch-transactions')({ journal, getProfile: () => profile, withAuthorization, api, onRedemption: options.onRedemption, now });
   async function inspectReward(input) {
     return withAuthorization(current => api.inspectReward({ ...input, credentials: current }), ["channel:manage:redemptions"]);
   }
   async function listRewards(input = {}) {
     const cached = input.force !== true && rewardCatalogAfter > now()
-      ? { ok: true, rewards: rewardCatalog.map(row => ({ ...row })), events: alertCatalog(), cached: true }
+      ? { ok: true, rewards: rewardCatalog.map(row => ({ ...row })), events: [], cached: true }
       : null;
     return cached || rewardCatalogInFlight || (rewardCatalogInFlight = (async () => {
       const result = await withAuthorization(current => api.listRewards({ credentials: current }), ["channel:manage:redemptions"]);
@@ -412,13 +310,19 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
         const purposes = new Map(Object.values(profile.managedRewards || {}).map(row => [row.rewardId, row.purpose]));
         rewardCatalog = result.rewards.slice(0, 50).map(row => ({ ...row, managedPurpose: purposes.get(row.id) || "" }));
         rewardCatalogAfter = now() + REWARD_CATALOG_TTL_MS;
-        return { ok: true, rewards: rewardCatalog.map(row => ({ ...row })), events: alertCatalog(), cached: false };
+        return { ok: true, rewards: rewardCatalog.map(row => ({ ...row })), events: [], cached: false };
       })() : result;
     })().finally(() => { rewardCatalogInFlight = null; }));
   }
   async function createReward(input = {}) {
     const purpose = text(input.purpose, 40).toLowerCase();
     if (!REWARD_PURPOSES.has(purpose)) return { ok: false, error: "twitch_reward_purpose_invalid" };
+    if (rewardCreationInFlight.has(purpose)) return { ok: false, error: "twitch_reward_creation_in_progress", retryable: false };
+    rewardCreationInFlight.add(purpose);
+    try { return await createManagedReward(input, purpose); }
+    finally { rewardCreationInFlight.delete(purpose); }
+  }
+  async function createManagedReward(input, purpose) {
     const existing = profile.managedRewards?.[purpose];
     if (existing) {
       const inspected = await withAuthorization(current => api.inspectReward({ rewardId: existing.rewardId, credentials: current }), ["channel:manage:redemptions"]);
@@ -438,8 +342,11 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     const purpose = text(input.purpose, 40).toLowerCase();
     const managed = profile.managedRewards?.[purpose];
     if (!REWARD_PURPOSES.has(purpose) || !managed?.rewardId) return { ok: false, error: "twitch_reward_not_managed", retryable: false };
+    const ownerId = profile.userId;
     const operation = rewardPauseChain.then(() => withAuthorization(
-      current => api.setRewardPaused({ rewardId: managed.rewardId, paused: input.paused === true, credentials: current }),
+      current => profile.userId !== ownerId || profile.managedRewards?.[purpose]?.rewardId !== managed.rewardId
+        ? { ok: false, error: "twitch_reward_changed", retryable: false }
+        : api.setRewardPaused({ rewardId: managed.rewardId, paused: input.paused === true, credentials: current }),
       ["channel:manage:redemptions"]
     ));
     rewardPauseChain = operation.catch(() => null);
@@ -500,7 +407,10 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
   }
   function suspendMonitor() { monitor?.stop?.(); }
   function refreshSubscriptions() { syncMonitor(true); }
-  async function shutdown() { session = null; monitor?.stop?.(); }
+  async function shutdown() { recovery.invalidate(); monitor?.stop?.(); }
+
+  function canSubscribe(type, version) { const known = ["channel.chat.message", "channel.channel_points_custom_reward_redemption.add"].includes(type); return known && subscriptionScopes(type).every(scope => profile.scopes.includes(scope)) && recovery.allowed(type, version); }
+  function canReceive(type, version) { return status().connected && canSubscribe(type, version); }
 
   load();
   monitor = (options.eventSubMonitorFactory || createTwitchEventSubMonitor)({
@@ -509,25 +419,17 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     getCredentials: credentials,
     onSessionActivity: () => { runBackground(validateAuthorization, "twitch_validate_failed"); },
     getSubscriptionConfig: () => ({
-      redemptions: profile.scopes.includes("channel:manage:redemptions"),
-      chat: profile.scopes.includes("user:read:chat"),
-      events: (automationEventsEnabled() ? TWITCH_ALERT_EVENTS : []).filter(row => !row.scope || profile.scopes.includes(row.scope)).map(row => ({
-        type: row.type,
-        version: row.version,
-        condition: row.condition === "follow"
-          ? { broadcaster_user_id: profile.userId, moderator_user_id: profile.userId }
-          : row.condition === "raid"
-            ? { to_broadcaster_user_id: profile.userId }
-            : { broadcaster_user_id: profile.userId }
-      }))
+      redemptions: canSubscribe("channel.channel_points_custom_reward_redemption.add", "1"),
+      chat: canSubscribe("channel.chat.message", "1"),
+      events: []
     }),
     createSubscription: input => withAuthorization(
       current => api.createEventSubSubscription({ ...input, credentials: current }),
       subscriptionScopes(input.type)
     ),
-    onRedemption: event => options.onRedemption?.(event, { ...profile.managedRewards }),
-    onEvent: (type, event) => options.onEvent?.(type, event),
-    onChat: event => options.onChat?.(event, { ...profile.monitorConfig })
+    onRevocation: row => recovery.revoke(row),
+    onRedemption: event => canReceive("channel.channel_points_custom_reward_redemption.add", "1") ? receiveRedemption(event) : undefined,
+    onChat: event => canReceive("channel.chat.message", "1") ? options.onChat?.(event, { ...profile.monitorConfig }) : undefined
   });
-  return Object.freeze({ status, ensureStatus, configure, configureMonitor, suspendMonitor, refreshSubscriptions, clearClientId, begin, poll, disconnect, inspectReward, listRewards, createReward, setManagedRewardPaused, observeRequesterRole, refreshRoleDirectory, resolveRequesterRole, settle, sendChat, shutdown });
+  return Object.freeze({ status, ensureStatus, configure, configureMonitor, suspendMonitor, refreshSubscriptions, clearClientId, begin, poll, disconnect, inspectReward, listRewards, createReward, setManagedRewardPaused, observeRequesterRole, refreshRoleDirectory, resolveRequesterRole, settle, reviewTransactions, reconcileTransaction, sendChat, shutdown });
 };

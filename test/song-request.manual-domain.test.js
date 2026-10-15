@@ -6,6 +6,55 @@ function request(id, requester = "viewer-1", candidate = {}) {
   return { requestId: id, requesterId: requester, query: `Track ${id}`, candidate };
 }
 
+test('timeouts remove all requests and active playback; persistent restriction pages retain names beyond recent requesters', () => {
+  let at = 1000;
+  const queue = createSongQueue({ now: () => at });
+  queue.submit({ ...request('current', 'bad-user', { provider: 'youtube', providerItemId: 'dQw4w9WgXcQ' }), requesterName: 'KnownName' });
+  queue.submit({ ...request('waiting', 'bad-user', { provider: 'youtube', providerItemId: 'M7lc1UVf-VE' }), requesterName: 'KnownName' });
+  queue.submit(request('other', 'other-user'));
+  queue.moderate({ action: 'playback_start' });
+  assert.ok(queue.pull({ driverId: 'fixture', providers: ['youtube'] }).action);
+  assert.ok(queue.playbackStatus().managed);
+  assert.equal(queue.moderate({ action: 'timeout', requesterName: 'KnownName', minutes: 30, removePending: false }).removed, 2);
+  assert.equal(queue.playbackStatus().managed, null);
+  assert.equal(queue.status().counts.queued, 1);
+  queue.moderate({ action: 'block', requesterName: 'KnownName' });
+  for (let i = 0; i < 32; i++) {
+    queue.submit({ ...request('more-' + i, 'user-' + i), requesterName: 'Person ' + i });
+    queue.moderate({ action: 'block', requesterId: 'user-' + i });
+  }
+  assert.equal(queue.status().moderation.recentRequesters.some(row => row.displayName === 'KnownName'), false);
+  const restored = createSongQueue({ now: () => at });
+  assert.equal(restored.importSnapshot(queue.exportSnapshot()).ok, true);
+  const first = restored.status({ moderationOnly: true, moderationLimit: 25 }).moderation;
+  assert.equal(first.restrictedRequesters.length, 25); assert.equal(first.restrictionsPage.hasMore, true);
+  assert.equal(restored.status({ moderationOnly: true, moderationOffset: 25 }).moderation.restrictedRequesters.length, 8);
+  const person = first.restrictedRequesters.find(row => row.displayName === 'KnownName');
+  assert.equal(person.blocked, true); assert.equal(person.timedOutUntil, at + 30 * 60000);
+  restored.moderate({ action: 'timeout', requesterKey: person.requesterKey, minutes: 5 });
+  assert.equal(restored.status({moderationOnly:true}).moderation.restrictedRequesters[0].timedOutUntil, at + 5 * 60000);
+  assert.equal(restored.moderate({ action: 'unblock', requesterName: 'KnownName' }).ok, true);
+  at += 300001;
+  assert.equal(restored.status({moderationOnly:true}).moderation.restrictionsPage.total, 32);
+  assert.equal(restored.status({moderationOnly:true}).moderation.restrictedRequesters.some(row => row.requesterKey === person.requesterKey), false);
+});
+
+test("separate playback drivers cannot share a lease and resumed playback announces only once", () => {
+  const queue = createSongQueue();
+  queue.submit({ ...request("lease", "viewer", { provider: "youtube", providerItemId: "dQw4w9WgXcQ" }), notifyChat: true });
+  queue.moderate({ action: "playback_start" });
+  const pulled = queue.pull({ driverId: "window-1", providers: ["youtube"] });
+  assert.ok(pulled.action);
+  assert.equal(queue.pull({ driverId: "window-2", providers: ["youtube"] }).code, "idle");
+  const ack = { driverId: "window-1", leaseId: pulled.action.leaseId, state: "started" };
+  assert.equal(queue.acknowledge({ ...ack, driverId: "window-2" }).code, "lease_stale");
+  assert.equal(queue.acknowledge(ack).notifyChat, true);
+  assert.equal(queue.acknowledge(ack).notifyChat, false);
+  assert.equal(queue.acknowledge({ ...ack, state: "failed" }).outcome, "playback_failed");
+  assert.equal(queue.status().counts.queued, 0);
+  assert.equal(queue.acknowledge(ack).code, "lease_stale");
+});
+
 test("manual queue enforces replay, duplicate, requester, duration, and queue limits", () => {
   let at = 1700000000000;
   const queue = createSongQueue({ now: () => at++ });
@@ -78,6 +127,52 @@ test("skipped and removed songs can be requested again while played songs remain
   const removed = queue.submit(request("remove-a", "viewer-3"));
   queue.moderate({ action: "remove", entryId: removed.entry.id });
   assert.equal(queue.submit(request("remove-b", "viewer-4", removed.entry.candidate)).ok, true);
+});
+
+test('YouTube and SoundCloud allow replay after another confirmed song, without waiting for history eviction', () => {
+  for (const provider of ['youtube', 'soundcloud']) {
+    const queue = createSongQueue({ now: () => 42 });
+    const a = { provider, providerItemId: provider === 'youtube' ? 'dQw4w9WgXcQ' : '1', title: 'First song' };
+    const b = { provider, providerItemId: provider === 'youtube' ? 'M7lc1UVf-VE' : '2', title: 'Other song' };
+    let serial = 0;
+    const submit = candidate => queue.submit(request('replay-' + (++serial), 'viewer', candidate));
+    const pull = () => queue.pull({driverId:'fixture',providers:[provider]}).action;
+    const ack = (action,state) => queue.acknowledge({driverId:'fixture',leaseId:action.leaseId,state});
+    assert.equal(submit(a).ok,true); queue.moderate({action:'playback_start'});
+    const first=pull();ack(first,'started');assert.equal(submit(a).reason,'item_duplicate');ack(first,'ended');
+    assert.equal(submit(a).reason,'item_duplicate','immediate back-to-back replay stays blocked');
+    assert.equal(submit(b).ok,true);const other=pull();
+    assert.equal(submit(a).reason,'item_duplicate','loading alone is not confirmed playback');
+    ack(other,'failed');assert.equal(submit(a).reason,'item_duplicate','a failed next track must not unlock replay');
+    assert.equal(submit(b).ok,true);const confirmed=pull();ack(confirmed,'started');
+    const restarted=createSongQueue({now:()=>42});restarted.importSnapshot(queue.exportSnapshot());
+    assert.equal(restarted.submit(request('restored-replay','viewer',a)).ok,true,'unlocked replay eligibility survives restart');
+    assert.equal(submit(a).ok,true,'a different confirmed song immediately unlocks the older track');
+    assert.equal(submit(a).reason,'item_duplicate','queued duplicates remain blocked');
+    assert.ok(queue.exportSnapshot().recent.some(row=>row.identity===provider+':'+a.providerItemId&&row.outcome==='played'),'history is preserved');
+  }
+});
+
+test('the active server-playlist track remains protected from duplicate requests', () => {
+  const queue=createSongQueue({now:()=>42});
+  const candidate={provider:'soundcloud',providerItemId:'123',title:'Playlist song'};
+  queue.importPlaylist([{id:'pl_fixture',candidate}]);queue.moderate({action:'playlist_play'});
+  const action=queue.pull({driverId:'fixture',providers:['soundcloud']}).action;
+  assert.equal(action.origin,'playlist');
+  assert.equal(queue.submit(request('loading-copy','viewer',candidate)).reason,'item_duplicate');
+  queue.acknowledge({driverId:'fixture',leaseId:action.leaseId,state:'started'});
+  assert.equal(queue.submit(request('playing-copy','viewer',candidate)).reason,'item_duplicate');
+});
+
+test('replay eligibility persists and old snapshots guard only the most recently completed track', () => {
+  const queue=createSongQueue({now:()=>42});
+  const first=queue.submit(request('a'));queue.settle({entryId:first.entry.id,outcome:'played'});
+  const snapshot=queue.exportSnapshot(), restored=createSongQueue({now:()=>42});restored.importSnapshot(snapshot);
+  assert.equal(restored.submit(request('again','viewer',first.entry.candidate)).reason,'item_duplicate');
+  delete snapshot.replayIdentity;
+  snapshot.recent.push({identity:'manual:other-song',outcome:'played',at:42});
+  restored.importSnapshot(snapshot);
+  assert.equal(restored.submit(request('after-other','viewer',first.entry.candidate)).ok,true);
 });
 
 test("server playlist yields to the FIFO request queue and resumes afterward", () => {
@@ -245,10 +340,16 @@ test("worst-case paged status remains below the declared IPC frame", () => {
     });
     assert.equal(result.ok, true);
   }
+  // Fill the independent restriction list without removing the large queue.
+  for (let index = 0; index < 250; index++) queue.moderate({ action: 'block', requesterId: `blocked-${index}`, requesterName: 'Name '.repeat(16) });
   const page = queue.status({ offset: 0, limit: 25 });
   assert.equal(page.queue.length, 25);
   assert.equal(page.page.hasMore, true);
   assert.ok(Buffer.byteLength(JSON.stringify(page)) < 65536);
+  const moderation = queue.status({ moderationOnly: true, moderationLimit: 25 });
+  assert.equal(moderation.queue.length, 0);
+  assert.equal(moderation.moderation.restrictedRequesters.length, 25);
+  assert.ok(Buffer.byteLength(JSON.stringify(moderation)) < 65536);
   assert.ok(Buffer.byteLength(JSON.stringify(queue.exportSnapshot())) < 2 * 1024 * 1024);
 });
 

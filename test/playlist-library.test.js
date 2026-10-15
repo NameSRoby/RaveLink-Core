@@ -43,20 +43,20 @@ test("playlist storage is paged and restores stable provider IDs", () => {
   assert.match(restored.active().tracks[0].candidate.sourceUrl, /^https:\/\/www\.youtube\.com\/watch\?v=/);
 });
 
-test("playlist library de-duplicates and caps imported tracks", () => {
+test("playlist library rejects oversized imports without silently truncating", () => {
   const library = createPlaylistLibrary();
   const collection = library.create({ name: "Bounded" }).collection;
   const rows = Array.from({ length: MAX_TRACKS + 10 }, (_, index) => track(index.toString(36).padStart(11, "0").slice(-11)));
   rows.push(rows[0]);
-  assert.equal(library.replace(collection.id, rows).collection.count, MAX_TRACKS);
+  assert.equal(library.replace(collection.id, rows).code, 'playlist_track_limit');
+  assert.equal(library.status().page.total, 0);
 });
 
-test("playlist library rejects non-YouTube tracks", () => {
+test("playlist library rejects unknown provider identities", () => {
   const library = createPlaylistLibrary({ now: () => 1000 });
   const collection = library.create({ name: "YouTube only" }).collection;
   const result = library.replace(collection.id, [{ provider: "other", providerItemId: "other:7", title: "Track", artists: ["Artist"] }], { provider: "other" });
-  assert.equal(result.collection.count, 0);
-  assert.deepEqual(result.tracks, []);
+  assert.equal(result.code, 'playlist_track_invalid');
 });
 
 test("the required chat archive is protected and its history policy is explicit", () => {

@@ -1,15 +1,18 @@
 const fs = require('node:fs');
 const { writeJsonFile } = require('../../shared/fs/json-file-store');
 const { DEFINITIONS } = require('../colors/color-descriptors');
-const DEFAULT = { version: 1, revision: 0, mode: 'assignments', parser: { allowFuzzy: true, allowDescriptors: true, defaultBrightness: 100 }, rules: [] };
+const DEFAULT_TEACHING = Object.freeze({ preview: true, chatSuccess: false, chatFailure: false });
+const DEFAULT = { version: 1, revision: 0, mode: 'assignments', parser: { allowFuzzy: true, allowDescriptors: true, defaultBrightness: 100 }, teaching: DEFAULT_TEACHING, rules: [] };
 const LIMITS = { rules: 32, membersPerRule: 64, bytes: 131072 };
 module.exports = function createRouting({ storePath, colorLibrary }) {
   let state = structuredClone(DEFAULT), invalid = false, recovered = false;
   function validate(value) {
     if (!value || value.version !== 1 || !Number.isSafeInteger(value.revision) || value.revision < 0 || !['legacy', 'assignments', 'off'].includes(value.mode)) return false;
-    if (!Object.keys(value).every(key => ['version', 'revision', 'mode', 'parser', 'rules'].includes(key))) return false;
+    if (!Object.keys(value).every(key => ['version', 'revision', 'mode', 'parser', 'teaching', 'rules'].includes(key))) return false;
     const p = value.parser;
     if (!p || !Object.keys(p).every(key => ['allowFuzzy', 'allowDescriptors', 'defaultBrightness'].includes(key)) || typeof p.allowFuzzy !== 'boolean' || typeof p.allowDescriptors !== 'boolean' || !Number.isInteger(p.defaultBrightness) || p.defaultBrightness < 1 || p.defaultBrightness > 100) return false;
+    const teaching = value.teaching;
+    if (teaching !== undefined && (!teaching || !Object.keys(teaching).every(key => ['preview', 'chatSuccess', 'chatFailure'].includes(key)) || ['preview', 'chatSuccess', 'chatFailure'].some(key => typeof teaching[key] !== 'boolean'))) return false;
     if (!Array.isArray(value.rules) || value.rules.length > LIMITS.rules) return false;
     const ids = new Set();
     return value.rules.every(row => {
@@ -24,14 +27,14 @@ module.exports = function createRouting({ storePath, colorLibrary }) {
       if (fs.statSync(file).size > LIMITS.bytes) throw new Error();
       const value = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (!validate(value)) throw new Error();
-      state = value; invalid = false; recovered = file !== storePath; break;
+      state = { ...value, teaching: { ...DEFAULT_TEACHING, ...(value.teaching || {}) } }; invalid = false; recovered = file !== storePath; break;
     } catch { invalid = true; }
   }
   function snapshot() { return { ok: !invalid, ...structuredClone(state), limits: LIMITS, ...(invalid ? { error: 'twitch_routing_storage_invalid' } : {}) }; }
   function save(input = {}) {
     if (invalid) return { ok: false, error: 'twitch_routing_storage_invalid' };
     if (input.revision !== state.revision) return { ok: false, error: 'twitch_routing_conflict' };
-    const next = { version: 1, revision: state.revision + 1, mode: input.mode, parser: input.parser, rules: input.rules };
+    const next = { version: 1, revision: state.revision + 1, mode: input.mode, parser: input.parser, teaching: { ...DEFAULT_TEACHING, ...(input.teaching || {}) }, rules: input.rules };
     if (!validate(next)) return { ok: false, error: 'invalid_twitch_routing' };
     const owned = next.rules.flatMap(row => row.fixtureIds);
     if (new Set(owned).size !== owned.length) return { ok: false, error: 'fixture_has_multiple_twitch_owners' };

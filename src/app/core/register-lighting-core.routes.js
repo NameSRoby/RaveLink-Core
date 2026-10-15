@@ -2,6 +2,7 @@
 // [TITLE] Purpose: minimal HTTP surface for the independent lighting core
 
 const crypto = require("node:crypto");
+const registerClientApiRoutes = require('./register-client-api.routes');
 
 function publicFixture(fixture = {}) {
   const storedRange = fixture.extras?.colorTemperatureMired;
@@ -142,7 +143,9 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
     return { ...payload, revision };
   }
 
-  app.get("/health", (req, res) => res.json({ ok: true, version: coreUpdates?.status?.().currentVersion || "unknown", profile, capabilities: capabilitySnapshot() }));
+  const healthSnapshot = () => ({ ok: true, version: coreUpdates?.status?.().currentVersion || "unknown", profile, capabilities: capabilitySnapshot() });
+  registerClientApiRoutes(app, { getHealth: healthSnapshot });
+  app.get("/health", (req, res) => res.json(healthSnapshot()));
   app.get("/system/update/status", (req, res) => {
     if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "local_request_required" });
     res.setHeader("Cache-Control", "no-store");
@@ -215,7 +218,7 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
     res.json({ ok: true, colors: core.colorLibrary.getColorMapSnapshot() });
   });
   app.post("/teach", (req, res) => {
-    const result = core.colorLibrary.teachColor(req.body?.name, req.body?.hex);
+    const result = core.colorLibrary.teachColor(req.body?.text || req.body?.userInput || [req.body?.name, req.body?.hex].filter(Boolean).join(" "));
     res.status(result.ok === false ? 400 : 200).json(result);
   });
   app.post("/color", async (req, res, next) => {

@@ -60,7 +60,6 @@ module.exports = function createProcessSupervisor(options = {}) {
   const apiMajor = boundedInt(options.apiMajor, 1, 99, 1);
   const modRoot = path.resolve(String(options.modRoot || ""));
   const storageRoot = path.resolve(String(options.storageRoot || path.join(modRoot, ".data")));
-  const runtimeAssetsRoot = options.runtimeAssetsRoot ? path.resolve(String(options.runtimeAssetsRoot)) : "";
   const platformRoot = path.resolve(String(options.platformRoot || path.join(__dirname, "..")));
   const bootstrapPath = path.resolve(String(options.bootstrapPath || path.join(__dirname, "..", "runtime", "worker-bootstrap.js")));
   const startupTimeoutMs = boundedInt(options.startupTimeoutMs, 100, 30000, DEFAULT_STARTUP_TIMEOUT_MS);
@@ -240,6 +239,17 @@ module.exports = function createProcessSupervisor(options = {}) {
       maxDeadlineMs: 60000
     });
     if (!validation.ok) {
+      // A valid request may expire in transit while the host is busy. Reject it
+      // without invoking its provider or treating scheduler delay as misconduct.
+      if (validation.errors.length === 1 && validation.errors[0].code === 'invalid_deadline') {
+        const expired = JSON.parse(frame);
+        if (expired.type === 'request' && expired.deadlineAt <= Number(now())) {
+          state.providerTimeouts += 1;
+          sendEnvelope({ protocolVersion: 1, type: 'response', sentAt: Number(now()), replyTo: expired.id, ok: false,
+            error: { code: 'broker_timeout', message: 'Capability request expired before dispatch', retryable: true } });
+          return;
+        }
+      }
       recordProtocolViolation(validation.errors[0]?.code || "invalid_envelope");
       return;
     }
@@ -384,7 +394,6 @@ module.exports = function createProcessSupervisor(options = {}) {
       modRoot: paths.root,
       storageRoot,
       platformRoot,
-      runtimeAssetsRoot,
       allowUnsafeRuntime: permissionOptions.allowUnsafeRuntime,
       support: permissionOptions.support
     });
@@ -401,8 +410,7 @@ module.exports = function createProcessSupervisor(options = {}) {
       entryPath: paths.entry,
       provides: manifest.provides,
       consumes: manifest.consumes,
-      maxFrameBytes: manifest.resources.ipcFrameBytes,
-      runtimeAssetsRoot
+      maxFrameBytes: manifest.resources.ipcFrameBytes
     }), "utf8").toString("base64url");
     expectedStop = false;
     handshakeAuthorized = false;

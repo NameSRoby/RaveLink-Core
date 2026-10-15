@@ -1,4 +1,5 @@
 const { createSongQueue } = require("./domain");
+const {createOverlayProfileStorage}=require('./overlay-profile-storage');
 const { createPlaylistService } = require("./playlist-service");
 
 const { composeChatResponse } = require("./chat-responses");
@@ -6,21 +7,21 @@ const { composeChatResponse } = require("./chat-responses");
 const OPTIONAL = Object.freeze({
   chat: ["twitch.chat.send.v1", "send"],
   widget: ["widget.state.v1", "publish"],
-  settlement: ["twitch.redemptions.v1", "settle"],
   rewardPause: ["twitch.rewards.manage.v1", "set-paused"],
   diagnostics: ["diagnostics.publish.v1", "record"]
 });
 
 let context;
 let queue;
-let playlists;
+let experimentalTidal;
+let playlists,profileStorage,flushing,playerPreferences,soundcloud;
 let persistTimer;
 let dirty = false;
 let persistenceBackoffMs = 1000;
 let shuttingDown = false;
 const pending = new Set();
 const MAX_OPTIONAL_IN_FLIGHT = 8;
-const OPTIONAL_TIMEOUT_MS = Object.freeze({ chat: 8000, settlement: 8000, rewardPause: 4000, widget: 750, diagnostics: 750 });
+const OPTIONAL_TIMEOUT_MS = Object.freeze({ chat: 8000, rewardPause: 4000, widget: 750, diagnostics: 750 });
 let persistedPlaylistPageCount = 0;
 const optionalStatus = Object.fromEntries(Object.keys(OPTIONAL).map(name => [name, { attempted: 0, succeeded: 0, failed: 0, lastError: "" }]));
 
@@ -44,26 +45,40 @@ function optionalCall(name, payload, timeoutMs = OPTIONAL_TIMEOUT_MS[name] || 75
       status.succeeded += 1;
       status.lastError = "";
     }
+    if (name === "rewardPause") publishIntegrationStatus();
     return result;
   }, error => {
     status.failed += 1;
     status.lastError = String(error?.code || error?.message || "capability_failed").slice(0, 80);
+    if (name === "rewardPause") publishIntegrationStatus();
     return null;
   }));
 }
 
-async function flush() {
+function publishIntegrationStatus() {
+  if (shuttingDown || !queue) return;
+  const state = queue.status();
+  try { context.publishEvent("song.queue.events.v1", "changed", { reason: "reward_sync", counts: state.counts, paused: state.paused }); } catch {}
+}
+
+async function flush(){
+  while(flushing)await flushing;
+  if(!dirty||!context)return;
+  flushing=flushSnapshot();try{await flushing}finally{flushing=null}
+}
+async function flushSnapshot() {
   if (!dirty || !context) return;
   dirty = false;
   try {
     await playlists.persist();
-    const snapshot = queue.exportSnapshot({ includePlaylist: false });
+    const snapshot = await profileStorage.prepare(queue.exportSnapshot({ includePlaylist: false }));
     snapshot.playlistPageCount = 0;
     const saved = await context.callCapability("ravelink.storage.v1", "set", {
       key: "queue-state-v1",
       value: snapshot
     }, { timeoutMs: 1000 });
     if (saved?.ok === false) throw new Error(saved.error || "queue_persistence_failed");
+    await profileStorage.committed(snapshot);
     for (let index = 0; index < persistedPlaylistPageCount; index += 1) {
       await context.callCapability("ravelink.storage.v1", "remove", {
         key: `playlist-page-${String(index).padStart(6, "0")}`
@@ -108,16 +123,26 @@ function publishOverlay(result) {
 
 async function activate(nextContext) {
   context = nextContext;
+  playerPreferences = require('./player-preferences')(context);
   shuttingDown = false;
   persistenceBackoffMs = 1000;
   persistedPlaylistPageCount = 0;
   for (const status of Object.values(optionalStatus)) Object.assign(status, { attempted: 0, succeeded: 0, failed: 0, lastError: "" });
-  queue = createSongQueue({ requestProviders: ["youtube"] });
+  profileStorage=createOverlayProfileStorage(context);
+  queue = createSongQueue({ requestProviders: ["youtube", "tidal", "soundcloud"], playlistProviders: ["youtube"] });
+  experimentalTidal = require('./experimental-tidal')({ queue, context, changed: result => {
+    if (result.code === 'tidal_native_queue_changed') {
+      const state = queue.status();
+      try { context.publishEvent('song.queue.events.v1', 'changed', { reason: result.code, counts: state.counts, paused: state.paused }); } catch {}
+      return;
+    }
+    schedulePersistence(); publishChange(result, { method: 'experimental' }); publishPlayback(result);
+  } });
   playlists = createPlaylistService({ context, queue, schedulePersistence, publishChange });
   try {
     const stored = await context.callCapability("ravelink.storage.v1", "get", { key: "queue-state-v1" }, { timeoutMs: 1000 });
     if (stored?.ok && stored.found) {
-      const restored = queue.importSnapshot(stored.value);
+      const restored = queue.importSnapshot(await profileStorage.restore(stored.value));
       if (!restored.ok) optionalCall("diagnostics", { owner: "song-request", event: "snapshot_rejected", ok: false });
       const pageCount = Number.isInteger(stored.value?.playlistPageCount) && stored.value.playlistPageCount >= 0
         ? Math.min(stored.value.playlistPageCount, 100000)
@@ -139,8 +164,9 @@ async function activate(nextContext) {
     }
   } catch {}
   await playlists.activate();
+  soundcloud = require("./soundcloud-player")({ queue, playlists, context, changed: result => { schedulePersistence(); publishChange(result, { method: "soundcloud" }); publishPlayback(result); } });
   const source = queue.playbackStatus().playbackSource;
-  if (source !== "youtube") {
+  if (!["youtube", "soundcloud"].includes(source)) {
     try {
       await context.callCapability("media.windows.now-playing.v1", "control", { action: "select", provider: source }, { timeoutMs: 1000 });
       await context.callCapability("media.windows.now-playing.v1", "control", { action: "start" }, { timeoutMs: 1000 });
@@ -149,6 +175,10 @@ async function activate(nextContext) {
 }
 
 async function handleRequest(request) {
+  if (request.capability === "song.soundcloud.player.v1") return soundcloud(request.method, request.payload || {});
+  if (request.capability === 'song.player.preferences.v1') return playerPreferences(request.method, request.payload);
+  if (request.capability === 'song.playlist.transfer.v1') return playlists.transfer(request.payload || {});
+  if (request.capability === 'song.tidal.experimental.v1') return experimentalTidal(request.method, request.payload || {});
   const allowed = {
     "song.queue.read.v1": ["status"],
     "song.queue.submit.v1": ["submit", "undo", "self"],
@@ -157,14 +187,25 @@ async function handleRequest(request) {
     "song.playback.driver.v1": ["pull", "acknowledge"],
     "song.playback.observe.v1": ["observe"],
     "song.observer.admin.v1": ["status", "control"],
-    "song.overlay.read.v1": ["status"],
-    "song.overlay.admin.v1": ["configure"],
+    "song.overlay.read.v1": ["status", "preset"],
+    "song.overlay.admin.v1": ["configure", "profile"],
     "song.catalog.read.v1": ["status"],
     "song.catalog.admin.v1": ["configure", "clear"],
     "song.playlist.read.v1": ["status"],
     "song.playlist.admin.v1": ["mutate"]
   };
   if (!allowed[request.capability]?.includes(request.method)) throw new Error("method_unavailable");
+  if (request.capability === 'song.queue.admin.v1' && request.method === 'moderate'
+    && (['block', 'timeout'].includes(request.payload?.action) || request.payload?.provider === 'tidal'
+      && ['remove', 'skip', 'block_song', 'timeout_song', 'untimeout_song', 'unblock_song', 'unblock', 'untimeout'].includes(request.payload?.action))) {
+    const result = await experimentalTidal('moderate', request.payload);
+    if (result.ok) {
+      playlists.capture(request, result);
+      const chat = composeChatResponse(request, result, queue.status());
+      if (chat) optionalCall('chat', { message: chat.message, ...(chat.replyParentMessageId ? { replyParentMessageId: chat.replyParentMessageId } : {}) });
+    }
+    return result;
+  }
   if (request.capability === "song.queue.read.v1") {
     return { ...queue.status(request.payload || {}), integrations: Object.fromEntries(Object.entries(optionalStatus).map(([name, value]) => [name, { ...value }])) };
   }
@@ -192,25 +233,31 @@ async function handleRequest(request) {
     return { ...provider, policy: queue.status().catalogPolicy };
   }
   if (request.capability === "song.playback.read.v1") return queue.playbackStatus();
-  if (request.capability === "song.overlay.read.v1") return queue.overlayStatus();
+  if (request.capability === "song.overlay.read.v1") {
+    if(request.method==='preset'){const config=require('./overlay-presets').get(request.payload?.id);return config?{ok:true,config}:{ok:false,code:'overlay_preset_not_found'};}
+    return queue.overlayStatus();
+  }
   if (request.capability === "song.observer.admin.v1") {
     const action = request.method === "status" ? "status" : String(request.payload?.action || "");
+    const localSource = source => ['youtube', 'soundcloud'].includes(source);
+    const localStatus = source => ({ ok: true, supported: true, lifecycle: 'local', playbackSource: source, selectedProvider: source });
     if (action === "select") {
       const selected = queue.configurePlaybackSource({ source: request.payload?.source });
       if (!selected.ok) return { ok: false, supported: true, lifecycle: "stopped", playbackSource: selected.playbackSource, error: selected.code };
       let observer;
       try {
-        observer = selected.playbackSource === "youtube"
+        observer = localSource(selected.playbackSource)
           ? await context.callCapability("media.windows.now-playing.v1", "control", { action: "stop" }, { timeoutMs: 2000 })
           : await context.callCapability("media.windows.now-playing.v1", "control", { action: "select", provider: selected.playbackSource }, { timeoutMs: 2000 });
-        if (selected.playbackSource !== "youtube") observer = await context.callCapability("media.windows.now-playing.v1", "control", { action: "start" }, { timeoutMs: 1000 });
+        if (!localSource(selected.playbackSource)) observer = await context.callCapability("media.windows.now-playing.v1", "control", { action: "start" }, { timeoutMs: 1000 });
       } catch {
         observer = { ok: false, supported: false, lifecycle: "unavailable", error: "windows_media_observer_unavailable" };
       }
       schedulePersistence();
       publishPlayback(selected);
-      return { ...observer, playbackSource: selected.playbackSource };
+      return localSource(selected.playbackSource) ? localStatus(selected.playbackSource) : { ...observer, playbackSource: selected.playbackSource };
     }
+    if (localSource(queue.playbackStatus().playbackSource) && ['status', 'start', 'stop'].includes(action)) return localStatus(queue.playbackStatus().playbackSource);
     try {
       const observer = await context.callCapability("media.windows.now-playing.v1", "control", { action }, { timeoutMs: action === "stop" ? 2000 : 1000 });
       return { ...observer, playbackSource: queue.playbackStatus().playbackSource };
@@ -219,7 +266,12 @@ async function handleRequest(request) {
     }
   }
   let effectiveRequest = request;
-  if (request.capability === "song.queue.submit.v1" && request.method === "submit"
+  const soundcloudInput = request.capability === "song.queue.submit.v1" && request.method === "submit" && (await playerPreferences("status", null)).player === "soundcloud";
+  if (soundcloudInput) { const found = await soundcloud.resolveQuery(request.payload?.query); effectiveRequest = { ...request, payload: { ...request.payload, candidate: found.ok ? found.candidate : undefined, catalogFailure: found.ok ? undefined : found.reason || "soundcloud_search_unavailable" } }; }
+  if (!soundcloudInput && request.capability === 'song.queue.submit.v1' && request.method === 'submit' && request.payload?.candidate && request.payload.candidate.provider !== 'youtube') {
+    return { ok: false, code: 'rejected', reason: 'youtube_reference_required' };
+  }
+  if (!soundcloudInput && request.capability === "song.queue.submit.v1" && request.method === "submit"
     && (!request.payload?.candidate || request.payload.candidate.provider === "youtube")) {
     const payload = request.payload || {};
     const videoId = /^[A-Za-z0-9_-]{11}$/.test(String(payload.candidate?.providerItemId || "")) ? payload.candidate.providerItemId : "";
@@ -246,15 +298,16 @@ async function handleRequest(request) {
       if (!directFallback) effectiveRequest = { ...request, payload: { ...payload, candidate: undefined, catalogFailure: reason } };
     }
   }
+  if(request.capability==='song.queue.admin.v1'&&request.method==='moderate'&&request.payload?.action==='playback_start'&&request.payload.source==='youtube')queue.configurePlaybackSource({source:'youtube'});
   const handler = request.capability === "song.overlay.admin.v1"
-    ? queue.configureOverlay
+    ? request.method === 'profile' ? queue.overlayProfile : queue.configureOverlay
     : request.method === "self" ? queue.selfManage : queue[request.method];
   const result = handler(effectiveRequest.payload);
   if (request.capability === "song.queue.admin.v1" && request.method === "moderate" && result.ok && ["pause", "resume"].includes(request.payload?.action)) {
     optionalCall("rewardPause", { purpose: "song_request", paused: result.paused === true });
   }
   if (request.capability.startsWith("song.overlay.")) {
-    if (result.ok) { schedulePersistence(); publishOverlay(result); }
+    if (result.ok && request.payload?.action !== 'load') { schedulePersistence(); publishOverlay(result); }
     return result;
   }
   if (request.capability.startsWith("song.playback.")) {
@@ -272,13 +325,14 @@ async function handleRequest(request) {
     schedulePersistence();
     publishChange(result, effectiveRequest);
     if (request.method === "settle" || request.method === "self" || request.method === "moderate") publishPlayback(result);
-    if (request.method === "settle" && result.ok) optionalCall("settlement", { entryId: result.entryId, outcome: result.outcome });
   }
   return result;
 }
 
 async function deactivate() {
   shuttingDown = true;
+  experimentalTidal?.stop();
+  playlists?.stop();
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = null;
   await flush();

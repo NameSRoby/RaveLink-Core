@@ -1,0 +1,14 @@
+const { DEFAULT_OVERLAY, overlayFrom } = require('./overlay-config');
+const section=(id,kinds,extra={})=>({id,enabled:true,direction:'column',align:'left',size:'wide',...extra,blocks:kinds.map(kind=>({id:id+'-'+kind,kind,...(kind==='queue'?{count:3}:{})}))});
+const entries=[
+ ['classic','Classic','The original compact now-playing card.',{}],
+ ['album-card','Album card','A frosted album sleeve with a generous cover and quiet typography.',{skin:'glass',width:540,radius:22,padding:18,gap:18,accentWidth:0,opacity:65,artworkSize:120,flow:'row',segments:[section('cover',['artwork'],{size:'compact'}),section('track',['label','title','artists','progress','meta'])]}],
+ ['ribbon','Stream ribbon','A capsule player with a cover, track and separate timing.',{skin:'glass',width:860,flow:'row',radius:40,padding:14,gap:16,accentWidth:0,artworkSize:68,segments:[section('cover',['artwork'],{size:'compact'}),section('track',['label','title','artists']),section('timing',['meta','progress'],{size:'compact'})]}],
+ ['minimal','Minimal','An understated type-led overlay with a fine progress line.',{skin:'minimal',width:440,font:'mono',titleMode:'ellipsis',opacity:0,accentWidth:0,shadow:35,segments:[section('track',['label','title','artists','progress'])]}],
+ ['broadcast','Broadcast','A bold broadcast lower-third with a full-width accent band.',{skin:'broadcast',width:720,anchor:'bottom-center',accentPosition:'top',accentWidth:0,padding:24,radius:0,blockGap:8,segments:[section('track',['label','title','artists','progress','meta'],{align:'center'})]}],
+ ['split-panels','Split panels','Two balanced cards with a quiet playback display.',{skin:'duo',width:640,flow:'grid',separated:true,radius:12,padding:20,gap:12,accentWidth:0,opacity:88,segments:[section('track',['label','title','artists']),section('timing',['provider','time','progress'],{size:'wide'})]}],
+ ['spotlight','Vinyl spotlight','A record sleeve with circular artwork and centered track details.',{skin:'vinyl',width:360,artworkSize:164,radius:24,padding:24,accentWidth:0,blockGap:7,segments:[section('cover',['artwork'],{align:'center'}),section('track',['label','title','artists','progress','meta'],{align:'center'})]}],
+ ['two-column','Track and queue','An editorial track card with a quieter playback rail and queue footer.',{skin:'editorial',width:680,flow:'grid',separated:true,radius:0,padding:18,gap:8,accentWidth:0,blockGap:7,segments:[section('track',['label','title','artists']),section('timing',['provider','time','progress']),section('next',['queue'],{size:'full'})]}]
+];
+const presets=entries.map(([id,name,description,extra])=>({id,name,description,config:overlayFrom({...DEFAULT_OVERLAY,...extra,preset:id})}));
+module.exports={list:()=>presets.map(({id,name,description})=>({id,name,description})),get:id=>presets.find(p=>p.id===id)?.config};

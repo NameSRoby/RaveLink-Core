@@ -51,6 +51,18 @@ test("redemption settlement uses Twitch's explicit fulfilled/canceled states", a
   assert.equal((await api.settleRedemption({ credentials, status: "unknown" })).error, "twitch_settlement_invalid");
 });
 
+test('redemption inspection validates the exact broadcaster, reward and redemption before reconciliation', async () => {
+  const calls = [];
+  const row = { id: 'redeem', broadcaster_id: 'streamer', reward: { id: 'reward' }, status: 'UNFULFILLED' };
+  const api = createTwitchApiClient({ fetch: async (url, init) => { calls.push({ url, init }); return response(200, { data: [row] }); } });
+  const input = { broadcasterId: 'streamer', rewardId: 'reward', redemptionId: 'redeem', credentials: { userId: 'streamer', accessToken: 'token', clientId: 'client' } };
+  assert.deepEqual(await api.inspectRedemption(input), { ok: true, status: 'UNFULFILLED' });
+  assert.equal(calls[0].init.method, undefined);
+  assert.equal(new URL(calls[0].url).searchParams.get('id'), 'redeem');
+  row.broadcaster_id = 'other';
+  assert.equal((await api.inspectRedemption(input)).error, 'twitch_redemption_not_found');
+});
+
 test("reward inspection distinguishes visible rewards from rewards manageable by this Client ID", async () => {
   const calls = [];
   const api = createTwitchApiClient({ fetch: async (url, init) => {

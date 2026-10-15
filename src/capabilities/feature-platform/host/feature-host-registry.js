@@ -230,7 +230,6 @@ module.exports = function createFeatureHostRegistry(options = {}) {
         manifest: row.manifest,
         modRoot: row.rootPath,
         storageRoot: path.join(runtimeRoot, "data", row.id),
-        runtimeAssetsRoot: row.id === "tts-engine-local" ? path.join(runtimeRoot, "tts-payloads") : "",
         allowUnsafeRuntime: options.allowUnsafeRuntime === true,
         onBrokerRequest: (capability, method, payload, callOptions) => callProvider(row.manifest, capability, method, payload, callOptions),
         onBrokerEvent: (capability, event, payload) => publishFeatureEvent(row, capability, event, payload),

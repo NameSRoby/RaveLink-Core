@@ -28,6 +28,7 @@ function createTwitchEventSubMonitor(options = {}) {
   let subscriptions = [];
   let inFlight = 0;
   const seen = new Map();
+  const revoked = new Map();
   const counters = { connections: 0, reconnects: 0, notifications: 0, duplicates: 0, dropped: 0, handlerFailures: 0, redemptions: 0, chatMessages: 0 };
 
   function clearTimer() { if (timer) clearTimeout(timer); timer = null; }
@@ -54,7 +55,7 @@ function createTwitchEventSubMonitor(options = {}) {
     return {
       enabled: desired,
       lifecycle,
-      connected: lifecycle === "connected",
+      connected: lifecycle === "connected" || lifecycle === "degraded",
       subscriptions: [...subscriptions],
       lastError,
       lastMessageAt,
@@ -81,6 +82,14 @@ function createTwitchEventSubMonitor(options = {}) {
     timer = setTimeout(() => { timer = null; if (desired && myGeneration === generation) connect(EVENTSUB_URL, myGeneration); }, delay);
     timer.unref?.();
   }
+  function revokeSubscription(row) {
+    if (revoked.size >= 16) revoked.delete(revoked.keys().next().value);
+    revoked.set(`${row.type}:${row.version}`, row);
+    subscriptions = subscriptions.filter(value => value !== row.type);
+    lifecycle = 'degraded'; lastError = 'twitch_eventsub_subscription_revoked';
+    try { options.onRevocation?.(row); } catch { stop(); }
+    if (['authorization_revoked', 'user_removed'].includes(row.reason)) stop();
+  }
   async function subscribeAll(id, myGeneration) {
     const credentials = getCredentials?.() || {};
     const config = getSubscriptionConfig?.() || { redemptions: true, chat: true };
@@ -96,16 +105,26 @@ function createTwitchEventSubMonitor(options = {}) {
     const active = [];
     for (const definition of definitions) {
       if (!desired || myGeneration !== generation) return;
+      if (revoked.has(`${definition.type}:${definition.version}`)) continue;
       const result = await createSubscription?.({ ...definition, sessionId: id });
+      if (!desired || myGeneration !== generation) return;
+      if (revoked.has(`${definition.type}:${definition.version}`)) continue;
+      if (!result?.ok && ([400, 401, 403, 404, 410].includes(result?.status) || result?.error === 'twitch_scope_missing')) {
+        revokeSubscription({ type: definition.type, version: definition.version, reason: result.status === 401 ? 'authorization_revoked' : 'unknown' });
+        if (!desired || myGeneration !== generation) return;
+        continue;
+      }
       if (!result?.ok) throw new Error(result?.error || "twitch_eventsub_subscription_failed");
-      active.push(definition.type);
+      active.push(definition);
+      subscriptions = active.filter(row => !revoked.has(`${row.type}:${row.version}`)).map(row => row.type);
     }
-    subscriptions = active;
-    lifecycle = "connected";
+    subscriptions = active.filter(row => !revoked.has(`${row.type}:${row.version}`)).map(row => row.type);
+    lifecycle = revoked.size ? "degraded" : "connected";
     reconnectAttempts = 0;
-    lastError = "";
+    lastError = revoked.size ? "twitch_eventsub_subscription_revoked" : "";
   }
   function dispatch(type, event, metadata) {
+    if (!desired || !subscriptions.includes(type)) { counters.dropped += 1; return; }
     if (inFlight >= MAX_IN_FLIGHT) { counters.dropped += 1; return; }
     inFlight += 1;
     counters.notifications += 1;
@@ -131,10 +150,10 @@ function createTwitchEventSubMonitor(options = {}) {
     candidate.onmessage = async message => {
       if (myGeneration !== generation || (candidate !== socket && candidate !== pendingSocket)) return;
       lastMessageAt = now();
-      try { onSessionActivity(); } catch {}
       let payload;
       try { payload = JSON.parse(String(message.data || "")); } catch { return; }
       const metadata = payload?.metadata || {};
+      if (metadata.message_type !== "revocation") { try { onSessionActivity(); } catch {} }
       if (remember(metadata.message_id)) { counters.duplicates += 1; return; }
       if (metadata.message_type === "session_welcome") {
         const session = payload?.payload?.session || {};
@@ -146,13 +165,13 @@ function createTwitchEventSubMonitor(options = {}) {
           const previous = socket;
           socket = candidate;
           pendingSocket = null;
-          lifecycle = "connected";
+          lifecycle = revoked.size ? "degraded" : "connected";
           reconnectAttempts = 0;
-          lastError = "";
+          lastError = revoked.size ? "twitch_eventsub_subscription_revoked" : "";
           try { previous?.close(); } catch {}
           return;
         }
-        try { await subscribeAll(sessionId, myGeneration); } catch (error) { lastError = String(error?.message || "twitch_eventsub_subscription_failed").slice(0, 120); try { candidate.close(); } catch {} }
+        try { await subscribeAll(sessionId, myGeneration); } catch (error) { if (!desired || myGeneration !== generation) return; lastError = String(error?.message || "twitch_eventsub_subscription_failed").slice(0, 120); try { candidate.close(); } catch {} }
         return;
       }
       if (candidate !== socket) return;
@@ -162,7 +181,14 @@ function createTwitchEventSubMonitor(options = {}) {
         if (reconnectUrl && !pendingSocket) { counters.reconnects += 1; connect(reconnectUrl, myGeneration, true); }
         return;
       }
-      if (metadata.message_type === "revocation") { lastError = "twitch_eventsub_subscription_revoked"; return; }
+      if (metadata.message_type === "revocation") {
+        const input = payload?.payload?.subscription || {};
+        const type = String(input.type || '').slice(0, 100), version = String(input.version || '');
+        if (!/^\d{1,3}$/.test(version)) return;
+        const row = { type, version, reason: ['authorization_revoked', 'user_removed', 'version_removed'].includes(input.status) ? input.status : 'unknown' };
+        revokeSubscription(row);
+        return;
+      }
       if (metadata.message_type === "notification") dispatch(payload?.payload?.subscription?.type, payload?.payload?.event || {}, metadata);
     };
     candidate.onerror = () => { lastError = "twitch_eventsub_socket_error"; };
@@ -203,7 +229,7 @@ function createTwitchEventSubMonitor(options = {}) {
     return start();
   }
 
-  return Object.freeze({ restart, start, stop, status: snapshot });
+  return Object.freeze({ restart, start, stop, clearRevocations: () => revoked.clear(), status: snapshot });
 }
 
 module.exports = createTwitchEventSubMonitor;

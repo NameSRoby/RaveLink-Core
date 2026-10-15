@@ -18,7 +18,7 @@ test("Song Request is a verified first-party feature package, not a mod", async 
     "song.queue.read.v1", "song.queue.submit.v1", "song.queue.admin.v1", "song.queue.events.v1",
     "song.playback.read.v1", "song.playback.driver.v1", "song.playback.observe.v1", "song.playback.events.v1", "song.observer.admin.v1",
     "song.overlay.read.v1", "song.overlay.admin.v1", "song.overlay.events.v1",
-    "song.catalog.read.v1", "song.catalog.admin.v1"
+    "song.catalog.read.v1", "song.catalog.admin.v1", "song.tidal.experimental.v1", "song.playlist.transfer.v1", "song.player.preferences.v1", "song.soundcloud.player.v1"
   ]);
   assert.deepEqual(verified.manifest.contributes.pages.map(page => [page.id, page.surface]), [["player", "panel"], ["request-queue", "panel"], ["server-playlist", "panel"], ["now-playing", "panel"], ["obs-overlay", "overlay"], ["overlay-editor", "panel"]]);
   assert.equal(fs.existsSync(path.join(root, "ravelink.mod.json")), false);
@@ -61,10 +61,10 @@ test("player exposes only embedded YouTube playback and useful playback errors",
 
 test("overlay refreshes playback clocks without rebuilding the marquee", () => {
   const html = fs.readFileSync(path.join(root, "ui", "obs-overlay.html"), "utf8");
-  assert.match(html, /function syncPlaybackData\(current\)/);
-  assert.match(html, /else syncPlaybackData\(current\);lastRenderedPlayback=current/);
+  assert.match(html, /SongOverlayRenderer.clockData/);
+  assert.match(html, /SongOverlayRenderer.update/);
   assert.match(html, /Yu Gothic UI/);
-  assert.match(html, /cjk:CJK_FALLBACK/);
+  assert.match(html, /cjk:/);
 });
 
 test("Now Playing Sources can switch Windows media providers repeatedly", () => {

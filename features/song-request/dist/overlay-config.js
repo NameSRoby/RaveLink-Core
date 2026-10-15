@@ -6,6 +6,7 @@ const DEFAULT_OVERLAY = Object.freeze({
   width: 320, autoHeight: true, height: 130, contentAlign: "start", scale: 100,
   gap: 6, blockGap: 3, padding: 10, radius: 4, opacity: 78, accentWidth: 4, shadow: 70,
   accent: "#e21d48", surface: "#05070c", text: "#ffffff", muted: "#b8c2d8", motion: "subtle",
+  followAppColors: true, skin: 'classic', font: 'system', titleMode: 'scroll', artworkSize: 110, accentPosition: 'left', borderWidth: 0, borderColor: '#303542',
   segments: Object.freeze([Object.freeze({
     id: "main", enabled: true, direction: "column", align: "left", size: "wide",
     blocks: Object.freeze([
@@ -82,12 +83,19 @@ function overlayFrom(input, fallback = DEFAULT_OVERLAY) {
     segments.push(Object.freeze({
       id, name: text(raw.name, 40) || `Segment ${segments.length + 1}`, enabled: raw.enabled !== false,
       direction: oneOf(raw.direction, ["column", "row"], "column"), align: oneOf(raw.align, ["left", "center", "right"], "left"),
+      wrap: raw.wrap !== false,
       size: oneOf(raw.size, ["compact", "wide", "full"], "wide"), style: segmentStyleFrom(raw.style), blocks: Object.freeze(blocks)
     }));
   }
   if (!segments.length) return overlayFrom(DEFAULT_OVERLAY, DEFAULT_OVERLAY);
   return Object.freeze({
-    version: 3, preset: oneOf(source.preset, ["classic", "custom"], fallback.preset), flow: oneOf(source.flow, ["column", "row", "grid"], fallback.flow),
+    version: 3, preset: oneOf(source.preset, ["classic", "custom", "album-card", "ribbon", "minimal", "broadcast", "split-panels", "spotlight", "two-column"], fallback.preset), flow: oneOf(source.flow, ["column", "row", "grid"], fallback.flow),
+    followAppColors: source.followAppColors !== false,
+    skin: oneOf(source.skin, ['classic','glass','duo','neon','broadcast','vinyl','minimal','editorial'], fallback.skin || 'classic'),
+    font: oneOf(source.font, ['system','serif','mono','cjk'], fallback.font || 'system'),
+    titleMode: oneOf(source.titleMode, ['scroll','ellipsis','wrap'], fallback.titleMode || 'scroll'), artworkSize: integer(source.artworkSize, 40, 200, fallback.artworkSize || 110),
+    accentPosition: oneOf(source.accentPosition, ['left','top','bottom','right','none'], fallback.accentPosition || 'left'),
+    borderWidth: integer(source.borderWidth, 0, 6, fallback.borderWidth || 0), borderColor: color(source.borderColor, fallback.borderColor || '#303542'),
     anchor: oneOf(source.anchor, ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"], fallback.anchor),
     separated: typeof source.separated === "boolean" ? source.separated : fallback.separated,
     width: integer(source.width, 240, 960, fallback.width), autoHeight: typeof source.autoHeight === "boolean" ? source.autoHeight : fallback.autoHeight,

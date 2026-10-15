@@ -4,6 +4,13 @@ const { RESPONSE_KINDS, composeChatResponse, responseKind } = require("../featur
 
 const enabled = kind => ({ responses: { [kind]: true }, queue: [] });
 
+test("replayed intake never posts another rejection reply", () => {
+  assert.equal(composeChatResponse({ method: "submit", payload: { notifyChat: true } },
+    { ok: false, code: "duplicate", reason: "request_replay" }, enabled("queue_failed")), null);
+  assert.match(composeChatResponse({ method: "submit", payload: { notifyChat: true } },
+    { ok: false, code: "duplicate", reason: "item_duplicate" }, enabled("queue_failed")).message, /already queued/);
+});
+
 test("native Song Request chat outcomes are independently gated and sanitized", () => {
   const request = { method: "submit", payload: { notifyChat: true, responseMessageId: "message-1", requesterName: "Viewer", query: "Example song" } };
   assert.equal(composeChatResponse(request, { ok: true, position: 2 }, { responses: {}, queue: [] }), null);

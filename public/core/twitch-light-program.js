@@ -149,6 +149,7 @@ export function initTwitchLightProgram({ request, initialState, initialEffectSta
     state = value; draftRules = normalizedRules(state.rules);
     $('twitchRoutingMode').value = state.mode === 'off' ? 'off' : 'assignments'; $('parserFuzzy').checked = state.parser.allowFuzzy;
     $('parserDescriptors').checked = state.parser.allowDescriptors; $('parserDefaultBrightness').value = state.parser.defaultBrightness;
+    $('teachColorPreview').checked = state.teaching?.preview !== false; $('teachColorChatSuccess').checked = state.teaching?.chatSuccess === true; $('teachColorChatFailure').checked = state.teaching?.chatFailure === true;
     selectedFixture = ''; renderBoard(); changed(structuredClone(state.rules));
   }
   function payloadRules() {
@@ -156,20 +157,20 @@ export function initTwitchLightProgram({ request, initialState, initialEffectSta
   }
   function dirty() {
     const original = normalizedRules(state.rules).filter(row => row.id !== 'active-fixtures' || row.fixtureIds.length);
-    return JSON.stringify(payloadRules()) !== JSON.stringify(original) || $('twitchRoutingMode').value !== state.mode || $('parserFuzzy').checked !== state.parser.allowFuzzy || $('parserDescriptors').checked !== state.parser.allowDescriptors || Number($('parserDefaultBrightness').value) !== state.parser.defaultBrightness;
+    return JSON.stringify(payloadRules()) !== JSON.stringify(original) || $('twitchRoutingMode').value !== state.mode || $('parserFuzzy').checked !== state.parser.allowFuzzy || $('parserDescriptors').checked !== state.parser.allowDescriptors || Number($('parserDefaultBrightness').value) !== state.parser.defaultBrightness || $('teachColorPreview').checked !== (state.teaching?.preview !== false) || $('teachColorChatSuccess').checked !== (state.teaching?.chatSuccess === true) || $('teachColorChatFailure').checked !== (state.teaching?.chatFailure === true);
   }
   async function save() {
     if (busy) return;
     const rules = payloadRules();
     if (rules.some(row => !row.name || row.id !== 'active-fixtures' && !row.prefix)) { notice('Every created group needs a name and prefix.'); return; }
-    const payload = { revision: state.revision, mode: $('twitchRoutingMode').value, parser: { allowFuzzy: $('parserFuzzy').checked, allowDescriptors: $('parserDescriptors').checked, defaultBrightness: Number($('parserDefaultBrightness').value) }, rules };
+    const payload = { revision: state.revision, mode: $('twitchRoutingMode').value, parser: { allowFuzzy: $('parserFuzzy').checked, allowDescriptors: $('parserDescriptors').checked, defaultBrightness: Number($('parserDefaultBrightness').value) }, teaching: { preview: $('teachColorPreview').checked, chatSuccess: $('teachColorChatSuccess').checked, chatFailure: $('teachColorChatFailure').checked }, rules };
     busy = true; $('twitchProgramControls').disabled = true;
     try { const result = await request('/twitch/lights', { method: 'POST', body: JSON.stringify(payload) }); accept(result); notice(result.mode === 'assignments' ? 'Fixture assignments saved. Redemption colors will be sent only to these active fixtures and prefix groups.' : 'Channel-point lighting is off.'); }
     catch (error) { notice(error.message === 'twitch_routing_conflict' ? 'The program changed in another window. Refresh before saving.' : error.message); }
     finally { busy = false; $('twitchProgramControls').disabled = false; }
   }
   $('addTwitchFixtureGroup').onclick = () => { draftRules.push({ id: crypto.randomUUID(), name: 'New group', prefix: '', enabled: true, fixtureIds: [] }); renderBoard(); markDirty(); };
-  for (const id of ['twitchRoutingMode', 'parserFuzzy', 'parserDescriptors', 'parserDefaultBrightness']) $(id).addEventListener('change', markDirty);
+  for (const id of ['twitchRoutingMode', 'parserFuzzy', 'parserDescriptors', 'parserDefaultBrightness', 'teachColorPreview', 'teachColorChatSuccess', 'teachColorChatFailure']) $(id).addEventListener('change', markDirty);
   $('saveTwitchProgram').onclick = save;
   $('saveTwitchEffects').onclick = saveEffects;
   for (const id of ['twitchEffectsEnabled', 'twitchEffectsReturn']) $(id).onchange = () => { $('twitchEffectsNotice').textContent = 'UNSAVED DYNAMIC COMMAND CHANGES'; };

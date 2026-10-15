@@ -35,6 +35,7 @@ function normalizeMediaSnapshot(snapshot, selectedProvider) {
     title,
     artists: [boundedText(snapshot.artist, 100)].filter(Boolean),
     album: boundedText(snapshot.album, 200),
+    artworkUrl: typeof snapshot.artworkUrl === 'string' && snapshot.artworkUrl.length <= 12288 && /^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]*={0,2}$/.test(snapshot.artworkUrl) ? snapshot.artworkUrl : '',
     status: rawStatus === "playing" ? "playing" : rawStatus === "paused" ? "paused" : "stopped",
     positionMs: boundedInteger(snapshot.positionMs, 86400000),
     durationMs: boundedInteger(snapshot.durationMs, 86400000),

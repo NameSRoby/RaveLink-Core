@@ -6,6 +6,8 @@ const express = require("express");
 const axios = require("axios");
 const createLightingCore = require("./create-lighting-core");
 const registerLightingCoreRoutes = require("./register-lighting-core.routes");
+const registerPresentationRoutes = require('./register-presentation.routes');
+const { errorHandler: clientApiErrors } = require('./register-client-api.routes');
 const { installRequestSecurityMiddleware } = require("../runtime/request-security.middleware");
 const { createSystemWidgetEventController } = require("../../domains/system/widget-event.controller");
 const createRuntimeMetricsService = require("../../domains/system/runtime-metrics.service");
@@ -15,6 +17,7 @@ const { createWidgetIntakeTokenVault } = require("../../domains/system/widget-in
 const createEgressGovernor = require("../runtime/egress-governor");
 const createHardwareOnboardingService = require("../../domains/fixtures/hardware-onboarding.service");
 const { createCoreUpdateService } = require("../../domains/system/core-update.service");
+const createTaughtColorPreviewService = require("../../domains/colors/taught-color-preview.service");
 
 module.exports = function createCoreServer(options = {}) {
   const rootDir = path.resolve(options.rootDir || path.join(__dirname, "../../.."));
@@ -73,14 +76,31 @@ module.exports = function createCoreServer(options = {}) {
   lifecycle.register({ owner: "core", id: "runtime-metrics", type: "monitor", stop: runtimeMetrics.shutdown });
   lifecycle.register({ owner: "core", id: "egress-governor", type: "network", stop: egressGovernor.shutdown });
   lifecycle.register({ owner: "lighting.transports", id: "hue-wiz-adapters", type: "network", stop: core.shutdown });
+  const taughtColorPreview = createTaughtColorPreviewService({
+    colorCommandService: core.colorCommandService,
+    fixtureRegistry: core.fixtureRegistry,
+    lightingLab: core.lightingLab,
+    hueBridge: core.hueBridge,
+    wizBridge: core.wizBridge,
+    goveeBridge: core.goveeBridge
+  });
+  lifecycle.register({ owner: "core", id: "taught-color-preview", type: "timer", stop: taughtColorPreview.shutdown });
   const widgetController = createSystemWidgetEventController({
     colorApply: async body => {
       const result = await core.colorCommandService.applyColorText(body?.text || body?.colorText || "", body || {});
       return { status: result.ok === false ? 400 : 200, body: result };
     },
     teachColor: async body => {
-      const result = core.colorLibrary.teachColor(body?.name, body?.hex);
+      const result = core.colorLibrary.teachColor(body?.text || body?.userInput || [body?.name, body?.hex].filter(Boolean).join(" "));
       return { status: result.ok === false ? 400 : 200, body: result };
+    },
+    previewTaughtColor: hex => taughtColorPreview.preview(hex),
+    getTeachSettings: () => core.twitchLightRouting.snapshot().teaching,
+    sendChat: async payload => {
+      const registry = extension?.registry || extension?.features?.registry;
+      if (!registry?.request) return { ok: false, error: "twitch_chat_unavailable" };
+      const result = await registry.request("twitch-integration", "twitch.chat.send.v1", "send", payload, { timeoutMs: 5000 });
+      return result?.ok === true ? result.value : { ok: false, error: String(result?.error?.code || "twitch_chat_unavailable") };
     },
     submitSongRequest: async payload => {
       const registry = extension?.registry || extension?.features?.registry;
@@ -105,6 +125,8 @@ module.exports = function createCoreServer(options = {}) {
     port: Number(options.port || process.env.PORT || 5050)
   });
   app.use(runtimeMetrics.requestMiddleware());
+  registerPresentationRoutes(app, { runtimeDir });
+  require('./register-navigation.routes')(app, { runtimeDir });
   // Prevent stale widgets from posting an HTML 404 into chat. This compatibility
   // sink stays behind normal write security and never invokes retired behavior.
   app.post("/mods/music-request-engine/now_playing_announce", (_req, res) => {
@@ -139,6 +161,7 @@ module.exports = function createCoreServer(options = {}) {
   if (typeof extension?.shutdown === "function") {
     lifecycle.register({ owner: extension.owner || "optional-platform", id: "extension", type: "capability", stop: extension.shutdown });
   }
+  app.use(clientApiErrors);
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
     res.status(500).json({ ok: false, error: "internal_error" });

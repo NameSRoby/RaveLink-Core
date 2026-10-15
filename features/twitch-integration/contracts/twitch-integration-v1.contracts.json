@@ -92,6 +92,61 @@
               "error": {
                 "type": "string",
                 "maxLength": 80
+              },
+              "authorizationRecovery": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "reauthorizationRequired",
+                  "reason",
+                  "revocations"
+                ],
+                "properties": {
+                  "reauthorizationRequired": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "",
+                      "authorization_revoked",
+                      "user_removed",
+                      "version_removed"
+                    ]
+                  },
+                  "revocations": {
+                    "type": "array",
+                    "maxItems": 16,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "type",
+                        "version",
+                        "reason"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "maxLength": 100
+                        },
+                        "version": {
+                          "type": "string",
+                          "maxLength": 3
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "authorization_revoked",
+                            "user_removed",
+                            "version_removed",
+                            "unknown"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -195,6 +250,61 @@
               "error": {
                 "type": "string",
                 "maxLength": 80
+              },
+              "authorizationRecovery": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "reauthorizationRequired",
+                  "reason",
+                  "revocations"
+                ],
+                "properties": {
+                  "reauthorizationRequired": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "",
+                      "authorization_revoked",
+                      "user_removed",
+                      "version_removed"
+                    ]
+                  },
+                  "revocations": {
+                    "type": "array",
+                    "maxItems": 16,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "type",
+                        "version",
+                        "reason"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "maxLength": 100
+                        },
+                        "version": {
+                          "type": "string",
+                          "maxLength": 3
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "authorization_revoked",
+                            "user_removed",
+                            "version_removed",
+                            "unknown"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -287,6 +397,61 @@
               "error": {
                 "type": "string",
                 "maxLength": 80
+              },
+              "authorizationRecovery": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "reauthorizationRequired",
+                  "reason",
+                  "revocations"
+                ],
+                "properties": {
+                  "reauthorizationRequired": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "",
+                      "authorization_revoked",
+                      "user_removed",
+                      "version_removed"
+                    ]
+                  },
+                  "revocations": {
+                    "type": "array",
+                    "maxItems": 16,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "type",
+                        "version",
+                        "reason"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "maxLength": 100
+                        },
+                        "version": {
+                          "type": "string",
+                          "maxLength": 3
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "authorization_revoked",
+                            "user_removed",
+                            "version_removed",
+                            "unknown"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -397,6 +562,61 @@
               "error": {
                 "type": "string",
                 "maxLength": 80
+              },
+              "authorizationRecovery": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "reauthorizationRequired",
+                  "reason",
+                  "revocations"
+                ],
+                "properties": {
+                  "reauthorizationRequired": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "",
+                      "authorization_revoked",
+                      "user_removed",
+                      "version_removed"
+                    ]
+                  },
+                  "revocations": {
+                    "type": "array",
+                    "maxItems": 16,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "type",
+                        "version",
+                        "reason"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "maxLength": 100
+                        },
+                        "version": {
+                          "type": "string",
+                          "maxLength": 3
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "authorization_revoked",
+                            "user_removed",
+                            "version_removed",
+                            "unknown"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -489,6 +709,61 @@
               "error": {
                 "type": "string",
                 "maxLength": 80
+              },
+              "authorizationRecovery": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "reauthorizationRequired",
+                  "reason",
+                  "revocations"
+                ],
+                "properties": {
+                  "reauthorizationRequired": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "",
+                      "authorization_revoked",
+                      "user_removed",
+                      "version_removed"
+                    ]
+                  },
+                  "revocations": {
+                    "type": "array",
+                    "maxItems": 16,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "type",
+                        "version",
+                        "reason"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "maxLength": 100
+                        },
+                        "version": {
+                          "type": "string",
+                          "maxLength": 3
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "authorization_revoked",
+                            "user_removed",
+                            "version_removed",
+                            "unknown"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -581,6 +856,61 @@
               "error": {
                 "type": "string",
                 "maxLength": 80
+              },
+              "authorizationRecovery": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "reauthorizationRequired",
+                  "reason",
+                  "revocations"
+                ],
+                "properties": {
+                  "reauthorizationRequired": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "",
+                      "authorization_revoked",
+                      "user_removed",
+                      "version_removed"
+                    ]
+                  },
+                  "revocations": {
+                    "type": "array",
+                    "maxItems": 16,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "type",
+                        "version",
+                        "reason"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "maxLength": 100
+                        },
+                        "version": {
+                          "type": "string",
+                          "maxLength": 3
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "authorization_revoked",
+                            "user_removed",
+                            "version_removed",
+                            "unknown"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -831,6 +1161,164 @@
                 "maxLength": 80
               },
               "retryable": {
+                "type": "boolean"
+              },
+              "duplicate": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "review": {
+          "request": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ok",
+              "total",
+              "entries"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "total": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+              },
+              "entries": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "broadcasterId",
+                    "rewardId",
+                    "redemptionId"
+                  ],
+                  "properties": {
+                    "broadcasterId": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "rewardId": {
+                      "type": "string",
+                      "maxLength": 160
+                    },
+                    "redemptionId": {
+                      "type": "string",
+                      "maxLength": 160
+                    },
+                    "phase": {
+                      "enum": [
+                        "executing",
+                        "decided",
+                        "sending",
+                        "review",
+                        "confirmed"
+                      ]
+                    },
+                    "desiredStatus": {
+                      "enum": [
+                        "",
+                        "FULFILLED",
+                        "CANCELED"
+                      ]
+                    },
+                    "observedStatus": {
+                      "enum": [
+                        "",
+                        "UNFULFILLED",
+                        "FULFILLED",
+                        "CANCELED"
+                      ]
+                    },
+                    "error": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "updatedAt": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "reconcile": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "broadcasterId",
+              "rewardId",
+              "redemptionId"
+            ],
+            "properties": {
+              "broadcasterId": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "rewardId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "redemptionId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "status": {
+                "enum": [
+                  "FULFILLED",
+                  "CANCELED"
+                ]
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "status": {
+                "type": "string",
+                "maxLength": 20
+              },
+              "redemptionId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "refunded": {
+                "type": "boolean"
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "retryable": {
+                "type": "boolean"
+              },
+              "duplicate": {
                 "type": "boolean"
               }
             }

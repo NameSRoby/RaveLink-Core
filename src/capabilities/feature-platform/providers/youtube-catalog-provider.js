@@ -53,9 +53,9 @@ function boundedNumber(value, minimum, maximum, fallback) {
 }
 
 function durationMs(value) {
-  const match = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/i.exec(String(value || ""));
+  const match = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/i.exec(String(value || ""));
   if (!match) return 0;
-  return ((Number(match[1] || 0) * 3600) + (Number(match[2] || 0) * 60) + Number(match[3] || 0)) * 1000;
+  return Math.round(((Number(match[1] || 0) * 3600) + (Number(match[2] || 0) * 60) + Number(match[3] || 0)) * 1000);
 }
 
 function tokens(value) {

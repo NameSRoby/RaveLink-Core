@@ -1,210 +1,10 @@
 const path = require("node:path");
-const crypto = require("node:crypto");
 const createFeatureHostRegistry = require("../../capabilities/feature-platform/host/feature-host-registry");
 const registerFeaturePlatformRoutes = require("../../capabilities/feature-platform/http/register-feature-platform.routes");
 const createWindowsMediaObserver = require("../../capabilities/feature-platform/providers/windows-media-observer");
 const createTwitchChatCommandRouter = require("../../capabilities/feature-platform/providers/twitch-chat-command-router");
 const { TWITCH_PUBLIC_CLIENT_ID } = require("../../capabilities/feature-platform/providers/twitch-public-client");
 const { OFFICIAL_FEATURE_SOURCES } = require("../../capabilities/feature-platform/packages/official-feature-sources");
-const { OFFICIAL_TTS_PAYLOADS } = require("../../capabilities/feature-platform/packages/official-tts-payloads");
-const createTtsPayloadManager = require("../../capabilities/feature-platform/packages/tts-payload-manager");
-const createTtsPackageProvider = require("../../capabilities/feature-platform/packages/tts-package-provider");
-const { hexToRgb, createHueStateFromRgb, createWizStateFromRgb } = require("../../domains/colors/color-space");
-
-function providerError(code, message, retryable = false) {
-  return Object.assign(new Error(message), { code, retryable });
-}
-
-function twitchEventAmount(type, event = {}) {
-  const field = { "channel.subscription.gift": "total", "channel.cheer": "bits", "channel.raid": "viewers" }[type];
-  const value = type === "channel.follow" ? 1 : field ? Number(event[field]) : NaN;
-  return Number.isFinite(value) ? Math.max(0, Math.min(1000000, Math.round(value))) : undefined;
-}
-
-function createLightingOutputProvider(context = {}) {
-  const captures = new Map();
-  const idPattern = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
-  function fixtureIds(raw) {
-    return Array.isArray(raw) ? [...new Set(raw.map(value => String(value || "").trim()).filter(value => idPattern.test(value)))].slice(0, 64) : [];
-  }
-  function colorOptions(payload, preview = false) {
-    const selected = fixtureIds(payload?.fixtureIds);
-    return selected.length ? { fixtureIds: selected, target: "both", targetExplicit: true, mode: "direct", ...(preview ? { preview: true } : {}) }
-      : { mode: "direct", ...(preview ? { preview: true } : {}) };
-  }
-  function pruneCaptures(now = Date.now()) {
-    for (const [id, row] of captures) if (row.expiresAt <= now) captures.delete(id);
-    while (captures.size >= 16) captures.delete(captures.keys().next().value);
-  }
-  function normalizedState(raw = {}) {
-    const brightness = Math.round(Number(raw.brightness));
-    if (!Number.isFinite(brightness) || brightness < 1 || brightness > 100) throw providerError("lighting_state_invalid", "Lighting brightness is invalid");
-    if (raw.mode === "rgb") {
-      const rgb = hexToRgb(raw.color);
-      if (!rgb) throw providerError("lighting_state_invalid", "Lighting RGB color is invalid");
-      return { mode: "rgb", rgb, brightness };
-    }
-    if (raw.mode === "white") {
-      const kelvin = Math.round(Number(raw.kelvin));
-      if (!Number.isFinite(kelvin) || kelvin < 2200 || kelvin > 6500) throw providerError("lighting_state_invalid", "Lighting white temperature is invalid");
-      return { mode: "white", kelvin, brightness };
-    }
-    throw providerError("lighting_state_invalid", "Lighting state mode is invalid");
-  }
-  function advanceCapture(captureId, callOptions, lighting, targetIds) {
-    if (!captureId) return;
-    const captured = captures.get(String(captureId));
-    if (!captured || captured.owner !== String(callOptions?.featureId || "")) throw providerError("lighting_capture_not_found", "Lighting capture is unavailable");
-    const targets = new Set(targetIds);
-    for (const row of captured.states) {
-      if (!targets.has(row.fixtureId)) continue;
-      row.expectedGeneration = Number(lighting.lightingLab.previousState(row.fixtureId)?.generation || row.expectedGeneration || 0);
-    }
-  }
-  function captureEligibleTargets(captureId, callOptions, lighting, targetIds) {
-    if (!captureId) return { eligible: [...targetIds], superseded: [] };
-    const captured = captures.get(String(captureId));
-    if (!captured || captured.owner !== String(callOptions?.featureId || "")) throw providerError("lighting_capture_not_found", "Lighting capture is unavailable");
-    const rows = new Map(captured.states.map(row => [row.fixtureId, row]));
-    const eligible = [], superseded = [];
-    for (const id of targetIds) {
-      const row = rows.get(id);
-      const current = Number(lighting.lightingLab.previousState(id)?.generation || 0);
-      if (row && current === Number(row.expectedGeneration || 0)) eligible.push(id);
-      else superseded.push(id);
-    }
-    return { eligible, superseded };
-  }
-  async function resolveTargets(lighting, operation) {
-    if (operation.action === "color") {
-      const command = String(operation.command || "").trim();
-      if (!command || command.length > 160) throw providerError("lighting_command_invalid", "Lighting command is invalid");
-      const preview = await lighting.colorCommandService.applyColorText(command, colorOptions(operation, true));
-      if (!preview?.ok) throw providerError(String(preview?.error || "lighting_target_unavailable"), "Lighting targets could not be resolved");
-      return fixtureIds(preview.targets);
-    }
-    if (operation.action === "profile") {
-      const profileId = String(operation.profileId || "").trim();
-      if (!idPattern.test(profileId)) throw providerError("lighting_profile_invalid", "Lighting profile is invalid");
-      const profile = lighting.lightingProfiles.snapshot().profiles.find(row => row.id === profileId);
-      if (!profile) throw providerError("lighting_profile_not_found", "Lighting profile was not found");
-      const available = new Set(lighting.fixtureRegistry.listEngineBy("", "all").map(row => row.id));
-      return fixtureIds(Object.keys(profile.fixtureTargets || {})).filter(id => available.has(id));
-    }
-    if (operation.action === "state") {
-      const selected = fixtureIds(operation.fixtureIds);
-      if (!selected.length) throw providerError("lighting_target_unavailable", "No lighting fixtures were selected");
-      const available = new Set(lighting.fixtureRegistry.listEngineBy("", "all").map(row => row.id));
-      return selected.filter(id => available.has(id));
-    }
-    throw providerError("lighting_action_invalid", "Unsupported lighting action");
-  }
-  async function capture(lighting, payload, callOptions) {
-    const actions = Array.isArray(payload.actions) ? payload.actions.slice(0, 4) : [];
-    if (!actions.length) throw providerError("lighting_capture_empty", "No lighting actions were provided");
-    const targets = new Set();
-    for (const operation of actions) for (const id of await resolveTargets(lighting, operation)) targets.add(id);
-    if (!targets.size) throw providerError("lighting_capture_empty", "No lighting fixtures were resolved");
-    const states = [...targets].map(id => {
-      const previous = lighting.lightingLab.previousState(id);
-      return { fixtureId: id, previous, expectedGeneration: Number(previous?.generation || 0) };
-    });
-    pruneCaptures();
-    const captureId = crypto.randomUUID();
-    captures.set(captureId, { owner: String(callOptions?.featureId || ""), expiresAt: Date.now() + 10 * 60 * 1000, states });
-    const captured = states.filter(row => row.previous?.value).length;
-    return { ok: true, captureId, captured, unavailable: states.length - captured, expiresInMs: 10 * 60 * 1000 };
-  }
-  async function restore(lighting, payload, callOptions) {
-    pruneCaptures();
-    const captureId = String(payload.captureId || "");
-    const captured = captures.get(captureId);
-    if (!captured || captured.owner !== String(callOptions?.featureId || "")) throw providerError("lighting_capture_not_found", "Lighting capture is unavailable");
-    captures.delete(captureId);
-    const available = new Map(lighting.fixtureRegistry.listEngineBy("", "all").map(row => [row.id, row]));
-    lighting.twitchLightEffects?.cancelForStaticTargets?.(captured.states.map(row => row.fixtureId));
-    const restorable = captured.states.filter(row => row.previous?.value);
-    const eligible = restorable.filter(row => Number(lighting.lightingLab.previousState(row.fixtureId)?.generation || 0) === Number(row.expectedGeneration || 0));
-    const superseded = restorable.length - eligible.length;
-    const unavailable = captured.states.length - restorable.length;
-    const deliveries = await Promise.all(eligible.map(async row => {
-      const fixture = available.get(row.fixtureId), brand = String(row.previous.brand || "").toLowerCase();
-      const adapter = brand === "hue" ? lighting.hueBridge : brand === "wiz" ? lighting.wizBridge : brand === "govee" ? lighting.goveeBridge : null;
-      if (!fixture || !adapter?.sendState) return { fixtureId: row.fixtureId, ok: false };
-      try {
-        const result = await adapter.sendState([fixture], row.previous.value);
-        if (Number(result?.sent || 0) < 1) return { fixtureId: row.fixtureId, ok: false };
-        lighting.lightingLab.rememberState(fixture.id, brand, row.previous.value);
-        return { fixtureId: row.fixtureId, ok: true };
-      } catch { return { fixtureId: row.fixtureId, ok: false }; }
-    }));
-    const restored = deliveries.filter(row => row.ok).length;
-    return { ok: restored === deliveries.length, restored, failed: deliveries.length - restored, superseded, unavailable,
-      ...(restored === deliveries.length ? {} : { error: "lighting_restore_incomplete" }) };
-  }
-  async function applyNeutralState(lighting, payload, callOptions) {
-    const selected = fixtureIds(payload.fixtureIds);
-    if (!selected.length) throw providerError("lighting_target_unavailable", "No lighting fixtures were selected");
-    const ownership = captureEligibleTargets(payload.captureId, callOptions, lighting, selected);
-    const requested = new Set(ownership.eligible);
-    if (!requested.size && ownership.superseded.length) return { ok: true, sent: 0, failed: 0, partial: false, superseded: ownership.superseded.length };
-    const fixtures = lighting.fixtureRegistry.listEngineBy("", "all").filter(row => requested.has(row.id));
-    if (!fixtures.length) throw providerError("lighting_target_unavailable", "No selected lighting fixtures are available");
-    const state = normalizedState(payload.state);
-    const transitiontime = Math.max(0, Math.min(30, Math.round(Number(payload.transitionMs || 0) / 100)));
-    const hueBrightness = Math.max(1, Math.round(state.brightness * 254 / 100));
-    const hueState = state.mode === "white"
-      ? { on: true, ct: Math.max(153, Math.min(500, Math.round(1000000 / state.kelvin))), bri: hueBrightness, transitiontime }
-      : { ...createHueStateFromRgb(state.rgb, { brightness: hueBrightness, transitiontime }), __rgb: state.rgb };
-    const commonState = state.mode === "white"
-      ? { on: true, temp: state.kelvin, dimming: state.brightness }
-      : createWizStateFromRgb(state.rgb, { dimming: state.brightness });
-    const brands = [["hue", lighting.hueBridge, hueState], ["wiz", lighting.wizBridge, commonState], ["govee", lighting.goveeBridge, commonState]];
-    const deliveries = await Promise.all(brands.map(async ([brand, adapter, brandState]) => {
-      const targets = fixtures.filter(row => String(row.brand).toLowerCase() === brand);
-      if (!targets.length) return { brand, targets: [], sent: 0, failed: 0 };
-      if (typeof adapter?.sendState !== "function") return { brand, targets, sent: 0, failed: targets.length };
-      try {
-        const result = await adapter.sendState(targets, brandState);
-        const sent = Math.max(0, Number(result?.sent || 0)), failed = Math.max(0, Number(result?.failed || Math.max(0, targets.length - sent)));
-        if (sent > 0) for (const fixture of targets) lighting.lightingLab.rememberState(fixture.id, brand, brandState);
-        return { brand, targets, sent, failed };
-      } catch { return { brand, targets, sent: 0, failed: targets.length }; }
-    }));
-    const sent = deliveries.reduce((sum, row) => sum + row.sent, 0);
-    const failed = deliveries.reduce((sum, row) => sum + row.failed, 0) + Math.max(0, ownership.eligible.length - fixtures.length);
-    if (sent > 0) {
-      const deliveredIds = deliveries.filter(row => row.sent > 0).flatMap(row => row.targets.map(target => target.id));
-      lighting.twitchLightEffects?.cancelForStaticTargets?.(deliveredIds);
-      advanceCapture(payload.captureId, callOptions, lighting, deliveredIds);
-    }
-    return { ok: (sent > 0 || ownership.superseded.length > 0) && failed === 0, sent, failed, superseded: ownership.superseded.length,
-      partial: sent > 0 && (failed > 0 || ownership.superseded.length > 0), ...((sent > 0 || ownership.superseded.length > 0) && failed === 0 ? {} : { error: sent > 0 ? "lighting_delivery_partial" : "hardware_delivery_failed" }) };
-  }
-  return async function applyLightingOutput(payload = {}, callOptions = {}) {
-    const lighting = context.lightingCore;
-    if (!lighting) throw providerError("lighting_unavailable", "Lighting is unavailable", true);
-    const action = String(payload?.action || "");
-    if (action === "capture") return capture(lighting, payload, callOptions);
-    if (action === "restore") return restore(lighting, payload, callOptions);
-    if (action === "catalog") return { ok: true, fixtures: lighting.fixtureRegistry.listEngineBy("", "all").slice(0, 64).map(row => ({ id: String(row.id), name: String(row.name || row.id).slice(0, 80), brand: String(row.brand || "").toLowerCase(), zone: String(row.zone || "").slice(0, 64) })) };
-    if (action === "state") return applyNeutralState(lighting, payload, callOptions);
-    if (action === "profile") {
-      const profileId = String(payload?.profileId || "").trim();
-      if (!idPattern.test(profileId)) throw providerError("lighting_profile_invalid", "Lighting profile is invalid");
-      const targets = payload.captureId ? await resolveTargets(lighting, { action: "profile", profileId }) : [];
-      const result = await lighting.lightingProfiles.apply(profileId);
-      if (result?.ok !== false) advanceCapture(payload.captureId, callOptions, lighting, targets);
-      return result;
-    }
-    if (action !== "color") throw providerError("lighting_action_invalid", "Unsupported lighting action");
-    const command = String(payload?.command || "").trim();
-    if (!command || command.length > 160) throw providerError("lighting_command_invalid", "Lighting command is invalid");
-    const result = await lighting.colorCommandService.applyColorText(command, colorOptions(payload));
-    if (result?.ok !== false) advanceCapture(payload.captureId, callOptions, lighting, result?.targets || []);
-    return result;
-  };
-}
 
 function createFeaturePlatformExtension(options = {}) {
   return function attachFeaturePlatform(context) {
@@ -223,59 +23,8 @@ function createFeaturePlatformExtension(options = {}) {
         twitchOAuth = createTwitchOAuthProvider({
           vaultPath: path.join(context.runtimeDir, "features", "twitch-integration.vault.json"),
           defaultClientId: TWITCH_PUBLIC_CLIENT_ID,
-          automationEventsEnabled: () => registry?.list().features.some(row => row.id === "automation" && row.lifecycle === "active") === true,
           onIntakeModeChange: mode => context.twitchIntakeGate?.setMode?.(mode),
-          onRedemption: async (event, managedRewards) => {
-            try {
-              const routed = await registry.request("automation", "automation.twitch.events.v1", "receive", {
-                triggerId: `reward:${String(event?.reward?.id || "").slice(0, 160)}`,
-                eventId: String(event?.id || "").slice(0, 160),
-                userId: String(event?.user_id || "").slice(0, 80),
-                userName: String(event?.user_name || event?.user_login || "").slice(0, 80),
-                amount: Math.max(0, Math.min(1000000, Math.round(Number(event?.reward?.cost) || 0)))
-              }, { timeoutMs: 1500 });
-              const automation = routed?.ok ? routed.value : null;
-              if (automation?.handled) {
-                const managed = Object.values(managedRewards || {}).some(row => row?.rewardId === event?.reward?.id);
-                if (managed && event?.id) await twitchProvider().settle({
-                  broadcasterId: event?.broadcaster_user_id,
-                  rewardId: event?.reward?.id,
-                  redemptionId: event.id,
-                  status: automation.ok ? "FULFILLED" : "CANCELED"
-                });
-                return automation;
-              }
-            } catch {}
-            let requester = chatCommands.profileFor(event?.user_id);
-            if (requester.role === "viewer") {
-              const resolved = await twitchProvider().resolveRequesterRole(event?.user_id);
-              if (resolved?.ok) requester = { ...requester, role: resolved.role };
-            }
-            return context.widgetController?.handleWidgetEvent?.({
-              transport: "native",
-              eventEnvelope: { event: { ...event, requester_role: requester.role } },
-              widgetConfig: {
-                colorRewardId: managedRewards?.lights?.rewardId || "",
-                teachRewardId: managedRewards?.teach?.rewardId || "",
-                songRewardId: twitchProvider().status().monitorConfig.songRequestChatEnabled ? "" : (managedRewards?.song_request?.rewardId || "")
-              }
-            });
-          },
-          onEvent: async (type, event, metadata) => {
-            if (type === "channel.subscribe" && event?.is_gift === true) return { ok: true, handled: false, code: "automation_twitch_gift_subscription_separated" };
-            const amount = twitchEventAmount(type, event);
-            const routed = await registry.request("automation", "automation.twitch.events.v1", "receive", {
-              triggerId: `event:${String(type || "").slice(0, 120)}`,
-              eventId: String(metadata?.message_id || event?.id || event?.event_id || "").slice(0, 160),
-              userId: String(event?.user_id || event?.from_broadcaster_user_id || "").slice(0, 80),
-              userName: String(event?.user_name || event?.from_broadcaster_user_name || "").slice(0, 80),
-              ...(amount === undefined ? {} : { amount }),
-              tier: String(event?.tier || "").slice(0, 20),
-              streamId: String(type === "stream.online" ? event?.id || "" : "").slice(0, 160),
-              occurredAt: String(metadata?.message_timestamp || event?.started_at || "").slice(0, 40)
-            }, { timeoutMs: 1500 });
-            return routed?.ok ? routed.value : routed;
-          },
+          onRedemption: require('../../capabilities/feature-platform/providers/twitch-redemption-router')({ twitchProvider, chatCommands, widgetController: context.widgetController }),
           onChat: (event, monitorConfig) => {
             const handled = chatCommands.handle(event, monitorConfig);
             const requester = chatCommands.profileFor(event?.chatter_user_id);
@@ -299,17 +48,19 @@ function createFeaturePlatformExtension(options = {}) {
     }
     const mediaObserver = createWindowsMediaObserver({
       observerPath: path.join(rootDir, "scripts", "windows-media-observer.ps1"),
-      onSnapshot: payload => registry.request("song-request", "song.playback.observe.v1", "observe", payload, { timeoutMs: 1000 })
+      onSnapshot: payload => {
+        tidalBridge?.observe(payload);
+        return registry.request("song-request", "song.playback.observe.v1", "observe", payload, { timeoutMs: 1000 });
+      }
     });
-    const applyLightingOutput = createLightingOutputProvider(context);
     const featureRuntimeRoot = options.runtimeRoot || path.join(context.runtimeDir, "features");
-    const ttsPayloadManager = createTtsPayloadManager({
-      root: path.join(featureRuntimeRoot, "tts-payloads"),
-      catalog: options.ttsPayloadCatalog || OFFICIAL_TTS_PAYLOADS,
-      fetchImpl: options.featureFetch
-    });
-    let ttsPackageProvider;
-    const getTtsPackageProvider = () => ttsPackageProvider || (ttsPackageProvider = createTtsPackageProvider(registry, OFFICIAL_FEATURE_SOURCES, ttsPayloadManager));
+    const playlistExports = require('../../capabilities/feature-platform/providers/playlist-export-provider')({ root: path.join(context.runtimeDir, 'exports', 'playlists') });
+    let tidalCatalog, soundcloudCatalog;
+    const getSoundCloudCatalog = () => soundcloudCatalog || (soundcloudCatalog = require('../../capabilities/feature-platform/providers/soundcloud-catalog-provider')({ fetchImpl: options.soundcloudCatalogFetch, egressGovernor: context.egressGovernor }));
+    const getTidalCatalog = () => tidalCatalog || (tidalCatalog = require('../../capabilities/feature-platform/providers/tidal-catalog-provider')({
+      vaultPath: path.join(context.runtimeDir, 'tidal-catalog-vault.json'), fetchImpl: options.tidalCatalogFetch, egressGovernor: context.egressGovernor
+    }));
+    require('../../capabilities/feature-platform/http/register-tidal-oauth.routes')(context.app, getTidalCatalog);
     registry = createFeatureHostRegistry({
       featuresRoot: options.featuresRoot || path.join(rootDir, "features", "installed"),
       packageRoots: options.packageRoots || [path.join(rootDir, "feature-packages"), path.join(rootDir, "features")],
@@ -317,8 +68,22 @@ function createFeaturePlatformExtension(options = {}) {
       fetchImpl: options.featureFetch,
       runtimeRoot: featureRuntimeRoot,
       providers: {
-        "lighting.output.v1/apply": applyLightingOutput,
+        'playlist.exports.host.v1/action': (payload, caller) => caller.featureId === 'song-request' ? playlistExports.action(payload) : { ok: false, code: 'export_denied' },
+        'soundcloud.catalog.host.v1/resolve': (payload, caller) => caller.featureId === 'song-request' ? getSoundCloudCatalog().resolve(payload) : { ok: false, reason: 'soundcloud_catalog_denied' },
         "media.windows.now-playing.v1/control": payload => mediaObserver.control(payload),
+        'tidal.playlists.host.v1/action': (payload, caller) => caller.featureId === 'song-request' ? getTidalCatalog().playlists(payload) : { ok: false, error: 'tidal_playlist_denied' },
+        "tidal.desktop.experimental.v1/status": () => tidalBridge ? tidalBridge.status() : { ok: true, enabled: false },
+        'tidal.desktop.experimental.v1/volume': (payload, caller) => caller.featureId === 'song-request' && tidalBridge ? tidalBridge.volume(payload) : { ok: false, error: 'tidal_experiment_disabled' },
+        "tidal.desktop.experimental.v1/enable": (_payload, caller) => caller.featureId === 'song-request' ? enableTidalExperiment() : { ok: false, error: 'tidal_experiment_denied' },
+        "tidal.desktop.experimental.v1/manage-companion": (payload, caller) => manageTidalCompanion(payload, caller),
+        "tidal.desktop.experimental.v1/catalog": (payload, caller) => {
+          if (caller.featureId !== 'song-request' || !['status', 'configure', 'reset-client', 'begin', 'test', 'disconnect', 'clear'].includes(payload?.action)) return { ok: false, error: 'tidal_catalog_action_denied' };
+          return getTidalCatalog()[payload.action](payload);
+        },
+        "tidal.desktop.experimental.v1/resolve": (payload, caller) => caller.featureId === 'song-request' && tidalBridge ? tidalBridge.resolve(payload) : { ok: false, error: 'tidal_experiment_disabled' },
+        "tidal.desktop.experimental.v1/enqueue": (payload, caller) => caller.featureId === 'song-request' && tidalBridge ? tidalBridge.enqueue(payload) : { ok: false, error: 'tidal_experiment_disabled' },
+        "tidal.desktop.experimental.v1/review": (payload, caller) => caller.featureId === 'song-request' && tidalBridge ? tidalBridge.review(payload) : { ok: false, error: 'tidal_experiment_disabled' },
+        "tidal.desktop.experimental.v1/remove": (payload, caller) => caller.featureId === 'song-request' && tidalBridge ? tidalBridge.remove(payload) : { ok: false, error: 'tidal_experiment_disabled' },
         "twitch.host.v1/status": () => twitchProvider().ensureStatus(),
         "twitch.host.v1/configure": payload => twitchProvider().configure(payload),
         "twitch.host.v1/configure-monitor": payload => twitchProvider().configureMonitor(payload),
@@ -331,6 +96,8 @@ function createFeaturePlatformExtension(options = {}) {
         "twitch.host.v1/create-reward": payload => twitchProvider().createReward(payload),
         "twitch.rewards.manage.v1/set-paused": payload => twitchProvider().setManagedRewardPaused(payload),
         "twitch.host.v1/settle": payload => twitchProvider().settle(payload),
+        "twitch.host.v1/review-transactions": () => twitchProvider().reviewTransactions(),
+        "twitch.host.v1/reconcile-transaction": payload => twitchProvider().reconcileTransaction(payload),
         "twitch.host.v1/send-chat": payload => twitchProvider().sendChat(payload),
         "youtube.catalog.host.v1/status": () => youtubeProvider().status(),
         "youtube.catalog.host.v1/configure": payload => youtubeProvider().configure(payload),
@@ -340,21 +107,27 @@ function createFeaturePlatformExtension(options = {}) {
         "youtube.catalog.host.v1/import-playlist-status": payload => youtubeProvider().importPlaylistStatus(payload),
         "youtube.catalog.host.v1/import-playlist-page": payload => youtubeProvider().importPlaylistPage(payload),
         "youtube.catalog.host.v1/import-playlist-cancel": payload => youtubeProvider().importPlaylistCancel(payload),
-        "alerts.tts.packages.v1/status": () => getTtsPackageProvider().status(),
-        "alerts.tts.packages.v1/install": payload => getTtsPackageProvider().install(payload),
-        "alerts.tts.packages.v1/update": payload => getTtsPackageProvider().update(payload),
-        "alerts.tts.packages.v1/remove": payload => getTtsPackageProvider().remove(payload),
         ...(options.providers || {})
       },
       allowUnsafeRuntime: options.allowUnsafeRuntime === true
     });
     registerFeaturePlatformRoutes(context.app, { registry });
-    let automationActive = false;
+    const tidalEnabled = options.experimentalTidal === true || process.env.RAVELINK_EXPERIMENTAL_TIDAL === '1';
+    let tidalBridge;
+    const manageTidalCompanion = require('../../capabilities/feature-platform/providers/tidal-companion-manager')({ rootDir, runtimeDir: context.runtimeDir, getBridge: () => tidalBridge, installer: options.tidalCompanionInstaller });
+    function enableTidalExperiment() {
+      if (!tidalBridge) {
+        tidalBridge = require('../../capabilities/feature-platform/providers/experimental-tidal-bridge')({ runtimeDir: context.runtimeDir,
+          search: query => getTidalCatalog().search(query),
+          onQueueChanged: () => { registry.request('song-request', 'song.tidal.experimental.v1', 'flush', { nativeQueueChanged: true }).catch(() => {}); } });
+        require('../../capabilities/feature-platform/http/register-experimental-tidal.routes')(context.app, { bridge: tidalBridge, registry, rootDir });
+      }
+      return tidalBridge.status();
+    }
+    if (tidalEnabled) enableTidalExperiment();
     const unsubscribeLifecycle = registry.subscribeLifecycle(snapshot => {
       if (!snapshot?.features?.some(row => row.id === "song-request" && row.lifecycle === "active")) mediaObserver.stop().catch(() => {});
       const twitchActive = snapshot?.features?.some(row => row.id === "twitch-integration" && row.lifecycle === "active");
-      const nextAutomationActive = snapshot?.features?.some(row => row.id === "automation" && row.lifecycle === "active") === true;
-      if (nextAutomationActive !== automationActive) { automationActive = nextAutomationActive; twitchOAuth?.refreshSubscriptions?.(); }
       if (!twitchActive) twitchOAuth?.suspendMonitor?.();
       else if (twitchOAuth) twitchOAuth.ensureStatus().catch(() => {});
     });
@@ -370,6 +143,8 @@ function createFeaturePlatformExtension(options = {}) {
       mediaObserver,
       async shutdown() {
         unsubscribeLifecycle?.();
+        tidalBridge?.shutdown();
+        tidalCatalog?.shutdown();
         await mediaObserver.stop();
         await twitchOAuth?.shutdown?.();
         return registry.shutdown();
@@ -379,5 +154,3 @@ function createFeaturePlatformExtension(options = {}) {
 }
 
 module.exports = createFeaturePlatformExtension;
-module.exports.createLightingOutputProvider = createLightingOutputProvider;
-module.exports.createTtsPackageProvider = createTtsPackageProvider;

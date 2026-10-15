@@ -9,6 +9,76 @@ class FakeSocket {
   close() { this.onclose?.(); }
 }
 
+test('revocation during subscription creation cannot restore revoked readiness or intake', async () => {
+  let complete;
+  const subscription = new Promise(resolve => { complete = resolve; });
+  const monitor = createMonitor({ WebSocket: FakeSocket, getCredentials: () => ({ userId: 'owner' }),
+    getSubscriptionConfig: () => ({ redemptions: false, events: [{ type: 'channel.cheer', version: '1', condition: {} }] }),
+    createSubscription: () => subscription });
+  monitor.start();
+  const socket = FakeSocket.instances.at(-1);
+  socket.emit({ metadata: { message_type: 'session_welcome' }, payload: { session: { id: 'welcome' } } });
+  socket.emit({ metadata: { message_type: 'revocation' }, payload: { subscription: { type: 'channel.cheer', version: '1', status: 'authorization_revoked' } } });
+  complete({ ok: true }); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(monitor.status().enabled, false);
+  assert.equal(monitor.status().connected, false);
+  assert.deepEqual(monitor.status().subscriptions, []);
+  assert.equal(monitor.status().lifecycle, 'stopped');
+});
+
+test('version revocation during welcome does not revive the event or retry its retired version', async () => {
+  let complete;
+  const pending = new Promise(resolve => { complete = resolve; });
+  const calls = [];
+  const monitor = createMonitor({ WebSocket: FakeSocket, getCredentials: () => ({ userId: 'owner' }),
+    getSubscriptionConfig: () => ({ redemptions: false, events: [{ type: 'channel.cheer', version: '1', condition: {} }, { type: 'channel.raid', version: '1', condition: {} }] }),
+    createSubscription: row => { calls.push(row.type); return row.type === 'channel.cheer' ? pending : Promise.resolve({ ok: true }); } });
+  monitor.start();
+  const socket = FakeSocket.instances.at(-1);
+  socket.emit({ metadata: { message_type: 'session_welcome' }, payload: { session: { id: 'welcome' } } });
+  socket.emit({ metadata: { message_type: 'revocation' }, payload: { subscription: { type: 'channel.cheer', version: '1', status: 'version_removed' } } });
+  complete({ ok: true }); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(monitor.status().lifecycle, 'degraded');
+  assert.deepEqual(monitor.status().subscriptions, ['channel.raid']);
+  monitor.restart();
+  FakeSocket.instances.at(-1).emit({ metadata: { message_type: 'session_welcome' }, payload: { session: { id: 'next' } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls.filter(type => type === 'channel.cheer').length, 1);
+  monitor.stop();
+});
+
+test('a permanently rejected subscription is isolated without reconnecting or retrying it', async () => {
+  const calls = [], failures = [];
+  const monitor = createMonitor({ WebSocket: FakeSocket, getCredentials: () => ({ userId: 'owner' }),
+    getSubscriptionConfig: () => ({ redemptions: false, events: [{ type: 'channel.cheer', version: '1' }, { type: 'channel.raid', version: '1' }] }),
+    createSubscription: async row => { calls.push(row.type); return row.type === 'channel.cheer' ? { ok: false, status: 403, error: 'twitch_eventsub_subscription_failed' } : { ok: true }; },
+    onRevocation: row => failures.push(row) });
+  monitor.start();
+  FakeSocket.instances.at(-1).emit({ metadata: { message_type: 'session_welcome' }, payload: { session: { id: 'welcome' } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(monitor.status().connected, true);
+  assert.equal(monitor.status().lifecycle, 'degraded');
+  assert.deepEqual(monitor.status().subscriptions, ['channel.raid']);
+  assert.deepEqual(failures, [{ type: 'channel.cheer', version: '1', reason: 'unknown' }]);
+  monitor.restart();
+  FakeSocket.instances.at(-1).emit({ metadata: { message_type: 'session_welcome' }, payload: { session: { id: 'next' } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls.filter(type => type === 'channel.cheer').length, 1);
+  monitor.stop();
+});
+
+test('a rejected grant during the final subscription cannot restore connected state', async () => {
+  const monitor = createMonitor({ WebSocket: FakeSocket, getCredentials: () => ({ userId: 'owner' }),
+    getSubscriptionConfig: () => ({ redemptions: false, events: [{ type: 'channel.cheer', version: '1' }] }),
+    createSubscription: async () => ({ ok: false, status: 401 }) });
+  monitor.start();
+  FakeSocket.instances.at(-1).emit({ metadata: { message_type: 'session_welcome' }, payload: { session: { id: 'welcome' } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(monitor.status().enabled, false);
+  assert.equal(monitor.status().lifecycle, 'stopped');
+  assert.equal(monitor.status().connected, false);
+});
+
 test("EventSub monitor subscribes, deduplicates notifications, and stops cleanly", async () => {
   FakeSocket.instances.length = 0;
   const subscriptions = [];

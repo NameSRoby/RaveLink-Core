@@ -8,9 +8,9 @@ module.exports = function createColorCommandService(options = {}) {
   function listFixtures(brand = "", zone = "") { return fixtureRegistry.listTwitchBy(brand, zone); }
   function fixtureById(id) { return listFixtures().find(row => String(row.id) === String(id)) || null; }
   function normalizeDelivery(value, targetCount) {
-    return value && typeof value === "object"
-      ? { sent: Math.max(0, Number(value.sent || 0)), failed: Math.max(0, Number(value.failed || 0)), dryRun: value.dryRun === true, ...(value.command ? { command: structuredClone(value.command) } : {}) }
-      : { sent: targetCount, failed: 0 };
+    if (!value || typeof value !== "object") return { sent: targetCount, failed: 0 };
+    const sent = Number.isSafeInteger(value.sent) ? Math.max(0, Math.min(targetCount, value.sent)) : 0;
+    return { sent, failed: targetCount - sent, dryRun: value.dryRun === true, ...(value.command ? { command: structuredClone(value.command) } : {}) };
   }
   function autoTarget(config) {
     const fallback = twitchColorConfig.parseColorTarget(config.defaultTarget, "hue");
@@ -67,7 +67,7 @@ module.exports = function createColorCommandService(options = {}) {
       result.targets.push(...targets.map(row => row.id));
       if (targets.length && !requestOptions.preview) {
         deliveries.push(async () => {
-          try { result.hueDelivery = typeof hueBridge?.sendState === "function" ? normalizeDelivery(await hueBridge.sendState(targets, directive.hueState), targets.length) : { sent: 0, failed: targets.length }; if (result.hueDelivery.sent) for (const row of targets) lightingLab?.rememberState?.(row.id, "hue", directive.hueState); }
+          try { result.hueDelivery = typeof hueBridge?.sendState === "function" ? normalizeDelivery(await hueBridge.sendState(targets, directive.hueState), targets.length) : { sent: 0, failed: targets.length }; if (result.hueDelivery.sent === targets.length) for (const row of targets) lightingLab?.rememberState?.(row.id, "hue", directive.hueState); }
           catch { result.hueDelivery = { sent: 0, failed: targets.length }; }
         });
       }
@@ -79,7 +79,7 @@ module.exports = function createColorCommandService(options = {}) {
       result.targets.push(...targets.map(row => row.id));
       if (targets.length && !requestOptions.preview) {
         deliveries.push(async () => {
-          try { result.wizDelivery = typeof wizBridge?.sendState === "function" ? normalizeDelivery(await wizBridge.sendState(targets, directive.wizState), targets.length) : { sent: 0, failed: targets.length }; if (result.wizDelivery.sent) for (const row of targets) lightingLab?.rememberState?.(row.id, "wiz", directive.wizState); }
+          try { result.wizDelivery = typeof wizBridge?.sendState === "function" ? normalizeDelivery(await wizBridge.sendState(targets, directive.wizState), targets.length) : { sent: 0, failed: targets.length }; if (result.wizDelivery.sent === targets.length) for (const row of targets) lightingLab?.rememberState?.(row.id, "wiz", directive.wizState); }
           catch { result.wizDelivery = { sent: 0, failed: targets.length }; }
         });
       }
@@ -90,7 +90,7 @@ module.exports = function createColorCommandService(options = {}) {
       result.goveeTargets = targets.length;
       result.targets.push(...targets.map(row => row.id));
       if (targets.length && !requestOptions.preview) { deliveries.push(async () => {
-        try { result.goveeDelivery = { ...normalizeDelivery(await goveeBridge.sendState(targets, directive.wizState), targets.length), alpha: true }; if (result.goveeDelivery.sent) for (const row of targets) lightingLab?.rememberState?.(row.id, "govee", directive.wizState); }
+        try { result.goveeDelivery = { ...normalizeDelivery(await goveeBridge.sendState(targets, directive.wizState), targets.length), alpha: true }; if (result.goveeDelivery.sent === targets.length) for (const row of targets) lightingLab?.rememberState?.(row.id, "govee", directive.wizState); }
         catch { result.goveeDelivery = { sent: 0, failed: targets.length, alpha: true }; }
       }); }
     }

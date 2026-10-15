@@ -20,6 +20,8 @@ async function handleRequest(request) {
     "twitch.rewards.catalog.v1/list": ["list-rewards", 6000],
     "twitch.rewards.admin.v1/create": ["create-reward", 6000],
     "twitch.redemptions.v1/settle": ["settle", 6000],
+    "twitch.redemptions.v1/review": ["review-transactions", 1500],
+    "twitch.redemptions.v1/reconcile": ["reconcile-transaction", 29000],
     "twitch.chat.send.v1/send": ["send-chat", 6000]
   };
   const route = routes[`${request.capability}/${request.method}`];

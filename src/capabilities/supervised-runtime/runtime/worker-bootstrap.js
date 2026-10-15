@@ -100,8 +100,7 @@ async function activate() {
         capabilities: Object.freeze([...providedCapabilities]),
         consumedCapabilities: Object.freeze([...consumedCapabilities]),
         callCapability,
-        publishEvent,
-        runtimeAssetsRoot: typeof config.runtimeAssetsRoot === "string" ? config.runtimeAssetsRoot : ""
+        publishEvent
       })));
     }
     active = true;

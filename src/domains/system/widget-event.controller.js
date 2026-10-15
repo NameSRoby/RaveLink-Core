@@ -9,6 +9,9 @@ function createSystemWidgetEventController(deps = {}) {
   const {
     colorApply = async () => ({ status: 503, body: { ok: false, error: "color_apply_unavailable" } }),
     teachColor = async () => ({ status: 503, body: { ok: false, error: "teach_color_unavailable" } }),
+    previewTaughtColor = async () => ({ ok: false, scheduled: false, reason: "teach_preview_unavailable" }),
+    sendChat = async () => ({ ok: false, error: "twitch_chat_unavailable" }),
+    getTeachSettings = () => ({ preview: true, chatSuccess: false, chatFailure: false }),
     submitSongRequest = async () => ({ ok: false, error: "song_request_unavailable" }),
     settleRedemption = null,
     now = () => Date.now(),
@@ -316,6 +319,25 @@ function createSystemWidgetEventController(deps = {}) {
     return asString(body.detail || body.error || body.reason || body.message || result?.error?.code || result?.error || result?.text || "request failed") || "request failed";
   }
 
+  function teachChatMessage(meta, body, succeeded) {
+    const user = asString(meta.userName).replace(/^@+/, "").slice(0, 40);
+    const mention = user ? `@${user}, ` : "";
+    const name = asString(body.name).slice(0, 64);
+    const hex = asString(body.hex).toUpperCase().slice(0, 7);
+    if (succeeded) return `${mention}taught ${name} as ${hex}. It is ready to use now.`;
+    const messages = {
+      name_exists_base: `${mention}${name || "that name"} is a built-in color and cannot be overwritten.`,
+      name_exists_custom: `${mention}${name || "that name"} is already taught and cannot be overwritten.`,
+      already_exists: `${mention}${name || "that color"} is already taught.`,
+      hex_exists: `${mention}that color value is already saved${name ? ` as ${name}` : ""}.`,
+      invalid_format: `${mention}use a name followed by a six-digit hex value, for example: ocean glow #12ABEF.`,
+      invalid_name: `${mention}that color name is not valid.`,
+      invalid_hex: `${mention}use a six-digit hex value such as #12ABEF.`,
+      custom_color_limit_reached: `${mention}the custom color library is full.`
+    };
+    return messages[body.reason] || `${mention}that color could not be taught.`;
+  }
+
   async function executeReward(meta, config, action, transport) {
     if (action === "color") return await colorApply({ text: meta.userInput, userInput: meta.userInput });
     if (action === "teach") return await teachColor({ text: meta.userInput, userInput: meta.userInput });
@@ -403,11 +425,24 @@ function createSystemWidgetEventController(deps = {}) {
     const body = resultBody(bridgeResult);
     const refundRecommended = body.refundRecommended === true;
     const bridgeOk = resultOk(bridgeResult) && !refundRecommended;
+    const partialDelivery = action === "color" && bridgeOk && body.partial === true;
     counters.handled += 1;
     counters[action] += 1;
     if (!bridgeOk) counters.failed += 1;
     const desiredStatus = bridgeOk ? "FULFILLED" : "CANCELED";
-    const settlement = await settle(meta, desiredStatus, bridgeOk ? "action_succeeded" : resolveBridgeFailureMessage(bridgeResult), transport);
+    const settlement = await settle(meta, desiredStatus, partialDelivery ? "lighting_delivery_partial" : bridgeOk ? "action_succeeded" : resolveBridgeFailureMessage(bridgeResult), transport);
+    let teachPreview = null, chatDelivery = null;
+    if (action === "teach") {
+      const settings = { preview: true, chatSuccess: false, chatFailure: false, ...(getTeachSettings() || {}) };
+      if (bridgeOk && body.changed === true && settings.preview === true) {
+        try { teachPreview = await previewTaughtColor(body.hex); }
+        catch (error) { teachPreview = { ok: false, scheduled: false, reason: asString(error?.message || "teach_preview_failed").slice(0, 80) }; }
+      }
+      if ((bridgeOk && settings.chatSuccess === true) || (!bridgeOk && settings.chatFailure === true)) {
+        try { chatDelivery = await sendChat({ message: teachChatMessage(meta, body, bridgeOk) }); }
+        catch (error) { chatDelivery = { ok: false, error: asString(error?.message || "twitch_chat_send_failed").slice(0, 80) }; }
+      }
+    }
 
     return {
       status: 200,
@@ -419,9 +454,11 @@ function createSystemWidgetEventController(deps = {}) {
         status: settlement.status,
         desiredStatus,
         settlement,
-        degraded: !settlement.ok,
-        degradedCapabilities: settlement.ok ? [] : ["twitch.redemptions.v1"],
+        degraded: !settlement.ok || partialDelivery,
+        degradedCapabilities: [...(!settlement.ok ? ["twitch.redemptions.v1"] : []), ...(partialDelivery ? ["lighting"] : [])],
         result: body,
+        ...(teachPreview ? { teachPreview } : {}),
+        ...(chatDelivery ? { chatDelivery } : {}),
         actions: []
       }
     };

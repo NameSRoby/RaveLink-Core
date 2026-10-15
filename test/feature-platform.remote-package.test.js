@@ -24,6 +24,17 @@ function repositoryFetch({ tamper = "", oversized = false } = {}) {
   };
 }
 
+test('filtered feature discovery does not request unrelated remote feature manifests', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ravelink-feature-catalog-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const requested = [];
+  const local = repositoryFetch();
+  const manager = createFeaturePackageManager({ installedRoot: path.join(root, 'installed'), packageRoots: [], remoteSources: OFFICIAL_FEATURE_SOURCES, runtimeRoot: path.join(root, 'runtime'), fetchImpl: async url => { requested.push(url); return local(url); } });
+  const result = await manager.listAvailable({ featureIds: ['clip-studio'], timeoutMs: 2500 });
+  assert.deepEqual(result.features.map(row => row.id), ['clip-studio']);
+  assert.equal(requested.length, 1); assert.match(requested[0], /clip-studio\/ravelink.feature.json$/);
+});
+
 test("every official optional feature is advertised from GitHub and installs only after download", async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-remote-feature-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -35,8 +46,8 @@ test("every official optional feature is advertised from GitHub and installs onl
     fetchImpl: repositoryFetch()
   });
   const available = await manager.listAvailable();
-  assert.equal(available.total, 5);
-  assert.deepEqual(available.features.map(row => row.id), ["automation", "clip-studio", "song-request", "tts-engine-local", "twitch-integration"]);
+  assert.equal(available.total, 3);
+  assert.deepEqual(available.features.map(row => row.id), ["clip-studio", "song-request", "twitch-integration"]);
   assert.ok(available.features.every(row => row.source === "github" && row.downloadRequired === true && row.installed === false));
   for (const featureId of available.features.map(row => row.id)) {
     const installed = await manager.install(featureId);

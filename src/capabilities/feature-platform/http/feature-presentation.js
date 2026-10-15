@@ -1,3 +1,5 @@
+const tasks = require('./feature-task-navigation');
+const feedback = require('../../../../public/core/action-feedback');
 function contributionPresentation() {
   const channel = 'ravelink-feature-ui-v1';
   let observer, scheduled = false, lastHeight = 0;
@@ -7,10 +9,16 @@ function contributionPresentation() {
     requestAnimationFrame(() => {
       scheduled = false;
       if (!document.body.getBoundingClientRect().width) return;
-      const height = Math.ceil(document.body.getBoundingClientRect().height);
+      const bounds = document.body.getBoundingClientRect();
+      const style = getComputedStyle(document.body);
+      const height = Math.ceil(Math.max(bounds.height, document.body.scrollHeight) +
+        (Number.parseFloat(style.marginTop) || 0) + (Number.parseFloat(style.marginBottom) || 0));
+      // Focus can scroll a short iframe before its parent applies the new height.
+      // Once it fits, keep scrolling owned by the surrounding control panel.
+      if (parent !== window && innerHeight >= height && (scrollX || scrollY)) scrollTo(0, 0);
       if (height === lastHeight) return;
       lastHeight = height;
-      parent.postMessage({ channel, type: 'feature-height', height }, '*');
+      parent.postMessage({ channel, type: 'feature-height', height, contentHeight: true }, '*');
     });
   };
   window.addEventListener('message', event => {
@@ -22,12 +30,19 @@ function contributionPresentation() {
     }
     if (/^#[0-9a-f]{3,8}$/i.test(theme.ok)) document.documentElement.style.setProperty('--good', theme.ok);
     if (/^#[0-9a-f]{3,8}$/i.test(theme.edge)) document.documentElement.style.setProperty('--line', theme.edge);
-    if (!observer) { observer = new ResizeObserver(report); observer.observe(document.body); }
     report();
   });
+  document.documentElement.classList.add('flow-feature');
+  observer = new ResizeObserver(report);
+  observer.observe(document.body);
+  window.addEventListener('resize', report);
+  report();
 }
 
-const css = `.native-feature,.native-feature body{min-height:0!important;height:auto!important;background:var(--panel,#0b0e18)!important}
+const css = `.flow-feature,.flow-feature body{min-height:0!important;height:auto!important}
+.flow-feature{overflow:hidden!important}
+.flow-feature body{overflow:visible!important}
+.native-feature,.native-feature body{background:var(--panel,#0b0e18)!important}
 .native-feature body{font-family:Rajdhani,"Trebuchet MS",Arial,sans-serif}
 .native-feature body>header{background:transparent;border-bottom:1px solid var(--edge);padding:0 0 10px;min-height:40px;height:auto;justify-content:flex-end}
 .native-feature body>header h1{display:none}
@@ -39,5 +54,5 @@ const css = `.native-feature,.native-feature body{min-height:0!important;height:
 .native-feature .field select,.native-feature .segment-head select{background:var(--bg);border-color:var(--edge)}
 .native-feature h1,.native-feature h2,.native-feature button{letter-spacing:0}`;
 
-module.exports = content => String(content).replace('</head>', `<style>${css}</style></head>`)
-  .replace('</body>', `<script>(${contributionPresentation.toString()})();</script></body>`);
+module.exports = content => String(content).replace('</head>', `<style>${css}${tasks.css}</style></head>`)
+  .replace('</body>', `<script>(${tasks.taskNavigation.toString()})();(${contributionPresentation.toString()})();(${feedback.toString()})();</script></body>`);
