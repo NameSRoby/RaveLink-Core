@@ -16,5 +16,7 @@ config/*.enabled
 .vs/
 .vscode/
 .idea/
+desktop/windows-host/bin/
+desktop/windows-host/obj/
 Thumbs.db
 Desktop.ini
