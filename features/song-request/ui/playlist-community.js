@@ -19,4 +19,7 @@ window.installCommunityPlaylists = function(libraryView) {
       rows.append(row);
     }
   };
+  // The first Library response can arrive before this addon is installed.
+  // Queue a refresh so its saved playlists also render on that first visit.
+  void refresh();
 };

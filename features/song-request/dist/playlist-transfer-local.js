@@ -1,6 +1,7 @@
-module.exports = async ({ job, rows, library, options, saveLibrary, save }) => {
-  const target = job.target || 'tidal';
-  if (!['youtube', 'soundcloud', 'tidal'].includes(target) || rows.some(row => row.selected && row.selected.provider !== target)) throw new Error('transfer_review_required');
+module.exports = async ({ job, rows, library, options, saveLibrary, save, original = false }) => {
+  const target = original ? 'local' : job.target || 'tidal';
+  if(original)rows=rows.filter(row=>row.track&&row.include!==false).map(row=>({...row,selected:row.track.candidate}));
+  if (!original&&(!['youtube', 'soundcloud', 'tidal', 'spotify'].includes(target) || rows.some(row => row.selected && row.selected.provider !== target))) throw new Error('transfer_review_required');
   const groups = require('./playlist-transfer-plan')(rows, options);
   if (!groups.length) throw new Error('transfer_review_required');
   const status = library.status();

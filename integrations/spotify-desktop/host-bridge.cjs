@@ -1,4 +1,5 @@
 const crypto = require('node:crypto'), express = require('express');
+const { rateLimit } = require('express-rate-limit');
 const { trackUri } = require('./catalog.cjs');
 const playlists = require('./playlist-reader.cjs');
 const liveState = require('./live-state.cjs');
@@ -28,18 +29,22 @@ module.exports = function createSpotifyHostBridge(options = {}) {
     const normalized = normalize(kind, payload);
     if (typeof requestId !== 'string' || !ID.test(requestId) || !normalized) return Promise.resolve({ ok: false, error: 'spotify_command_invalid' });
     const signature = JSON.stringify([kind, normalized]), old = jobs.get(requestId);
-    if (old) return old.signature === signature ? old.promise : Promise.resolve({ ok: false, error: 'spotify_request_id_conflict' });
-    if (!status().connected) return Promise.resolve({ ok: false, error: 'spotify_companion_unavailable' });
+    if (old) {
+      if (old.signature !== signature) return Promise.resolve({ ok: false, error: 'spotify_request_id_conflict' });
+      if (old.done && old.result?.safeToRetry === true) jobs.delete(requestId);
+      else return old.promise;
+    }
+    if (!status().connected) return Promise.resolve({ ok: false, error: 'spotify_companion_unavailable', safeToRetry: true });
     for (const [id, item] of jobs) if (item.done && (item.kind === 'search' || item.kind === 'playlist' && ['list','read'].includes(item.payload.action))) jobs.delete(id);
-    if (jobs.size >= 2048 || status().pending >= 8) return Promise.resolve({ ok: false, error: 'spotify_bridge_busy' });
+    if (jobs.size >= 2048 || status().pending >= 8) return Promise.resolve({ ok: false, error: 'spotify_bridge_busy', safeToRetry: true });
     const job = { id: requestId, kind, payload: normalized, signature, lease: crypto.randomBytes(16).toString('hex'), issued: false, done: false };
     job.promise = new Promise(resolve => { job.resolve = resolve; });jobs.set(requestId, job);
-    job.timer = setTimeout(() => finish(job, { ok: false, error: job.issued && kind !== 'search' ? 'spotify_delivery_unconfirmed' : 'spotify_command_expired', retrySafe: kind === 'search' || !job.issued }), timeoutMs);
+    job.timer = setTimeout(() => finish(job, { ok: false, error: job.issued && kind !== 'search' ? 'spotify_delivery_unconfirmed' : 'spotify_command_expired', retrySafe: kind === 'search' || !job.issued, safeToRetry: !job.issued }), timeoutMs);
     return job.promise;
   }
   function acceptResult(job, raw) {
     if (raw?.ok === false && ['spotify_current_changed', 'spotify_playback_restricted', 'spotify_native_queue_rejected'].includes(raw.error)) return { ok: false, error: raw.error, retrySafe: false };
-    if (job.kind === 'playlist') return raw?.ok === false ? { ok: false, error: /^spotify_playlist_[a-z_]+$/.test(raw.error || '') ? raw.error : 'spotify_playlist_read_failed' } : playlists.result(raw, job.payload);
+    if (job.kind === 'playlist') return raw?.ok === false ? { ok: false, error: /^spotify_playlist_[a-z_]+$/.test(raw.error || '') ? raw.error : ['create','append'].includes(job.payload.action) ? 'spotify_playlist_write_uncertain' : 'spotify_playlist_read_failed', safeToRetry: raw.error === 'spotify_playlist_unavailable' && raw.safeToRetry === true } : playlists.result(raw, job.payload);
     if (raw?.ok === false) {
       const known = new Set(['spotify_local_device_unverified', 'spotify_track_invalid', 'spotify_queue_append_unavailable', 'spotify_queue_removal_unavailable', 'spotify_queue_shape_unavailable', 'spotify_queue_entry_id_required', 'spotify_queue_entry_not_found', 'spotify_delivery_unconfirmed', 'spotify_removal_unconfirmed', 'spotify_search_query_invalid', 'spotify_search_unavailable', 'spotify_desktop_search_rejected', 'spotify_search_shape_unavailable']);
       return { ok: false, error: known.has(raw.error) ? raw.error : 'spotify_companion_action_failed', retrySafe: false };
@@ -65,11 +70,17 @@ module.exports = function createSpotifyHostBridge(options = {}) {
       if (origin) { res.set('access-control-allow-origin', origin);res.vary('Origin');res.set('access-control-allow-headers', 'authorization, content-type');res.set('access-control-allow-methods', 'POST, OPTIONS');res.set('access-control-allow-private-network', 'true'); }
       res.set('cache-control', 'no-store');
       if (req.method === 'OPTIONS') return res.sendStatus(204);
+      next();
+    });
+    // One bounded bucket protects authorization and snapshot work. The normal
+    // companion polls far below this allowance, including result receipts.
+    router.use(rateLimit({ windowMs: 60000, limit: 1200, keyGenerator: () => 'companion', standardHeaders: 'draft-8', legacyHeaders: false, ...options.rateLimitOptions, message: { ok: false, error: 'spotify_bridge_rate_limited' } }));
+    router.use((req, res, next) => {
       const supplied = /^Bearer ([a-f0-9]{64})$/.exec(req.get('authorization') || '')?.[1];
       if (closed || req.method !== 'POST' || !authorized(supplied)) return res.status(401).json({ ok: false, error: 'spotify_pairing_required' });
       next();
     });
-    router.use(express.json({ limit: '16kb', strict: true }));
+    router.use(express.json({ limit: '64kb', strict: true }));
     router.post('/hello', (req, res) => {
       const id = req.body?.clientId;
       if (typeof id !== 'string' || !ID.test(id) || clientId && clientId !== id && Date.now() - lastSeen < 10000) return res.status(409).json({ ok: false, error: 'spotify_companion_conflict' });

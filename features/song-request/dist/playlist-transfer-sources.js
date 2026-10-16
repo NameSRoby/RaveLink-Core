@@ -3,6 +3,14 @@ module.exports = context => {
   const youtube = (method, payload) => context.callCapability('youtube.catalog.host.v1', 'import-playlist-' + method, payload, { timeoutMs: 3000 });
   const sources = {
     spotify,
+    spotifyId(value) {
+      const id = String(value || '');
+      if (/^(?:spotify:playlist:)?[A-Za-z0-9]{22}$/.test(id)) return id.replace(/^spotify:playlist:/, '');
+      try { const url = new URL(id), match = /^\/(?:intl-[a-z-]+\/)?playlist\/([A-Za-z0-9]{22})\/?$/.exec(url.pathname);
+        if (url.protocol === 'https:' && url.hostname === 'open.spotify.com' && !url.username && !url.password && !url.port && match) return match[1];
+      } catch {}
+      throw Error('spotify_playlist_invalid');
+    },
     async beginYoutube(url, limit) {
       const parsed = new URL(url);
       if (parsed.protocol !== 'https:' || !['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com'].includes(parsed.hostname) || parsed.username || parsed.password || parsed.port || !/^[A-Za-z0-9_-]{10,120}$/.test(parsed.searchParams.get('list') || '')) throw Error('playlist_url_invalid');
@@ -30,11 +38,9 @@ module.exports = context => {
       if (input.action === 'read_youtube') { const started = await sources.beginYoutube(input.id, limit);return { kind:'youtube',name:input.name || started.title || 'YouTube playlist',sourceJobId:started.jobId }; }
       const id = String(input.id || '');
       if (input.action === 'read_spotify') {
-        let valid = /^(?:spotify:playlist:)?[A-Za-z0-9]{22}$/.test(id);
-        try { const url = new URL(id);valid ||= url.protocol === 'https:' && url.hostname === 'open.spotify.com' && !url.username && !url.password && !url.port && /^\/(?:intl-[a-z-]+\/)?playlist\/[A-Za-z0-9]{22}\/?$/.test(url.pathname); } catch {}
-        if (!valid) throw Error('spotify_playlist_invalid');
-        const first = await spotify({action:'read',id,offset:0});if (!first.ok) throw Error(first.error);if(first.total > limit) throw Error('playlist_track_limit');
-        return {kind:'spotify',name:input.name || first.name || 'Spotify playlist',sourceId:id,sourceTotal:first.total,sourceRevision:first.revision || ''};
+        const sourceId = sources.spotifyId(id);
+        const first = await spotify({action:'read',id:sourceId,offset:0});if (!first.ok) throw Error(first.error);if(first.total > limit) throw Error('playlist_track_limit');
+        return {kind:'spotify',name:input.name || first.name || 'Spotify playlist',sourceId,sourceTotal:first.total,sourceRevision:first.revision || ''};
       }
       let sourceId = id;
       if (sourceId.startsWith('https://')) { const url = new URL(sourceId);if (!['tidal.com','listen.tidal.com','www.tidal.com'].includes(url.hostname) || url.username || url.password || url.port) throw Error('tidal_playlist_invalid');sourceId = /^\/(?:browse\/)?playlist\/([A-Za-z0-9_-]+)\/?$/.exec(url.pathname)?.[1] || ''; }

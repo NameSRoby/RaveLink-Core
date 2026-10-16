@@ -33,8 +33,10 @@ test('community redemptions use each selected provider and expose saved lists an
   assert.ok(lists.value.collections.filter(row=>row.name.startsWith('Community - ')).every(row=>row.count===1));
   const page=await browser.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
   const base='http://127.0.0.1:'+server.address().port;
+  // Slow the shell dependencies so child requests cannot outrun its relay.
+  await page.route('**/feature-events-client.js',async route=>{await new Promise(r=>setTimeout(r,250));await route.continue();});
   await page.goto(base+'/features-ui/song-request/server-playlist');
-  const frame=page.locator('#surface').contentFrame();await frame.locator('#communityPlaylists').waitFor();
+  const frame=page.locator('#surface').contentFrame();await frame.locator('#communityPlaylists').waitFor().catch(async()=>{throw Error('Community view: '+JSON.stringify(errors)+'; '+(await frame.locator('body').innerText()).slice(0,1800));});
   assert.equal(await frame.locator('#communityPlaylists').getByRole('button',{name:'View songs',exact:true}).count(),4);
   assert.match(await frame.locator('#communityPlaylists').innerText(),/Saved locally/);
   await page.goto(base+'/features-ui/twitch-integration/connection');

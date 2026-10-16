@@ -1,6 +1,8 @@
 const test = require('node:test'), assert = require('node:assert/strict'), express = require('express');
 const createHost = require('../integrations/spotify-desktop/host-bridge.cjs');
 const createWorker = require('../integrations/spotify-desktop/connection-worker.cjs');
+const createAdapter = require('../integrations/spotify-desktop/desktop-adapter.cjs');
+const createFacade = require('../integrations/spotify-desktop/native-facade.cjs');
 const A = 'spotify:track:AAAAAAAAAAAAAAAAAAAAAA';
 async function setup(t, options = {}) {
   const host = createHost({ timeoutMs: 1000, ...options }), app = express();app.use('/api/spotify/bridge', host.router());
@@ -67,4 +69,20 @@ test('paired playlist reading is bounded and strips unrelated account fields', a
   const reply=host.invoke('playlist',{action:'read',id:'spotify:playlist:'+'B'.repeat(22),offset:0},'read-list');await worker.step();
   const result=await reply;assert.equal(result.tracks[0].album,'Album');assert.equal(JSON.stringify(result).includes('must-not-leak'),false);
   assert.equal((await host.invoke('playlist',{action:'append',id:'B'.repeat(22)},'bad-write')).ok,false);
+});
+
+test('native playlist transfer receipts carry long Unicode pages and acknowledge writes without replaying them',async t=>{
+  const {host,coreUrl}=await setup(t),playlist='spotify:playlist:'+'B'.repeat(22),entries=[];let created=0,appended=0;
+  const platform={RootlistAPI:{createPlaylist:async()=>{created++;return playlist;}},PlaylistAPI:{
+    add:async(id,tracks)=>{assert.equal(id,playlist);appended++;entries.push(...tracks);},
+    getPlaylist:async(_id,_options,page)=>({metadata:{isLoaded:true,name:'Long source',totalLength:25},contents:{items:Array.from({length:Math.min(25-page.offset,25)},()=>({uri:A,name:'曲'.repeat(200),artists:Array.from({length:8},()=>({name:'名'.repeat(100)})),album:{name:'盤'.repeat(200)}}))}})
+  }};
+  const worker=createWorker(createAdapter(createFacade(platform)),{coreUrl,token:host.pairing().token,clientId:'transfers'});t.after(()=>worker.close());
+  await worker.step();
+  const read=host.invoke('playlist',{action:'read',id:playlist,offset:0},'long-page');await worker.step();const page=await read;
+  assert.equal(page.ok,true);assert.ok(page.tracks.length>0&&page.tracks.length<25);assert.equal(Number(page.cursor),page.tracks.length);assert.equal(worker.status().awaitingReceipt,false);
+  const create=host.invoke('playlist',{action:'create',name:'Transferred'},'create-playlist');await worker.step();assert.equal((await create).id,playlist);
+  const append=host.invoke('playlist',{action:'append',id:playlist,ids:[A,A]},'append-playlist');await worker.step();assert.equal((await append).ok,true);
+  assert.equal((await host.invoke('playlist',{action:'append',id:playlist,ids:[A,A]},'append-playlist')).ok,true);
+  assert.equal(created,1);assert.equal(appended,1);assert.deepEqual(entries,[A,A]);
 });

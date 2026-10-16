@@ -1,6 +1,6 @@
 const { compact, rank } = require('./playlist-transfer-matching');
 module.exports = context => async (source, target = 'tidal', adaptive = true) => {
-  if (!['tidal', 'youtube', 'soundcloud'].includes(target)) throw new Error('transfer_provider_invalid');
+  if (!['tidal', 'youtube', 'soundcloud', 'spotify'].includes(target)) throw new Error('transfer_provider_invalid');
   if (source.provider === target) {
     const reply = target === 'tidal' ? await context.callCapability('tidal.playlists.host.v1', 'action', { action: 'track', id: source.providerItemId }, { timeoutMs: 15000 }) : { ok: true, candidate: source };
     if (!reply.ok) return reply;
@@ -9,8 +9,10 @@ module.exports = context => async (source, target = 'tidal', adaptive = true) =>
   const query = [...source.artists, source.title, source.version].filter(Boolean).join(' ').slice(0, 256);
   const reply = target === 'tidal'
     ? await context.callCapability('tidal.playlists.host.v1', 'action', { action: 'search', query, isrc: source.isrc || '' }, { timeoutMs: 15000 })
+    : target === 'spotify' ? await context.callCapability('spotify.desktop.host.v1', 'resolve', { query, policy: { minimumConfidence: 0.5, maxDurationMs: 86400000 } }, { timeoutMs: 15000 })
     : await context.callCapability(target + '.catalog.host.v1', 'resolve', { query, transfer: target === 'soundcloud' && adaptive, policy: { minimumConfidence: 0.5, minimumViews: 0, minimumSubscribers: 0, maxDurationMs: 86400000 }, maxDurationMs: 86400000 }, { timeoutMs: 12000 });
   if (!reply.ok && /rate_limited|busy/.test(reply.error || reply.reason || '')) return { ...reply, error: reply.error || reply.reason };
+  if (!reply.ok && reply.error === 'spotify_match_not_found') return { ok: true, choices: [] };
   let candidates = reply.candidates || [reply.candidate].filter(Boolean);
   if (target === 'soundcloud' && adaptive && source.title !== query && (!reply.ok || !candidates.length || rank(source, candidates)[0]?.score < 85)) {
     const fallback = await context.callCapability('soundcloud.catalog.host.v1', 'resolve', { query: source.title.slice(0,256), matchQuery: query, transfer: true, policy: { minimumConfidence: 0.5, maxDurationMs: 86400000 }, maxDurationMs: 86400000 }, { timeoutMs: 12000 });

@@ -7,7 +7,7 @@ module.exports = function createSpotifyConnection(client, options = {}) {
   let sessionId = '', pendingReceipt = null, inFlight = null, closed = false, lastError = '';
   async function post(method, payload) {
     const body = JSON.stringify({ clientId, sessionId, ...payload });
-    if (BufferBytes(body) > 16384) throw Error('spotify_bridge_payload_invalid');
+    if (BufferBytes(body) > 65536) throw Error('spotify_bridge_payload_invalid');
     const response = await fetchImpl(new URL('/api/spotify/bridge/' + method, base), { method: 'POST', headers: { authorization: 'Bearer ' + options.token, 'content-type': 'application/json' }, body, redirect: 'error', credentials: 'omit', signal: AbortSignal.timeout(5000) });
     const chunks = [];let bytes = 0;
     if (!response.body) throw Error('spotify_bridge_reply_invalid');
@@ -24,7 +24,8 @@ module.exports = function createSpotifyConnection(client, options = {}) {
     const signature = JSON.stringify([command.kind, command.payload]), previous = results.get(command.id);
     if (previous) {
       if (previous.signature !== signature) throw Error('spotify_request_id_conflict');
-      return previous.result;
+      if (previous.result?.safeToRetry !== true) return previous.result;
+      results.delete(command.id);
     }
     for (const [id, item] of results) if ((item.kind === 'search' || item.kind === 'playlist' && item.readOnly)) results.delete(id);
     if (results.size >= 2048) throw Error('spotify_bridge_history_full');

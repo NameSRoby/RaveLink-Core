@@ -31,7 +31,7 @@
   }
   async function save(tabs){
     const notice=document.getElementById('navigationNotice'),button=document.getElementById('saveNavigation');button.disabled=true;notice.textContent='Saving tab layout…';
-    try{const response=await fetch('/api/presentation/navigation',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({tabs})});const result=await response.json();if(!response.ok||!result.ok)throw new Error('Could not save your tab layout.');saved=result.tabs;apply();notice.textContent='Tab layout saved.';}
+    try{const response=await fetch('/api/presentation/navigation',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({tabs})});const result=await response.json();if(response.status===429)throw new Error('Too many saves. Try again in '+(Number(response.headers.get('retry-after'))||60)+' seconds.');if(!response.ok||!result.ok)throw new Error('Could not save your tab layout.');saved=result.tabs;apply();notice.textContent='Tab layout saved.';}
     catch(error){notice.textContent=error.message;}finally{button.disabled=!loaded;}
   }
   document.getElementById('saveNavigation').onclick=()=>save({...saved,...Object.fromEntries([...dialog.querySelectorAll('select')].map(select=>[select.dataset.tabId,select.value]))});

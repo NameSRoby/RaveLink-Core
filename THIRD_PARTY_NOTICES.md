@@ -27,6 +27,7 @@ RaveLink Core includes or interoperates with the following third-party component
 - **bonjour-service** - MIT License. Used for bounded Philips Hue discovery.
 - **cross-fetch** - MIT License. Used by Hue Entertainment support.
 - **express** - MIT License.
+- **express-rate-limit** - MIT License. Bounds local settings saves and Spotify companion requests.
 - **hue-sync** - Apache License 2.0. Optional Hue Entertainment transport.
 - **node-dtls-client** - MIT License. Optional Hue Entertainment transport dependency.
 - **yauzl** - MIT License. Used for bounded mod package extraction.

@@ -55,13 +55,13 @@ window.PlaylistProviderUI = (() => {
   document.head.append(style); return { badge, card, labels, colors };
 })();
 
-window.installTransferFlow = function ({ panel, sourceControls, account, activity, organization }) {
+window.installTransferFlow = function ({ panel, sourceControls, account, activity, organization, reviewSource }) {
   const providers = window.PlaylistProviderUI;
   const stepper = document.createElement('nav'); stepper.id = 'transferSteps'; stepper.setAttribute('aria-label','Transfer steps');
   const route = document.createElement('div'); route.id = 'transferRoute'; route.hidden = true;
   const sections = [1,2,3].map((number,index) => {
     const section = document.createElement('section'); section.id = 'transferStep'+number; section.className = 'transferStep';
-    const heading = document.createElement('h3'); heading.textContent = [ '1. Choose your playlist', '2. Where should it go?', '3. Check your matches' ][index]; section.append(heading);
+    const heading = document.createElement('h3'); heading.textContent = [ '1. Choose your playlists', '2. Where should it go?', '3. Check your matches' ][index]; section.append(heading);
     const button = document.createElement('button'); button.type='button'; button.dataset.step=number; button.textContent = [ '1  Source', '2  Destination', '3  Check matches' ][index]; button.onclick=()=>show(number); stepper.append(button); return section;
   });
   const sourceCards=document.createElement('div'); sourceCards.id='transferSourceChoices'; sourceCards.className='providerChoices';
@@ -72,10 +72,15 @@ window.installTransferFlow = function ({ panel, sourceControls, account, activit
   sourceSelect.closest('label').hidden=targetSelect.closest('label').hidden=true; sourceSelect.selectedIndex=-1;
   for(const [provider,detail]of [['library','Choose a saved playlist'],['tidal','Your TIDAL account or playlist link'],['spotify','Your Spotify companion playlists'],['url','YouTube, SoundCloud, TIDAL or Spotify link'],['csv','Load a CSV file']])
     sourceCards.append(providers.card(provider,detail,()=>{sourceSelect.value=provider;sourceSelect.onchange();}));
-  for(const [provider,detail]of [['youtube','Save matched tracks in RaveLink'],['tidal','Create a playlist in your account'],['soundcloud','Save matched tracks in RaveLink'],['csv','Download the original track details'],['library','Save an original local copy']])
+  for(const [provider,detail]of [['youtube','Save matched tracks in RaveLink'],['tidal','Create a playlist in your account'],['spotify','Create a playlist through your desktop companion'],['soundcloud','Save matched tracks in RaveLink'],['csv','Download the original track details'],['library','Save an original local copy']])
     targetCards.append(providers.card(provider,detail,()=>chooseTarget(provider)));
   const destination=$('transferTarget').closest('.band'); destination.id='transferDestination';destination.previousElementSibling.remove();
   sections[1].append(destination,$('saveLocal').closest('.band'));
+  const output=document.createElement('label');output.id='transferBatchLayout';output.hidden=true;output.innerHTML='Selected playlists<select id="transferBatchMode"><option value="playlist">Keep playlists separate</option><option value="single">Merge into one playlist</option></select><span>Separate playlists keep their source names and track order. Merging follows the selected playlist order.</span>';
+  sections[1].insertBefore(output,destination);
+  const mergedName=document.createElement('label');mergedName.id='transferMergedNameLabel';mergedName.hidden=true;mergedName.innerHTML='Destination playlist name<input id="transferMergedName" maxlength="80" placeholder="Name your merged playlist">';output.after(mergedName);
+  $('transferMergedName').oninput=()=>{$('transferName').value=$('transferMergedName').value;};
+  $('transferBatchMode').onchange=()=>{$('transferGrouping').value=$('transferBatchMode').value;$('transferGrouping').dispatchEvent(new Event('change',{bubbles:true}));paint();};
   const exportBox=document.createElement('div');exportBox.id='transferCsvDestination';exportBox.innerHTML='<p>Export the loaded playlist with its original track details.</p>';exportBox.append($('exportCollection'));sections[1].append(exportBox);
   sections[2].append($('transferReview')); sections[2].querySelector('h3').after(organization);
   const finalActions=document.createElement('div');finalActions.id='transferSaveActions';finalActions.className='band';finalActions.append($('saveMatched'),$('writeTidal'));
@@ -83,26 +88,44 @@ window.installTransferFlow = function ({ panel, sourceControls, account, activit
   destination.append($('destinationHelp')); destination.removeAttribute('class');destination.className='destinationAction';
   const csvHelp=document.createElement('p');csvHelp.textContent='The CSV is downloaded by your browser; a copy is also kept under Saved CSV exports.';exportBox.append(csvHelp);
   $('saveLocal').closest('.band').id='transferSourceSave';
-  const names = {youtube:'YouTube',tidal:'TIDAL',soundcloud:'SoundCloud'};
-  let step=1,job=null,lastId='',choice='',connected=false,loadingLink=false,lastState='';
-  function chooseTarget(provider){choice=provider;if(names[provider]){targetSelect.value=provider;targetSelect.onchange();}show(2);}
-  function show(number){step=number;paint();}
+  const names = {youtube:'YouTube',tidal:'TIDAL',soundcloud:'SoundCloud',spotify:'Spotify'};
+  const reconsider=document.createElement('p');reconsider.id='transferDestinationHint';destination.before(reconsider);
+  const hint=document.createElement('p');hint.id='transferStepHint';sections[0].querySelector('h3').after(hint);
+  const navigation=sections.map((section,index)=>{const bar=document.createElement('div');bar.className='transferStepNavigation';section.append(bar);return bar;});
+  function button(label,id,bar,action){const node=document.createElement('button');node.type='button';node.id=id;node.textContent=label;node.onclick=action;bar.append(node);return node;}
+  const continueSource=button('Continue to destination','transferContinueSource',navigation[0],()=>show(2));
+  button('Back to playlists','transferBackToSource',navigation[1],()=>show(1));
+  const returnMatches=button('Return to matches','transferReturnMatches',navigation[1],()=>show(3));
+  button('Back to destination','transferBackToDestination',navigation[2],()=>show(2));
+  const again=button('Transfer these playlists again','transferAgain',activity,async()=>{if(await reviewSource())show(2);});
+  let step=1,job=null,lastId='',choice='',connected=false,loadingLink=false,lastState='',manualStep=false;
+  async function chooseTarget(provider){if(job?.targetLocked){if(!await reviewSource())return;}choice=provider;if(names[provider]){targetSelect.value=provider;targetSelect.onchange();}show(2);}
+  function show(number){step=number;manualStep=true;paint();}
   function paint(){
     const busy=['reading','matching','writing','uncertain'].includes(job?.state),complete=job?.state==='complete',matched=job?.kind==='matching', changed=matched&&choice!==job.target;
     sections.forEach((section,index)=>section.hidden=step!==index+1);
-    [...stepper.children].forEach((button,index)=>{const n=index+1;button.setAttribute('aria-current',step===n?'step':'false');button.disabled=loadingLink||n===1&&busy||n===2&&(!job||busy||complete)||n===3&&(!matched&&!complete||changed);});
+    [...stepper.children].forEach((button,index)=>{const n=index+1;button.setAttribute('aria-current',step===n?'step':'false');button.disabled=loadingLink||n===2&&!job||n===3&&(!matched&&!complete||changed);});
     for(const button of sourceCards.children){button.setAttribute('aria-pressed',String(button.dataset.provider===sourceSelect.value));button.disabled=busy||loadingLink;}
-    for(const button of targetCards.children){button.setAttribute('aria-pressed',String(button.dataset.provider===choice));button.disabled=busy||Boolean(job?.targetLocked);}
+    for(const button of targetCards.children){button.setAttribute('aria-pressed',String(button.dataset.provider===choice));button.disabled=busy||Boolean(job?.targetLocked)&&!complete;}
+    for(const id of ['transferCollection','tidalPlaylist','spotifyPlaylist','listTidal','moreTidal','listSpotify','moreSpotify','readTidal','readSpotify','useCollection','readCsv','previewCsv','transferFile','import'])$(id).disabled=busy||loadingLink;
+    continueSource.disabled=!job||busy;returnMatches.hidden=!matched||changed;returnMatches.disabled=busy;
+    again.hidden=!complete;again.disabled=busy;
+    hint.textContent=busy?'You can browse the steps. Pause the current operation before changing its source.':job?'Your loaded playlists and current matches stay available while you browse. Read your selection to replace the source.':'Select one or more playlists, then read your selection.';
     for(const name of ['csv','library','tidal','spotify','url'])$(name+'Source').hidden=sourceSelect.value!==name;
     sections[0].style.setProperty('--step-color',providers.colors[sourceSelect.value]||'var(--edge)');sections[1].style.setProperty('--step-color',providers.colors[choice]||'var(--edge)');sections[2].style.setProperty('--step-color',providers.colors[job?.target]||'var(--edge)');
     const loaded = { library: $('transferCollection').options.length, tidal: $('tidalPlaylist').options.length, spotify: $('spotifyPlaylist').options.length, csv: job?.sourceKind === 'csv' && !job.dismissed };
     $('transferName').closest('label').hidden=!loaded[sourceSelect.value];
     $('readTidal').hidden=!loaded.tidal;$('readSpotify').hidden=!loaded.spotify;$('useCollection').hidden=!loaded.library;
     const service=Boolean(names[choice]);destination.hidden=!service;$('transferSourceSave').hidden=choice!=='library';exportBox.hidden=choice!=='csv';
-    if(service){targetSelect.value=choice;$('matchTidal').textContent='Find '+names[choice]+' matches';}
+    reconsider.hidden=!matched||!changed;reconsider.textContent='Your '+(names[job?.target]||'current')+' matches are kept until you start finding matches for another destination.';
+    output.hidden=!(job?.sourcePlaylists?.length>1)||choice==='csv';$('transferBatchMode').disabled=busy||Boolean(job?.targetLocked);
+    mergedName.hidden=output.hidden||$('transferBatchMode').value!=='single';$('transferMergedName').disabled=busy||Boolean(job?.targetLocked);
+    if(document.activeElement!==$('transferMergedName'))$('transferMergedName').value=$('transferName').value||job?.name||'';
+    if(service){targetSelect.value=choice;$('matchTidal').textContent=matched&&!changed?'Return to '+names[choice]+' matches':'Find '+names[choice]+' matches';}
     $('matchTidal').disabled=!job||busy||Boolean(job.targetLocked)||choice==='tidal'&&!connected;
     $('saveLocal').disabled=!job||busy;$('exportCollection').disabled=!job||busy;
-    $('saveMatched').hidden=!matched||job.target==='tidal'||complete;$('writeTidal').hidden=!matched||job.target!=='tidal'||complete;
+    $('saveMatched').hidden=!matched||['tidal','spotify'].includes(job.target)||complete;$('writeTidal').hidden=!matched||!['tidal','spotify'].includes(job.target)||complete;
+    $('writeTidal').textContent=job?.target==='spotify'?'Create Spotify playlist':'Create unlisted TIDAL playlist';
     $('saveMatched').disabled=!matched||changed||busy||!job.selected; $('previewTransferPlan').disabled=!matched||changed||busy||!job.selected;
     finalActions.hidden=!matched||changed||complete||busy||job?.state==='paused';organization.hidden=finalActions.hidden;
     $('transferReview').hidden=!job||changed||busy||complete||job.state==='paused';$('exportTransferReport').hidden=!job;
@@ -112,42 +135,55 @@ window.installTransferFlow = function ({ panel, sourceControls, account, activit
     $('transferStartNew').hidden=!job||busy||step===1;$('transferStartNew').textContent='Change source';
   }
   $('transferStartNew').onclick=()=>show(1);
-  return { render(current){job=current;if(job?.id!==lastId){lastId=job?.id||'';choice=job?.kind==='matching'?job.target:'';step=job?job.kind==='matching'?3:job.state==='reading'?1:2:1;}
-      if(job?.state==='matching'||job?.state==='writing'||job?.state==='uncertain'||job?.state==='complete'&&job.state!==lastState&&!job.dismissed)step=3;
-      if(job?.dismissed)step=1;lastState=job?.state||'';
-      if(job?.state==='review'&&job.kind!=='matching'&&step===1&&['tidal','spotify','youtube','soundcloud'].includes(job.sourceKind))step=2;paint(); },
+  return { render(current){job=current;if(job?.id!==lastId){lastId=job?.id||'';choice=job?.kind==='matching'?job.target:'';step=job?job.kind==='matching'?3:job.state==='reading'?1:2:1;manualStep=false;}
+      const transitioned=job?.state!==lastState;
+      if(transitioned&&['matching','writing','uncertain','complete'].includes(job?.state)&&!job?.dismissed){step=3;manualStep=false;}
+      if(transitioned&&job?.state==='review'&&job.kind!=='matching'&&!manualStep)step=2;
+      if(job?.dismissed)step=1;lastState=job?.state||'';paint(); },
     source(){show(1);},account(value){connected=value;paint();},loading(value){loadingLink=value;paint();},getSource:()=>sourceSelect.value,show
   };
 };
+(() => {const style=document.createElement('style');style.textContent='.transferStepNavigation,.playlistSelectionTools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}.playlistSelectionTools span{flex-basis:100%;font-size:12px;color:var(--muted)}#transferBatchLayout{display:grid;gap:8px;margin:16px 0;max-width:640px}#transferBatchLayout>span,#transferStepHint,#transferDestinationHint{font-size:13px;line-height:1.5;color:var(--muted)}#transferBatchLayout select{width:100%}#transferAgain{height:auto;min-height:36px}.playlistSelectionTools~.playlistBrowserRows [aria-pressed=true]::before{content:"✓ ";color:var(--accent)}';document.head.append(style);})();
 (() => {const style=document.createElement('style');style.textContent='#transferSteps{display:flex;gap:8px;margin:18px 0;flex-wrap:wrap}#transferSteps button{height:38px;color:var(--muted);font-size:13px}#transferSteps [aria-current=step]{color:var(--text);border-color:var(--accent);background:var(--surface,#121b2e)}.transferStep{border:1px solid var(--edge);border-radius:12px;padding:20px;margin:16px 0;background:var(--panel,#0b101b)}.transferStep>h3{font-size:20px;margin:0 0 12px}#transferRoute{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:12px 0;color:var(--muted);font-size:13px}#transferActivity h3{font-size:16px}#transferSourceControls>.band{border:0;padding:0;margin-top:16px}.destinationAction{display:flex;flex-wrap:wrap;align-items:center;gap:12px}#transferSaveActions{border:0;margin:18px 0 0;padding:14px 0 0;justify-content:flex-end}#transferSaveActions button{min-width:220px}#transferProgress{font-size:11px}#transferReview table{margin-top:18px}#transferReview td:first-child .providerBadge{display:flex;margin-bottom:6px;font-size:11px}#transferReview td:first-child .providerMark{width:14px;height:14px}.matchConfidence{display:inline-block;border:1px solid currentColor;border-radius:20px;padding:3px 8px;margin-bottom:8px;font-size:11px;font-weight:700}.matchConfidence[data-level=strong]{color:#73dfac}.matchConfidence[data-level=review]{color:#efd282}.matchConfidence[data-level=weak]{color:#ff8e9e}#matchReviewTools>p{font-size:12px;line-height:1.5;color:var(--muted)}#matchQuickChoices{margin:0}#transferOrganization{padding:4px 0;border:0}#transferOrganization>label{display:inline-grid;margin:12px 8px 12px 0}#transferActivity #transferMeter{height:7px}#transferNotice:empty{display:none}#matchReviewTools>.band{display:grid;grid-template-columns:160px minmax(180px,1fr) auto;align-items:end}#matchQuickChoices{display:flex;gap:6px;flex-wrap:wrap;grid-column:1/-1;order:4}#matchReviewTools input,#matchReviewTools select{min-width:0;width:100%}#transferActivity[data-state=review]{padding:14px 18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}#transferActivity[data-state=review] h3{margin:0;font-size:16px}#transferActivity[data-state=review] #transferStage,#transferActivity[data-state=review] #transferNextStep{display:none}#transferActivity[data-state=review] #transferStatusActions,#transferActivity[data-state=review] #transferStartNew{margin:0}#transferActivity[data-state=review] #transferStats{margin-right:auto}@media(max-width:620px){.transferStep{padding:14px}#matchReviewTools>.band{grid-template-columns:1fr}#matchQuickChoices{grid-column:1}#transferSteps{gap:5px}#transferSteps button{padding:0 9px;font-size:11px}#transferRoute{gap:8px}#transferSaveActions button{width:100%;min-width:0}}';document.head.append(style);})();
 
-window.installPlaylistBrowser = function installPlaylistBrowser(select, label) {
+window.installPlaylistBrowser = function installPlaylistBrowser(select, label, { multiple = false } = {}) {
   const root = document.createElement('section'); root.id = select.id + 'Browser'; root.className = 'playlistBrowser'; root.setAttribute('aria-label', label);
   const input = document.createElement('input'); input.type = 'search'; input.placeholder = 'Search loaded playlists'; input.setAttribute('aria-label', 'Search ' + label);
   const list = document.createElement('div'); list.className = 'playlistBrowserRows';
   const footer = document.createElement('div'); footer.className = 'playlistBrowserFooter';
   const previous = document.createElement('button'), next = document.createElement('button'), count = document.createElement('span');
   previous.type = next.type = 'button'; previous.textContent = 'Previous'; next.textContent = 'Next'; footer.append(previous, count, next); root.append(input, list, footer);
+  const selected = new Set(), tools = document.createElement('div'), all = document.createElement('button'), clear = document.createElement('button'), summary = document.createElement('span');
+  tools.className='playlistSelectionTools';all.type=clear.type='button';all.id=select.id+'SelectAll';clear.id=select.id+'ClearSelection';all.textContent='Select all playlists';clear.textContent='Clear selection';summary.setAttribute('role','status');
+  all.title='Select every loaded playlist, including other search results and pages.';
+  if(multiple){tools.append(all,clear,summary);input.after(tools);}
   select.hidden = true; select.style.setProperty('display', 'none', 'important'); select.after(root);
   let page = 0, lastSelection = '';
+  function commit(){select.value=[...select.options].find(row=>selected.has(row.value))?.value||'';select.dispatchEvent(new Event('change',{bubbles:true}));render();}
   function render() {
     root.hidden = select.options.length === 0;
     if (select.parentElement.tagName === 'LABEL') select.parentElement.hidden = root.hidden;
+    if(multiple){
+      const available=new Set([...select.options].map(row=>row.value));for(const id of selected)if(!available.has(id))selected.delete(id);
+      summary.textContent=selected.size+' of '+select.options.length+' loaded playlists selected';
+      all.disabled=select.disabled||!select.options.length;clear.disabled=select.disabled||!selected.size;
+    }
     const needle = input.value.trim().toLocaleLowerCase(), options = [...select.options].filter(row => row.textContent.toLocaleLowerCase().includes(needle));
-    if (select.value !== lastSelection && !needle) page = Math.max(0, Math.floor(options.findIndex(row => row.value === select.value) / 6));
+    if (!multiple && select.value !== lastSelection && !needle) page = Math.max(0, Math.floor(options.findIndex(row => row.value === select.value) / 6));
     lastSelection = select.value; page = Math.max(0, Math.min(page, Math.ceil(options.length / 6) - 1)); list.replaceChildren();
     for (const option of options.slice(page * 6, page * 6 + 6)) {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'playlistBrowserRow'; button.textContent = option.textContent;
-      button.setAttribute('aria-pressed', String(option.value === select.value)); button.disabled = option.disabled || select.disabled;
-      button.onclick = () => { select.value = option.value; select.dispatchEvent(new Event('change', { bubbles: true })); render(); }; list.append(button);
+      button.setAttribute('aria-pressed', String(multiple?selected.has(option.value):option.value === select.value)); button.disabled = option.disabled || select.disabled;
+      button.onclick = () => { if(multiple){selected.has(option.value)?selected.delete(option.value):selected.add(option.value);commit();}else{select.value = option.value; select.dispatchEvent(new Event('change', { bubbles: true })); render();} }; list.append(button);
     }
     if (!options.length) { const empty = document.createElement('p'); empty.textContent = select.options.length ? 'No matching playlists.' : 'No playlists loaded.'; list.append(empty); }
     count.textContent = options.length ? `${page * 6 + 1}-${Math.min(options.length, page * 6 + 6)} of ${options.length}` : '0 playlists';
     previous.disabled = page === 0; next.disabled = (page + 1) * 6 >= options.length; footer.hidden = options.length <= 6;
   }
   input.oninput = () => { page = 0; render(); }; previous.onclick = () => { page--; render(); }; next.onclick = () => { page++; render(); };
+  all.onclick=()=>{for(const row of select.options)if(!row.disabled)selected.add(row.value);commit();};clear.onclick=()=>{selected.clear();commit();};
   select.addEventListener('change', render); const observer = new MutationObserver(render); observer.observe(select, { childList: true, subtree: true, characterData: true, attributes: true });
-  window.addEventListener('pagehide', () => observer.disconnect(), { once: true }); render(); return { render };
+  window.addEventListener('pagehide', () => observer.disconnect(), { once: true }); render(); return { render, selected:()=>[...select.options].filter(row=>multiple?selected.has(row.value):row.value===select.value).map(row=>({id:row.value,name:row.textContent})), select(ids){selected.clear();ids.forEach(id=>selected.add(id));commit();} };
 };
 (() => { const style = document.createElement('style'); style.textContent = '#libraryView{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px;align-items:start}#libraryView[hidden]{display:none}#libraryView .librarySidebar{position:sticky;top:12px;display:flex;align-items:stretch;flex-wrap:wrap;gap:8px;margin:0}#libraryView .librarySidebar>label{width:100%}#libraryView .librarySidebar>.spacer{display:none}#libraryView .librarySidebar>.status{width:100%}#libraryView .librarySidebar .playlistBrowserRows{grid-template-columns:1fr}.libraryDetails{min-width:0}@media(max-width:900px){#libraryView{grid-template-columns:1fr}#libraryView .librarySidebar{position:static}#libraryView .librarySidebar .playlistBrowserRows{grid-template-columns:repeat(2,minmax(0,1fr))}}.playlistBrowser{width:min(100%,640px);min-width:0;font-size:13px}.playlistBrowser>input{width:100%;min-width:0;margin-bottom:8px}.playlistBrowserRows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.playlistBrowserRow{height:auto!important;min-height:44px;text-align:left!important;white-space:normal;overflow-wrap:anywhere;padding:10px!important;line-height:1.4}.playlistBrowserRow[aria-pressed=true]{border-color:var(--accent);background:var(--surface,#101a2c)}.playlistBrowserFooter{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}.playlistBrowserFooter[hidden]{display:none}.playlistBrowserFooter span{color:var(--muted)}label:has(>.playlistBrowser){width:min(100%,640px);min-width:0}section:has(>.playlistBrowser){min-width:0}@media(max-width:560px){.playlistBrowserRows{grid-template-columns:1fr}}'; document.head.append(style); })();
 
@@ -202,7 +238,7 @@ window.installPlaylistLinkImports = function ({ load, upload, notice, loading })
   };
 };
 
-window.installPlaylistWorkspace = function installPlaylistWorkspace({ panel, libraryView, startTransfer, dismissTransfer }) {
+window.installPlaylistWorkspace = function installPlaylistWorkspace({ panel, libraryView, startTransfer, dismissTransfer, reviewSource }) {
   const style = document.createElement('style'); style.textContent = '#transferActivity{border:1px solid var(--edge);border-left:5px solid var(--accent);border-radius:10px;padding:18px;margin:12px 0 22px;background:var(--surface,#111a2b)}#transferActivity[data-attention=true]{border-left-color:var(--warn,#e8b44d)}#transferActivity h3{font-size:21px;margin:4px 0 10px}#transferActivity progress{display:block;width:100%;height:12px;accent-color:var(--accent);margin:12px 0}#transferStage{font-size:14px;font-weight:800}#transferNextStep{line-height:1.6;margin:8px 0}#transferStats{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:12px}#transferProgress{font-size:12px;color:var(--muted)}#transferNotice:not(:empty){padding:12px;border:1px solid var(--edge);border-radius:7px;background:var(--surface)}#transferReview>h3{margin-top:20px}.playlistTools{padding:10px 0;border-bottom:1px solid var(--edge);margin-bottom:14px}.playlistTools summary{cursor:pointer;font-weight:700;padding:6px 0}.playlistTools[open]>.band{margin:10px 0}.libraryHeading{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:16px}.libraryHeading h2{margin:0;font-size:21px}.transferDestination{border:1px solid var(--edge);border-radius:9px;padding:14px;margin:16px 0}#transferReview table{margin-top:12px}#transferStatusActions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}#transferStatusActions button{height:36px}#transferAccountSetup{margin-bottom:14px}#transferStartNew{margin-top:8px}'; document.head.append(style);
   const activity = document.createElement('section'); activity.id = 'transferActivity'; activity.hidden = true; activity.setAttribute('aria-label', 'Current transfer');
   activity.innerHTML = '<div id="transferStage" role="status" aria-live="polite"></div><progress id="transferMeter" max="1" value="0" aria-label="Transfer progress"></progress><p id="transferNextStep"></p><div id="transferStats"></div><div id="transferStatusActions"></div><button id="transferStartNew" hidden>Choose another source</button>';
@@ -211,6 +247,7 @@ window.installPlaylistWorkspace = function installPlaylistWorkspace({ panel, lib
   if (introduction) panel.querySelector('h2').after(introduction);
   activity.append($('completedDestinations'), $('destinationLink'));
   activity.prepend($('transferSummary')); activity.append($('transferProgress'));
+  activity.append($('spotifyDestinationRecovery'));
   for (const id of ['pauseTransfer', 'resumeTransfer', 'cancelTransfer', 'reconcileTransfer']) $('transferStatusActions').append($(id));
   const sourceControls = document.createElement('section'); sourceControls.id = 'transferSourceControls';
   const nameBand = $('transferSource').closest('.band'); sourceControls.append(nameBand, $('csvSource'), $('librarySource'), $('tidalSource'), $('spotifySource'), $('urlSource')); activity.after(sourceControls);
@@ -230,7 +267,7 @@ window.installPlaylistWorkspace = function installPlaylistWorkspace({ panel, lib
   for (const [element, title] of [[$('saveHistory').closest('.band'), 'Save played requests']]) {
     const importing = title === 'Import a playlist link'; const details = document.createElement(importing ? 'section' : 'details'); details.className = 'playlistTools'; const summary = document.createElement(importing ? 'h3' : 'summary'); summary.textContent = title; element.before(details); details.append(summary, element);
   }
-  const flow = window.installTransferFlow({ panel, sourceControls, account, activity, organization });
+  const flow = window.installTransferFlow({ panel, sourceControls, account, activity, organization, reviewSource });
   const dismiss = document.createElement('button');dismiss.id = 'transferDismiss';dismiss.textContent = 'Dismiss';dismiss.setAttribute('aria-label','Dismiss completed transfer');dismiss.onclick = () => dismissTransfer();activity.append(dismiss);
   const completedStyle = document.createElement('style');completedStyle.textContent = '#transferActivity[data-state=complete]{padding:10px 14px;border-left-width:1px;display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;background:var(--panel)}#transferActivity[data-state=complete] h3{font-size:14px;margin:0}#transferActivity[data-state=complete] #transferNextStep,#transferActivity[data-state=complete] #transferStatusActions{display:none}#transferActivity[data-state=complete] #transferStage{font-size:12px;font-weight:400;color:var(--muted)}#transferActivity[data-state=complete] #completedDestinations{font-size:12px}#transferDismiss{margin-left:auto;font-size:12px}';document.head.append(completedStyle);
   let job = null;
@@ -255,6 +292,7 @@ window.installPlaylistWorkspace = function installPlaylistWorkspace({ panel, lib
       : job.state === 'complete' ? 'Your playlists are ready. Open the destination below or find local playlists in Library.'
       : job.kind === 'matching' ? 'Review the suggested matches below. Select the tracks you want, then save to the destination.' : 'Save the source locally, or choose a destination below to match its tracks.';
     if(job.sourceTruncated)$('transferNextStep').textContent += ' Source limit reached: only the first ' + job.count + ' tracks were loaded. Increase capacity and reload to include more.';
+    if(job.state==='reading'&&job.sourcePlaylists){$('transferMeter').removeAttribute('value');$('transferNextStep').textContent='Reading playlist '+(job.sourceIndex+1)+' of '+job.sourcePlaylists.length+': '+(job.sourcePlaylists[job.sourceIndex]?.name||'playlist')+'. '+job.count+' tracks loaded. You can pause and resume this transfer.';}
     const saved = job.state === 'complete' && job.kind !== 'matching' ? job.valid : (job.completedWritten || 0) + job.written;
     $('transferStats').textContent = job.count + ' source tracks / ' + (job.kind === 'matching' ? job.selected + ' selected' : job.valid + ' included') + ' / ' + saved + ' saved';
     for (const [id, visible] of [['pauseTransfer', running], ['resumeTransfer', job.state === 'paused'], ['cancelTransfer', running || ['review', 'paused'].includes(job.state)], ['reconcileTransfer', job.state === 'uncertain']]) $(id).hidden = !visible;
@@ -304,6 +342,9 @@ window.installCommunityPlaylists = function(libraryView) {
       rows.append(row);
     }
   };
+  // The first Library response can arrive before this addon is installed.
+  // Queue a refresh so its saved playlists also render on that first visit.
+  void refresh();
 };
 
 (() => {
@@ -325,14 +366,16 @@ window.installCommunityPlaylists = function(libraryView) {
     <details><summary>TIDAL account connection</summary><p id="transferAccount">Checking connection…</p><button id="connectPlaylistAccount">Connect TIDAL playlist access</button><button id="checkPlaylistAccount">Check connection</button><a id="transferSignInLink" target="_blank" rel="noopener noreferrer" hidden>Open TIDAL sign-in</a><p>Transfer sign-in requests playlist and collection read/write access. Liked-song transfer controls are planned. New TIDAL playlists are unlisted and accessible by link.</p></details>
     <details id="csvExports"><summary>Saved CSV exports</summary><p id="exportsFolder"></p><button id="openExports">Open exports folder</button><button id="refreshExports">Refresh files</button><ul id="exportFiles"></ul><p>CSV copies are saved here before downloading. Your browser chooses the download folder; enable Ask where to save each file in its download settings to choose a different destination each time.</p></details><p id="transferNotice" class="notice" role="status"></p>
     <section id="transferReview" hidden><h3 id="transferSummary"></h3><p id="transferProgress"></p>
-    <div class="band"><button id="saveLocal">Save as new local playlist</button></div><h3>Match to another service</h3><div class="band"><label>Destination<select id="transferTarget"><option value="tidal">TIDAL</option><option value="youtube">YouTube (local playlist)</option><option value="soundcloud">SoundCloud (local playlist)</option></select></label><button id="matchTidal">Find TIDAL matches</button><button id="saveMatched">Save matched local playlists</button><p id="destinationHelp">TIDAL can create account playlists. YouTube and SoundCloud save matched track IDs in your RaveLink library.</p><button id="acceptMatches">Select strong matches (95%+)</button><label>Destination organization<select id="transferGrouping"><option value="single">One playlist</option><option value="size">Split by song count</option><option value="artist">By primary artist</option><option value="album">By artist and album</option><option value="genre">By primary genre</option></select></label><label id="splitSizeLabel" hidden>Songs per part<input id="transferSplitSize" type="number" min="1" max="10000" value="500"></label><button id="previewTransferPlan">Preview destination playlists</button><button id="writeTidal" class="primary">Create unlisted TIDAL playlist</button><div id="destinationPlan" class="notice"></div><div id="completedDestinations"></div></div>
-    <div class="band"><button id="pauseTransfer">Pause</button><button id="resumeTransfer">Resume</button><button id="cancelTransfer">Cancel</button><button id="reconcileTransfer">Check uncertain delivery</button><button id="exportTransferReport">Export transfer report (CSV)</button><a id="destinationLink" target="_blank" rel="noopener" hidden>Open created TIDAL playlist</a></div>
+    <div class="band"><button id="saveLocal">Save as new local playlist</button></div><h3>Match to another service</h3><div class="band"><label>Destination<select id="transferTarget"><option value="tidal">TIDAL</option><option value="spotify">Spotify</option><option value="youtube">YouTube (local playlist)</option><option value="soundcloud">SoundCloud (local playlist)</option></select></label><button id="matchTidal">Find TIDAL matches</button><button id="saveMatched">Save matched local playlists</button><p id="destinationHelp">TIDAL and Spotify can create account playlists. Spotify requires the RaveLink desktop companion. YouTube and SoundCloud save matched tracks in your RaveLink library.</p><button id="acceptMatches">Select strong matches (95%+)</button><label>Destination organization<select id="transferGrouping"><option value="single">One playlist</option><option value="playlist">Keep source playlists separate</option><option value="size">Split by song count</option><option value="artist">By primary artist</option><option value="album">By artist and album</option><option value="genre">By primary genre</option></select></label><label id="splitSizeLabel" hidden>Songs per part<input id="transferSplitSize" type="number" min="1" max="10000" value="500"></label><button id="previewTransferPlan">Preview destination playlists</button><button id="writeTidal" class="primary">Create unlisted TIDAL playlist</button><div id="destinationPlan" class="notice"></div><div id="completedDestinations"></div></div>
+    <div class="band"><button id="pauseTransfer">Pause</button><button id="resumeTransfer">Resume</button><button id="cancelTransfer">Cancel</button><label id="spotifyDestinationRecovery" hidden>Created Spotify playlist link<input id="spotifyRecoveryUrl" type="url" placeholder="Paste the playlist link to check its tracks"></label><button id="reconcileTransfer">Check uncertain delivery</button><button id="exportTransferReport">Export transfer report (CSV)</button><a id="destinationLink" target="_blank" rel="noopener" hidden>Open created TIDAL playlist</a></div>
     <table><thead><tr><th>Source track</th><th>Review / destination match</th></tr></thead><tbody id="transferRows"></tbody></table>
     <div class="pager"><button id="transferPrevious">Previous</button><span id="transferPage"></span><button id="transferNext">Next</button></div></section>`;
   const librarySidebar = libraryView.firstElementChild, libraryDetails = document.createElement('section'); librarySidebar.classList.add('librarySidebar'); libraryDetails.className = 'libraryDetails'; for (const node of [...libraryView.childNodes]) if (node !== librarySidebar) libraryDetails.append(node); libraryView.append(libraryDetails);
   $('urlSource').append($('importUrl').closest('.band'));
-  for (const [id, label] of [['collections', 'server playlists'], ['transferCollection', 'saved playlists'], ['tidalPlaylist', 'TIDAL playlists'], ['spotifyPlaylist', 'Spotify playlists']]) window.installPlaylistBrowser($(id), label);
-  const workspace = window.installPlaylistWorkspace({ panel, libraryView, dismissTransfer: async () => { if (await perform('dismiss')) { message('');$('importUrl').value='';$('importName').value='';$('importState').textContent='Choose a playlist link to start a new transfer.';$('playlistLinkProvider').replaceChildren();$('transferSource').selectedIndex=-1;workspace.show(1); } }, startTransfer: async () => { await $('transfersTab').onclick(); $('transferSource').value = 'library'; $('transferSource').onchange(); $('transferCollection').value = $('collections').value; $('useCollection').onclick(); } });
+  const playlistBrowsers = {};
+  for (const [id, label] of [['collections', 'server playlists'], ['transferCollection', 'saved playlists'], ['tidalPlaylist', 'TIDAL playlists'], ['spotifyPlaylist', 'Spotify playlists']]) playlistBrowsers[id]=window.installPlaylistBrowser($(id), label, {multiple:id!=='collections'});
+  for(const [id,button] of [['transferCollection','useCollection'],['tidalPlaylist','readTidal'],['spotifyPlaylist','readSpotify']])$(id).addEventListener('change',()=>{const count=playlistBrowsers[id].selected().length;$(button).textContent=id==='transferCollection'?(count>1?'Review '+count+' playlists':'Review playlist'):(count>1?'Read '+count+' selected playlists':'Read selected playlist');});
+  const workspace = window.installPlaylistWorkspace({ panel, libraryView, reviewSource:()=>perform('review_source'), dismissTransfer: async () => { if (await perform('dismiss')) { message('');$('importUrl').value='';$('importName').value='';$('importState').textContent='Choose a playlist link to start a new transfer.';$('playlistLinkProvider').replaceChildren();$('transferSource').selectedIndex=-1;workspace.show(1); } }, startTransfer: async () => { await $('transfersTab').onclick(); $('transferSource').value = 'library'; $('transferSource').onchange(); playlistBrowsers.transferCollection.select([$('collections').value]); $('useCollection').onclick(); } });
   window.playlistWorkspace = workspace;
   window.installCommunityPlaylists(libraryView);
   let renderedRows = '';
@@ -340,33 +383,36 @@ window.installCommunityPlaylists = function(libraryView) {
   const matchingControls = window.installPlaylistMatchReview({ refresh: () => { pageOffset = 0; void refreshTransfer(); }, accept: threshold => void perform('accept_matches', { threshold }) });
   const transfer = payload => call('song.playlist.transfer.v1', 'action', payload);
   const message = (value, bad = false) => { $('transferNotice').textContent = value; $('transferNotice').classList.toggle('bad', bad); };
-  const errors = { spotify_playlist_invalid: 'Select a Spotify playlist, or paste its playlist link under Playlist URL.', spotify_playlist_changed: 'This Spotify playlist changed while loading. Load it again to read a consistent source.', spotify_playlist_unavailable: 'Prepare the updated Spotify companion in Player / Setup, then fully quit Spotify and open it with RaveLink.', spotify_playlist_read_failed: 'Spotify could not read this playlist. Check the link and account access, then try again.', spotify_companion_unavailable: 'Open Spotify with RaveLink in Player / Setup, then try again.', exports_folder_full: 'The exports folder is full. Open it and move or remove older CSV files, then export again.', export_file_limit: 'This CSV exceeds the 8 MiB export limit. Split the playlist into smaller parts.', playlist_collection_limit: 'There is not enough room for these destination playlists. Use fewer groups or remove unused local playlists.', transfer_review_required: 'Find destination matches and select the tracks to save first.', csv_title_column_required: 'Map a title column before previewing.', csv_quotes_invalid: 'The CSV has an unclosed or misplaced quote.', csv_file_limit: 'Choose a UTF-8 CSV file no larger than 8 MiB.', csv_row_limit: 'This file exceeds the supported track limit.', csv_field_limit: 'A CSV field or row has too many columns or characters.', tidal_playlist_sign_in_required: 'Connect TIDAL playlist access, then try again.', transfer_busy: 'An operation is still running. Wait for it to finish or pause the job.', transfer_changed: 'The transfer changed. Refresh this view.', tidal_playlist_create_review_required: 'The destination could not be identified safely. Check your TIDAL account before starting another transfer.', tidal_playlist_reconcile_required: 'The destination differs from the expected tracks. Check it in TIDAL; nothing will be resent automatically.' };
+  const errors = { transfer_sources_invalid: 'Select between 1 and 100 distinct playlists.', playlist_track_limit: 'These playlists exceed this transfer capacity. Select fewer playlists or increase capacity under library settings.', spotify_playlist_destination_required: 'Spotify may already have created the playlist. Paste its link above and check delivery before resuming.', spotify_playlist_reconcile_required: 'The Spotify playlist differs from the expected tracks. Check it in Spotify; nothing will be resent automatically.', spotify_playlist_write_uncertain: 'Spotify did not confirm this write. Check uncertain delivery before resuming.', spotify_delivery_unconfirmed: 'Spotify did not confirm delivery. Check the destination before resuming.', spotify_playlist_invalid: 'Select a Spotify playlist, or paste its playlist link under Playlist URL.', spotify_playlist_changed: 'This Spotify playlist changed while loading. Load it again to read a consistent source.', spotify_playlist_unavailable: 'Prepare the updated Spotify companion in Player / Setup, then fully quit Spotify and open it with RaveLink.', spotify_playlist_read_failed: 'Spotify could not read this playlist. Check the link and account access, then try again.', spotify_companion_unavailable: 'Open Spotify with RaveLink in Player / Setup, then try again.', exports_folder_full: 'The exports folder is full. Open it and move or remove older CSV files, then export again.', export_file_limit: 'This CSV exceeds the 8 MiB export limit. Split the playlist into smaller parts.', playlist_collection_limit: 'There is not enough room for these destination playlists. Use fewer groups or remove unused local playlists.', transfer_review_required: 'Find destination matches and select the tracks to save first.', csv_title_column_required: 'Map a title column before previewing.', csv_quotes_invalid: 'The CSV has an unclosed or misplaced quote.', csv_file_limit: 'Choose a UTF-8 CSV file no larger than 8 MiB.', csv_row_limit: 'This file exceeds the supported track limit.', csv_field_limit: 'A CSV field or row has too many columns or characters.', tidal_playlist_sign_in_required: 'Connect TIDAL playlist access, then try again.', transfer_busy: 'An operation is still running. Wait for it to finish or pause the job.', transfer_changed: 'The transfer changed. Refresh this view.', tidal_playlist_create_review_required: 'The destination could not be identified safely. Check your TIDAL account before starting another transfer.', tidal_playlist_reconcile_required: 'The destination differs from the expected tracks. Check it in TIDAL; nothing will be resent automatically.' };
   async function execute(action, extra = {}) {
     const reply = await transfer({ action, ...(state?.job ? { jobId: state.job.id } : {}), ...extra });
     if (!reply.ok) throw new Error(errors[reply.code || reply.error] || reply.code || reply.error || 'Transfer failed');
     return reply;
   }
   let actionBusy = false;
-  async function perform(action, extra = {}) { if (actionBusy) return; actionBusy = true; panel.inert = true; try { const reply = await execute(action, extra); if (reply.job) { render(reply); if (matchingControls.options().review !== 'all') await refreshTransfer(); } else await refreshTransfer(); message(({ match: 'Matching started. Progress is shown above.', source_library: 'Playlist loaded. Choose a destination below.', preview_csv: 'CSV import ready for review.', save_local: 'Playlist saved in Library.', save_matched: 'Matched playlists saved in Library.', accept_matches: 'Strong matches selected. Review the remaining tracks before saving.', choose: 'Track selection updated.', pause: 'Transfer paused. Progress is saved.', resume: 'Transfer resumed.', cancel: 'Transfer canceled.', reconcile: 'Destination checked. Review its current state before continuing.', write_tidal: 'TIDAL transfer started. Progress is shown above.', set_limit: 'Library capacity saved.' })[action] || 'Action completed.'); return true; } catch (error) { message(error.message, true); return false; } finally { panel.inert = false; actionBusy = false; } }
+  async function perform(action, extra = {}) { if (actionBusy) return; actionBusy = true; panel.inert = true; try { const reply = await execute(action, extra); if (reply.job) { render(reply); if (matchingControls.options().review !== 'all') await refreshTransfer(); } else await refreshTransfer(); message(({ source_batch: 'Selected playlists loaded. Choose a destination and whether to keep them separate or merge them.', review_source: 'Source ready. Choose another destination or transfer these playlists again.', match: 'Matching started. Progress is shown above.', source_library: 'Playlist loaded. Choose a destination below.', preview_csv: 'CSV import ready for review.', save_local: 'Playlist saved in Library.', save_matched: 'Matched playlists saved in Library.', accept_matches: 'Strong matches selected. Review the remaining tracks before saving.', choose: 'Track selection updated.', pause: 'Transfer paused. Progress is saved.', resume: 'Transfer resumed.', cancel: 'Transfer canceled.', reconcile: 'Destination checked. Review its current state before continuing.', write_spotify: 'Spotify transfer started. Progress is shown above.', write_tidal: 'TIDAL transfer started. Progress is shown above.', set_limit: 'Library capacity saved.' })[action] || 'Action completed.'); return true; } catch (error) { message(error.message, true); return false; } finally { panel.inert = false; actionBusy = false; } }
+  const destinationUrl = (job, id) => job.target === 'spotify' ? 'https://open.spotify.com/playlist/' + encodeURIComponent(id.replace(/^spotify:playlist:/, '')) : 'https://tidal.com/playlist/' + encodeURIComponent(id);
   function render(reply) {
+    if (state?.job?.id !== reply.job?.id) { $('spotifyRecoveryUrl').value = ''; $('transferGrouping').value=reply.job?.groupBy||'single'; $('transferBatchMode').value=reply.job?.groupBy==='playlist'?'playlist':'single'; }
     state = reply; const job = reply.job; $('transferReview').hidden = !job;
     workspace.render(job);
     if (!job) { if (reply.recovering) { message('Recovering the saved transfer?'); clearTimeout(poll); poll = setTimeout(() => void refreshTransfer(), 1500); } return; }
     $('transferSummary').textContent = job.name;
-    $('transferProgress').textContent = `${job.state} · ${job.count} rows · ${job.valid} valid · ${job.selected} ${job.target === 'youtube' ? 'YouTube' : job.target === 'soundcloud' ? 'SoundCloud' : 'TIDAL'} selections · ${(job.completedWritten || 0) + job.written} written${job.verified ? ' · destination verified' : ''}${job.error ? ' · ' + (errors[job.error] || job.error) : ''}${job.state === 'matching' ? ' · ' + job.processed + ' checked' : ''}`;
+    $('transferProgress').textContent = `${job.state} · ${job.count} rows · ${job.valid} valid · ${job.selected} ${({youtube:'YouTube',soundcloud:'SoundCloud',spotify:'Spotify',tidal:'TIDAL'})[job.target] || 'TIDAL'} selections · ${(job.completedWritten || 0) + job.written} written${job.verified ? ' · destination verified' : ''}${job.error ? ' · ' + (errors[job.error] || job.error) : ''}${job.state === 'matching' ? ' · ' + job.processed + ' checked' : ''}`;
     const editable = !job.targetLocked && ['review', 'complete', 'paused', 'canceled'].includes(job.state);
     if (job.target) $('transferTarget').value = job.target;
     updateTarget(); $('transferTarget').disabled = !editable;
     $('saveMatched').disabled = !editable || !job.selected;
     for (const id of ['saveLocal', 'matchTidal', 'acceptMatches']) $(id).disabled = !editable || Boolean(job.destinationId);
     $('previewTransferPlan').disabled = !editable || !job.selected; $('transferGrouping').disabled = !editable; $('transferSplitSize').disabled = !editable;
-    $('completedDestinations').replaceChildren(...(job.destinations || []).map(item => { const link = document.createElement('a'); link.href = 'https://tidal.com/playlist/' + encodeURIComponent(item.id); link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = item.name + ' (' + item.count + ')'; const paragraph = document.createElement('p'); paragraph.append(link); return paragraph; }));
-    $('writeTidal').hidden = (job.target || $('transferTarget').value) !== 'tidal';
+    $('completedDestinations').replaceChildren(...(job.destinations || []).map(item => { const link = document.createElement('a'); link.href = destinationUrl(job, item.id); link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = item.name + ' (' + item.count + ')'; const paragraph = document.createElement('p'); paragraph.append(link); return paragraph; }));
+    $('writeTidal').hidden = !['tidal','spotify'].includes(job.target || $('transferTarget').value);
     $('completedDestinations').append(...(job.localDestinations || []).map(item => { const node = document.createElement('p'); node.textContent = item.name + ': ' + item.count + ' tracks saved in Library'; return node; }));
     $('writeTidal').disabled = job.state !== 'review' || !job.selected || Boolean(job.destinationId);
     $('pauseTransfer').disabled = !['matching', 'reading', 'writing'].includes(job.state); $('resumeTransfer').disabled = job.state !== 'paused';
     $('cancelTransfer').disabled = !['matching', 'reading', 'writing', 'paused', 'review'].includes(job.state); $('reconcileTransfer').hidden = job.state !== 'uncertain';
-    $('destinationLink').hidden = !job.destinationId; if (job.destinationId) $('destinationLink').href = 'https://tidal.com/playlist/' + encodeURIComponent(job.destinationId);
+    $('destinationLink').hidden = !job.destinationId; if (job.destinationId) { $('destinationLink').href = destinationUrl(job, job.destinationId); $('destinationLink').textContent = 'Open created ' + (job.target === 'spotify' ? 'Spotify' : 'TIDAL') + ' playlist'; }
+    $('spotifyDestinationRecovery').hidden = job.target !== 'spotify' || job.state !== 'uncertain' || Boolean(job.destinationId);
     const body = $('transferRows');
     const signature = JSON.stringify([job.id, job.kind, editable, reply.rows]);
     if (signature !== renderedRows || !body.contains(document.activeElement)) {
@@ -374,7 +420,7 @@ window.installCommunityPlaylists = function(libraryView) {
       body.replaceChildren();
       for (const row of reply.rows) {
         const tr = body.insertRow(), original = row.track?.candidate || row.raw;
-        const sourceCell = tr.insertCell(); if(original?.provider) sourceCell.append(window.PlaylistProviderUI.badge(original.provider)); const sourceTitle=document.createElement('div');sourceCell.append(sourceTitle);sourceTitle.textContent = original ? `${original.title} — ${(original.artists || []).join(', ')}${original.version ? ' (' + original.version + ')' : ''}` : 'Unavailable source item';
+        const sourceCell = tr.insertCell(); if(original?.provider) sourceCell.append(window.PlaylistProviderUI.badge(original.provider)); const sourceTitle=document.createElement('div');sourceCell.append(sourceTitle);if(row.sourcePlaylist){const origin=document.createElement('small');origin.textContent='From: '+row.sourcePlaylist.name;sourceCell.append(origin);}sourceTitle.textContent = original ? `${original.title} — ${(original.artists || []).join(', ')}${original.version ? ' (' + original.version + ')' : ''}` : 'Unavailable source item';
         const cell = tr.insertCell(), select = document.createElement('select'); select.setAttribute('aria-label', 'Selection for row ' + (row.index + 1));
         select.add(new Option(job.kind === 'matching' ? 'Skip / not matched' : 'Include source track', '-1'));
         if (job.kind === 'matching') {
@@ -414,21 +460,29 @@ window.installCommunityPlaylists = function(libraryView) {
     } catch (error) { message(error.message, true); } finally { button.disabled = false; }
   };
   $('previewCsv').onclick = async () => { $('previewCsv').disabled = true; pageOffset = 0; await perform('preview_csv', { mapping: Object.fromEntries([...$('columnMapping').querySelectorAll('select')].map(node => [node.dataset.column, node.value])) }); $('previewCsv').disabled = false; };
-  $('useCollection').onclick = () => { pageOffset = 0; void perform('source_library', { collectionId: $('transferCollection').value, name: $('transferName').value }); };
+  $('useCollection').onclick = () => readSelection('library','transferCollection','source_library');
   $('listTidal').onclick = async () => { try { const result = await execute('list_tidal', { cursor: '' }); loadedPlaylists = result.playlists; nextCursor = result.cursor; drawPlaylists(); message(result.playlists.length + ' account playlists loaded. Select one to continue.'); } catch (error) { message(error.message, true); } };
   const drawPlaylists = () => { const selected = $('tidalPlaylist').value; $('tidalPlaylist').replaceChildren(...loadedPlaylists.map(row => new Option(row.name, row.id))); if ([...$('tidalPlaylist').options].some(option => option.value === selected)) $('tidalPlaylist').value = selected; $('moreTidal').hidden = !nextCursor; workspace.source(); };
   $('moreTidal').onclick = async () => { try { const result = await execute('list_tidal', { cursor: nextCursor }); loadedPlaylists.push(...result.playlists); nextCursor = result.cursor; drawPlaylists(); message('Account playlist list updated.'); } catch (error) { message(error.message, true); } };
-  $('readTidal').onclick = () => { pageOffset = 0; void perform('read_tidal', { id: $('tidalPlaylist').value, name: $('transferName').value || $('tidalPlaylist').selectedOptions[0]?.textContent || 'TIDAL playlist' }); };
-  for (const [id, action] of [['saveLocal', 'save_local'], ['acceptMatches', 'accept_matches'], ['pauseTransfer', 'pause'], ['resumeTransfer', 'resume'], ['cancelTransfer', 'cancel'], ['reconcileTransfer', 'reconcile']]) $(id).onclick = () => void perform(action, { name: $('transferName').value || state?.job?.name, offset: pageOffset });
-  const targetName = () => ({ tidal: 'TIDAL', youtube: 'YouTube', soundcloud: 'SoundCloud' })[$('transferTarget').value];
+  $('readTidal').onclick = () => readSelection('tidal','tidalPlaylist','read_tidal');
+  for (const [id, action] of [['saveLocal', 'save_local'], ['acceptMatches', 'accept_matches'], ['pauseTransfer', 'pause'], ['resumeTransfer', 'resume'], ['cancelTransfer', 'cancel'], ['reconcileTransfer', 'reconcile']]) $(id).onclick = () => void perform(action, { name: $('transferName').value || state?.job?.name, offset: pageOffset, ...(action==='save_local'?{groupBy:$('transferGrouping').value}:{}) });
+  async function readSelection(sourceKind,id,action){
+    const playlists=playlistBrowsers[id].selected();
+    if(!playlists.length)return message('Select at least one playlist to continue.',true);
+    if(playlists.length>100)return message('Select up to 100 playlists per transfer.',true);
+    pageOffset=0;
+    return playlists.length>1?perform('source_batch',{sourceKind,playlists,name:$('transferName').value}):perform(action,{...(sourceKind==='library'?{collectionId:playlists[0].id}:{id:playlists[0].id}),name:$('transferName').value});
+  }
+  const targetName = () => ({ tidal: 'TIDAL', youtube: 'YouTube', soundcloud: 'SoundCloud', spotify: 'Spotify' })[$('transferTarget').value];
   function updateTarget() { $('matchTidal').textContent = 'Find ' + targetName() + ' matches'; $('saveMatched').textContent = 'Save matched ' + targetName() + ' playlists locally'; }
   $('transferTarget').onchange = () => { updateTarget(); $('writeTidal').hidden = true; $('saveMatched').disabled = true; $('previewTransferPlan').disabled = true; $('destinationPlan').replaceChildren(); matchingControls.render(state?.job); };
-  $('matchTidal').onclick = () => { pageOffset = 0; void perform('match', { target: $('transferTarget').value, adaptive: matchingControls.adaptive(), name: $('transferName').value || state?.job?.name }); };
+  $('matchTidal').onclick = () => { if(state?.job?.kind==='matching'&&state.job.target===$('transferTarget').value&&state.job.state==='review')return workspace.show(3);pageOffset = 0; void perform('match', { target: $('transferTarget').value, adaptive: matchingControls.adaptive(), name: $('transferName').value || state?.job?.name }); };
   $('saveMatched').onclick = () => void perform('save_matched', destinationOptions());
-  $('transferGrouping').onchange = () => { $('splitSizeLabel').hidden = $('transferGrouping').value !== 'size'; $('destinationPlan').replaceChildren(); matchingControls.render(state?.job); };
+  $('transferGrouping').onchange = () => { $('transferBatchMode').value=$('transferGrouping').value==='playlist'?'playlist':'single'; $('splitSizeLabel').hidden = $('transferGrouping').value !== 'size'; $('destinationPlan').replaceChildren(); matchingControls.render(state?.job); };
   const destinationOptions = () => ({ name: $('transferName').value || state?.job?.name, groupBy: $('transferGrouping').value, splitSize: Number($('transferSplitSize').value) });
   $('previewTransferPlan').onclick = async () => { try { const reply = await execute('plan', destinationOptions()); $('destinationPlan').replaceChildren(...reply.plan.map(group => { const node = document.createElement('p'); node.textContent = group.name + ': ' + group.count + ' songs'; return node; })); message('Destination plan ready. Review the playlist names and track counts.'); } catch (error) { message(error.message, true); } };
-  $('writeTidal').onclick = () => void perform('write_tidal', destinationOptions());
+  $('writeTidal').onclick = () => void perform(state?.job?.target === 'spotify' ? 'write_spotify' : 'write_tidal', destinationOptions());
+  $('reconcileTransfer').onclick = () => void perform('reconcile', { destinationId: $('spotifyRecoveryUrl').value.trim() });
   $('saveTrackCapacity').onclick = async () => { await perform('set_limit', { trackLimit: Number($('trackCapacity').value) }); await refreshCollections(); };
   async function download(action, collectionId) {
     if (actionBusy) return; actionBusy = true;
@@ -478,7 +532,7 @@ window.installCommunityPlaylists = function(libraryView) {
     } catch (error) { $('spotifySourceStatus').textContent = 'Could not read Spotify. Open Spotify with RaveLink; prepare the updated companion if needed. ' + error.message;message(error.message,true); } finally { button.disabled = false; }
   }
   $('listSpotify').onclick = () => loadSpotify();$('moreSpotify').onclick = () => loadSpotify(true);
-  $('readSpotify').onclick = () => { if (!$('spotifyPlaylist').value) return message('Load and select a Spotify playlist first.',true);pageOffset=0;return perform('read_spotify',{id:$('spotifyPlaylist').value,name:$('transferName').value}); };
+  $('readSpotify').onclick = () => readSelection('spotify','spotifyPlaylist','read_spotify');
   window.addEventListener('pagehide', () => clearTimeout(poll));
 })();
 

@@ -34,19 +34,23 @@ function result(raw, input) {
     return { ok: true, playlists: raw.playlists.map(row => ({ id: playlistUri(row.id), name: row.name })), cursor: String(raw.cursor || '') };
   }
   if (!Array.isArray(raw.tracks) || raw.tracks.length > 25 || !Number.isInteger(raw.total) || raw.total < input.offset || raw.total > 1000000 || raw.tracks.some(row => row !== null && (!trackUri(row?.providerItemId) || typeof row.title !== 'string'))) return null;
-  const next = input.offset + raw.tracks.length;
+  const tracks = raw.tracks.map(row => row ? track({ ...row, uri: trackUri(row.providerItemId), name: row.title }) : null);
+  // Bound bytes as well as item count: long Unicode metadata must fit in the
+  // companion's 64 KiB receipt without losing the remaining source positions.
+  while (tracks.length > 1 && new TextEncoder().encode(JSON.stringify(tracks)).byteLength > 48000) tracks.pop();
+  const next = input.offset + tracks.length;
   if (raw.total > next && !raw.tracks.length) return null;
-  return { ok: true, name: clean(raw.name, 80), total: raw.total, revision: clean(raw.revision, 160), tracks: raw.tracks.map(row => row ? track({ ...row, uri: trackUri(row.providerItemId), name: row.title }) : null), cursor: next < raw.total ? String(next) : '' };
+  return { ok: true, name: clean(raw.name, 80), total: raw.total, revision: clean(raw.revision, 160), tracks, cursor: next < raw.total ? String(next) : '' };
 }
 async function read(service, input) {
   try {
     if (input.action === 'create') {
-      const root = service('RootlistAPI');if (typeof root?.createPlaylist !== 'function') throw Error('spotify_playlist_unavailable');
+      const root = service('RootlistAPI');if (typeof root?.createPlaylist !== 'function') return { ok:false,error:'spotify_playlist_unavailable',safeToRetry:true };
       const uri = playlistUri(await root.createPlaylist(input.name, { before: 'start' }));
       if (!uri) throw Error('spotify_playlist_write_uncertain');return { ok: true, id: uri };
     }
     if (input.action === 'append') {
-      const api = service('PlaylistAPI');if (typeof api?.add !== 'function') throw Error('spotify_playlist_unavailable');
+      const api = service('PlaylistAPI');if (typeof api?.add !== 'function') return { ok:false,error:'spotify_playlist_unavailable',safeToRetry:true };
       await api.add(input.id, input.ids, { after: 'end' });return { ok: true };
     }
     if (input.action === 'list') {
@@ -65,6 +69,6 @@ async function read(service, input) {
     const reply = await api.getPlaylist(input.id, {}, { offset: input.offset, limit: 25 });
     if (reply?.metadata?.isLoaded !== true || !Number.isInteger(reply.metadata.totalLength) || !Array.isArray(reply.contents?.items) || reply.contents.items.length > 25) throw Error('spotify_playlist_shape_unavailable');
     return result({ ok: true, name: reply.metadata.name, total: reply.metadata.totalLength, revision: reply.contents.revision || reply.metadata.revision, tracks: reply.contents.items.map(track) }, input) || { ok: false, error: 'spotify_playlist_shape_unavailable' };
-  } catch (error) { return { ok: false, error: /^spotify_playlist_[a-z_]+$/.test(error.message) ? error.message : 'spotify_playlist_read_failed' }; }
+  } catch (error) { return { ok: false, error: /^spotify_playlist_[a-z_]+$/.test(error.message) ? error.message : ['create','append'].includes(input.action) ? 'spotify_playlist_write_uncertain' : 'spotify_playlist_read_failed' }; }
 }
 module.exports = { normalize, result, read, playlistUri };

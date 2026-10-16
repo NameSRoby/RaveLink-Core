@@ -4,6 +4,16 @@
 
 RaveLink Core is a local Windows app for streamer lighting, music requests and optional Twitch integration. It runs in the tray and opens at `http://127.0.0.1:5050`.
 
+## 0.7.1b patch notes
+
+- Spotify is available as both a playlist source and destination. Import account playlists or playlist links, review matches from other services, then create verified Spotify account playlists through the desktop companion. Order and repeated tracks are preserved; split and grouped destinations are supported.
+- Long playlist metadata is paged within bounded companion messages. Interrupted writes require checking the destination before resuming, so tracks are not automatically sent twice. If playlist creation was not confirmed, paste the created Spotify playlist's link into the recovery field.
+- Theme and navigation saves are rate limited and unchanged settings are not rewritten. Spotify companion requests also have a rate limit, with room for normal polling.
+- Select multiple loaded playlists, select all across search results and pages, or clear the selection. Choose **Keep playlists separate** or **Merge into one playlist** before saving; separate transfers retain their source playlist names. Up to 100 playlists and the configured total track capacity are supported per transfer.
+- Back and Continue controls keep selections available while moving between steps. Returning to the current destination preserves reviewed matches, and completed sources can be transferred again without importing them again.
+
+After installing this patch, update **Song Request** to **0.44.7** under **Packages**. In **Song Request → Player → Spotify → Setup**, prepare the updated companion, fully quit Spotify, then choose **Open Spotify with RaveLink**. Premium OAuth is optional; these transfers use the desktop companion. Start under **Playlists & Transfers → Transfers**, choose a source, choose Spotify as the destination, review the matches, then select **Create Spotify playlist**. Automated tests cover the transfer flow; live compatibility depends on the installed Spotify client.
+
 ## 0.7.1a patch notes
 
 This patch fixes problems in 0.7.1 while retaining its existing lighting, music, playlist and Twitch features.
@@ -20,16 +30,16 @@ This patch fixes problems in 0.7.1 while retaining its existing lighting, music,
 
 **Updating from 0.7.1:** use the installer below, or stop Core and extract the portable update into your installation folder. Keep your existing local data. The 0.7.1 updater does not recognize letter-suffixed releases; 0.7.1a adds support for them. After upgrading Core, update **Song Request** under **Packages** to receive the feature fixes. Restart Core, then reload the dashboard and refresh OBS browser sources. There is no need to reconnect accounts or erase playlists.
 
-## Install 0.7.1a
+## Install 0.7.1b
 
-1. Download **RaveLink-Core-Windows-v0.7.1a-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
+1. Download **RaveLink-Core-Windows-v0.7.1b-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
 2. Choose an installation folder and optional features. Setup downloads and verifies only your selected features from this repository.
 3. Choose **Main**, **More** or **Hidden** placement for tabs. Change this later from the settings gear → **Choose tabs**.
 4. Launch from the Start menu or desktop shortcut. Use the tray icon to reopen, restart or exit.
 
 Windows 10 or 11, 64-bit, is required. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-For portable use, extract **RaveLink-Core-Windows-v0.7.1a-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
+For portable use, extract **RaveLink-Core-Windows-v0.7.1b-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
 
 ## Lighting
 
@@ -67,7 +77,7 @@ Frequent choices such as player, transfer grouping and overlay layout appear as 
 
 **Song Request → Playlists & Transfers → Transfer this playlist** opens Source → Destination or CSV → Check matches. Provider logos, confidence percentages, threshold shortcuts and weakest-first review simplify matching.
 
-Load Spotify account playlists and YouTube, SoundCloud, TIDAL or Spotify playlist links. Match into YouTube, SoundCloud or TIDAL, or import/export CSV. YouTube and SoundCloud destinations save matched IDs locally. TIDAL can create reviewed, verified unlisted account playlists. Liked-song transfers and direct YouTube/SoundCloud account writes remain planned; permissions alone do not enable them.
+Load Spotify account playlists and YouTube, SoundCloud, TIDAL or Spotify playlist links. Match into YouTube, SoundCloud, TIDAL or Spotify, or import/export CSV. YouTube and SoundCloud destinations save matched IDs locally. TIDAL can create reviewed, verified unlisted account playlists; Spotify creates account playlists through its desktop companion. Liked-song transfers and direct YouTube/SoundCloud account writes remain planned; permissions alone do not enable them.
 
 Capacity defaults to 5,000 tracks and can increase to 10,000. Original order and deliberate repeats are retained. Destinations can be organized into one playlist, fixed-size parts, artist, album or genre where metadata exists. CSV downloads keep a local copy under **Saved CSV exports**, with an **Open exports folder** shortcut.
 
