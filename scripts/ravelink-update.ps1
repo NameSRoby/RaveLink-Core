@@ -103,7 +103,7 @@ if ($Action -eq "Rollback") {
 }
 
 $staged = Read-Json $stagedStatePath
-if ($staged.verified -ne $true -or "$($staged.version)" -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$') { throw "Update is not verified" }
+if ($staged.verified -ne $true -or "$($staged.version)" -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)[a-z]?$') { throw "Update is not verified" }
 $archivePath = Assert-ChildPath "$($staged.archivePath)" (Join-Path $updateRoot "downloads")
 if (!(Test-Path -LiteralPath $archivePath -PathType Leaf)) { throw "Staged archive is missing" }
 $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archivePath).Hash.ToLowerInvariant()

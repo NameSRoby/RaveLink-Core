@@ -14,13 +14,13 @@ function write(root, relative, value) {
   fs.writeFileSync(target, value);
 }
 
-test("Windows updater preserves mutable data and can restore managed files", { skip: !windows }, t => {
+for (const targetVersion of ["0.6.2", "0.7.1a"]) test("Windows updater preserves mutable data and can restore managed files: " + targetVersion, { skip: !windows }, t => {
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-update-integration-"));
   t.after(() => fs.rmSync(fixture, { recursive: true, force: true }));
   const root = path.join(fixture, "install");
   const release = path.join(fixture, "release");
   const updateRoot = path.join(root, "runtime", "updates");
-  const archive = path.join(updateRoot, "downloads", "RaveLink-Core-Windows-v0.6.2-self-contained.zip");
+  const archive = path.join(updateRoot, "downloads", `RaveLink-Core-Windows-v${targetVersion}-self-contained.zip`);
 
   write(root, "RELEASE_BUILD.json", JSON.stringify({ version: "0.6.1", channel: "release" }));
   write(root, "src/old.js", "old program");
@@ -30,7 +30,7 @@ test("Windows updater preserves mutable data and can restore managed files", { s
   write(root, "config/user.json", "preserve config");
   write(root, "features/installed/custom/state.json", "preserve feature");
 
-  write(release, "RELEASE_BUILD.json", JSON.stringify({ version: "0.6.2", channel: "release" }));
+  write(release, "RELEASE_BUILD.json", JSON.stringify({ version: targetVersion, channel: "release" }));
   write(release, "src/app/core/create-core-server.js", "new program");
   write(release, "RaveLink-Core.exe", "new host");
   write(release, "packages/tidal-desktop/installer.cjs", "new companion");
@@ -41,7 +41,7 @@ test("Windows updater preserves mutable data and can restore managed files", { s
   });
   assert.equal(zipped.status, 0, zipped.stderr);
   const sha256 = crypto.createHash("sha256").update(fs.readFileSync(archive)).digest("hex");
-  write(root, "runtime/updates/staged.json", JSON.stringify({ version: "0.6.2", archivePath: archive, sha256, verified: true }));
+  write(root, "runtime/updates/staged.json", JSON.stringify({ version: targetVersion, archivePath: archive, sha256, verified: true }));
 
   const helper = path.resolve(__dirname, "../scripts/ravelink-update.ps1");
   const apply = spawnSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", helper, "-Action", "Apply", "-Root", root, "-NoLaunch"], { encoding: "utf8", windowsHide: true });

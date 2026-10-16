@@ -16,6 +16,14 @@ const ACTION_KINDS = Object.freeze({
 });
 
 const REASONS = Object.freeze({
+  tidal_search_unavailable: "TIDAL search is unavailable", spotify_search_unavailable: "Spotify search is unavailable",
+  tidal_experiment_disabled: "the TIDAL desktop connection is unavailable", spotify_companion_unavailable: "the Spotify desktop connection is unavailable",
+  tidal_query_invalid: "enter a song name or a valid track link", song_link_track_required: "the link must point to one song",
+  song_link_metadata_unavailable: "the linked song's details are temporarily unavailable; try its artist and title",
+  tidal_search_no_results: "TIDAL returned no matching songs", tidal_search_no_eligible_match: "no TIDAL result passed the matching filters",
+  tidal_search_version_filtered: "the matching version is excluded by the song filters", spotify_match_not_found: "Spotify returned no eligible match",
+  tidal_oauth_sign_in_required: "TIDAL needs to be connected in Setup",
+  player_inactive: "that player is no longer selected",
   requester_limit: "you have reached your request limit", queue_full: "the queue is full", intake_paused: "requests are paused",
   requester_blocked: "you are blocked from Song Request", requester_timed_out: "you are temporarily blocked from Song Request",
   song_blocked: "that song is blocked", item_duplicate: "that song is already queued or playing, or needs another song to play before it can be requested again",
@@ -29,7 +37,7 @@ const REASONS = Object.freeze({
   youtube_keyless_unavailable: "keyless YouTube search is unavailable", youtube_keyless_timeout: "keyless YouTube search timed out",
   youtube_keyless_rate_limited: "keyless YouTube search is temporarily rate limited", catalog_ambiguous: "the request matched multiple songs too closely",
   catalog_no_results: "YouTube returned no results", catalog_no_eligible_match: "no result passed the song safety filters",
-  catalog_untrusted_link: "only trusted YouTube and Spotify links are accepted", spotify_track_required: "the Spotify link must point to one track",
+  catalog_untrusted_link: "only supported YouTube, Spotify, and TIDAL track links are accepted", spotify_track_required: "the Spotify link must point to one track",
   spotify_track_not_found: "the Spotify track could not be found", spotify_metadata_unavailable: "Spotify link metadata is unavailable",
   not_current_requester: "you can only skip your own currently playing song", invalid_requester: "that requester was not found",
   moderator_required: "a moderator is required", invalid_request: "the command was invalid"
@@ -88,7 +96,7 @@ const MESSAGES = Object.freeze({
 });
 
 function composeChatResponse(request, result, state) {
-  if (result?.reason === "request_replay") return null;
+  if (result?.reason === "request_replay" || result?.community?.duplicate === true) return null;
   const kind = responseKind(request, result);
   const enabled = kind && state?.responses?.[kind] === true;
   const eligible = request?.payload?.notifyChat === true || (kind === "now_playing" || kind === "playback_failed") && result?.notifyChat === true;

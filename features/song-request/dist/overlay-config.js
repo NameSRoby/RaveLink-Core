@@ -45,6 +45,7 @@ function overlayFrom(input, fallback = DEFAULT_OVERLAY) {
     const style = value && typeof value === "object" && !Array.isArray(value) ? value : {};
     return Object.freeze({
       size: oneOf(style.size, OVERLAY_BLOCK_SIZES, "inherit"), font: oneOf(style.font, OVERLAY_FONTS, "inherit"),
+      align: oneOf(style.align, ['left','center','right'], 'left'),
       color: color(style.color, ""), bold: style.bold === true, italic: style.italic === true, uppercase: style.uppercase === true
     });
   };
@@ -56,6 +57,10 @@ function overlayFrom(input, fallback = DEFAULT_OVERLAY) {
     });
   };
   const sourceSegments = Array.isArray(source.segments) ? source.segments.slice(0, 8) : fallback.segments;
+  const frameFrom = frame => frame && typeof frame === 'object' ? Object.freeze({
+    x: integer(frame.x, 0, 960, 0), y: integer(frame.y, 0, 600, 0),
+    width: integer(frame.width, 1, 960, 100), height: integer(frame.height, 1, 600, 30)
+  }) : null;
   const seen = new Set();
   const seenBlocks = new Set();
   const segments = [];
@@ -78,13 +83,14 @@ function overlayFrom(input, fallback = DEFAULT_OVERLAY) {
       const blockId = text(rawBlock?.id, 40).toLowerCase();
       if (!kind || !/^[a-z][a-z0-9-]{1,39}$/.test(blockId) || seenBlocks.has(blockId)) continue;
       seenBlocks.add(blockId);
-      blocks.push(Object.freeze({ id: blockId, kind, count: kind === "queue" ? integer(rawBlock.count, 1, 5, 3) : undefined, style: blockStyleFrom(rawBlock.style) }));
+      blocks.push(Object.freeze({ id: blockId, kind, frame: frameFrom(rawBlock.frame), count: kind === "queue" ? integer(rawBlock.count, 1, 5, 3) : undefined, style: blockStyleFrom(rawBlock.style) }));
     }
     if (!blocks.length && !explicitBlocks) continue;
     segments.push(Object.freeze({
       id, name: text(raw.name, 40) || `Segment ${segments.length + 1}`, enabled: raw.enabled !== false,
       direction: oneOf(raw.direction, ["column", "row"], "column"), align: oneOf(raw.align, ["left", "center", "right"], "left"),
       wrap: raw.wrap !== false,
+      frame: frameFrom(raw.frame), shape: oneOf(raw.shape, ['rectangle','rounded','ellipse'], 'rectangle'),
       size: oneOf(raw.size, ["compact", "wide", "full"], "wide"), style: segmentStyleFrom(raw.style), blocks: Object.freeze(blocks)
     }));
   }
@@ -92,6 +98,7 @@ function overlayFrom(input, fallback = DEFAULT_OVERLAY) {
   return Object.freeze({
     version: 3, preset: oneOf(source.preset, ["classic", "custom", "album-card", "ribbon", "minimal", "broadcast", "split-panels", "spotlight", "two-column"], fallback.preset), flow: oneOf(source.flow, ["column", "row", "grid"], fallback.flow),
     followAppColors: source.followAppColors !== false,
+    layoutMode: oneOf(source.layoutMode, ['flow','canvas'], 'flow'),
     hidePaused: source.hidePaused === true, pauseHideSeconds: integer(source.pauseHideSeconds, 1, 120, fallback.pauseHideSeconds || 5),
     hideStopped: source.hideStopped === true, hideLoading: source.hideLoading === true,
     providerColors: source.providerColors === true, remainingTime: source.remainingTime === true,

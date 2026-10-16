@@ -4,7 +4,7 @@ const { createPlaylistLibrary } = require('../features/song-request/dist/playlis
 function fixture(t, provider = 'tidal') {
   t.mock.timers.enable({ apis: ['setInterval'] });
   const library = createPlaylistLibrary(), storage = new Map(), account = [], calls = [];
-  let submissions = 0, failAppend = false, reject = false;
+  let submissions = 0, failAppend = false, reject = false, saveFailure = false;
   const context = { async callCapability(cap, method, input) {
     if (cap === 'ravelink.storage.v1') { if (method === 'get') return {ok:true,found:storage.has(input.key),value:structuredClone(storage.get(input.key))};storage.set(input.key,structuredClone(input.value));return {ok:true}; }
     calls.push(structuredClone(input));
@@ -14,9 +14,9 @@ function fixture(t, provider = 'tidal') {
     if (input.action === 'read') return {ok:true,tracks:account[0].tracks.map(id=>({providerItemId:id})),cursor:''};
     throw Error('unexpected operation');
   }};
-  const options = { context, library, saveLibrary: async()=>{}, player:async()=>provider, submit:async payload=>{submissions++;if(reject)return {ok:false,code:'rejected',reason:'blocked'};return {ok:true,code:'accepted',entry:{id:'entry-'+submissions,identity:provider+':'+payload.query,candidate:{provider,providerItemId:payload.query,title:'Song',artists:['Artist'],durationMs:1000}}};} };
+  const options = { context, library, saveLibrary: async()=>{if(saveFailure)throw Error("playlist_write_failed")}, player:async()=>provider, submit:async payload=>{submissions++;if(reject)return {ok:false,code:'rejected',reason:'blocked'};return {ok:true,code:'accepted',entry:{id:'entry-'+submissions,identity:provider+':'+payload.query,candidate:{provider,providerItemId:payload.query,title:'Song',artists:['Artist'],durationMs:1000}}};} };
   let worker = create(options);worker.start();t.after(()=>worker.stop());
-  return { library,storage,account,calls, get submissions(){return submissions}, get worker(){return worker}, fail(){failAppend=true}, reject(){reject=true}, async restart(){await worker.stop();worker=create(options);worker.start()}, async tick(){t.mock.timers.tick(3000);for(let i=0;i<15;i++)await new Promise(resolve=>setImmediate(resolve));} };
+  return { library,storage,account,calls, get submissions(){return submissions}, get worker(){return worker}, failSave(){saveFailure=true}, fail(){failAppend=true}, reject(){reject=true}, async restart(){await worker.stop();worker=create(options);worker.start()}, async tick(){t.mock.timers.tick(3000);for(let i=0;i<15;i++)await new Promise(resolve=>setImmediate(resolve));} };
 }
 for (const provider of ['youtube','soundcloud','tidal','spotify']) test('community reward queues and saves '+provider+' with idempotent local contributions',async t=>{
   const f=fixture(t,provider),id=provider==='youtube'?'abcdefghijk':provider==='spotify'?'B'.repeat(22):'123';
@@ -36,4 +36,9 @@ test('blocked requests never create a community list or native playlist',async t
 test('uncertain account append is reconciled without resending a song',async t=>{
   const f=fixture(t);f.fail();await f.worker.submit({requestId:'one',query:'123'});await f.tick();assert.equal(f.worker.status()[0].phase,'review');
   await f.worker.retry('tidal',false);await f.tick();assert.equal(f.worker.status()[0].phase,'synced');assert.equal(f.calls.filter(row=>row.action==='append').length,1);
+});
+
+test('a failed playlist save never reports an already queued request as failed',async t=>{
+ const f=fixture(t,'youtube');f.failSave();const result=await f.worker.submit({requestId:'save-failed',query:'abcdefghijk',requesterId:'viewer'});
+ assert.equal(result.ok,true);assert.equal(result.community.saved,false);assert.equal(result.community.error,'playlist_write_failed');assert.equal(f.submissions,1);
 });

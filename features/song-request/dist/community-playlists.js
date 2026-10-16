@@ -77,6 +77,7 @@ module.exports = function communityPlaylists({ context, library, saveLibrary, su
     if (!existing && library.status().collections.filter(row => !row.purpose).length >= library.status().limits.collections) return { ok: false, code: 'rejected', reason: 'playlist_limit_reached' };
     const result = await submit(payload);if (!result.ok || !result.entry?.candidate) return result;
     if (result.entry.candidate.provider !== provider) return { ...result, community: { saved: false, error: 'player_changed' } };
+    try {
     let target = existing;
     if (!target) {
       const made = library.create({ name: 'Community - ' + names[provider], provider });if (!made.ok) throw Error(made.code);
@@ -91,6 +92,7 @@ module.exports = function communityPlaylists({ context, library, saveLibrary, su
     state.receipts.push({ requestId: payload.requestId, collectionId: target.id });state.receipts = state.receipts.slice(-250);
     const current = state.lists[provider];if (current.phase === 'synced') current.phase = 'pending';await save();trigger();
     return { ...result, community: { saved: true, collectionId: target.id, native: current.phase } };
+    } catch (error) { return { ...result, community: { saved: false, error: String(error.message).slice(0,80) } }; }
   }
   const api = {
     async submit(payload) { const operation = serial.then(() => contribute(payload));serial = operation.catch(() => {});try { return await operation; } catch (error) { return { ok: false, code: 'rejected', reason: String(error.message).slice(0,80) }; } },

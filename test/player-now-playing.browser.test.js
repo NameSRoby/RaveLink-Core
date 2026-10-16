@@ -19,6 +19,20 @@ test('Now Playing shows local artwork, album, paused timing and a compact access
   await surface.locator('body').evaluate(async()=>{refreshState=async()=>{};while(refreshing)await new Promise(resolve=>setTimeout(resolve,10));const canvas=document.createElement('canvas');canvas.width=canvas.height=16;canvas.getContext('2d').fillRect(0,0,16,16);window.cardArtwork=canvas.toDataURL('image/jpeg');window.cardState={playbackSource:'tidal',primary:{provider:'tidal',title:'A detailed now playing track',artists:['Recording artist'],album:'Album title',status:'paused',positionMs:42000,durationMs:180000,observedAt:Date.now(),artworkUrl:window.cardArtwork}};renderPlayback(window.cardState);});
   await surface.locator('#nowArtwork:not([hidden])').waitFor();
   assert.equal(await surface.locator('#nowAlbum').innerText(),'Album title');
+  // Windows can report the new title first, then replace the cover later.
+  await surface.locator('body').evaluate(()=>{
+    const canvas=document.createElement('canvas');canvas.width=canvas.height=16;
+    const ctx=canvas.getContext('2d');ctx.fillStyle='#bd2538';ctx.fillRect(0,0,16,16);
+    window.nextCardArtwork=canvas.toDataURL('image/jpeg');
+    window.changedCardState={...window.cardState,primary:{...window.cardState.primary,title:'Next song',album:'Next album'}};
+    renderPlayback(window.changedCardState);
+  });
+  assert.equal(await surface.locator('#nowTitle').innerText(),'Next song');
+  await surface.locator('body').evaluate(()=>renderPlayback({...window.changedCardState,primary:{...window.changedCardState.primary,artworkUrl:window.nextCardArtwork}}));
+  await surface.locator('#nowArtwork:not([hidden])').waitFor();
+  assert.equal(await surface.locator('#nowArtwork').getAttribute('src'),await surface.locator('body').evaluate(()=>window.nextCardArtwork),'a late thumbnail replaces the previous cover without another title change');
+  await surface.locator('body').evaluate(()=>renderPlayback(window.cardState));
+  await surface.locator('#nowArtwork:not([hidden])').waitFor();
   assert.equal(await surface.locator('#nowPlaybackState').innerText(),'Paused');
   assert.equal(await surface.locator('#nowElapsed').innerText(),'0:42');
   assert.equal(await surface.locator('#nowDuration').innerText(),'3:00');

@@ -13,9 +13,9 @@ function createFeaturePlatformExtension(options = {}) {
     let twitchOAuth;
     let youtubeCatalog;
     const chatCommands = createTwitchChatCommandRouter({
-      submitSongRequest: payload => registry.request("song-request", "song.queue.submit.v1", "submit", payload, { timeoutMs: 12000 }),
+      submitSongRequest: payload => registry.request("song-request", "song.queue.submit.v1", "submit", payload, { timeoutMs: 30000 }),
       selfManageSongRequest: payload => registry.request("song-request", "song.queue.submit.v1", "self", payload, { timeoutMs: 1500 }),
-      moderateSongRequest: payload => registry.request("song-request", "song.queue.admin.v1", "moderate", payload, { timeoutMs: 1500 })
+      moderateSongRequest: payload => registry.request("song-request", "song.queue.admin.v1", "moderate", payload, { timeoutMs: 20000 })
     });
     function twitchProvider() {
       if (!twitchOAuth) {
@@ -69,6 +69,12 @@ function createFeaturePlatformExtension(options = {}) {
       } });
     context.app.use('/api/spotify/bridge', spotifyProvider.router());
     require('../../capabilities/feature-platform/http/register-spotify-oauth.routes')(context.app, () => spotifyProvider);
+    const songLinks=require('../../capabilities/feature-platform/providers/song-link-input')({fetchImpl:options.songLinkFetch,tidalMetadata:async id=>tidalBridge?.status().connected?tidalBridge.resolve({query:id}):null});
+    async function resolveSongInput(target,payload,resolve){
+      const normalized=await songLinks.normalize(payload?.query,target);
+      if(!normalized.ok)return {ok:false,error:normalized.reason,reason:normalized.reason};
+      return resolve({...payload,query:normalized.query,...(normalized.translated?{videoId:''}:target==='youtube'&&normalized.id?{videoId:normalized.id}:{})});
+    }
     registry = createFeatureHostRegistry({
       featuresRoot: options.featuresRoot || path.join(rootDir, "features", "installed"),
       packageRoots: options.packageRoots || [path.join(rootDir, "feature-packages"), path.join(rootDir, "features")],
@@ -76,9 +82,9 @@ function createFeaturePlatformExtension(options = {}) {
       fetchImpl: options.featureFetch,
       runtimeRoot: featureRuntimeRoot,
       providers: {
-        ...Object.fromEntries(['status', 'setup', 'resolve', 'enqueue', 'remove', 'control', 'review', 'playlist'].map(method => ['spotify.desktop.host.v1/' + method, (payload, caller) => caller.featureId === 'song-request' ? spotifyProvider.handle(method, payload || {}) : { ok: false, error: 'spotify_access_denied' }])),
+        ...Object.fromEntries(['status', 'setup', 'resolve', 'enqueue', 'remove', 'control', 'review', 'playlist'].map(method => ['spotify.desktop.host.v1/' + method, (payload, caller) => caller.featureId === 'song-request' ? method==='resolve'?resolveSongInput('spotify',payload,input=>spotifyProvider.handle(method,input)):spotifyProvider.handle(method, payload || {}) : { ok: false, error: 'spotify_access_denied' }])),
         'playlist.exports.host.v1/action': (payload, caller) => caller.featureId === 'song-request' ? playlistExports.action(payload) : { ok: false, code: 'export_denied' },
-        'soundcloud.catalog.host.v1/resolve': (payload, caller) => caller.featureId === 'song-request' ? getSoundCloudCatalog().resolve(payload) : { ok: false, reason: 'soundcloud_catalog_denied' },
+        'soundcloud.catalog.host.v1/resolve': (payload, caller) => caller.featureId === 'song-request' ? resolveSongInput('soundcloud',payload,input=>getSoundCloudCatalog().resolve(input)) : { ok: false, reason: 'soundcloud_catalog_denied' },
         "media.windows.now-playing.v1/control": payload => mediaObserver.control(payload),
         'tidal.playlists.host.v1/action': (payload, caller) => caller.featureId === 'song-request' ? getTidalCatalog().playlists(payload) : { ok: false, error: 'tidal_playlist_denied' },
         "tidal.desktop.experimental.v1/status": () => tidalBridge ? tidalBridge.status() : { ok: true, enabled: false },
@@ -89,7 +95,7 @@ function createFeaturePlatformExtension(options = {}) {
           if (caller.featureId !== 'song-request' || !['status', 'configure', 'reset-client', 'begin', 'test', 'disconnect', 'clear'].includes(payload?.action)) return { ok: false, error: 'tidal_catalog_action_denied' };
           return getTidalCatalog()[payload.action](payload);
         },
-        "tidal.desktop.experimental.v1/resolve": (payload, caller) => caller.featureId === 'song-request' && tidalBridge ? tidalBridge.resolve(payload) : { ok: false, error: 'tidal_experiment_disabled' },
+        "tidal.desktop.experimental.v1/resolve": (payload, caller) => caller.featureId === 'song-request' && tidalBridge ? resolveSongInput('tidal',payload,input=>tidalBridge.resolve(input)) : { ok: false, error: 'tidal_experiment_disabled' },
         "tidal.desktop.experimental.v1/enqueue": (payload, caller) => caller.featureId === 'song-request' && tidalBridge ? tidalBridge.enqueue(payload) : { ok: false, error: 'tidal_experiment_disabled' },
         "tidal.desktop.experimental.v1/review": (payload, caller) => caller.featureId === 'song-request' && tidalBridge ? tidalBridge.review(payload) : { ok: false, error: 'tidal_experiment_disabled' },
         "tidal.desktop.experimental.v1/remove": (payload, caller) => caller.featureId === 'song-request' && tidalBridge ? tidalBridge.remove(payload) : { ok: false, error: 'tidal_experiment_disabled' },
@@ -111,7 +117,7 @@ function createFeaturePlatformExtension(options = {}) {
         "youtube.catalog.host.v1/status": () => youtubeProvider().status(),
         "youtube.catalog.host.v1/configure": payload => youtubeProvider().configure(payload),
         "youtube.catalog.host.v1/clear": () => youtubeProvider().clear(),
-        "youtube.catalog.host.v1/resolve": payload => youtubeProvider().resolve(payload),
+        "youtube.catalog.host.v1/resolve": payload => resolveSongInput('youtube',payload,input=>youtubeProvider().resolve(input)),
         "youtube.catalog.host.v1/import-playlist-start": payload => youtubeProvider().importPlaylistStart(payload),
         "youtube.catalog.host.v1/import-playlist-status": payload => youtubeProvider().importPlaylistStatus(payload),
         "youtube.catalog.host.v1/import-playlist-page": payload => youtubeProvider().importPlaylistPage(payload),

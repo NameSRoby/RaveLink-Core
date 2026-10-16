@@ -105,7 +105,7 @@ module.exports = function createCoreServer(options = {}) {
     submitSongRequest: async payload => {
       const registry = extension?.registry || extension?.features?.registry;
       if (!registry?.request) return { ok: false, error: "song_request_unavailable" };
-      return registry.request("song-request", "song.queue.submit.v1", "submit", payload, { timeoutMs: 12000 });
+      return registry.request("song-request", "song.queue.submit.v1", "submit", payload, { timeoutMs: 30000 });
     },
     settleRedemption: async payload => {
       const registry = extension?.registry || extension?.features?.registry;

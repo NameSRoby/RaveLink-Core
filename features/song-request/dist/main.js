@@ -13,7 +13,7 @@ const OPTIONAL = Object.freeze({
 
 let context;
 let queue;
-let experimentalTidal, spotify, playerRouting, community;
+let experimentalTidal, spotify, playerRouting, community, desktopChat;
 let playlists,profileStorage,flushing,playerPreferences,soundcloud;
 let persistTimer;
 let dirty = false;
@@ -107,8 +107,7 @@ function publishChange(result, request) {
   try { context.publishEvent("song.queue.events.v1", "changed", { reason: result.code || "changed", counts: state.counts, paused: state.paused }); } catch {}
   optionalCall("widget", { type: "song-queue", state });
   optionalCall("diagnostics", { owner: "song-request", event: result.code || "changed", ok: result.ok === true });
-  const chat = composeChatResponse(request, result, state);
-  if (chat) optionalCall("chat", { message: chat.message, ...(chat.replyParentMessageId ? { replyParentMessageId: chat.replyParentMessageId } : {}) });
+
 }
 
 function publishPlayback(result) {
@@ -164,8 +163,10 @@ async function activate(nextContext) {
       }
     }
   } catch {}
+  desktopChat=require('./desktop-chat-responses')({context,send:sendResponse});
+  await desktopChat.load();
   await playlists.activate();
-  community = playlists.createCommunity({ changed: () => publishChange({ ok: true, code: 'community_updated' }, { method: 'community' }), player: async () => (await playerPreferences('status', null)).player, submit: payload => handleRequest({ capability: 'song.queue.submit.v1', method: 'submit', payload: { ...payload, addToPlaylist: false } }) });community.start();
+  community = playlists.createCommunity({ changed: () => publishChange({ ok: true, code: 'community_updated' }, { method: 'community' }), player: async () => (await playerPreferences('status', null)).player, submit: payload => handleOperation({ capability: 'song.queue.submit.v1', method: 'submit', payload: { ...payload, addToPlaylist: false } }) });community.start();
   soundcloud = require("./soundcloud-player")({ queue, playlists, context, isSelected: async () => (await playerPreferences("status", null)).player === "soundcloud", changed: result => { schedulePersistence(); publishChange(result, { method: "soundcloud" }); publishPlayback(result); } });
   playerRouting = require('./player-routing')({ preferences: playerPreferences, queue, tidal: experimentalTidal, changed: () => { schedulePersistence();publishPlayback({ ok: true }); } });
   const source = queue.playbackStatus().playbackSource;
@@ -177,7 +178,16 @@ async function activate(nextContext) {
   }
 }
 
+function sendResponse(request, result) {
+  const chat=composeChatResponse(request,result,queue.status());
+  if(chat)optionalCall('chat',{message:chat.message,...(chat.replyParentMessageId?{replyParentMessageId:chat.replyParentMessageId}:{})});
+}
 async function handleRequest(request) {
+  const result=await handleOperation(request);
+  await require('./request-chat-responses')(request,result,sendResponse,desktopChat);
+  return result;
+}
+async function handleOperation(request) {
   const routing = await community.route(request) || await playerRouting(request);if (routing) return routing.value;
   const intakePlayer = request.capability === 'song.queue.submit.v1' && request.method === 'submit' ? request.activePlayer : null;
   const spotifyRequest = await spotify.route(request, playerPreferences);
@@ -208,8 +218,7 @@ async function handleRequest(request) {
     const result = await experimentalTidal('moderate', request.payload);
     if (result.ok) {
       playlists.capture(request, result);
-      const chat = composeChatResponse(request, result, queue.status());
-      if (chat) optionalCall('chat', { message: chat.message, ...(chat.replyParentMessageId ? { replyParentMessageId: chat.replyParentMessageId } : {}) });
+
     }
     return result;
   }
@@ -290,7 +299,7 @@ async function handleRequest(request) {
         videoId,
         policy: { ...queueState.catalogPolicy, maxDurationMs: queueState.limits.maxDurationMs },
         maxDurationMs: queueState.limits.maxDurationMs
-      }, { timeoutMs: videoId ? 4000 : 9000 });
+      }, { timeoutMs: videoId ? 12000 : 20000 });
     } catch {
       resolved = { ok: false, reason: "youtube_catalog_unavailable" };
     }
@@ -322,8 +331,7 @@ async function handleRequest(request) {
       playlists.capturePlayback(request, result);
       schedulePersistence();
       publishPlayback(result);
-      const chat = composeChatResponse(request, result, queue.status());
-      if (chat) optionalCall("chat", { message: chat.message, ...(chat.replyParentMessageId ? { replyParentMessageId: chat.replyParentMessageId } : {}) });
+
     }
     return result;
   }

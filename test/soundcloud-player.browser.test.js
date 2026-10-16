@@ -41,7 +41,7 @@ test('SoundCloud player imports public playlists, confirms PLAY, preserves FIFO,
   assert.match(await knownIssues.locator('a').getAttribute('href'), /issues\/new\?template=bug_report.yml$/);
   await knownIssues.locator('summary').click();
   await surface.locator('#videoInput').fill('https://example.com/evil'); await surface.locator('#addSong').click();
-  await surface.locator('#requestNotice').filter({ hasText: 'full public SoundCloud track link' }).waitFor();
+  await surface.locator('#requestNotice').filter({ hasText: 'Use a YouTube, Spotify, TIDAL, or public SoundCloud track link.' }).waitFor();
   for (const slug of ['one', 'two']) {
     await surface.locator('#videoInput').fill('https://soundcloud.com/artist/' + slug); await surface.locator('#addSong').click();
     await surface.locator('#requestNotice').filter({ hasText: 'Queued SC track' }).waitFor();

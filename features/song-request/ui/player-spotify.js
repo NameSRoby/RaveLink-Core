@@ -89,7 +89,7 @@ function installSpotifyPlayer({ showView, volumeControls }) {
     $('catalogSettings').hidden = true;$('titleInput').closest('label').hidden = true;$('minimumSubscribers').closest('label').hidden = true;$('minimumViews').closest('label').hidden = true;$('allowNonMusic').parentElement.hidden = true;
     document.querySelector('.volumeControl').hidden = true;
     const requesters = $('requesters').closest('table');requesters.hidden = true;requesters.previousElementSibling.hidden = true;
-    $('playerProviderHint').textContent = 'Search songs · queue in order in Spotify Desktop';$('videoInput').placeholder = 'Artist and song, Spotify track link or URI';
+    $('playerProviderHint').textContent = 'Search songs · queue in order in Spotify Desktop';$('videoInput').placeholder = 'Artist and song, YouTube, Spotify, or TIDAL track link';
     $('queue').closest('table').querySelectorAll('th')[2].textContent = 'STATUS';$('clear').textContent = 'CLEAR WAITING REQUESTS';
     $('requestNotice').textContent = 'Accepted requests are sent in order. Up to 10 upcoming requests stay in Spotify; extra requests wait here.';
     rendered = '';void api('monitor').then(() => refreshState()).catch(error => setNotice(explain(error.message), true));void refresh();

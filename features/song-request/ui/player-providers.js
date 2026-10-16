@@ -153,16 +153,17 @@
       $('monitorTidal').disabled = tidalState.enabled !== true;
       $('tidalPairingFile').textContent = tidalState.pairingFile || 'Select TIDAL to create the pairing file.';
       $('tidalPluginAddress').textContent = location.origin + '/experimental/tidal/plugin/ravelink.tidal-experiment';
-      if (view === 'setup' || !companionInstall || Date.now() - companionCheckedAt > 10000) await refreshCompanionInstall();
+      if (view === 'setup' || !companionInstall || Date.now() - companionCheckedAt > 10000) await refreshCompanionInstall().catch(()=>{ if ($('tidalInstallStatus')) $('tidalInstallStatus').textContent='Companion installation details could not be refreshed.'; });
       if (companionInstall?.installed && !['0.1.6', '0.1.7'].includes(companionInstall.version)) $('tidalConnection').textContent = 'Desktop companion update needed — open Setup';
       if (view === 'setup') await refreshCatalogApi();
       renderTidalQueue();
+      if ($('notice').dataset.tidalRefreshError === 'true') { setNotice(''); delete $('notice').dataset.tidalRefreshError; }
       if (tidalState.connected && tidalState.ready && !tidalState.delivery?.processing && !tidalState.delivery?.lastError && tidalState.capacity?.available > 0
         && !(companionInstall?.installed && !['0.1.6', '0.1.7'].includes(companionInstall.version))
         && tidalState.queue?.some(entry => !entry.deliveryError && !(tidalState.handoffs || []).some(receipt => receipt.entryId === entry.id && ['unknown', 'pending', 'failed'].includes(receipt.phase)))) {
         await call('song.tidal.experimental.v1', 'flush', {});
       }
-    } catch (error) { $('tidalConnection').textContent = error.message; setNotice('TIDAL controls are unavailable. Restart Core after updating Song Request.', true); }
+    } catch (error) { if (!tidalState?.connected) $('tidalConnection').textContent = 'Could not refresh the desktop connection. Retrying?'; $('notice').dataset.tidalRefreshError = 'true'; setNotice(tidalState?.connected ? 'Could not refresh all TIDAL details. Playback remains connected; retrying.' : 'Could not refresh TIDAL. Check the desktop connection in Setup.', true); }
     finally {
       volumeControls.nativeStatus(tidalState); $('tidalPlaybackStatus').textContent = $('tidalConnection').textContent; refreshingTidal = false;
       if (tidalRefreshQueued) { tidalRefreshQueued = false; clearTimeout(tidalRefreshTimer); tidalRefreshTimer = setTimeout(() => void refreshTidal(), 150); }
@@ -268,7 +269,7 @@
     if (tidal) player?.pauseVideo?.();
     panel.hidden = !tidal; playbackPanel.hidden = !tidal; $('playerFrame').hidden = tidal; startPlayer.hidden = tidal; $('skip').hidden = tidal;
     document.querySelector('.volumeControl').hidden = false; $('catalogSettings').hidden = tidal;
-    $('responseToggles').closest('details').hidden = tidal; $('titleInput').closest('label').hidden = tidal;
+    $('responseToggles').closest('details').hidden = false; $('titleInput').closest('label').hidden = tidal;
     $('volumeFloor').closest('label').hidden = tidal; $('volumeCeiling').closest('label').hidden = tidal;
     $('minimumSubscribers').closest('label').hidden = tidal; $('minimumViews').closest('label').hidden = tidal; $('allowNonMusic').parentElement.hidden = tidal;
     $('catalogStatus').hidden = tidal; $('songSearchFilters').hidden = false;
@@ -278,8 +279,8 @@
     policy.hidden = false; policySummary.textContent = tidal ? 'Request limits & song length' : 'Request limits & song length';
     $('playerProviderHint').textContent = tidal ? 'Search songs · queue in order in TIDAL Desktop' : 'Embedded YouTube playback';
     $('videoInput').closest('label').firstChild.textContent = 'SONG QUERY OR TRUSTED LINK';
-    $('videoInput').placeholder = tidal ? 'Artist and song, TIDAL link, or track ID' : 'Artist and song, YouTube, or Spotify';
-    $('requestNotice').textContent = tidal ? 'Add an artist and song. Accepted requests are sent to TIDAL automatically, in order.' : 'Enter a song name or a trusted YouTube or Spotify link.';
+    $('videoInput').placeholder = 'Artist and song, YouTube, Spotify, or TIDAL track link';
+    $('requestNotice').textContent = tidal ? 'Add an artist and song. Accepted requests are sent to TIDAL automatically, in order.' : 'Enter a song name or a YouTube, Spotify, or TIDAL track link.';
     $('requestNotice').className = 'notice requestNotice';
     const requesterTable = $('requesters').closest('table'); requesterTable.hidden = tidal; requesterTable.previousElementSibling.hidden = tidal;
     $('queue').closest('table').querySelectorAll('th')[2].textContent = tidal ? 'STATUS' : 'POSITION';

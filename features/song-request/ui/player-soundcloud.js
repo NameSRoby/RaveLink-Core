@@ -23,7 +23,7 @@ function installSoundCloudPlayer() {
     return 'https://soundcloud.com' + url.pathname;
   }
   function errorMessage(error) {
-    return ({ soundcloud_query_invalid: 'Enter between 2 and 256 characters for the artist and song.', soundcloud_no_eligible_match: 'No playable match passed your song and version filters. Try a more specific artist/title or a direct SoundCloud link.', soundcloud_search_page_changed: 'SoundCloud changed its public search page. Direct track links still work.', soundcloud_search_busy: 'Other SoundCloud searches are finishing. Try again in a moment.', soundcloud_search_rate_limited: 'SoundCloud search is busy. Wait a moment and try again.', soundcloud_search_unavailable: 'SoundCloud search is unavailable. Try again or use a direct track link.', soundcloud_search_timeout: 'SoundCloud search timed out. Try again or use a direct track link.', soundcloud_link_invalid: 'Use a public SoundCloud track link for this player.', soundcloud_track_restricted: 'SoundCloud restricts this track. Choose another public track.', soundcloud_track_invalid: 'SoundCloud did not return a valid public track.', playlist_track_limit: 'This playlist exceeds your library capacity. Change Library capacity in Transfers or use a smaller list.', item_duplicate: 'This track is queued or playing, or needs another song to play before it can be requested again.', song_timed_out: 'This track is temporarily blocked by moderation.', song_blocked: 'This track is banned from song requests.', duration_limit: 'This track exceeds the song-length limit. You can change that limit in Moderation.', intake_paused: 'Requests are paused. Resume intake to add this track.' })[error.message] || error.message;
+    return ({ catalog_untrusted_link: 'Use a YouTube, Spotify, TIDAL, or public SoundCloud track link.', song_link_metadata_unavailable: 'Could not read this song link. Try the artist and title, or retry shortly.', soundcloud_query_invalid: 'Enter between 2 and 256 characters for the artist and song.', soundcloud_no_eligible_match: 'No playable match passed your song and version filters. Try a more specific artist/title or a direct SoundCloud link.', soundcloud_search_page_changed: 'SoundCloud changed its public search page. Direct track links still work.', soundcloud_search_busy: 'Other SoundCloud searches are finishing. Try again in a moment.', soundcloud_search_rate_limited: 'SoundCloud search is busy. Wait a moment and try again.', soundcloud_search_unavailable: 'SoundCloud search is unavailable. Try again or use a direct track link.', soundcloud_search_timeout: 'SoundCloud search timed out. Try again or use a direct track link.', soundcloud_link_invalid: 'Use a public SoundCloud track link for this player.', soundcloud_track_restricted: 'SoundCloud restricts this track. Choose another public track.', soundcloud_track_invalid: 'SoundCloud did not return a valid public track.', playlist_track_limit: 'This playlist exceeds your library capacity. Change Library capacity in Transfers or use a smaller list.', item_duplicate: 'This track is queued or playing, or needs another song to play before it can be requested again.', song_timed_out: 'This track is temporarily blocked by moderation.', song_blocked: 'This track is banned from song requests.', duration_limit: 'This track exceeds the song-length limit. You can change that limit in Moderation.', intake_paused: 'Requests are paused. Resume intake to add this track.' })[error.message] || error.message;
   }
   function loadSdk() {
     if (window.SC?.Widget) return Promise.resolve();
@@ -53,7 +53,7 @@ function installSoundCloudPlayer() {
     event?.preventDefault?.(); $('addSong').disabled = true;
     try {
       const query = $('videoInput').value.trim();
-      if (!/^(?:https?:\/\/|www\.|(?:m\.)?soundcloud\.com\/)/i.test(query)) {
+      if (!/^https:\/\/(?:www\.|m\.)?soundcloud\.com\//i.test(query)) {
         if (!query) throw new Error('Enter an artist and song, or a public SoundCloud link.');
         setRequestNotice('Searching SoundCloud for a matching track?');
         const result = await api('submit-query', { query, requestId: crypto.randomUUID() });
@@ -122,7 +122,7 @@ function installSoundCloudPlayer() {
     player?.pauseVideo?.(); $('playerFrame').hidden = true; startPlayer.hidden = true; $('skip').hidden = true;
     $('catalogSettings').hidden = true; $('songSearchFilters').hidden = false; $('minimumSubscribers').closest('label').hidden = true; $('minimumViews').closest('label').hidden = true; $('allowNonMusic').parentElement.hidden = true; $('titleInput').closest('label').hidden = true;
     $('videoInput').closest('label').firstChild.textContent = 'ARTIST AND SONG OR SOUNDCLOUD LINK';
-    $('playerProviderHint').textContent = 'Public SoundCloud links · playback in RaveLink'; $('videoInput').placeholder = 'Artist and song, or a SoundCloud link';
+    $('playerProviderHint').textContent = 'Public SoundCloud links · playback in RaveLink'; $('videoInput').placeholder = 'Artist and song, YouTube, Spotify, TIDAL, or SoundCloud link';
     $('requestNotice').textContent = 'Enter an artist and song, or a public track link. Requests play in order.';
     if (choice === generation) await refreshState();
   }

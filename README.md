@@ -4,16 +4,32 @@
 
 RaveLink Core is a local Windows app for streamer lighting, music requests and optional Twitch integration. It runs in the tray and opens at `http://127.0.0.1:5050`.
 
-## Install 0.7.1
+## 0.7.1a patch notes
 
-1. Download **RaveLink-Core-Windows-v0.7.1-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
+This patch fixes problems in 0.7.1 while retaining its existing lighting, music, playlist and Twitch features.
+
+- Fixed duplicate chat replies for **Add to playlist** requests and misleading failure reports after a song was already accepted.
+- Fixed Twitch chat-response settings and request announcements across YouTube, TIDAL, Spotify and SoundCloud. Desktop announcements wait for confirmed playback and are not repeated by polling or pause/resume.
+- Fixed request positions to include songs already delivered to the desktop player's queue.
+- Fixed YouTube, Spotify and TIDAL track-link handling across the supported request players. Cross-provider requests read the source song's metadata before searching the selected player. Availability and matching filters still apply.
+- Fixed stale or missing Windows media artwork, including delayed thumbnail updates after a title change. Detailed covers are compressed to fit the existing transport limit.
+- Fixed overlay layout manipulation: choose **Edit on canvas** to select, drag, resize and layer shapes and information. Snapping guides, alignment buttons, exact X/Y controls, arrow-key nudging and visible overlay dimensions make compact layouts easier to adjust.
+- Fixed long-title scrolling and remeasurement after resizing, including when Windows reduced-motion settings are enabled.
+- Fixed false TIDAL connection errors caused by optional installation-detail refreshes, and increased request timeouts for desktop lookups.
+- Fixed rapidly redeemed lighting effects interleaving writes to the same light. Only the latest pending effect frame is retained for each fixture.
+
+**Updating from 0.7.1:** use the installer below, or stop Core and extract the portable update into your installation folder. Keep your existing local data. The 0.7.1 updater does not recognize letter-suffixed releases; 0.7.1a adds support for them. After upgrading Core, update **Song Request** under **Packages** to receive the feature fixes. Restart Core, then reload the dashboard and refresh OBS browser sources. There is no need to reconnect accounts or erase playlists.
+
+## Install 0.7.1a
+
+1. Download **RaveLink-Core-Windows-v0.7.1a-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
 2. Choose an installation folder and optional features. Setup downloads and verifies only your selected features from this repository.
 3. Choose **Main**, **More** or **Hidden** placement for tabs. Change this later from the settings gear → **Choose tabs**.
 4. Launch from the Start menu or desktop shortcut. Use the tray icon to reopen, restart or exit.
 
 Windows 10 or 11, 64-bit, is required. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-For portable use, extract **RaveLink-Core-Windows-v0.7.1-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
+For portable use, extract **RaveLink-Core-Windows-v0.7.1a-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
 
 ## Lighting
 

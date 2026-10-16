@@ -34,6 +34,7 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
   let config = structuredClone(DEFAULT), invalid = false, timer = null, ticking = false, sessionSequence = 0, shuttingDown = false;
   let faultCount = 0, lastFault = null;
   const active = new Map(), cooldownUntil = new Map(), restoreGenerations = new Map(), pendingTasks = new Set(), delayedTimers = new Set(), faultReportAfter = new Map();
+  const dispatchLatest = require('./fixture-effect-dispatch')({ isCurrent: entry => !shuttingDown && active.get(entry.fixture.id) === entry, dispatch, reportFault });
   const scheduleOnce = typeof options.setTimeout === "function" ? options.setTimeout : setTimeout;
   const unscheduleOnce = typeof options.clearTimeout === "function" ? options.clearTimeout : clearTimeout;
   const shutdownWaitMs = clamp(options.shutdownWaitMs || 2000, 1, 10000);
@@ -242,7 +243,7 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
     const smooth = ["fade", "rainbow", "wave"].includes(command.type);
     return { rgb: smooth ? mix(command.colors[index], command.colors[next], position - Math.floor(position)) : command.colors[index], brightness: entry.settings.brightnessLimit, phase: smooth ? Math.floor(elapsed / 333) : Math.floor(position) };
   }
-  async function dispatch(fixture, frame, transitionMs) {
+  function dispatch(fixture, frame, transitionMs) {
     const brand = String(fixture.brand).toLowerCase();
     if (brand === "hue") {
       const state = createHueStateFromRgb(frame.rgb, { brightness: Math.round(frame.brightness * 254 / 100), transitiontime: Math.round(clamp(transitionMs / 100, 0, 30)) });
@@ -297,7 +298,7 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
         // Start every due adapter in this same engine turn. A slow Hue HTTP
         // response must not hold the WiZ/Govee clock; adapter failures remain
         // isolated and a later absolute deadline catches up without drift.
-        supervise(() => dispatch(entry.fixture, frame, smooth && !initialFrame ? cadence : 0), "dispatch", id, false);
+        dispatchLatest(entry, frame, smooth && !initialFrame ? cadence : 0);
         } catch (error) {
           reportFault(error, "render", id);
         }
@@ -321,7 +322,7 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
     if (context.preview) return { matched: true, ok: true, preview: true, effect: command.type, speed: command.speed, targets: fixtures.map(row => row.id), sent: 0, failed: 0 };
     const startedAt = now() + SYNCHRONIZATION_LEAD_MS, sessionId = ++sessionSequence;
     fixtures.forEach((fixture, fixtureIndex) => active.set(fixture.id, { fixture, command, fixtureIndex, fixtureCount: fixtures.length, settings,
-      previousState: lightingLab?.previousState?.(fixture.id), sessionId, startedAt, latencyMs: Number(lightingLab?.latencyFor?.(fixture.id) || 0),
+      previousState: active.get(fixture.id)?.previousState || lightingLab?.previousState?.(fixture.id), sessionId, startedAt, latencyMs: Number(lightingLab?.latencyFor?.(fixture.id) || 0),
       lastSentAt: -Infinity, nextSentAt: -Infinity, lastPhase: -1, lastFrame: null }));
     fixtures.forEach(fixture => invalidateRestore(fixture.id));
     ensureTimer(); await tick();

@@ -15,14 +15,14 @@ const MAX_CHECKSUM_BYTES = 128 * 1024;
 const MAX_ARCHIVE_BYTES = 750 * 1024 * 1024;
 
 function parseVersion(value) {
-  const match = /^v?(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})$/.exec(String(value || "").trim());
-  return match ? match.slice(1).map(Number) : null;
+  const match = /^v?(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})([a-z])?$/.exec(String(value || "").trim());
+  return match ? [...match.slice(1,4).map(Number), ...(match[4] ? [match[4].charCodeAt(0)-96] : [])] : null;
 }
 
 function compareVersions(left, right) {
   const a = parseVersion(left), b = parseVersion(right);
   if (!a || !b) throw new Error("invalid_release_version");
-  for (let index = 0; index < 3; index++) if (a[index] !== b[index]) return a[index] < b[index] ? -1 : 1;
+  for (let index = 0; index < 4; index++) if ((a[index] || 0) !== (b[index] || 0)) return (a[index] || 0) < (b[index] || 0) ? -1 : 1;
   return 0;
 }
 
@@ -41,7 +41,7 @@ function writeJsonAtomic(filePath, value) {
 function localVersion(rootDir) {
   const release = readJson(path.join(rootDir, "RELEASE_BUILD.json"));
   const pkg = readJson(path.join(rootDir, "package.json"), {});
-  return String(release?.version || pkg.version || "0.0.0").replace(/-dev$/i, "");
+  return String(release?.version || pkg.releaseVersion || pkg.version || "0.0.0").replace(/-dev$/i, "");
 }
 
 function safeAsset(release, name) {

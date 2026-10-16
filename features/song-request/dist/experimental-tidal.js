@@ -69,13 +69,14 @@ module.exports = function createExperimentalTidal({ queue, context, changed, isS
   async function submit(payload) {
     if (!await isSelected()) return { ok: false, code: 'rejected', reason: 'player_inactive' };
       const state = queue.status();
-      const resolved = await provider('resolve', { query: payload.query,
-        policy: { ...state.catalogPolicy, maxDurationMs: state.limits.maxDurationMs } });
+      let resolved;
+      try { resolved = await provider('resolve', { query: payload.query, policy: { ...state.catalogPolicy, maxDurationMs: state.limits.maxDurationMs } }); }
+      catch { return { ok: false, code: 'rejected', reason: 'tidal_search_unavailable' }; }
       if (!resolved?.ok) return resolved;
       if (!await isSelected()) return { ok: false, code: 'rejected', reason: 'player_inactive' };
-      const result = queue.submit({ requestId: payload.requestId, requesterId: payload.requesterId, requesterName: payload.requesterName,
-        requesterRole: payload.requesterRole, query: payload.query, candidate: resolved.candidate });
-      if (result.ok) { changed(result); delivery.trigger(); }
+      let result = queue.submit({ requestId: payload.requestId, requesterId: payload.requesterId, requesterName: payload.requesterName,
+        requesterRole: payload.requesterRole, notifyChat: payload.notifyChat === true, query: payload.query, candidate: resolved.candidate });
+      if (result.ok) { result=await require('./desktop-queue-position')(queue,'tidal',result,()=>provider('status',null));changed(result); delivery.trigger(); }
       if (!result.ok && result.reason === 'duration_limit') return { ...result,
         details: { title: resolved.candidate.title, durationMs: resolved.candidate.durationMs, maxDurationMs: queue.status().limits.maxDurationMs } };
       return result;

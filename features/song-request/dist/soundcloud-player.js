@@ -13,7 +13,7 @@ module.exports = function soundcloudPlayer({ queue, playlists, changed, context,
   async function resolveQuery(query) {
     const state = queue.status();
     if (state.paused) return { ok: false, reason: 'intake_paused' };
-    try { return await context.callCapability('soundcloud.catalog.host.v1', 'resolve', { query, policy: state.catalogPolicy, maxDurationMs: state.limits.maxDurationMs }, { timeoutMs: 9000 }); }
+    try { return await context.callCapability('soundcloud.catalog.host.v1', 'resolve', { query, policy: state.catalogPolicy, maxDurationMs: state.limits.maxDurationMs }, { timeoutMs: 20000 }); }
     catch { return { ok: false, reason: 'soundcloud_search_unavailable' }; }
   }
   async function handle(method, input = {}) {
@@ -21,13 +21,13 @@ module.exports = function soundcloudPlayer({ queue, playlists, changed, context,
       if (method === 'submit-query') {
         const found = await resolveQuery(input.query); if (!found.ok) return { ok: false, code: 'rejected', reason: found.reason };
         if (!await isSelected()) return { ok: false, code: 'rejected', reason: 'player_inactive' };
-        const result = queue.submit({ requestId:text(input.requestId,80),requesterId:'local-soundcloud-operator',requesterName:'Local SoundCloud operator',requesterRole:'moderator',query:input.query,candidate:found.candidate });
+        const result = queue.submit({ requestId:text(input.requestId,80),requesterId:'local-soundcloud-operator',requesterName:'Local SoundCloud operator',notifyChat:input.notifyChat===true,requesterRole:'moderator',query:input.query,candidate:found.candidate });
         changed(result); return result;
       }
       if (method === 'submit') {
         const track = candidate(input.sound);
         const result = queue.submit({ requestId: text(input.requestId, 80), requesterId: 'local-soundcloud-operator',
-          requesterName: 'Local SoundCloud operator', requesterRole: 'moderator', query: track.title, candidate: track });
+          requesterName: 'Local SoundCloud operator', notifyChat: input.notifyChat === true, requesterRole: 'moderator', query: track.title, candidate: track });
         changed(result); return result;
       }
       if (method === 'start') {

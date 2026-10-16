@@ -17,6 +17,10 @@ test("strict semantic release versions compare without prerelease ambiguity", ()
   assert.equal(parseVersion("0.6.2-beta"), null);
   assert.equal(compareVersions("0.6.1", "0.6.2"), -1);
   assert.equal(compareVersions("1.0.0", "0.9.99"), 1);
+  assert.deepEqual(parseVersion("v0.7.1a"), [0,7,1,1]);
+  assert.equal(compareVersions("0.7.1", "0.7.1a"), -1);
+  assert.equal(compareVersions("0.7.1a", "0.7.1b"), -1);
+  assert.equal(compareVersions("0.7.1a", "0.7.2"), -1);
 });
 
 test("release checks remain opt-in and expose only bounded public status", async t => {

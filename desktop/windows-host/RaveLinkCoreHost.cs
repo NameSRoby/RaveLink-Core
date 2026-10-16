@@ -15,7 +15,8 @@ using Microsoft.Win32;
 [assembly: System.Reflection.AssemblyCompany("NameSRoby")]
 [assembly: System.Reflection.AssemblyProduct("RaveLink Core")]
 [assembly: System.Reflection.AssemblyVersion("0.7.1.0")]
-[assembly: System.Reflection.AssemblyFileVersion("0.7.1.0")]
+[assembly: System.Reflection.AssemblyFileVersion("0.7.1.1")]
+[assembly: System.Reflection.AssemblyInformationalVersion("0.7.1a")]
 
 namespace RaveLink.Core.WindowsHost
 {
@@ -238,7 +239,7 @@ namespace RaveLink.Core.WindowsHost
             {
                 if (!File.Exists(PendingUpdatePath)) return "";
                 string json = File.ReadAllText(PendingUpdatePath, Encoding.UTF8);
-                var match = System.Text.RegularExpressions.Regex.Match(json, "\\\"updatedVersion\\\"\\s*:\\s*\\\"(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\\\"");
+                var match = System.Text.RegularExpressions.Regex.Match(json, "\\\"updatedVersion\\\"\\s*:\\s*\\\"(?<version>[0-9]+\\.[0-9]+\\.[0-9]+[a-z]?)\\\"");
                 return match.Success ? match.Groups["version"].Value : "invalid";
             }
             catch { return "invalid"; }

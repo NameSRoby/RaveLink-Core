@@ -1,4 +1,7 @@
 function tidalErrorMessage(error) {
+  const linkError=error.code||error.message;
+  if(linkError==='catalog_untrusted_link'||linkError==='song_link_track_required')return 'Use a YouTube, Spotify, or TIDAL track link.';
+  if(linkError==='song_link_metadata_unavailable')return 'Could not read this song link. Try the artist and title, or retry shortly.';
   if (error.message === 'song_timed_out') return 'This track is temporarily blocked. Try again after its timeout ends.';
   if (error.message === 'song_blocked') return 'This track is banned from song requests.';
   if (error.message === 'tidal_current_changed') return 'The playing track changed. Refresh Now Playing and choose the action again.';

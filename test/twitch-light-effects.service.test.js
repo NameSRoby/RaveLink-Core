@@ -290,3 +290,20 @@ test('spatial sweep is a brightness pulse while wave remains a full-brightness g
   calls.length = 0; const wave = create(); wave.save({ revision: 0, enabled: true, fixtureIds: fixtures.map(row => row.id) }); await wave.handle('wave red, blue', { fixtureIds: fixtures.map(row => row.id) });
   assert.equal(calls.filter(row => row.state.dimming).every(row => row.state.dimming === 100), true);
 });
+
+test('rapid effect replacements discard obsolete frames and never overlap writes to one fixture',async t=>{
+  const calls=[],release=[];let simultaneous=0,maxSimultaneous=0;
+  const {service}=setup(t,{adapters:{wiz:{sendState:async(rows,state)=>{
+    simultaneous++;maxSimultaneous=Math.max(maxSimultaneous,simultaneous);calls.push(state);
+    await new Promise(resolve=>release.push(resolve));simultaneous--;
+  }}}});
+  service.save({revision:0,enabled:true,fixtureIds:['desk-wiz']});
+  await service.handle('cycle red, blue',{fixtureIds:['desk-wiz']});
+  await service.handle('breathe green',{fixtureIds:['desk-wiz']});
+  await service.handle('fade blue, red',{fixtureIds:['desk-wiz']});
+  assert.equal(calls.length,1,'a new reward does not race a previous in-flight write');
+  release.shift()();await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(calls.length,2);assert.equal(maxSimultaneous,1);
+  assert.deepEqual([calls[1].r,calls[1].g,calls[1].b],[0,0,255],'only the newest effect is dispatched after the old write finishes');
+  release.shift()();await new Promise(resolve=>setImmediate(resolve));await service.shutdown();
+});

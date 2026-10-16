@@ -38,11 +38,13 @@ module.exports = function createSpotifyPlayer({ queue, context, changed, isSelec
   async function submit(payload) {
     if (!await isSelected()) return { ok: false, code: 'rejected', reason: 'player_inactive' };
     const state = queue.status();
-    const result = await provider('resolve', { query: payload.query, policy: { ...state.catalogPolicy, maxDurationMs: state.limits.maxDurationMs } });
+    let result;
+    try { result = await provider('resolve', { query: payload.query, policy: { ...state.catalogPolicy, maxDurationMs: state.limits.maxDurationMs } }); }
+    catch { return { ok: false, code: 'rejected', reason: 'spotify_search_unavailable' }; }
     if (!result.ok) return { ok: false, code: 'rejected', reason: result.error };
     if (!await isSelected()) return { ok: false, code: 'rejected', reason: 'player_inactive' };
-    const submitted = queue.submit({ ...payload, candidate: result.candidate });
-    if (submitted.ok) { changed(submitted);trigger(); }return submitted;
+    let submitted = queue.submit({ ...payload, candidate: result.candidate });
+    if (submitted.ok) { submitted=await require('./desktop-queue-position')(queue,'spotify',submitted,()=>provider('status',null));changed(submitted);trigger(); }return submitted;
   }
   handle.route = async (request, preferences) => {
     if (request.capability === 'song.spotify.player.v1') return { value: await handle(request.method, request.payload || {}) };
