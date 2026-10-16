@@ -13,6 +13,7 @@ function installPlayerVolumeControls(soundcloud) {
   let busy = false, nativeAvailable = false, generation = 0;
   const selected = () => $('songPlayerProvider').value;
   async function native() {
+    if (selected() === 'spotify') { if (!nativeAvailable) throw Error('Choose an active Premium playback device in Setup first.');const reply = await call('song.spotify.player.v1', 'control', { action: 'volume', value: outputVolume() });if (!reply.ok) throw Error(reply.error || 'Spotify volume could not be confirmed.');return; }
     if (selected() !== 'tidal') return;
     if (!nativeAvailable) throw new Error('Update the TIDAL companion in Setup to enable native volume control.');
     const reply = await call('song.tidal.experimental.v1', 'volume', { percent: outputVolume() });
@@ -34,7 +35,7 @@ function installPlayerVolumeControls(soundcloud) {
       if (!reply.ok) throw new Error(reply.code || 'Output range could not be saved.');
       volumeFloorPercent = nextFloor; volumeCeilingPercent = nextCeiling; volumeDraftDirty = false;
       preview(); note.textContent = 'Output range saved.';
-      if (selected() === 'tidal' && nativeAvailable) await native();
+      if (['tidal', 'spotify'].includes(selected()) && nativeAvailable) await native();
       await refreshState();
     } catch (error) { note.textContent = error.message; } finally { busy = false; save.disabled = floor.disabled = ceiling.disabled = false; }
   }
@@ -55,5 +56,5 @@ function installPlayerVolumeControls(soundcloud) {
       note.textContent = nativeAvailable ? 'Controls TIDAL Desktop volume.' : 'Use TIDAL for volume until its companion is updated and connected. You can still edit the output range here.';
     } catch { if (current === generation) note.textContent = 'Connect TIDAL Desktop in Setup to control its volume.'; }
   }
-  return { select, nativeStatus(status) { if (selected() !== 'tidal') return; const previous = nativeAvailable; nativeAvailable = status?.connected === true && status.volumeAvailable === true; $('volume').disabled = !nativeAvailable; if (nativeAvailable && !previous && !busy) note.textContent = 'Controls TIDAL Desktop volume.'; } };
+  return { select, spotifyStatus(status) { if (selected() !== 'spotify') return;group.hidden = !['official', 'hybrid'].includes(status.mode) || !status.volumeAvailable;nativeAvailable = status.officialControls && status.volumeAvailable;$('volume').disabled = !nativeAvailable;note.textContent = nativeAvailable ? 'Controls volume on your selected Spotify Premium device.' : 'Choose an active device that supports volume control in Spotify Setup.'; }, nativeStatus(status) { if (selected() !== 'tidal') return; const previous = nativeAvailable; nativeAvailable = status?.connected === true && status.volumeAvailable === true; $('volume').disabled = !nativeAvailable; if (nativeAvailable && !previous && !busy) note.textContent = 'Controls TIDAL Desktop volume.'; } };
 }

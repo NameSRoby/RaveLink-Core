@@ -8,6 +8,7 @@ module.exports = function createRedemptionRouter({ twitchProvider, chatCommands,
     return widgetController?.handleWidgetEvent?.({
       transport: 'native', eventEnvelope: { event: { ...event, requester_role: requester.role } },
       widgetConfig: {
+        playlistRewardId: managedRewards?.add_to_playlist?.rewardId || '',
         colorRewardId: managedRewards?.lights?.rewardId || '',
         teachRewardId: managedRewards?.teach?.rewardId || '',
         songRewardId: twitchProvider().status().monitorConfig.songRequestChatEnabled ? '' : (managedRewards?.song_request?.rewardId || '')

@@ -22,8 +22,10 @@
 .song-overlay.skin-editorial.separated>.segment{background:var(--osurface);border-top:2px solid var(--oaccent)}.song-overlay.skin-editorial .label{letter-spacing:.22em;font-size:10px}.song-overlay.skin-editorial h1{font-size:calc(25px * var(--oscale));font-weight:500}.song-overlay.skin-editorial .queue{border-top:0;padding-top:0;font-weight:400;letter-spacing:.04em}.song-overlay.skin-editorial .meta{font-weight:400}
 .song-overlay.skin-minimal .label{letter-spacing:.25em;font-weight:500}.song-overlay.skin-minimal h1{font-weight:500}.song-overlay.skin-minimal .bar{height:2px}.song-overlay.skin-minimal .artists{font-size:12px;letter-spacing:.04em}
 .song-overlay .artwork:not(:has(img)):before{content:"";position:absolute;inset:18%;border:1px solid #ffffff80;border-radius:50%;background:radial-gradient(circle,#ffffff90 0 5%,transparent 6% 35%,#ffffff50 36% 37%,transparent 38%);transform:rotate(-20deg)}
-.song-overlay.skin-duo.separated>.segment{border:1px solid #ffffff18;background:var(--osurface);box-shadow:0 4px 14px #0002;justify-content:center;min-height:108px}
+.song-overlay.skin-duo.separated>.segment{border:1px solid #ffffff18;background:var(--osurface);justify-content:center;min-height:0}
 .song-overlay.skin-duo .label,.song-overlay.skin-duo .provider{letter-spacing:.12em;font-size:10px;font-weight:600}
-.song-overlay.skin-duo .meta{font-size:24px;font-weight:500;color:var(--otext);margin:6px 0}
+.song-overlay.skin-duo .meta{font-size:11px;font-weight:500;color:var(--otext);margin:0}
 .song-overlay.skin-duo .bar{height:3px}
 .song-overlay:not(.skin-classic):not(.skin-broadcast) .label,.song-overlay:not(.skin-classic) .provider{color:color-mix(in srgb,var(--oaccent) 65%,white)}
+
+.song-overlay{transition:opacity .2s ease,visibility 0s}.song-overlay.behavior-hidden{opacity:0!important;visibility:hidden;transition:opacity .2s ease,visibility 0s .2s;pointer-events:none}.song-overlay.skin-duo.grid{grid-template-columns:minmax(0,1fr) 100px}.song-overlay.skin-duo .playbackTime{font-size:11px}.song-overlay.skin-duo h1{font-size:calc(18px * var(--oscale))}.song-overlay.skin-duo .artists{font-size:calc(12px * var(--oscale))}@media(prefers-reduced-motion:reduce){.song-overlay,.song-overlay *{animation:none!important;transition:none!important}}

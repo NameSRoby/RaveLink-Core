@@ -12,9 +12,12 @@ test('action feedback follows actual asynchronous results and ignores background
   await page.evaluate(install);
   await page.click('#action');
   assert.equal(await page.locator('#action').getAttribute('aria-busy'),'true');
+  await page.locator('#actionFeedback:not([hidden])').waitFor();
   assert.match(await page.locator('#actionFeedback').innerText(),/working/);
   await page.evaluate(()=>window.release({ok:true}));
   await page.locator('#action[data-action-state=success]').waitFor();
+  assert.equal(await page.locator('#actionFeedback').isHidden(),true,'routine success does not leave a popup');
+  await page.waitForFunction(()=>!document.querySelector('#action').dataset.actionState);
   await page.click('#action');await page.evaluate(()=>window.release({ok:false}));
   await page.locator('#action[data-action-state=error]').waitFor();
   assert.match(await page.locator('#actionFeedback').innerText(),/could not complete/);
@@ -38,4 +41,16 @@ test('multi-stage actions stay busy until the handler completes and report a lat
   await page.evaluate(()=>window.continueImport());await page.waitForFunction(()=>window.calls.length===1);
   await page.evaluate(()=>window.calls.shift()({ok:false}));
   await page.locator('#action[data-action-state=error]').waitFor();
+});
+
+
+test('quick actions and provider choices avoid popup flashes or lingering selection decorations',async t=>{
+  const browser=await chromium.launch({headless:true});t.after(()=>browser.close());
+  const page=await browser.newPage();await page.setContent('<button id="quick">Save</button><div data-choice-for="provider"><button id="provider" data-choice-value="spotify">Spotify</button></div>');
+  await page.evaluate(()=>{window.call=async()=>({ok:true});for(const button of document.querySelectorAll('button'))button.onclick=()=>window.call('fixture','select');});
+  await page.evaluate(install);await page.click('#quick');
+  assert.equal(await page.locator('#actionFeedback').isHidden(),true);
+  await page.click('#provider');assert.equal(await page.locator('#provider').getAttribute('data-action-state'),null);
+  await page.waitForFunction(()=>!document.querySelector('#quick').dataset.actionState);
+  assert.equal(await page.locator('#actionFeedback').isHidden(),true);
 });

@@ -126,9 +126,12 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   await playlistSurface.locator("#playlist").waitFor();
   await playlistSurface.getByRole("button", { name: "PLAY", exact: true }).waitFor();
   await playlistSurface.getByRole("button", { name: "Shuffle" }).waitFor();
-  await playlistSurface.getByText('Import a playlist link', {exact:true}).click();
-  await playlistSurface.getByRole("button", { name: "IMPORT", exact:true }).waitFor();
   await playlistSurface.locator("#collectionsBrowser").waitFor();
+  assert.equal(await playlistSurface.locator('#libraryView #importUrl').count(),0);
+  await playlistSurface.getByRole('button',{name:'Transfers',exact:true}).click();
+  await playlistSurface.locator('#transferSourceChoices button[data-provider=url]').click();
+  await playlistSurface.getByRole('button',{name:'Load playlist',exact:true}).waitFor();
+  assert.equal(await playlistSurface.locator('#importUrl').isVisible(),true);
   assert.equal(await playlistSurface.locator("body").evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true);
   const sourcesPopup = await context.newPage();
   await sourcesPopup.goto(`${base}/features-ui/song-request/now-playing`, { waitUntil: "domcontentloaded" });
@@ -162,7 +165,7 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   await queuePopup.close();
   await playlistPopup.close();
   await playerSurface.getByRole('tab', {name:'Moderation',exact:true}).click();
-  await playerSurface.locator('#songSearchFilters summary').click();
+  assert.equal(await playerSurface.locator('#songSearchFilters').isVisible(), true);
   assert.equal(await playerSurface.locator('#derivativeFilters input').count(), 18);
   assert.equal(await playerSurface.locator('#minimumSubscribers').inputValue(), '100000');
   assert.equal(await playerSurface.locator('#minimumViews').inputValue(), '50000');
@@ -191,7 +194,7 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   await editorSurface.locator("#separated").check();
   await editorSurface.locator("#preview.separated").waitFor();
   await editorSurface.locator('.task-navigation').getByRole('button',{name:'Style',exact:true}).click();await editorSurface.locator('.style-navigation').getByRole('button',{name:'Size & position',exact:true}).click();
-  await editorSurface.locator("#heightMode").selectOption("fixed");
+  await editorSurface.locator('[data-choice-for="heightMode"] [data-choice-value="fixed"]').click();
   await editorSurface.locator("#height").evaluate(input => { input.value = "180"; input.dispatchEvent(new Event("input", { bubbles: true })); });
   await editorSurface.locator("#preview.height-fixed").waitFor();
   assert.equal(await editorSurface.locator("#heightOut").textContent(), "180px");
@@ -199,8 +202,8 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   const firstPiece = editorSurface.locator("#workspace .piece").first();
   await firstPiece.locator('button[title="Format this information piece"]').click();
   const blockFormat = firstPiece.locator(".format-tray");
-  await blockFormat.locator("select").nth(0).selectOption("display");
-  await blockFormat.locator("select").nth(1).selectOption("serif");
+  await blockFormat.locator("[data-choice-value=display]").click();
+  await blockFormat.locator("[data-choice-value=serif]").click();
   await blockFormat.locator(".checks input").nth(1).check();
   const formattedLabel = editorSurface.locator("#preview .pv.label");
   assert.equal(await formattedLabel.evaluate(el => getComputedStyle(el).fontSize), "27px");

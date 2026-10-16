@@ -33,8 +33,13 @@ test('SoundCloud player imports public playlists, confirms PLAY, preserves FIFO,
   };
   await page.goto(base + '/features-ui/song-request/player');
   const surface = page.locator('#surface').contentFrame();
-  await surface.locator('#songPlayerProvider:not([disabled])').waitFor(); await surface.locator('#songPlayerProvider').selectOption('soundcloud');
-  await surface.locator('#soundcloudPlayer').waitFor(); assert.equal(await surface.locator('#youtubeEmbedWarning').isHidden(),true); assert.match(await surface.locator('#soundcloudPlayer h2').innerText(),/Alpha/); assert.equal(await surface.locator('#playerFrame').isHidden(), true);
+  await surface.locator('[data-choice-for="songPlayerProvider"] button:not([disabled])').first().waitFor(); await surface.locator('[data-choice-for="songPlayerProvider"] [data-choice-value="soundcloud"]').click();
+  await surface.locator('#soundcloudPlayer').waitFor(); assert.equal(await surface.locator('#youtubeEmbedWarning').isHidden(),true); assert.equal(await surface.locator('#soundcloudPlayer h2').innerText(),'SoundCloud'); assert.equal(await surface.locator('#playerFrame').isHidden(), true);
+  const knownIssues = surface.locator('#providerKnownIssues');
+  assert.equal(await knownIssues.isVisible(), true);assert.equal(await knownIssues.getAttribute('open'), null);
+  await knownIssues.locator('summary').click();assert.match(await knownIssues.innerText(), /rate limits/);
+  assert.match(await knownIssues.locator('a').getAttribute('href'), /issues\/new\?template=bug_report.yml$/);
+  await knownIssues.locator('summary').click();
   await surface.locator('#videoInput').fill('https://example.com/evil'); await surface.locator('#addSong').click();
   await surface.locator('#requestNotice').filter({ hasText: 'full public SoundCloud track link' }).waitFor();
   for (const slug of ['one', 'two']) {
@@ -102,10 +107,12 @@ test('SoundCloud player imports public playlists, confirms PLAY, preserves FIFO,
   await surface.getByRole('tab', { name: 'Playback', exact: true }).click();
   await surface.locator('#soundcloudState').filter({ hasText: 'Playing SC track 10' }).waitFor();
   await page.screenshot({ path: path.join(__dirname, '../runtime/soundcloud-player.png'), fullPage: true });
-  await surface.locator('#songPlayerProvider').selectOption('youtube');
+  await surface.locator('[data-choice-for="songPlayerProvider"] [data-choice-value="youtube"]').click();
+  await surface.locator('[data-choice-for="songPlayerProvider"] [data-choice-value="youtube"]:not([disabled])').waitFor();
   assert.equal(await surface.locator('body').evaluate(()=>Boolean(window.ytCreated)),true,'returning to YouTube initializes its already loaded SDK');
-  await surface.locator('#songPlayerProvider').selectOption('soundcloud');
-  await page.reload(); await surface.locator('#songPlayerProvider:not([disabled])').waitFor();
+  await surface.locator('[data-choice-for="songPlayerProvider"] [data-choice-value="soundcloud"]').click();
+  await surface.locator('[data-choice-for="songPlayerProvider"] [data-choice-value="soundcloud"]:not([disabled])').waitFor();
+  await page.reload(); await surface.locator('[data-choice-for="songPlayerProvider"] button:not([disabled])').first().waitFor();
   assert.equal(await surface.locator('#songPlayerProvider').inputValue(), 'soundcloud');
   assert.equal(await surface.locator('#soundcloudPlayer').isVisible(), true);
   await page.setViewportSize({width:390,height:844}); await page.waitForTimeout(250);

@@ -38,7 +38,7 @@ function videoId(raw){const value=clean(raw).trim();if(/^[A-Za-z0-9_-]{11}$/.tes
 function setNotice(message,bad=false){$("notice").textContent=message;$("notice").className=`notice${bad?" bad":""}`}
 function setRequestNotice(message,bad=false){$("requestNotice").textContent=message;$("requestNotice").className=`notice requestNotice${bad?" bad":""}`}
 function actionButton(label,title,handler,danger=false){const button=document.createElement("button");button.type="button";button.textContent=label;button.title=title;button.className=danger?"danger":"";button.onclick=handler;return button}
-async function moderate(payload,message){try{const result=await call("song.queue.admin.v1","moderate",payload);if(!result.ok)throw new Error(result.reason||result.code||"Moderation failed");setNotice(result.nativeError?"Restriction saved, but TIDAL needs attention: "+tidalErrorMessage(new Error(result.nativeError)):message||"Moderation updated.",Boolean(result.nativeError));await refreshState();await maybePull()}catch(error){setNotice(error.message,true)}}
+async function moderate(payload,message){try{const result=await call("song.queue.admin.v1","moderate",payload);if(!result.ok)throw new Error(result.reason||result.code||"Moderation failed");setNotice(result.nativeError?"Restriction saved, but "+(document.getElementById("songPlayerProvider")?.value==="spotify"?"Spotify":"TIDAL")+" needs attention: "+playerNativeErrorMessage(new Error(result.nativeError)):message||"Moderation updated.",Boolean(result.nativeError));await refreshState();await maybePull()}catch(error){setNotice(error.message,true)}}
 function renderQueue(state){const body=$("queue"),rows=state.queue||[],total=state.counts?.queued||0;$("queueHeading").textContent=`PLAY NEXT // ${Math.min(3,total)} OF ${total} FIFO`;body.replaceChildren();if(!rows.length){const row=body.insertRow(),cell=row.insertCell();cell.colSpan=4;cell.className="empty";cell.textContent="QUEUE EMPTY";return}rows.forEach((item,index)=>{const row=body.insertRow();const track=row.insertCell();track.textContent=item.candidate?.title||item.query;const requester=row.insertCell();requester.textContent=item.requesterLabel||"Twitch user";const meta=document.createElement("div");meta.className="requesterMeta";meta.textContent=clean(item.requesterRole||"viewer");requester.append(meta);const position=row.insertCell();position.className="hideSmall";position.textContent=String(index+1);const actionCell=row.insertCell();actionCell.className="rowActions";const actions=document.createElement("div");actionCell.append(actions);actions.append(actionButton("REMOVE","Remove this queue item",()=>moderate({action:"remove",entryId:item.id},"Song removed.")),actionButton("BAN SONG","Block this YouTube video and remove matching requests",()=>moderate({action:"block_song",entryId:item.id},"Song blocked."),true))})}
 function requesterActions(item,inline=false){const actions=document.createElement('div');actions.className='rowActions';const duration=document.createElement('select');duration.setAttribute('aria-label','Timeout duration for '+item.displayName);for(const [minutes,label] of [[1,'1 minute'],[5,'5 minutes'],[10,'10 minutes'],[30,'30 minutes'],[60,'1 hour'],[1440,'24 hours']])duration.add(new Option(label,String(minutes)));duration.value=String(timeoutDurations.get(item.requesterKey)||10);duration.onchange=()=>{timeoutDurations.set(item.requesterKey,Number(duration.value));if(timeoutDurations.size>500)timeoutDurations.delete(timeoutDurations.keys().next().value)};actions.append(duration,actionButton('TIMEOUT','Remove pending songs and time out this requester',()=>moderate({action:'timeout',requesterKey:item.requesterKey,requesterName:item.displayName,minutes:Number(duration.value),removePending:true},item.displayName+' timed out; pending songs removed.')),actionButton(item.blocked?'UNBAN':'BAN',item.blocked?'Restore Song Request access':'Ban from Song Request and remove pending songs',()=>moderate({action:item.blocked?'unblock':'block',requesterKey:item.requesterKey,requesterName:item.displayName,removePending:true},item.displayName+' updated.'),!item.blocked));if(item.timedOutUntil>Date.now())actions.append(actionButton('END TIMEOUT','Restore this requester now',()=>moderate({action:'untimeout',requesterKey:item.requesterKey},'Timeout removed.')));return inline?actions:moderationControls('Manage requester',[{title:'Requester',description:item.displayName,controls:[actions]}])}
 function renderRequesters(state){const body=$('requesters'),rows=state.moderation?.recentRequesters||[];if(body.contains(document.activeElement)&&document.activeElement.tagName==='SELECT')return;body.replaceChildren();if(!rows.length){const row=body.insertRow(),cell=row.insertCell();cell.colSpan=3;cell.className='empty';cell.textContent='NO REQUESTERS YET';return}for(const item of rows){const row=body.insertRow(),user=row.insertCell();user.textContent=item.displayName;const meta=document.createElement('div');meta.className='requesterMeta';meta.textContent=item.role+(item.blocked?' // BANNED':item.timedOutUntil>Date.now()?' // TIMED OUT':'');user.append(meta);row.insertCell().textContent=String(item.pending||0);row.insertCell().append(requesterActions(item))}}
@@ -46,7 +46,7 @@ function renderRestrictions(state){const body=$('restrictedRequesters');if(!body
 function renderPlayback(state){const current=state.primary;if(!current){$("nowTitle").textContent="NOTHING PLAYING";$("nowArtist").textContent="QUEUE READY";$("nowProvider").textContent="LOCAL PLAYER";return}const candidate=current.candidate||current;$("nowTitle").textContent=candidate.title||"UNTITLED";$("nowArtist").textContent=(candidate.artists||[]).join(", ")||current.album||"";$("nowProvider").textContent=clean(candidate.provider||current.provider||current.source).toUpperCase()}
 async function refreshState(){if(refreshing){refreshQueued=true;return}refreshing=true;try{const [queueState,playback]=await Promise.all([call("song.queue.read.v1","status",{limit:window.ravelinkSoundCloud?.active()?10:3,...(window.ravelinkSoundCloud?.active()?{provider:"soundcloud",offset:window.ravelinkSoundCloud.offset()}:{}),moderationOffset,moderationLimit:25,moderationOnly:document.body.dataset.songView==="moderation"}),call("song.playback.read.v1","status",null)]);renderQueue(queueState);renderRequesters(queueState);renderRestrictions(queueState);renderPlayback(playback);renderResponses(queueState);if(!policyDraftDirty){$("viewerLimit").value=queueState.limits?.maxPerRequester||5;$("vipLimit").value=queueState.limits?.maxPerVip||10;if($("maxSongMinutes"))$("maxSongMinutes").value=(queueState.limits?.maxDurationMs||600000)/60000;}if(!volumeDraftDirty){volumeFloorPercent=queueState.volume?.floorPercent??0;volumeCeilingPercent=queueState.volume?.ceilingPercent??40;$("volumeFloor").value=volumeFloorPercent;$("volumeCeiling").value=volumeCeilingPercent;}$("volume").value=queueState.volume?.control??100;$("volumeOut").textContent=`${$("volume").value} // OUTPUT ${queueState.volume?.outputPercent??40}%`;player?.setVolume?.(queueState.volume?.outputPercent??40);if(lease&&playback.managed?.entryId!==lease.entryId){player?.stopVideo?.();lease=null}$("connection").textContent="CONNECTED";$("connection").className="status ok"}catch(error){$("connection").textContent="DISCONNECTED";$("connection").className="status bad";setNotice(error.message,true)}finally{refreshing=false;if(refreshQueued){refreshQueued=false;clearTimeout(eventRefreshTimer);eventRefreshTimer=setTimeout(()=>void refreshState(),150)}}}
 function outputVolume(){return Math.round(volumeFloorPercent+Number($("volume").value)*(volumeCeilingPercent-volumeFloorPercent)/100)}
-async function maybePull(){if(!playerReady||lease||starting)return;starting=true;try{const result=await call("song.playback.driver.v1","pull",{driverId:DRIVER,providers:["youtube"]});if(result.action){lease=result.action;player.loadVideoById(result.action.candidate.providerItemId)}}catch(error){setNotice(error.message,true)}finally{starting=false}}
+async function maybePull(){if(!playerReady||lease||starting)return;starting=true;try{const result=await call("song.playback.driver.v1","pull",{driverId:DRIVER,providers:["youtube"]});if(result.action&&(!window.ravelinkPlayerActive||window.ravelinkPlayerActive('youtube'))){lease=result.action;player.loadVideoById(result.action.candidate.providerItemId)}}catch(error){setNotice(error.message,true)}finally{starting=false}}
 async function acknowledge(state){if(!lease)return null;const active=lease;try{const result=await call("song.playback.driver.v1","acknowledge",{driverId:DRIVER,leaseId:active.leaseId,state,positionMs:Math.max(0,Math.trunc(player?.getCurrentTime?.()*1000||0)),durationMs:Math.max(0,Math.trunc(player?.getDuration?.()*1000||0))});if(lease===active&&["ended","failed","skipped"].includes(state))lease=null;return result}catch(error){if(lease===active&&error.code==="lease_stale"){player?.stopVideo?.();lease=null}setNotice(error.message,true);return null}}
 window.onYouTubeIframeAPIReady=()=>{if($("songPlayerProvider")&&$("songPlayerProvider").value!=="youtube")return;player=new YT.Player("playerFrame",{width:"100%",height:"100%",playerVars:{origin:location.origin,playsinline:1},events:{onReady:()=>{playerReady=true;player.setVolume(Math.round(volumeFloorPercent+Number($("volume").value)*(volumeCeilingPercent-volumeFloorPercent)/100));void maybePull()},onStateChange:event=>{if(document.getElementById("songPlayerProvider")?.value&&document.getElementById("songPlayerProvider").value!=="youtube"){if(event.data===YT.PlayerState.PLAYING)player?.pauseVideo?.();return}if(event.data===YT.PlayerState.PLAYING){startPlayer.textContent="PLAY";void acknowledge("started").then(refreshState)}if(event.data===YT.PlayerState.ENDED)void acknowledge("ended").then(()=>{void refreshState();void maybePull()})},onAutoplayBlocked:()=>{startPlayer.textContent="START PLAYBACK";setNotice("Browser autoplay is blocked. Select Start Playback once to allow audio.",true)},onError:event=>{const code=Number(event?.data||0),reason=code===101||code===150?"The uploader does not allow embedded playback.":code===100?"The video is unavailable or private.":code===5?"The browser could not play this video format.":code===2?"YouTube rejected the video ID.":code===153?"YouTube could not identify this local player.":"YouTube rejected playback.";setNotice(`${reason} Error ${code||"unknown"}; moving to the next request.`,true);void acknowledge("failed").then(()=>{void refreshState();void maybePull()})}}})};
 async function submitRequest(event){event?.preventDefault?.();const entered=$("videoInput").value.trim(),title=$("titleInput").value.trim(),query=entered||title,id=videoId(query),button=$("addSong"),idleLabel=button.textContent;if(!query){setRequestNotice("Enter a song name or trusted YouTube or Spotify link.",true);return}if(!id&&catalogState?.configured!==true){$("catalogSettings").open=true;setRequestNotice("The selected YouTube search provider is unavailable.",true);return}button.disabled=true;button.textContent=id?"ADDING":"SEARCHING";setRequestNotice("Searching YouTube for a track...");try{const candidate=id?{provider:"youtube",providerItemId:id,title:title||query,artists:[],durationMs:0}:null;const result=await call("song.queue.submit.v1","submit",{requestId:crypto.randomUUID(),requesterId:"local-operator",requesterName:"Local operator",requesterRole:"moderator",query,...(candidate?{candidate}:{})});if(!result.ok)throw new Error(result.reason||result.code||"Song was not accepted");$("videoInput").value="";$("titleInput").value="";const added=result.entry?.candidate?.title||"song";setRequestNotice(`Added ${added} to the queue.`);setNotice(`Added ${added} to the local queue.`);await refreshState();await maybePull()}catch(error){setRequestNotice(error.message,true);setNotice(error.message,true)}finally{button.disabled=false;button.textContent=idleLabel}}
@@ -59,7 +59,29 @@ $("volume").oninput=()=>{const output=outputVolume();$("volumeOut").textContent=
 $("refresh").onclick=()=>{void refreshState();void maybePull()};$("openOverlay").onclick=()=>parent.postMessage({channel:CHANNEL,type:"open",pageId:"obs-overlay"},PARENT_ORIGIN);
 eventListeners.add(()=>{if(document.body.dataset.songView!=="setup"){clearTimeout(eventRefreshTimer);eventRefreshTimer=setTimeout(()=>{void refreshState();void maybePull()},150)}});window.addEventListener("pagehide",()=>clearTimeout(eventRefreshTimer));
 void refreshState();let youtubeRequested=false;function ensureYoutubePlayer(){if(player)return;if(window.YT?.Player){window.onYouTubeIframeAPIReady();return}if(youtubeRequested)return;youtubeRequested=true;void refreshCatalog();const script=document.createElement("script");script.src="https://www.youtube.com/iframe_api";script.onerror=()=>{if(document.getElementById("songPlayerProvider")?.value==="youtube")setNotice("YouTube player failed to load. Check the network connection and refresh.",true)};document.head.appendChild(script);setTimeout(()=>{if(!playerReady&&document.getElementById("songPlayerProvider")?.value!=="tidal")setNotice("YouTube player did not initialize. Refresh the Player tab to retry.",true)},10000)}
-</script><!-- PLAYER PROVIDERS START --><style>main{align-content:start}#soundcloudSetup{line-height:1.6}#soundcloudSetup label{display:grid;gap:6px;margin:12px 0;max-width:640px}#soundcloudSetup input{width:100%;min-width:0}#soundcloudState{font-size:13px;color:var(--muted);line-height:1.5}#soundcloudPlayer h2{font-size:18px;margin:0 0 8px}#soundcloudCurrentActions{font-size:12px}.playerProviderPicker{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--edge);flex-wrap:wrap}.playerProviderPicker label{font-size:12px;font-weight:800}.playerProviderPicker span{font-size:12px;color:var(--muted)}main{grid-template-columns:minmax(360px,.9fr) minmax(440px,1.3fr);grid-template-rows:auto 1fr}.playerSide{align-self:start}#playerFrame{display:block;width:min(100%,560px)!important;height:auto!important;aspect-ratio:16/9;min-height:200px!important;max-height:315px;margin:0 auto}#tidalPlayer{padding:16px;border:1px solid var(--edge);border-radius:10px;background:var(--panel)}#tidalPlayer p{line-height:1.5;color:var(--muted)}#tidalPlayer code{display:block;overflow-wrap:anywhere;font-size:12px}#tidalSetup{padding:12px 0}#tidalSetup summary{cursor:pointer;font-weight:700}#tidalHandoffs p{border-top:1px solid var(--edge);padding-top:8px}.requestForm:has(#titleInput[hidden]),.requestForm:has(label[hidden]){grid-template-columns:1fr auto}@media(max-width:1000px){main{grid-template-columns:1fr}}.volumeControl{grid-column:1/-1}.volumeControl .volumeRange{display:flex;justify-content:flex-start;align-items:end;gap:10px;flex-wrap:wrap}.volumeRange label{display:grid;gap:5px;max-width:130px}.volumeRange input{width:100%;min-width:0}.volumeRange button{font-size:12px}.volumeControl #volumeNotice{font-size:12px;line-height:1.5;font-weight:400;margin:4px 0}.volumeControl label{color:var(--muted)}.playerAdvancedPolicy{padding:12px 0;border-bottom:1px solid var(--edge)}.playerAdvancedPolicy summary{cursor:pointer;font-weight:700;font-size:12px}.playerAdvancedPolicy .settingsGrid{border:0}.tidal-mode td:last-child,.tidal-mode th:last-child{width:210px}.tidal-mode .rowActions:not(td){flex-wrap:wrap}@media(max-width:620px){.tidal-mode td:last-child,.tidal-mode th:last-child{width:150px}}#tidalPlayer{padding:20px}#tidalPlayer .tidalHeader{height:auto;padding:0;background:transparent;border:0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}#tidalPlayer .tidalHeader h2{font-size:22px;margin:0 0 5px}#tidalPlayer .tidalHeader p{margin:0;font-size:13px}#tidalPlayer h3{font-size:15px;margin:0;font-weight:700}.tidalSetupSteps{display:grid;gap:12px}.tidalStep{border:1px solid var(--edge);border-radius:12px;padding:16px;background:var(--panel)}.tidalStepHeading{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.tidalStepNumber{display:grid;place-items:center;width:25px;height:25px;border:1px solid var(--edge);border-radius:50%;font-size:12px}.tidalBadge{font-size:11px;padding:3px 8px;border-radius:20px;border:1px solid var(--edge);color:var(--muted);margin-left:auto;white-space:nowrap}.tidalBadge.connected{color:var(--text);border-color:var(--accent);background:color-mix(in srgb,var(--accent) 18%,transparent)}#tidalPlayer .tidalStep p{font-size:13px;margin:10px 0}#tidalPlayer details{margin-top:12px}#tidalPlayer summary{cursor:pointer;font-size:13px;font-weight:600}#tidalPlayer .tidalFinePrint{font-size:12px}#tidalPlayer .tidalChecklist{font-size:13px;line-height:1.8;padding-left:20px;color:var(--muted);margin:12px 0}#tidalPlayer .tidalReadyHelp{font-size:13px;padding:12px 0 0;margin:0}#tidalPlayer #tidalHistory{border-top:1px solid var(--edge);padding-top:14px}#tidalPlayer #tidalDeveloperSettings{border-top:1px dashed var(--edge);padding-top:14px}#tidalPlayer #tidalCountry{width:min(100%,240px);min-height:38px;border:1px solid var(--edge);border-radius:5px;background:var(--panel);color:var(--text);padding:8px;font:inherit}#tidalPlayer #tidalAccountOptions label{display:grid;gap:6px;font-size:12px;color:var(--muted)}#tidalPlayer #tidalOpenLogin{display:inline-block;font-size:13px;margin-top:10px}#tidalPlayer #tidalOpenLogin[hidden]{display:none}#tidalPlayer button{min-height:36px}#tidalPlayer .actions{align-items:center}#tidalPlayer #tidalApiState{overflow-wrap:anywhere}@media(max-width:520px){#tidalPlayer{padding:14px}.tidalStep{padding:12px}.tidalBadge{margin-left:35px}.tidalStepHeading{row-gap:4px}}[hidden]{display:none!important}#songWorkspace,.workspaceNotice{grid-column:1/-1}#songSetupPage,#songModerationPage{padding:18px;max-width:1000px;margin:auto;width:100%}.song-settings-view main{display:block}.song-settings-view #songWorkspace{display:block}.song-settings-view .workspaceNotice{padding:0 18px}#songModerationPage>details{padding:14px 0;border-bottom:1px solid var(--edge)}#songModerationPage summary{cursor:pointer;font-weight:700}#songModerationPage .settingsGrid{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))!important}#tidalPlayback{border:1px solid var(--edge);border-radius:10px;padding:16px}#tidalPlayback h2{margin-top:0}#tidalPlayback p{color:var(--muted);line-height:1.5}#tidalPlayback summary{cursor:pointer}#tidalPlayback #tidalHistory{margin-top:16px;padding-top:12px;border-top:1px solid var(--edge)}#songSetupPage .tidalSetupSteps{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:760px){#songSetupPage .tidalSetupSteps{grid-template-columns:1fr}#songSetupPage,#songModerationPage{padding:12px}}.playerViewTabs{grid-column:1/-1;display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--edge)}.playerViewTabs [aria-selected=true]{border-color:var(--accent,#e51b50);background:var(--surface);color:var(--text)}.playerViewTabs button:focus-visible{outline:2px solid var(--accent,#e51b50);outline-offset:2px}#songPlaybackPage{grid-column:1/-1;display:grid;grid-template-columns:minmax(360px,.9fr) minmax(440px,1.3fr)}main{display:grid;grid-template-columns:1fr;grid-template-rows:auto}.song-settings-view main{display:grid}.song-settings-view #songWorkspace[hidden]{display:none!important}@media(max-width:1000px){#songPlaybackPage{grid-template-columns:1fr}}.tidalQueueTools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0;font-size:12px}.tidalQueueTools label{display:flex;align-items:center;gap:6px}.tidalQueueTools input{width:auto;min-height:0}.tidalQueueTools .status{font-size:11px}#songPlaybackPage>section{min-width:0}.tidal-mode #queue td{overflow-wrap:anywhere}.tidal-mode #queue .rowActions{white-space:normal}.tidal-mode #queue .rowActions .rowActions{justify-content:flex-end;flex-wrap:wrap}@media(max-width:620px){.tidal-mode table:has(#queue) thead{display:none}.tidal-mode #queue tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);border-bottom:1px solid var(--edge);padding:8px 0}.tidal-mode #queue td{display:block;width:auto!important;border:0;padding:6px 0;min-width:0}.tidal-mode #queue td:first-child,.tidal-mode #queue td:last-child{grid-column:1/-1}.tidal-mode #queue td:first-child{font-weight:700}.tidal-mode #queue td:nth-child(2)::before{content:'Requested by ';color:var(--muted);font-size:11px}.tidal-mode #queue td:nth-child(3){text-align:right}.tidal-mode #queue .rowActions,.tidal-mode #queue .rowActions .rowActions{justify-content:flex-start;flex-wrap:wrap}}.tidalNowControls{grid-column:1/-1;padding-top:8px}.currentRequester{font-size:11px;color:var(--muted);margin-bottom:6px}.currentSongActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.currentSongActions button,.currentSongActions select{min-height:30px;font-size:11px;padding:5px 8px}.tidal-mode #songPlaybackPage{grid-template-columns:minmax(0,1fr)}.tidal-mode .queueSide{border-left:0;border-top:1px solid var(--edge)}.tidal-mode .playerSide{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 16px;padding:12px 16px}.tidal-mode #tidalPlayback{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px}.tidal-mode #tidalPlayback h2{margin:0;font-size:14px}.tidal-mode #tidalPlayback p{margin:4px 0;color:var(--muted);font-size:12px}.tidal-mode .playerSide .now{padding:8px 0;border:0}.tidal-mode .playerSide>.actions{margin:0;justify-content:flex-end}.tidal-mode table:has(#queue) th:last-child{width:270px}.tidal-mode #queue .requesterMeta{text-transform:none;font-size:11px;margin-top:4px}.requesterMenu{position:relative;text-align:left}.requesterMenu summary{cursor:pointer;border:1px solid var(--edge);border-radius:5px;padding:6px 8px;font-size:10px;font-weight:700}.requesterMenu[open]{flex-basis:100%}.requesterMenu[open] summary{margin-bottom:6px}.tidal-mode #queue td.rowActions{display:table-cell}.tidal-mode #queue td.rowActions>div{min-height:30px}@media(max-width:620px){.tidal-mode .playerSide{grid-template-columns:1fr}.tidal-mode .playerSide>.actions{justify-content:flex-start}.tidal-mode #queue td.rowActions{display:block}.tidal-mode #queue td.rowActions>div{justify-content:flex-start}}.nowPlayingCard,.tidal-mode .playerSide .nowPlayingCard{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;align-items:center;padding:14px 0;min-width:0}
+</script><!-- PLAYER PROVIDERS START --><style>body[data-player-provider=youtube]{--player-accent:#ff6978;--player-fill:#b9152b;--player-ink:#fff}
+body[data-player-provider=tidal]{--player-accent:#dce8ed;--player-fill:#dce8ed;--player-ink:#10191c}
+body[data-player-provider=spotify]{--player-accent:#1ed760;--player-fill:#1ed760;--player-ink:#071b0d}
+body[data-player-provider=soundcloud]{--player-accent:#ff9655;--player-fill:#ff9655;--player-ink:#241006}
+body[data-player-provider]{--accent:var(--player-accent)}
+.playerProviderPicker [data-choice-for=songPlayerProvider] button{display:inline-flex;align-items:center;gap:8px;min-height:36px!important;padding:8px 12px!important}
+.playerProviderPicker [data-choice-for=songPlayerProvider] button::before{content:'';display:inline-block;flex:none;width:18px;height:18px;background:var(--brand-color);mask-size:contain;mask-repeat:no-repeat;mask-position:center}
+.playerProviderPicker [data-choice-for=songPlayerProvider] button[aria-checked=true]{border-color:var(--brand-color);background:color-mix(in srgb,var(--brand-color) 12%,var(--surface));box-shadow:inset 0 -2px var(--brand-color)}
+.playerProviderPicker [data-choice-for=songPlayerProvider] button:hover:not(:disabled){border-color:var(--brand-color)}
+body[data-player-provider] .playerViewTabs [aria-selected=true]{border-color:var(--player-accent);background:color-mix(in srgb,var(--player-accent) 9%,var(--surface));box-shadow:inset 0 -2px var(--player-accent)}
+body[data-player-provider] button.primary,body[data-player-provider] #addSong{background:var(--player-fill);border-color:var(--player-fill);color:var(--player-ink)}
+body[data-player-provider] :is(button,input,select):focus-visible{outline:2px solid var(--player-accent);outline-offset:3px}
+.playerProviderMark{display:inline-block;width:22px;height:22px;vertical-align:middle;margin-right:9px;flex:none;color:var(--player-accent)}
+body[data-player-provider] :is(#tidalPlayback,#spotifyPlayback,#soundcloudPlayer){border-left:3px solid var(--player-accent);background:linear-gradient(110deg,color-mix(in srgb,var(--player-accent) 5%,var(--panel)),var(--panel) 65%);border-radius:10px}
+body[data-player-provider] #soundcloudPlayer{padding:16px}
+body[data-player-provider] #spotifyPlayback{padding:16px;border-top:1px solid var(--edge);border-right:1px solid var(--edge);border-bottom:1px solid var(--edge)}
+body[data-player-provider] :is(#spotifySetup,#tidalPlayer,#soundcloudSetup){border-top:2px solid var(--player-accent)}
+body[data-player-provider=spotify] :is(#spotifyPlayback,#spotifySetup) .primary{border-radius:20px}
+body[data-player-provider=soundcloud] #soundcloudFrame{border-radius:6px;overflow:hidden}
+body[data-player-provider] input[type=range]{accent-color:var(--player-accent)}
+body[data-player-provider] .nowProgressFill{background:var(--player-accent)}
+@media(max-width:620px){.playerProviderPicker [data-choice-for=songPlayerProvider] button{gap:6px;padding:7px 9px!important}.playerProviderPicker [data-choice-for=songPlayerProvider] button::before{width:16px;height:16px}body[data-player-provider] #spotifyPlayback{flex-direction:column;align-items:flex-start}#spotifyPlayback>.actions{margin-top:0}}
+main{align-content:start}#soundcloudSetup{line-height:1.6}#soundcloudSetup label{display:grid;gap:6px;margin:12px 0;max-width:640px}#soundcloudSetup input{width:100%;min-width:0}#soundcloudState{font-size:13px;color:var(--muted);line-height:1.5}#soundcloudPlayer h2{font-size:18px;margin:0 0 8px}#soundcloudCurrentActions{font-size:12px}.playerProviderPicker{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--edge);flex-wrap:wrap}.playerProviderPicker label{font-size:12px;font-weight:800}.playerProviderPicker span{font-size:12px;color:var(--muted)}main{grid-template-columns:minmax(360px,.9fr) minmax(440px,1.3fr);grid-template-rows:auto 1fr}.playerSide{align-self:start}#playerFrame{display:block;width:min(100%,560px)!important;height:auto!important;aspect-ratio:16/9;min-height:200px!important;max-height:315px;margin:0 auto}#tidalPlayer{padding:16px;border:1px solid var(--edge);border-radius:10px;background:var(--panel)}#tidalPlayer p{line-height:1.5;color:var(--muted)}#tidalPlayer code{display:block;overflow-wrap:anywhere;font-size:12px}#tidalSetup{padding:12px 0}#tidalSetup summary{cursor:pointer;font-weight:700}#tidalHandoffs p{border-top:1px solid var(--edge);padding-top:8px}.requestForm:has(#titleInput[hidden]),.requestForm:has(label[hidden]){grid-template-columns:1fr auto}@media(max-width:1000px){main{grid-template-columns:1fr}}.volumeControl{grid-column:1/-1}.volumeControl .volumeRange{display:flex;justify-content:flex-start;align-items:end;gap:10px;flex-wrap:wrap}.volumeRange label{display:grid;gap:5px;max-width:130px}.volumeRange input{width:100%;min-width:0}.volumeRange button{font-size:12px}.volumeControl #volumeNotice{font-size:12px;line-height:1.5;font-weight:400;margin:4px 0}.volumeControl label{color:var(--muted)}.playerAdvancedPolicy{padding:12px 0;border-bottom:1px solid var(--edge)}.playerAdvancedPolicy summary{cursor:pointer;font-weight:700;font-size:12px}.playerAdvancedPolicy .settingsGrid{border:0}.tidal-mode td:last-child,.tidal-mode th:last-child{width:210px}.tidal-mode .rowActions:not(td){flex-wrap:wrap}@media(max-width:620px){.tidal-mode td:last-child,.tidal-mode th:last-child{width:150px}}#tidalPlayer{padding:20px}#tidalPlayer .tidalHeader{height:auto;padding:0;background:transparent;border:0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}#tidalPlayer .tidalHeader h2{font-size:22px;margin:0 0 5px}#tidalPlayer .tidalHeader p{margin:0;font-size:13px}#tidalPlayer h3{font-size:15px;margin:0;font-weight:700}.tidalSetupSteps{display:grid;gap:12px}.tidalStep{border:1px solid var(--edge);border-radius:12px;padding:16px;background:var(--panel)}.tidalStepHeading{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.tidalStepNumber{display:grid;place-items:center;width:25px;height:25px;border:1px solid var(--edge);border-radius:50%;font-size:12px}.tidalBadge{font-size:11px;padding:3px 8px;border-radius:20px;border:1px solid var(--edge);color:var(--muted);margin-left:auto;white-space:nowrap}.tidalBadge.connected{color:var(--text);border-color:var(--accent);background:color-mix(in srgb,var(--accent) 18%,transparent)}#tidalPlayer .tidalStep p{font-size:13px;margin:10px 0}#tidalPlayer details{margin-top:12px}#tidalPlayer summary{cursor:pointer;font-size:13px;font-weight:600}#tidalPlayer .tidalFinePrint{font-size:12px}#tidalPlayer .tidalChecklist{font-size:13px;line-height:1.8;padding-left:20px;color:var(--muted);margin:12px 0}#tidalPlayer .tidalReadyHelp{font-size:13px;padding:12px 0 0;margin:0}#tidalPlayer #tidalHistory{border-top:1px solid var(--edge);padding-top:14px}#tidalPlayer #tidalDeveloperSettings{border-top:1px dashed var(--edge);padding-top:14px}#tidalPlayer #tidalCountry{width:min(100%,240px);min-height:38px;border:1px solid var(--edge);border-radius:5px;background:var(--panel);color:var(--text);padding:8px;font:inherit}#tidalPlayer #tidalAccountOptions label{display:grid;gap:6px;font-size:12px;color:var(--muted)}#tidalPlayer #tidalOpenLogin{display:inline-block;font-size:13px;margin-top:10px}#tidalPlayer #tidalOpenLogin[hidden]{display:none}#tidalPlayer button{min-height:36px}#tidalPlayer .actions{align-items:center}#tidalPlayer #tidalApiState{overflow-wrap:anywhere}@media(max-width:520px){#tidalPlayer{padding:14px}.tidalStep{padding:12px}.tidalBadge{margin-left:35px}.tidalStepHeading{row-gap:4px}}[hidden]{display:none!important}#songWorkspace,.workspaceNotice{grid-column:1/-1}#songSetupPage,#songModerationPage{padding:18px;max-width:1000px;margin:auto;width:100%}.song-settings-view main{display:block}.song-settings-view #songWorkspace{display:block}.song-settings-view .workspaceNotice{padding:0 18px}#songModerationPage>details{padding:14px 0;border-bottom:1px solid var(--edge)}#songModerationPage summary{cursor:pointer;font-weight:700}#songModerationPage .settingsGrid{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))!important}#tidalPlayback{border:1px solid var(--edge);border-radius:10px;padding:16px}#tidalPlayback h2{margin-top:0}#tidalPlayback p{color:var(--muted);line-height:1.5}#tidalPlayback summary{cursor:pointer}#tidalPlayback #tidalHistory{margin-top:16px;padding-top:12px;border-top:1px solid var(--edge)}#songSetupPage .tidalSetupSteps{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:760px){#songSetupPage .tidalSetupSteps{grid-template-columns:1fr}#songSetupPage,#songModerationPage{padding:12px}}.playerViewTabs{grid-column:1/-1;display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--edge)}.playerViewTabs [aria-selected=true]{border-color:var(--accent,#e51b50);background:var(--surface);color:var(--text)}.playerViewTabs button:focus-visible{outline:2px solid var(--accent,#e51b50);outline-offset:2px}#songPlaybackPage{grid-column:1/-1;display:grid;grid-template-columns:minmax(360px,.9fr) minmax(440px,1.3fr)}main{display:grid;grid-template-columns:1fr;grid-template-rows:auto}.song-settings-view main{display:grid}.song-settings-view #songWorkspace[hidden]{display:none!important}@media(max-width:1000px){#songPlaybackPage{grid-template-columns:1fr}}.tidalQueueTools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0;font-size:12px}.tidalQueueTools label{display:flex;align-items:center;gap:6px}.tidalQueueTools input{width:auto;min-height:0}.tidalQueueTools .status{font-size:11px}#songPlaybackPage>section{min-width:0}.tidal-mode #queue td{overflow-wrap:anywhere}.tidal-mode #queue .rowActions{white-space:normal}.tidal-mode #queue .rowActions .rowActions{justify-content:flex-end;flex-wrap:wrap}@media(max-width:620px){.tidal-mode table:has(#queue) thead{display:none}.tidal-mode #queue tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);border-bottom:1px solid var(--edge);padding:8px 0}.tidal-mode #queue td{display:block;width:auto!important;border:0;padding:6px 0;min-width:0}.tidal-mode #queue td:first-child,.tidal-mode #queue td:last-child{grid-column:1/-1}.tidal-mode #queue td:first-child{font-weight:700}.tidal-mode #queue td:nth-child(2)::before{content:'Requested by ';color:var(--muted);font-size:11px}.tidal-mode #queue td:nth-child(3){text-align:right}.tidal-mode #queue .rowActions,.tidal-mode #queue .rowActions .rowActions{justify-content:flex-start;flex-wrap:wrap}}.tidalNowControls{grid-column:1/-1;padding-top:8px}.currentRequester{font-size:11px;color:var(--muted);margin-bottom:6px}.currentSongActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.currentSongActions button,.currentSongActions select{min-height:30px;font-size:11px;padding:5px 8px}.tidal-mode #songPlaybackPage{grid-template-columns:minmax(0,1fr)}.tidal-mode .queueSide{border-left:0;border-top:1px solid var(--edge)}.tidal-mode .playerSide{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 16px;padding:12px 16px}.tidal-mode #tidalPlayback{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px}.tidal-mode #tidalPlayback h2{margin:0;font-size:14px}.tidal-mode #tidalPlayback p{margin:4px 0;color:var(--muted);font-size:12px}.tidal-mode .playerSide .now{padding:8px 0;border:0}.tidal-mode .playerSide>.actions{margin:0;justify-content:flex-end}.tidal-mode table:has(#queue) th:last-child{width:270px}.tidal-mode #queue .requesterMeta{text-transform:none;font-size:11px;margin-top:4px}.requesterMenu{position:relative;text-align:left}.requesterMenu summary{cursor:pointer;border:1px solid var(--edge);border-radius:5px;padding:6px 8px;font-size:10px;font-weight:700}.requesterMenu[open]{flex-basis:100%}.requesterMenu[open] summary{margin-bottom:6px}.tidal-mode #queue td.rowActions{display:table-cell}.tidal-mode #queue td.rowActions>div{min-height:30px}@media(max-width:620px){.tidal-mode .playerSide{grid-template-columns:1fr}.tidal-mode .playerSide>.actions{justify-content:flex-start}.tidal-mode #queue td.rowActions{display:block}.tidal-mode #queue td.rowActions>div{justify-content:flex-start}}.nowPlayingCard,.tidal-mode .playerSide .nowPlayingCard{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;align-items:center;padding:14px 0;min-width:0}
 .nowCover{position:relative;display:grid;place-items:center;width:96px;height:96px;border-radius:10px;overflow:hidden;border:1px solid var(--edge);background:linear-gradient(135deg,var(--surface),var(--panel));color:var(--muted);font-size:38px}
 .nowCover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .nowCover.hasArtwork>span{visibility:hidden}
@@ -79,7 +101,44 @@ void refreshState();let youtubeRequested=false;function ensureYoutubePlayer(){if
 .nowPlayingCard .nowTimes span{margin:0}
 .nowPlayingCard .tidalNowControls{grid-column:1/-1;padding-top:2px}
 @media(max-width:620px){.nowPlayingCard,.tidal-mode .playerSide .nowPlayingCard{grid-template-columns:72px minmax(0,1fr);gap:10px}.nowCover{width:72px;height:72px}.nowPlayingCard #nowTitle{font-size:16px}}
-</style><script>function tidalErrorMessage(error) {
+</style><script>// Provider glyphs: Simple Icons, CC0-1.0. See THIRD_PARTY_NOTICES.md.
+window.PlaylistProviders = {
+  "spotify": "M12 0a12 12 0 1 0 0 24 12 12 0 0 0 0-24zm5.5 17.3a.75.75 0 0 1-1.03.25c-2.82-1.72-6.36-2.11-10.53-1.16a.75.75 0 0 1-.33-1.46c4.56-1.04 8.48-.59 11.64 1.34a.75.75 0 0 1 .25 1.03zm1.47-3.28a.94.94 0 0 1-1.29.31c-3.23-1.99-8.15-2.57-11.97-1.41a.94.94 0 1 1-.55-1.8c4.37-1.33 9.79-.68 13.5 1.61a.94.94 0 0 1 .31 1.29zm.13-3.42C15.22 8.3 8.83 8.09 5.13 9.21a1.13 1.13 0 0 1-.65-2.16c4.25-1.28 11.31-1.03 15.78 1.62a1.13 1.13 0 0 1-1.16 1.93z",
+  "youtube": "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z",
+  "tidal": "M12.012 3.992L8.008 7.996 4.004 3.992 0 7.996 4.004 12l4.004-4.004L12.012 12l-4.004 4.004 4.004 4.004 4.004-4.004L12.012 12l4.004-4.004-4.004-4.004zM16.042 7.996l3.979-3.979L24 7.996l-3.979 3.979z",
+  "soundcloud": "M23.999 14.165c-.052 1.796-1.612 3.169-3.4 3.169h-8.18a.68.68 0 0 1-.675-.683V7.862a.747.747 0 0 1 .452-.724s.75-.513 2.333-.513a5.364 5.364 0 0 1 2.763.755 5.433 5.433 0 0 1 2.57 3.54c.282-.08.574-.121.868-.12.884 0 1.73.358 2.347.992s.948 1.49.922 2.373ZM10.721 8.421c.247 2.98.427 5.697 0 8.672a.264.264 0 0 1-.53 0c-.395-2.946-.22-5.718 0-8.672a.264.264 0 0 1 .53 0ZM9.072 9.448c.285 2.659.37 4.986-.006 7.655a.277.277 0 0 1-.55 0c-.331-2.63-.256-5.02 0-7.655a.277.277 0 0 1 .556 0Zm-1.663-.257c.27 2.726.39 5.171 0 7.904a.266.266 0 0 1-.532 0c-.38-2.69-.257-5.21 0-7.904a.266.266 0 0 1 .532 0Zm-1.647.77a26.108 26.108 0 0 1-.008 7.147.272.272 0 0 1-.542 0 27.955 27.955 0 0 1 0-7.147.275.275 0 0 1 .55 0Zm-1.67 1.769c.421 1.865.228 3.5-.029 5.388a.257.257 0 0 1-.514 0c-.21-1.858-.398-3.549 0-5.389a.272.272 0 0 1 .543 0Zm-1.655-.273c.388 1.897.26 3.508-.01 5.412-.026.28-.514.283-.54 0-.244-1.878-.347-3.54-.01-5.412a.283.283 0 0 1 .56 0Zm-1.668.911c.4 1.268.257 2.292-.026 3.572a.257.257 0 0 1-.514 0c-.241-1.262-.354-2.312-.023-3.572a.283.283 0 0 1 .563 0Z"
+};
+
+// Shared provider marks stay local; styling never changes playback controls.
+function applyPlayerBranding(provider) {
+  document.body.dataset.playerProvider = provider;
+  const headings = { tidal: '#tidalPlayer h2,#tidalPlayback h2', spotify: '#spotifySetup h2,#spotifyPlayback h2', soundcloud: '#soundcloudPlayer h2,#soundcloudSetup h2' };
+  for (const [name, selector] of Object.entries(headings)) {
+    for (const heading of document.querySelectorAll(selector)) {
+      if (heading.querySelector('.playerProviderMark')) continue;
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');svg.setAttribute('aria-hidden', 'true');
+      svg.classList.add('playerProviderMark');svg.dataset.provider = name;
+      const path = document.createElementNS(svg.namespaceURI, 'path');
+      path.setAttribute('d', window.PlaylistProviders[name]);path.setAttribute('fill', 'currentColor');svg.append(path);heading.prepend(svg);
+    }
+  }
+}
+
+// Visible-choice buttons are created by Core after the player mounts. CSS masks
+// keep their existing text, radio semantics, focus behavior and click handlers.
+(() => {
+  const colors = { youtube: '#ff6978', tidal: '#dce8ed', spotify: '#1ed760', soundcloud: '#ff9655' };
+  const style = document.createElement('style');
+  style.textContent = Object.entries(colors).map(([name, color]) => {
+    const icon = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="' + window.PlaylistProviders[name] + '"/></svg>');
+    const selector = '[data-choice-for="songPlayerProvider"] [data-choice-value="' + name + '"]';
+    return selector + '{--brand-color:' + color + '}' + selector + '::before{mask-image:url("' + icon + '")}';
+  }).join('');
+  document.head.append(style);
+})();
+
+function tidalErrorMessage(error) {
   if (error.message === 'song_timed_out') return 'This track is temporarily blocked. Try again after its timeout ends.';
   if (error.message === 'song_blocked') return 'This track is banned from song requests.';
   if (error.message === 'tidal_current_changed') return 'The playing track changed. Refresh Now Playing and choose the action again.';
@@ -119,6 +178,29 @@ void refreshState();let youtubeRequested=false;function ensureYoutubePlayer(){if
   if (code === 'tidal_catalog_vault_write_failed' || code === 'tidal_catalog_vault_invalid') return 'Core could not read or save the secure account connection on this PC. Restart Core and sign in again.';
   if (/^tidal_/.test(code)) return 'TIDAL could not complete this action. Refresh the connection and try again.';
   return error.message;
+}
+
+function playerNativeErrorMessage(error) {
+  return ({ spotify_queue_removal_unsupported: 'The Spotify official API cannot remove an individual queued song. The restriction is saved for future requests.', spotify_current_changed: 'The playing song changed. Refresh and choose the action again.', spotify_account_or_app_access_required: 'Check Premium and your Spotify app allowed users in Setup.' })[error.message] || tidalErrorMessage(error);
+}
+
+function installProviderNotices() {
+  const details = document.createElement('details');details.id = 'providerKnownIssues';details.className = 'providerKnownIssues';details.hidden = true;
+  const summary = document.createElement('summary');summary.textContent = 'Known issues & report a bug';
+  const text = document.createElement('p');
+  const report = document.createElement('a');report.textContent = 'Report a bug on GitHub';report.href = 'https://github.com/NameSRoby/RaveLink-Core/issues/new?template=bug_report.yml';report.target = '_blank';report.rel = 'noopener noreferrer';
+  const privacy = document.createElement('p');privacy.textContent = 'Include your RaveLink version and steps to reproduce. Remove tokens, credentials and private account details before sharing logs or screenshots.';
+  details.append(summary,text,report,privacy);document.querySelector('.playerSide').prepend(details);
+  const style = document.createElement('style');style.textContent = '#providerKnownIssues{grid-column:1/-1;border:1px solid var(--edge);border-radius:7px;padding:10px 12px;font-size:12px;margin:4px 0 12px}#providerKnownIssues summary{cursor:pointer;color:var(--muted)}#providerKnownIssues p{color:var(--muted);line-height:1.6;margin:10px 0}#providerKnownIssues a{color:var(--text)}';document.head.append(style);
+  const notes = {
+    spotify: 'Spotify updates can require preparing and reopening the companion. Free-account ads and playback restrictions still apply. Unconfirmed queue or community-playlist writes need review before retrying. The official Premium API cannot remove individual queued songs; the companion can remove entries it delivered. Live Premium and community-playlist testing remains limited.',
+    soundcloud: 'Public search can be affected by SoundCloud site changes or rate limits. Some tracks are private, unavailable, limited to previews or blocked from embedded playback. Keep the RaveLink player open for playback. Availability and ads are controlled by SoundCloud. Direct account-library writes are not supported.'
+  };
+  let provider = '';
+  return { update(view) {
+    const selected = $('songPlayerProvider').value;details.hidden = view !== 'player' || !notes[selected];
+    if (selected !== provider) { provider = selected;details.open = false;text.textContent = notes[selected] || ''; }
+  } };
 }
 
 const tidalModerationPending = new Set();
@@ -305,10 +387,10 @@ function installSoundCloudPlayer() {
   let renderedRows = "", renderedCurrent = "";
   let generation = 0, operation = Promise.resolve(), destroyed = false;
   const side = document.createElement('section'); side.id = 'soundcloudPlayer'; side.hidden = true;
-  side.innerHTML = '<h2>SoundCloud <small>Alpha</small></h2><p id="soundcloudState" role="status">Add a public track link, then start playback.</p><div id="soundcloudFrame"></div><div class="actions"><button id="soundcloudStart" class="primary">Start playback</button><button id="soundcloudPause">Pause</button><button id="soundcloudSkip">Skip</button></div><div id="soundcloudCurrentActions" class="actions"></div>';
+  side.innerHTML = '<h2>SoundCloud</h2><p id="soundcloudState" role="status">Add a public track link, then start playback.</p><div id="soundcloudFrame"></div><div class="actions"><button id="soundcloudStart" class="primary">Start playback</button><button id="soundcloudPause">Pause</button><button id="soundcloudSkip">Skip</button></div><div id="soundcloudCurrentActions" class="actions"></div>';
   document.querySelector('.playerSide').prepend(side);
   const setup = document.createElement('section'); setup.id = 'soundcloudSetup'; setup.hidden = true;
-  setup.innerHTML = '<h2>SoundCloud Alpha setup</h2><p>Alpha: public search and playback may break when SoundCloud changes its site. No API key or sign-in is needed for song-name searches or public links. Keep this player open for playback. SoundCloud controls availability, ads and any preview limits.</p><h3>Import a public playlist</h3><p>Save tracks to Server Playlist for playback, CSV export or transfer matching. This does not change a SoundCloud account.</p><label>Playlist link<input id="soundcloudPlaylistUrl" type="url" placeholder="https://soundcloud.com/artist/sets/playlist"></label><label>Playlist name<input id="soundcloudPlaylistName" maxlength="80" placeholder="SoundCloud playlist"></label><button id="soundcloudImport">Import playlist</button><p id="soundcloudImportState" role="status"></p><div id="soundcloudPlaylistPreview"></div><p>Choose the imported list in Server Playlist and select Play or Shuffle. Requests play first after the current track, then the playlist resumes. Song names use public SoundCloud search, with the shared matching and version filters in Moderation. No API credentials are needed. Account library writes are not available.</p>';
+  setup.innerHTML = '<h2>SoundCloud setup</h2><p>No API key or sign-in is needed for song-name searches or public links. Keep this player open for playback. SoundCloud controls availability, ads and any preview limits.</p><h3>Import a public playlist</h3><p>Save tracks to Playlists & Transfers for playback, CSV export or transfer matching. This does not change a SoundCloud account.</p><label>Playlist link<input id="soundcloudPlaylistUrl" type="url" placeholder="https://soundcloud.com/artist/sets/playlist"></label><label>Playlist name<input id="soundcloudPlaylistName" maxlength="80" placeholder="SoundCloud playlist"></label><button id="soundcloudImport">Import playlist</button><p id="soundcloudImportState" role="status"></p><div id="soundcloudPlaylistPreview"></div><p>Choose the imported list in Playlists & Transfers and select Play or Shuffle. Requests play first after the current track, then the playlist resumes. Song names use public SoundCloud search, with the shared matching and version filters in Moderation. No API credentials are needed. Account library writes are not available.</p>';
   $('songSetupPage').append(setup);
   const preview = document.createElement('div'); preview.id = 'soundcloudRequestPreview'; $('requestNotice').after(preview);
   const paging = document.createElement('div'); paging.id = 'soundcloudPaging'; paging.className = 'actions'; paging.hidden = true;
@@ -373,7 +455,7 @@ function installSoundCloudPlayer() {
       const sounds = await resolve(url, $('soundcloudPlaylistPreview'));
       const upload = await api('import-start', { name: $('soundcloudPlaylistName').value.trim() });
       for (let offset = 0; offset < sounds.length; offset += 40) await api('import-append', { uploadId: upload.uploadId, offset, sounds: sounds.slice(offset, offset + 40) });
-      await api('import-save', { uploadId: upload.uploadId }); $('soundcloudImportState').textContent = 'Saved ' + sounds.length + ' tracks. Open Server Playlist to select and play this list.';
+      await api('import-save', { uploadId: upload.uploadId }); $('soundcloudImportState').textContent = 'Saved ' + sounds.length + ' tracks. Open Playlists & Transfers to select and play this list.';
       $('soundcloudPlaylistPreview').replaceChildren();
     } catch (error) { $('soundcloudImportState').textContent = errorMessage(error); } finally { button.disabled = false; }
   };
@@ -469,7 +551,7 @@ function installNowPlayingDetails() {
   function tick() {
     if (!playback) return;
     const duration = Math.max(0, Number(playback.durationMs || playback.candidate?.durationMs) || 0);
-    let elapsed = Math.max(0, Number(playback.positionMs) || 0) + (playback.status === 'playing' ? Math.min(15000, Math.max(0, Date.now() - Number(playback.observedAt || Date.now()))) : 0);
+    let elapsed = Math.max(0, Number(playback.positionMs) || 0) + (playback.status === 'playing' ? Math.max(0, Date.now() - Number(playback.observedAt || Date.now())) : 0);
     if (playback.candidate?.provider === "youtube" && playerReady && typeof player?.getCurrentTime === "function") elapsed = Math.max(0, Number(player.getCurrentTime()) * 1000 || 0);
     timeline.hidden = !duration;
     $('nowProgress').value = duration ? Math.min(1, elapsed / duration) : 0;
@@ -508,6 +590,7 @@ function installPlayerVolumeControls(soundcloud) {
   let busy = false, nativeAvailable = false, generation = 0;
   const selected = () => $('songPlayerProvider').value;
   async function native() {
+    if (selected() === 'spotify') { if (!nativeAvailable) throw Error('Choose an active Premium playback device in Setup first.');const reply = await call('song.spotify.player.v1', 'control', { action: 'volume', value: outputVolume() });if (!reply.ok) throw Error(reply.error || 'Spotify volume could not be confirmed.');return; }
     if (selected() !== 'tidal') return;
     if (!nativeAvailable) throw new Error('Update the TIDAL companion in Setup to enable native volume control.');
     const reply = await call('song.tidal.experimental.v1', 'volume', { percent: outputVolume() });
@@ -529,7 +612,7 @@ function installPlayerVolumeControls(soundcloud) {
       if (!reply.ok) throw new Error(reply.code || 'Output range could not be saved.');
       volumeFloorPercent = nextFloor; volumeCeilingPercent = nextCeiling; volumeDraftDirty = false;
       preview(); note.textContent = 'Output range saved.';
-      if (selected() === 'tidal' && nativeAvailable) await native();
+      if (['tidal', 'spotify'].includes(selected()) && nativeAvailable) await native();
       await refreshState();
     } catch (error) { note.textContent = error.message; } finally { busy = false; save.disabled = floor.disabled = ceiling.disabled = false; }
   }
@@ -550,14 +633,174 @@ function installPlayerVolumeControls(soundcloud) {
       note.textContent = nativeAvailable ? 'Controls TIDAL Desktop volume.' : 'Use TIDAL for volume until its companion is updated and connected. You can still edit the output range here.';
     } catch { if (current === generation) note.textContent = 'Connect TIDAL Desktop in Setup to control its volume.'; }
   }
-  return { select, nativeStatus(status) { if (selected() !== 'tidal') return; const previous = nativeAvailable; nativeAvailable = status?.connected === true && status.volumeAvailable === true; $('volume').disabled = !nativeAvailable; if (nativeAvailable && !previous && !busy) note.textContent = 'Controls TIDAL Desktop volume.'; } };
+  return { select, spotifyStatus(status) { if (selected() !== 'spotify') return;group.hidden = !['official', 'hybrid'].includes(status.mode) || !status.volumeAvailable;nativeAvailable = status.officialControls && status.volumeAvailable;$('volume').disabled = !nativeAvailable;note.textContent = nativeAvailable ? 'Controls volume on your selected Spotify Premium device.' : 'Choose an active device that supports volume control in Spotify Setup.'; }, nativeStatus(status) { if (selected() !== 'tidal') return; const previous = nativeAvailable; nativeAvailable = status?.connected === true && status.volumeAvailable === true; $('volume').disabled = !nativeAvailable; if (nativeAvailable && !previous && !busy) note.textContent = 'Controls TIDAL Desktop volume.'; } };
+}
+
+function installSpotifyAccount({ setup, api, action, refresh, explain }) {
+  const desktop = document.createElement('div');desktop.id = 'spotifyDesktopSetup';desktop.append(...setup.childNodes);
+  const companion = document.createElement('details');companion.id = 'spotifyCompanionSetup';companion.open = true;
+  const companionTitle = document.createElement('summary');companionTitle.textContent = 'Desktop companion: free queue control';companion.append(companionTitle, desktop);
+  const account = document.createElement('details');account.id = 'spotifyOfficialSetup';
+  account.innerHTML = '<summary>Optional Spotify Premium connection</summary><p>Use the companion for native queue control and connect Premium for official search and playback controls. Both work together on the same device. RaveLink adds no developer-kit charge.</p><p id="spotifyAccountStatus" role="status"></p><div class="actions"><button id="spotifySignIn" class="primary">Sign in with Spotify</button><button id="spotifyAccountCheck">Check connection</button><button id="spotifyDisconnect">Disconnect account</button></div><a id="spotifySignInLink" target="_blank" rel="noopener noreferrer" hidden>Open Spotify sign-in</a><details id="spotifyAppSetup"><summary>Developer app setup</summary><p>Create a free app at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer">Spotify Developer</a>. Its owner needs Premium. Development apps support five allowlisted users; add your account under Users and Access. Register this exact redirect URI:</p><code id="spotifyCallbackUri"></code><p><label>Client ID<input id="spotifyClientId" type="password" maxlength="32" autocomplete="off" spellcheck="false" placeholder="Write-only client ID"></label></p><button id="spotifySaveClient">Save app setup</button><p>Your client ID and account tokens are encrypted on this PC. No client secret is required.</p></details><section><h3>Playback device</h3><p>Open Spotify on the device you want to control. Refresh, choose it below, and start playback there if it is inactive.</p><button id="spotifyDevices">Refresh devices</button><div id="spotifyDeviceChoices" class="actions" role="group" aria-label="Spotify playback devices"></div><p id="spotifyDeviceStatus" role="status"></p></section>';
+  setup.append(companion, account);
+  const note = document.createElement('p');note.id = 'spotifyOfficialLimit';note.className = 'notice';note.hidden = true;
+  note.textContent = 'Official-only queue entries cannot be removed individually. Bans and timeouts still block future requests, and the current song can be skipped. Keep the companion connected for full queue control on future requests.';
+  $('queueHeading').after(note);
+  const redirect = new URL(location.origin);redirect.hostname = '127.0.0.1';redirect.pathname = '/auth/spotify/callback';$('spotifyCallbackUri').textContent = redirect.href;
+  let current = null, devices = [], configuredBefore, connectedBefore;
+  function render(state) {
+    current = state;const official = state.mode === 'official';
+    note.hidden = !official && !state.handoffs?.some(row => row.transport === 'official' && ['appended', 'unknown', 'pending'].includes(row.phase));
+    if (connectedBefore !== Boolean(state.account?.connected)) { connectedBefore = Boolean(state.account?.connected);account.open = connectedBefore;companion.open = !connectedBefore || state.sameDevice; }
+    const hasRequests = state.queue?.length || state.handoffs?.some(row => ['pending', 'unknown', 'appended', 'playing'].includes(row.phase));
+    const officialRequests = state.handoffs?.some(row => row.transport === 'official' && ['pending', 'unknown', 'appended', 'playing'].includes(row.phase));
+    $('spotifyAccountStatus').textContent = state.account?.connected ? state.lastError ? explain(state.lastError) : 'Account connected. Choose a playback device below.' : state.account?.configured ? 'App configured. Sign in to connect your Premium account.' : 'Add your developer app once, then sign in with Spotify.';
+    if (configuredBefore !== state.account?.configured) { configuredBefore = state.account?.configured;$('spotifyAppSetup').open = !configuredBefore; }
+    $('spotifySignIn').disabled = !state.account?.configured;$('spotifyDisconnect').disabled = !state.account?.connected || Boolean(officialRequests);
+    for (const button of $('spotifyDeviceChoices').children) { button.setAttribute('aria-pressed', String(button.dataset.device === state.selectedDevice));button.disabled = Boolean(hasRequests) && button.dataset.device !== state.selectedDevice; }
+    $('spotifyDeviceStatus').textContent = state.selectedDevice ? state.sameDevice ? 'Combined connection: companion queue control and official Premium controls.' : state.officialControls ? 'Selected device is active. Official controls are available.' : 'Selected device is not active. Start playback there to connect it.' : 'Choose the device that should receive requests.';
+    const heading = $('spotifyPlayback').querySelector('h2');const text = [...heading.childNodes].find(node => node.nodeType === Node.TEXT_NODE);if (text) text.textContent = 'Spotify';
+    $('playerProviderHint').textContent = official ? 'Official Spotify API · requests queue on your selected device' : 'Search songs · queue in order in Spotify Desktop';
+    $('spotifyPlayback').querySelector('.actions').title = official ? 'Controls the selected Spotify Connect device' : 'Controls Spotify Desktop';
+  }
+  $('spotifySaveClient').onclick = async event => { await action(event.currentTarget, 'setup', { action: 'configure', clientId: $('spotifyClientId').value.trim() }, 'App setup saved. Sign in with Spotify.');$('spotifyClientId').value = ''; };
+  $('spotifyDisconnect').onclick = event => action(event.currentTarget, 'setup', { action: 'disconnect' }, 'Spotify account disconnected locally.');
+  $('spotifyAccountCheck').onclick = () => refresh();
+  $('spotifySignIn').onclick = async event => {
+    const button = event.currentTarget;button.disabled = true;
+    try {
+      const result = await api('setup', { action: 'begin', redirectUri: redirect.href });if (!result.ok) throw Error(result.error);
+      const url = new URL(result.authorizationUrl);if (url.origin !== 'https://accounts.spotify.com' || url.pathname !== '/authorize') throw Error('Invalid Spotify sign-in address.');
+      const link = $('spotifySignInLink');link.href = url.href;link.hidden = false;link.click();setNotice('Finish sign-in in Spotify, then choose Check connection. If no window opened, use Open Spotify sign-in.');
+    } catch (error) { setNotice(explain(error.message), true); } finally { button.disabled = false; }
+  };
+  $('spotifyDevices').onclick = async event => {
+    const button = event.currentTarget;button.disabled = true;
+    try {
+      const result = await api('setup', { action: 'devices' });if (!result.ok) throw Error(result.error);devices = result.devices;
+      $('spotifyDeviceChoices').replaceChildren(...devices.map(device => {
+        const choice = document.createElement('button');choice.type = 'button';choice.dataset.device = device.id;choice.textContent = device.name + (device.active ? ' · active' : '');
+        choice.onclick = event => action(event.currentTarget, 'setup', { action: 'select-device', deviceId: device.id }, 'Playback device selected.');return choice;
+      }));if (current) render(current);setNotice(devices.length ? 'Devices refreshed. Choose where requests should play.' : 'No available devices. Open Spotify, then refresh again.');
+    } catch (error) { setNotice(explain(error.message), true); } finally { button.disabled = false; }
+  };
+  const style = document.createElement('style');style.textContent = '#spotifyCompanionSetup,#spotifyOfficialSetup{padding:12px 0}#spotifyCompanionSetup>summary,#spotifyOfficialSetup>summary{cursor:pointer;font-weight:700;font-size:14px}#spotifyCompanionSetup[open]>summary,#spotifyOfficialSetup[open]>summary{margin-bottom:14px}#spotifyOfficialSetup p{line-height:1.5;color:var(--muted)}#spotifyOfficialSetup h2{margin-top:18px}#spotifyAppSetup{margin:16px 0;padding:12px;border:1px solid var(--edge);border-radius:8px}#spotifyAppSetup label{display:grid;gap:6px;max-width:340px}#spotifyCallbackUri{display:block;overflow-wrap:anywhere;font-size:12px}#spotifyDeviceChoices button[aria-pressed=true]{border-color:var(--player-accent,#1ed760);background:color-mix(in srgb,var(--player-accent,#1ed760) 10%,var(--panel))}#spotifyOfficialLimit{font-size:12px;line-height:1.5;color:var(--muted)}';document.head.append(style);
+  return { render };
+}
+
+function installSpotifyPlayer({ showView, volumeControls }) {
+  const active = () => $('songPlayerProvider').value === 'spotify';
+  const api = (method, payload = {}) => call('song.spotify.player.v1', method, payload);
+  const explain = code => ({ spotify_close_client_required: 'Fully quit Spotify, including its tray icon, then try Open Spotify with RaveLink again.', spotify_local_device_unverified: 'Start a song on this computer in Spotify. Remote Spotify Connect devices cannot receive requests here.', spotify_companion_unavailable: 'Open Setup and launch Spotify with RaveLink.', spotify_not_installed: 'Install Spotify Desktop, then choose Prepare companion.', spotify_setup_required: 'Choose Prepare companion first.', spotify_desktop_search_rejected: 'Spotify rejected catalog lookup. Check that you are signed in and try again.', spotify_match_not_found: 'No close match passed your song filters. Try a more precise artist and song name.', spotify_delivery_needs_review: 'Delivery is unconfirmed. Check Spotify before sending this request again.', spotify_native_queue_full: 'Spotify has 10 upcoming requests. This request will wait here.', spotify_source_changed: 'Spotify was updated. Choose Prepare companion again.', spotify_playback_restricted: 'Spotify restricted this playback action for the current account or song.', spotify_mode_has_requests: 'Finish or resolve existing Spotify requests before changing connection mode, account or device.', spotify_device_selection_required: 'Open Setup, refresh devices and choose an active Spotify device.', spotify_account_or_app_access_required: 'Spotify denied access. Check Premium and your developer app Users and Access allowlist.', spotify_premium_required: 'The official playback API requires a Spotify Premium account. Use the free companion instead.', spotify_oauth_setup_required: 'Add your Spotify developer app client ID in Setup first.', spotify_client_id_invalid: 'Enter the 32-character client ID from your Spotify developer app.', spotify_sign_in_required: 'Sign in with Spotify in Setup.', spotify_rate_limited: 'Spotify is limiting API requests. Wait before trying again.', spotify_queue_removal_unsupported: 'The Spotify official API cannot remove queued songs. The restriction is saved for future requests.', spotify_item_already_queued: 'This song is already in the selected Spotify device queue.' })[code] || code;
+  let launchError = false;
+  let state = null, refreshing = null, stopped = false, rendered = '';
+  const setup = document.createElement('section');setup.id = 'spotifySetup';setup.className = 'tidalStep';setup.hidden = true;
+  setup.innerHTML = '<h2>Spotify Desktop</h2><p>Connect the Spotify app on this PC. Your personal playlist stays intact; requests join the queue in order.</p><ol><li>Choose Prepare companion below.</li><li>Quit Spotify completely, including its tray icon.</li><li>Choose Open Spotify with RaveLink, then sign in. Requests can queue while Spotify is paused.</li></ol><div class="actions"><button id="spotifyPrepare">Prepare companion</button><button id="spotifyLaunch" class="primary">Open Spotify with RaveLink</button><button id="spotifyCheck">Check connection</button></div><p id="spotifySetupStatus" role="status"></p><p class="tidalFinePrint">Use Open Spotify with RaveLink each time you want song requests. A normal Spotify launch does not load the companion. Free account playback and skip restrictions still apply. Spotify updates may require Prepare companion again.</p>';
+  $('songSetupPage').append(setup);
+  const playback = document.createElement('section');playback.id = 'spotifyPlayback';playback.hidden = true;
+  playback.innerHTML = '<div><h2>Spotify Desktop</h2><p id="spotifyConnection" role="status">Checking connection…</p></div><div class="actions"><button id="spotifyPause">Pause</button><button id="spotifyResume">Resume</button><button id="spotifySkip">Skip</button><button id="spotifyOpenSetup">Setup</button></div>';
+  const playbackLaunch = document.createElement('button');playbackLaunch.id = 'spotifyPlaybackLaunch';playbackLaunch.className = 'primary';playbackLaunch.textContent = 'Open Spotify with RaveLink';playbackLaunch.hidden = true;
+  playback.querySelector('.actions').prepend(playbackLaunch);
+  document.querySelector('.playerSide').prepend(playback);
+  const current = document.createElement('div');current.id = 'spotifyCurrentActions';document.querySelector('.now').append(current);
+  const style = document.createElement('style');style.textContent = '#spotifyPlayback{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px}#spotifyPlayback h2{font-size:15px;margin:0}#spotifyPlayback p{font-size:12px;color:var(--muted);margin:5px 0}#spotifyCurrentActions{grid-column:1/-1}#spotifySetup{max-width:900px;margin:auto}';document.head.append(style);
+  $('spotifyOpenSetup').onclick = () => showView('setup');
+  async function action(button, method, payload, message) {
+    if (button.disabled) return;button.disabled = true;setNotice('Working…');
+    try { const result = await api(method, payload);if (!result.ok) throw new Error(result.error || result.reason || 'Spotify action failed.');setNotice(result.launching ? 'Spotify is opening. Connection status will update automatically.' : message);await refresh();await refreshState(); }
+    catch (error) { launchError = method === 'setup' && payload.action === 'launch';setNotice(explain(error.message), true); } finally { button.disabled = ['spotifyLaunch', 'spotifyPlaybackLaunch'].includes(button.id) && Boolean(state?.connected || state?.launching || !state?.installation?.prepared); }
+  }
+  const accountUI = installSpotifyAccount({ setup, api, action, refresh, explain });
+  $('spotifyPrepare').onclick = event => { const url = new URL(location.origin);url.hostname = '127.0.0.1';return action(event.currentTarget, 'setup', { action: 'prepare', coreUrl: url.origin }, 'Companion prepared. Fully quit Spotify, then choose Open Spotify with RaveLink.'); };
+  $('spotifyLaunch').onclick = playbackLaunch.onclick = event => action(event.currentTarget, 'setup', { action: 'launch' }, 'Spotify is opening. Sign in there to finish connecting.');
+  $('spotifyCheck').onclick = () => refresh();
+  for (const name of ['Pause', 'Resume', 'Skip']) $('spotify' + name).onclick = event => action(event.currentTarget, 'control', { action: name.toLowerCase(), ...(name === 'Skip' ? { currentUid: state?.current?.uid } : {}) }, 'Spotify ' + name.toLowerCase() + ' requested.');
+  async function refresh() {
+    if (!active() || stopped) return;
+    if (refreshing) return refreshing;
+    refreshing = (async () => {
+      try {
+        state = await api('status', null);
+        accountUI.render(state);volumeControls?.spotifyStatus(state);
+        const message = state.sameDevice ? 'Connected - companion queue and official Premium controls' : state.mode === 'official' ? state.lastError ? explain(state.lastError) : state.ready ? 'Premium connected - requests queue on your selected device' : state.account?.connected ? 'Choose an active Spotify device in Setup' : 'Connect your Premium account in Setup' : state.launching ? 'Spotify is opening - waiting for the companion' : state.launchError ? explain(state.launchError) : state.ready ? 'Connected · requests queue automatically' : state.connected && !state.localDevice ? 'Connected · start playback on this computer in Spotify' : state.connected ? 'Connected · waiting for Spotify queue information' : state.account?.connected ? 'Premium connected - choose a playback device in Setup' : 'Companion not connected · open Setup';
+        $('spotifyConnection').textContent = $('spotifySetupStatus').textContent = message;
+        $('spotifyLaunch').disabled = !state.installation?.prepared || state.connected || state.launching;
+        playbackLaunch.hidden = Boolean(state.connected || !state.installation?.prepared);
+        playbackLaunch.disabled = Boolean(state.launching);
+        playbackLaunch.textContent = state.launching ? 'Opening Spotify...' : 'Open Spotify with RaveLink';
+        if (state.connected && launchError) { launchError = false;setNotice('Spotify connected. The previous launch warning is cleared.'); }
+        for (const name of ['Pause', 'Resume', 'Skip']) $('spotify' + name).disabled = !state.controlsAvailable || name === 'Skip' && !state.current?.uid;
+        renderQueue();
+        if (state.ready) await api('flush');
+      } catch (error) { $('spotifyConnection').textContent = error.message; }
+      finally { refreshing = null; }
+    })();return refreshing;
+  }
+  async function moderateSpotify(payload, message) {
+    await moderate({ ...payload, provider: 'spotify' }, message);rendered = '';await refresh();
+  }
+  function renderQueue() {
+    if (!active()) return;
+    const rows = new Map((state?.queue || []).map(row => [row.id, { ...row, phase: 'waiting' }]));
+    for (const row of state?.handoffs || []) if (['pending', 'unknown', 'appended', 'playing', 'failed'].includes(row.phase)) rows.set(row.entryId, { ...row, id: row.entryId });
+    $('queueHeading').textContent = `Spotify requests · ${state?.capacity?.queued || 0} / 10 in Spotify · ${state?.queue?.length || 0} waiting`;
+    const signature = JSON.stringify([[...rows.values()], state?.current?.uid, state?.ready, state?.mode]);
+    if (rendered === signature || $('queue').contains(document.activeElement) && document.activeElement.tagName === 'SELECT') return;rendered = signature;
+    const body = $('queue');body.replaceChildren();
+    const description = { waiting: 'Waiting for a slot', pending: 'Sending', unknown: 'Delivery unconfirmed · check Spotify', appended: 'Queued in Spotify', playing: 'Now playing', failed: 'Not delivered · check Setup' };
+    for (const item of rows.values()) {
+      const row = body.insertRow();row.insertCell().textContent = item.candidate?.title || 'Spotify track';row.insertCell().textContent = item.requesterLabel || 'Requester not recorded';row.insertCell().textContent = description[item.phase];
+      const actions = row.insertCell();actions.className = 'rowActions';
+      const controls = document.createElement('div');controls.className = 'rowActions';
+      const remove = actionButton('REMOVE', 'Remove this request only', () => moderateSpotify({ action: 'remove', entryId: item.id }, 'Request removed.'));
+      remove.disabled = item.phase === 'pending' || item.phase === 'unknown' || item.nativeRemoval === false && item.phase === 'appended';if (item.nativeRemoval === false && item.phase === 'appended') remove.title = 'The Spotify official API cannot remove individual queued songs.';controls.append(remove, createTrackModeration(item, moderateSpotify));actions.append(controls);
+      if (['unknown', 'failed'].includes(item.phase)) {
+        const matches = item.possibleMatches || [];
+        const review = actionButton(matches.length === 1 ? 'CONFIRM MATCHING ENTRY' : 'NOT IN SPOTIFY - RETRY', 'Check Spotify first. This explicitly resolves the uncertain delivery.', async () => {
+          try { const result = await api('review', { entryId: item.id, decision: matches.length === 1 ? 'adopt' : 'absent', ...(matches.length === 1 ? { uid: matches[0].uid } : {}) });if (!result.ok) throw new Error(result.error);rendered = '';await refresh(); }
+          catch (error) { setNotice(explain(error.message), true); }
+        });
+        review.disabled = !state?.ready || matches.length > 1;actions.append(review);
+      }
+    }
+    if (!rows.size) { const cell = body.insertRow().insertCell();cell.colSpan = 4;cell.className = 'empty';cell.textContent = 'No Spotify requests'; }
+    current.replaceChildren();current.hidden = !state?.current;
+    if (state?.current) {
+      const song = state.current, owner = song.requesterKey ? song.requesterLabel : '';
+      const label = document.createElement('p');label.className = 'currentRequester';label.textContent = owner ? 'Requested by ' + owner : 'No requester recorded for this song';
+      const item = { id: song.entryId || song.uid, candidate: song.candidate || { provider: 'spotify', providerItemId: song.trackId, title: song.title }, requesterKey: song.requesterKey, requesterLabel: song.requesterLabel };
+      current.append(label, createTrackModeration(item, (payload, message) => moderateSpotify({ ...payload, currentUid: song.uid }, message)));
+    }
+  }
+  function select() {
+    setup.hidden = playback.hidden = current.hidden = !active();
+    if (!active()) return;
+    document.body.classList.add('tidal-mode');player?.pauseVideo?.();$('playerFrame').hidden = startPlayer.hidden = $('skip').hidden = true;
+    $('catalogSettings').hidden = true;$('titleInput').closest('label').hidden = true;$('minimumSubscribers').closest('label').hidden = true;$('minimumViews').closest('label').hidden = true;$('allowNonMusic').parentElement.hidden = true;
+    document.querySelector('.volumeControl').hidden = true;
+    const requesters = $('requesters').closest('table');requesters.hidden = true;requesters.previousElementSibling.hidden = true;
+    $('playerProviderHint').textContent = 'Search songs · queue in order in Spotify Desktop';$('videoInput').placeholder = 'Artist and song, Spotify track link or URI';
+    $('queue').closest('table').querySelectorAll('th')[2].textContent = 'STATUS';$('clear').textContent = 'CLEAR WAITING REQUESTS';
+    $('requestNotice').textContent = 'Accepted requests are sent in order. Up to 10 upcoming requests stay in Spotify; extra requests wait here.';
+    rendered = '';void api('monitor').then(() => refreshState()).catch(error => setNotice(explain(error.message), true));void refresh();
+  }
+  async function submit(event) {
+    event?.preventDefault();const query = $('videoInput').value.trim();if (!query) return setRequestNotice('Enter an artist and song or Spotify track link.', true);
+    $('addSong').disabled = true;setRequestNotice('Finding your song in Spotify…');
+    try { const result = await api('submit', { query, requestId: crypto.randomUUID() });if (!result.ok) throw new Error(result.reason || result.error || 'Song could not be added.');$('videoInput').value = '';setRequestNotice('Added ' + (result.entry?.candidate?.title || 'song') + ' · sending to Spotify.');await refresh(); }
+    catch (error) { setRequestNotice(explain(error.message), true); }finally { $('addSong').disabled = false; }
+  }
+  const timer = setInterval(() => { if (active()) void refresh(); }, 2000);
+  window.addEventListener('pagehide', () => { stopped = true;clearInterval(timer); });
+  return { select, refresh, renderQueue, submit };
 }
 
 (function installPlayerProviders() {
   let view = 'player', providerReady = false, savedPlayer = 'youtube';
   const picker = document.createElement('div'); picker.className = 'playerProviderPicker';
-  picker.innerHTML = '<label for="songPlayerProvider">PLAYER</label><select id="songPlayerProvider"><option value="youtube">YouTube</option><option value="tidal">TIDAL</option><option value="soundcloud">SoundCloud (Alpha)</option></select><span id="playerProviderHint">Embedded YouTube playback</span>';
+  picker.innerHTML = '<label for="songPlayerProvider">PLAYER</label><select id="songPlayerProvider"><option value="youtube">YouTube</option><option value="tidal">TIDAL</option><option value="spotify">Spotify</option><option value="soundcloud">SoundCloud</option></select><span id="playerProviderHint">Embedded YouTube playback</span>';
   document.querySelector('main').prepend(picker);
+  const providerNotices = installProviderNotices();
   const embedWarning=document.createElement('aside');embedWarning.id='youtubeEmbedWarning';embedWarning.setAttribute('role','note');embedWarning.innerHTML='<strong>YouTube playback warning</strong><p>YouTube embeds can refuse songs because of uploader settings, account, age, region or content restrictions. A successful search does not guarantee playback.</p><p>Repeated failures and rapid automatic skips may overload playback and cause the server to stop or crash. Stop playback if songs keep skipping; try another source or restart Core if it stops responding.</p>';
   document.querySelector('.playerSide').prepend(embedWarning);
   const warningStyle=document.createElement('style');warningStyle.textContent='#youtubeEmbedWarning{border:1px solid #e5b647;border-left:5px solid #e5b647;background:#322818;color:#fff0c0;border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;line-height:1.5}#youtubeEmbedWarning strong{font-size:16px}#youtubeEmbedWarning p{margin:8px 0 0}';document.head.append(warningStyle);
@@ -573,9 +816,9 @@ function installPlayerVolumeControls(soundcloud) {
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (current + keys[event.key] + 3) % 3;
     showView(buttons[next].dataset.view); buttons[next].focus();
   };
-  const policyGrid = document.querySelector('.queueSide > .settingsGrid'), policy = document.createElement('details');
+  const policyGrid = document.querySelector('.queueSide > .settingsGrid'), policy = document.createElement('section');
   policy.className = 'playerAdvancedPolicy';
-  const policySummary = document.createElement('summary'); policySummary.textContent = 'Request limits & song length';
+  const policySummary = document.createElement('h3'); policySummary.textContent = 'Request limits & song length';
   policyGrid.previousElementSibling.replaceWith(policy); policy.append(policySummary, policyGrid);
   const durationControl = document.createElement('label');
   durationControl.innerHTML = 'MAXIMUM SONG LENGTH (MINUTES)<input id="maxSongMinutes" type="number" min="0.5" max="60" step="0.5" value="10">';
@@ -593,18 +836,18 @@ function installPlayerVolumeControls(soundcloud) {
     <p id="tidalAccountHelp">Sign in once for song lookup and playlist/collection transfers. Your password stays with TIDAL.</p>
     <div class="actions"><button id="signInTidal" class="primary">Sign in with TIDAL</button></div>
     <a id="tidalOpenLogin" target="_blank" rel="noopener noreferrer" hidden>Open TIDAL sign-in</a>
-    <details id="tidalAccountOptions"><summary>Account & region</summary>
+    <section id="tidalAccountOptions"><h4>Account & region</h4>
     <div class="actions"><label for="tidalCountry">Catalog country<select id="tidalCountry" required aria-label="Catalog country"><option value="">Loading countries…</option></select></label><button id="saveTidalRegion">Save region</button></div>
     <p class="tidalFinePrint">Choose your TIDAL account's country. Song availability varies by country.</p>
     <div class="actions"><button id="testTidalCatalog">Check connection</button><button id="clearTidalCatalog">Disconnect account</button></div>
-    <p class="tidalFinePrint">Sign-in is saved securely on this PC. Disconnect removes the local authorization.</p></details></section>
+    <p class="tidalFinePrint">Sign-in is saved securely on this PC. Disconnect removes the local authorization.</p></section></section>
     <section class="tidalStep"><div class="tidalStepHeading"><span class="tidalStepNumber" aria-hidden="true">2</span><h3>Connect the desktop player</h3><span id="tidalDesktopBadge" class="tidalBadge">Checking</span></div>
     <p id="tidalInstallStatus" role="status"></p>
-    <details id="tidalSetup"><summary>Set up desktop connection</summary>
+    <section id="tidalSetup"><h4>Set up desktop connection</h4>
     <ol class="tidalChecklist"><li>Quit TIDAL completely, including its tray icon.</li><li>Install or update the RaveLink companion below.</li><li>Open TIDAL and play a song, then choose Refresh.</li></ol>
     <div class="actions"><button id="installTidalCompanion" class="primary">Install companion</button><button id="updateTidalCompanion" class="primary" hidden>Update companion</button></div>
-    <p class="tidalFinePrint">Requires the regular Windows desktop app. The Microsoft Store app is not supported.</p></details>
-    <details id="tidalConnectionOptions"><summary>Connection options</summary><div class="actions"><button id="monitorTidal">Use TIDAL for now playing</button><button id="uninstallTidalCompanion">Remove companion</button></div><p class="tidalFinePrint">Close TIDAL before removal or updates. Removing the companion restores the original app files.</p></details></section>
+    <p class="tidalFinePrint">Requires the regular Windows desktop app. The Microsoft Store app is not supported.</p></section>
+    <section id="tidalConnectionOptions"><h4>Connection options</h4><div class="actions"><button id="monitorTidal">Use TIDAL for now playing</button><button id="uninstallTidalCompanion">Remove companion</button></div><p class="tidalFinePrint">Close TIDAL before removal or updates. Removing the companion restores the original app files.</p></section></section>
     </div>
     <p id="tidalReadyHelp" class="tidalReadyHelp">Add a song to send it to TIDAL automatically. All accepted requests join the queue in order; your playlist stays intact.</p>
     <details id="tidalHistory"><summary>Recently sent to TIDAL</summary><div id="tidalHandoffs"></div></details>
@@ -626,8 +869,8 @@ function installPlayerVolumeControls(soundcloud) {
   const moderationPage = document.createElement('section'); moderationPage.id = 'songModerationPage';
   document.querySelector('main').append(workspace); workspace.append(setupPage, moderationPage);
   setupPage.append(panel, $('catalogSettings')); $('catalogSettings').open = true;
-  const searchFilters = document.createElement('details'); searchFilters.id = 'songSearchFilters';
-  searchFilters.innerHTML = '<summary>Song matching & version filters</summary>';
+  const searchFilters = document.createElement('section'); searchFilters.id = 'songSearchFilters';
+  searchFilters.innerHTML = '<h3>Song matching & version filters</h3>';
   searchFilters.append($('minimumSubscribers').closest('.settingsGrid'), $('allowNonMusic').parentElement, $('derivativeFilters'), $('saveCatalogPolicy').parentElement);
   moderationPage.append(policy, searchFilters, $('responseToggles').closest('details'));
   const restrictions = document.createElement('section'); restrictions.id = 'requesterRestrictions';
@@ -635,7 +878,6 @@ function installPlayerVolumeControls(soundcloud) {
   moderationPage.append(restrictions);
   $('restrictionsPrevious').onclick = () => { moderationOffset = Math.max(0, moderationOffset - 25); void refreshState(); };
   $('restrictionsNext').onclick = () => { moderationOffset += 25; void refreshState(); };
-  policy.open = true;
   const playbackPanel = document.createElement('section'); playbackPanel.id = 'tidalPlayback'; playbackPanel.hidden = true;
   playbackPanel.innerHTML = '<div><h2>TIDAL Desktop</h2><p id="tidalPlaybackStatus" role="status">Checking desktop connection…</p></div><button id="openSongSetup">Setup</button>';
   $('tidalHistory').hidden = true;
@@ -647,24 +889,28 @@ function installPlayerVolumeControls(soundcloud) {
     node.setAttribute('role', 'tabpanel'); node.setAttribute('aria-labelledby', `playerTab-${id}`);
   }
   let tidalState = null, refreshingTidal = false, tidalRefreshQueued = false, tidalRefreshTimer = null;
-  let companionInstall = null, companionCheckedAt = 0, catalogStatus = null, loginTimer = null, loginDeadline = 0, desktopSetupKey = '';
+  let companionInstall = null, companionCheckedAt = 0, catalogStatus = null, loginTimer = null, loginDeadline = 0;
   const callbackUri = () => { const url = new URL(location.origin); url.hostname = '127.0.0.1'; url.pathname = '/auth/tidal/callback'; return url.href; };
   const selected = () => $('songPlayerProvider').value;
+  window.ravelinkPlayerActive = provider => providerReady && selected() === provider;
+  const providerCall = call;
+  call = (capability, method, payload) => providerCall(capability, method, capability === 'song.queue.read.v1' && method === 'status' ? { ...payload, provider: selected() } : payload);
   function showView(next) {
     if (next !== view) setNotice('');
-    view = next; document.body.dataset.songView = view; embedWarning.hidden = view !== 'player' || selected() !== 'youtube';
+    view = next; providerNotices.update(view); document.body.dataset.songView = view; embedWarning.hidden = view !== 'player' || selected() !== 'youtube';
     playbackPage.hidden = view !== 'player'; workspace.hidden = view === 'player';
     setupPage.hidden = view !== 'setup'; moderationPage.hidden = view !== 'moderation';
     document.body.classList.toggle('song-settings-view', view !== 'player');
     for (const button of tabs.querySelectorAll('button')) { const active = button.dataset.view === view; button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1; }
     if (view === 'moderation' || view === 'setup' && selected() === 'youtube') void refreshCatalog();
     if (providerReady && view === 'player' && selected() === 'youtube') ensureYoutubePlayer();
-    void refreshTidal(); void refreshState();
+    void refreshTidal(); void spotify.refresh(); void refreshState();
   }
   const soundcloud = installSoundCloudPlayer(); const volumeControls = installPlayerVolumeControls(soundcloud); window.ravelinkSoundCloud = soundcloud; let soundcloudQueue = null;
+  const spotify = installSpotifyPlayer({ showView, volumeControls });
   const originalPull = maybePull, originalSubmit = submitRequest, originalRenderQueue = renderQueue;
   const originalModerate = moderate;
-  moderate = async function (payload, message) { await originalModerate(selected() === 'tidal' ? { ...payload, provider: 'tidal' } : payload, message); if (selected() === 'tidal') await refreshTidal(); };
+  moderate = async function (payload, message) { await originalModerate(['tidal', 'spotify'].includes(selected()) ? { ...payload, provider: selected() } : payload, message); if (selected() === 'tidal') await refreshTidal(); };
   const originalRenderPlayback = renderPlayback, renderNowDetails = installNowPlayingDetails();
   maybePull = async function () { if (providerReady && selected() === 'youtube') return originalPull(); if (providerReady && selected() === 'soundcloud') return soundcloud.pull(); };
   renderPlayback = function (state) {
@@ -677,6 +923,7 @@ function installPlayerVolumeControls(soundcloud) {
     if (selected() === "soundcloud" && soundcloudQueue) soundcloud.render(soundcloudQueue, state, originalRenderQueue);
   };
   renderQueue = function (state) {
+    if (selected() === 'spotify') return spotify.renderQueue();
     if (selected() === 'soundcloud') { soundcloudQueue = state; return; }
     if (selected() === 'youtube') {
       const body = $('queue'), signature = JSON.stringify([state.queue || [], state.counts?.queued]);
@@ -782,8 +1029,6 @@ function installPlayerVolumeControls(soundcloud) {
     $('tidalDesktopBadge').textContent = needsUpdate ? 'Update needed' : ready ? 'Connected' : 'Setup needed';
     $('tidalDesktopBadge').classList.toggle('connected', Boolean(ready && !needsUpdate));
     $('tidalSetup').hidden = Boolean(ready && !needsUpdate);
-    const setupKey = `${Boolean(ready)}:${Boolean(companionInstall.installed)}:${Boolean(needsUpdate)}`;
-    if (setupKey !== desktopSetupKey) { $('tidalSetup').open = !ready || needsUpdate; $('tidalConnectionOptions').open = Boolean(needsUpdate); desktopSetupKey = setupKey; }
     $('installTidalCompanion').disabled = !tidalState?.enabled || !companionInstall.available || companionInstall.installed || companionInstall.foreignLoader;
     $('installTidalCompanion').hidden = companionInstall.installed;
     $('updateTidalCompanion').hidden = !needsUpdate;
@@ -800,6 +1045,7 @@ function installPlayerVolumeControls(soundcloud) {
     finally { await refreshCompanionInstall(); }
   }
   async function submitForPlayer(event) {
+    if (selected() === 'spotify') return spotify.submit(event);
     if (selected() === 'soundcloud') return soundcloud.submit(event);
     if (selected() === 'youtube') return originalSubmit(event);
     event?.preventDefault?.(); const query = $('videoInput').value.trim(); if (!query) { setRequestNotice('Enter an artist and song, TIDAL link, or track ID.', true); return; }
@@ -809,6 +1055,8 @@ function installPlayerVolumeControls(soundcloud) {
     finally { $('addSong').disabled = false; }
   }
   function choosePlayer() {
+    providerNotices.update(view);
+    applyPlayerBranding(selected());
     embedWarning.hidden = view !== 'player' || selected() !== 'youtube';
     delete $('queue').dataset.youtubeSignature;
     delete $('queue').dataset.signature;
@@ -838,10 +1086,10 @@ function installPlayerVolumeControls(soundcloud) {
     if (view === 'moderation' || view === 'setup' && !tidal) void refreshCatalog();
     if (tidal) void refreshTidal(); else if (selected() === 'youtube' && view === 'player') ensureYoutubePlayer();
     const staleControls = $('tidalNowControls'); if (staleControls) staleControls.hidden = !tidal;
-    void soundcloud.select(); void volumeControls.select();
+    void soundcloud.select(); void volumeControls.select(); spotify.select();
     void refreshState();
   }
-  $('songPlayerProvider').onchange = async () => { const picker = $('songPlayerProvider'); providerReady = true; choosePlayer(); picker.disabled = true; try { const result = await call('song.player.preferences.v1', 'select', { player: picker.value }); if (!result.ok) throw new Error('Could not save your player selection.'); savedPlayer = picker.value; } catch(error) { picker.value = savedPlayer; choosePlayer(); setNotice(error.message, true); } finally { picker.disabled = false; } };
+  $('songPlayerProvider').onchange = async () => { const picker = $('songPlayerProvider'); providerReady = false; player?.pauseVideo?.(); picker.disabled = true; try { const result = await call('song.player.preferences.v1', 'select', { player: picker.value }); if (!result.ok) throw new Error('Could not save your player selection.'); savedPlayer = picker.value; providerReady = true; choosePlayer(); } catch(error) { picker.value = savedPlayer; providerReady = true; choosePlayer(); setNotice(error.message, true); } finally { picker.disabled = false; } };
   $('requestForm').onsubmit = submitForPlayer; $('addSong').onclick = submitForPlayer;
   $('monitorTidal').onclick = async () => { $('monitorTidal').disabled = true; try { await call('song.tidal.experimental.v1', 'monitor', {}); setNotice('TIDAL Windows monitoring enabled.'); await refreshState(); } catch (error) { setNotice(error.message, true); } finally { $('monitorTidal').disabled = false; } };
   async function refreshDelivery() { companionCheckedAt = 0; await refreshTidal(); if (selected() === 'tidal') { await call('song.tidal.experimental.v1', 'flush', {}); await refreshTidal(); } }

@@ -19,7 +19,7 @@ module.exports = function uploadSession(install, limit = () => 5000) {
     const parsed = parseCsv(upload.text, { delimiter: upload.delimiter, mapping: input.mapping || {} });
     if (parsed.length > limit()) throw new Error('playlist_track_limit');
     if (!parsed.length) throw new Error('playlist_empty');
-    await install(parsed.map(row => ({ ...row, choices: [], selected: null, include: !row.error })), upload.name); upload = null;
+    await install(parsed.map(row => ({ ...row, choices: [], selected: null, include: !row.error })), upload.name, input.sourceKind === 'soundcloud' ? 'soundcloud' : 'csv'); upload = null;
     return null;
   };
 };

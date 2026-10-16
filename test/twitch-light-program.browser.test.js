@@ -17,8 +17,8 @@ test('Twitch fixture board moves exclusive members and previews request-local de
   const base = `http://127.0.0.1:${server.address().port}`;
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   await page.goto(base, { waitUntil: 'networkidle' });
-  await page.locator('#twitchLightProgram > summary').click();
-  await page.locator('#twitchRoutingMode').selectOption('assignments');
+  await page.locator('[data-light-tab=viewer]').click();
+  await page.locator('[data-choice-for="twitchRoutingMode"] [data-choice-value="assignments"]').click();
 
   for (const id of ['left', 'right']) {
     await page.locator(`.fixtureChip[data-fixture-id="${id}"]`).click();
@@ -29,11 +29,13 @@ test('Twitch fixture board moves exclusive members and previews request-local de
   await page.locator('#saveTwitchProgram').click();
   await page.locator('#twitchProgramNotice').filter({ hasText: 'Fixture assignments saved.' }).waitFor();
 
+  await page.locator('[data-light-tab=control]').click();
   await page.locator('#controlRoutingTestInput').fill('red');
   await page.locator('#runControlRoutingTest').click();
   await page.locator('#controlRoutingTestResult').filter({ hasText: '#ff0000 // 2 SENT // 0 FAILED' }).waitFor();
 
-  await page.locator('#twitchEffectProgram > summary').click();
+  await page.locator('[data-light-tab=viewer]').click();
+  assert.equal(await page.locator('#twitchEffectProgram').isVisible(), true);
   await page.locator('label:has(#twitchEffectsEnabled)').click();
   await page.locator('label:has(#twitchEffectsReturn)').click();
   await page.locator('label:has([data-effect-fixture-id="effect-only"])').click();
@@ -71,10 +73,12 @@ test('Twitch fixture board moves exclusive members and previews request-local de
   assert.ok(savedGroups.rules.some(row => row.name === 'Right only'), JSON.stringify(savedGroups));
   const targetOptions = await page.locator('#lightTarget option').allTextContents();
   assert.ok(targetOptions.includes('GROUP: Right only'), JSON.stringify(targetOptions));
+  await page.locator('[data-light-tab=control]').click();
   await page.locator('#lightTarget').selectOption({ label: 'GROUP: Right only' });
   await page.locator('#colorText').fill('blue');
   await page.locator('#applyColor').click();
   await page.locator('#colorResult').filter({ hasText: 'Dry run: #0000ff at 100% matched right.' }).waitFor();
+  await page.locator('[data-light-tab=viewer]').click();
   await page.locator('#twitchColorExample').fill('desk LIGHT BLEU');
   await page.locator('#previewTwitchColor').click();
   await page.locator('#twitchPreviewResult').filter({ hasText: '#5959ff // 100% // 1 targets' }).waitFor();
@@ -88,7 +92,7 @@ test('Twitch fixture board moves exclusive members and previews request-local de
       await page.screenshot({ path: path.join(output, `twitch-program-${width}.png`), fullPage: true });
     }
   }
-  await page.locator('#twitchRoutingMode').selectOption('off');
+  await page.locator('[data-choice-for="twitchRoutingMode"] [data-choice-value="off"]').click();
   await page.locator('#saveTwitchProgram').click();
   await page.locator('#twitchProgramNotice').filter({ hasText: 'Channel-point lighting is off.' }).waitFor();
   await page.locator('#previewTwitchColor').click();

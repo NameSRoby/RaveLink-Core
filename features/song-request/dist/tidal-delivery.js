@@ -1,10 +1,11 @@
 // One bounded delivery worker, independent of playback start/end observations.
-module.exports = function createTidalDelivery({ entries, provider, send, updated }) {
+module.exports = function createTidalDelivery({ entries, provider, send, updated, isSelected = async () => true }) {
   const held = new Map();
   let work = null, stopped = false, lastError = '';
   const errorCode = value => /^tidal_[a-z0-9_]+$/.test(String(value)) ? String(value).slice(0, 120) : 'tidal_delivery_failed';
   async function run() {
     try {
+      if (!await isSelected()) return;
       const installation = await provider('manage-companion', { action: 'status' });
       if (installation.installed && !/^0\.1\.(\d+)$/.test(installation.version)
         || installation.installed && Number(installation.version.split('.')[2]) < 5) {
@@ -12,6 +13,7 @@ module.exports = function createTidalDelivery({ entries, provider, send, updated
       }
       lastError = '';
       for (let count = 0; count < 200 && !stopped; count++) {
+        if (!await isSelected()) return;
         const status = await provider('status', null);
         if (!status.enabled || !status.connected || !status.ready) return;
         if (!status.capacity?.reported || status.capacity.available < 1) return;
@@ -27,6 +29,7 @@ module.exports = function createTidalDelivery({ entries, provider, send, updated
         try { result = await send(entry, true); }
         catch (error) { result = { ok: false, error: errorCode(error.code || error.message) }; }
         if (stopped) return;
+        if (result.error === 'player_inactive') { held.delete(entry.id);return; }
         if (result.error === 'tidal_native_queue_full') { held.delete(entry.id); return; }
         if (result.ok && result.removedFromRavelinkQueue) held.delete(entry.id);
         else held.set(entry.id, errorCode(result.error));

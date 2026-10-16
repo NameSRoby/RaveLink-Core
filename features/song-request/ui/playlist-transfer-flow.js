@@ -13,7 +13,7 @@ window.installTransferFlow = function ({ panel, sourceControls, account, activit
   const introduction=[...panel.children].find(node=>node.tagName==='P'); (introduction||panel.querySelector('h2')).after(stepper,route,$('transferNotice'),activity,...sections);
   const sourceSelect=$('transferSource'),targetSelect=$('transferTarget'); sourceSelect.hidden=targetSelect.hidden=true;
   sourceSelect.closest('label').hidden=targetSelect.closest('label').hidden=true; sourceSelect.selectedIndex=-1;
-  for(const [provider,detail]of [['library','Choose a saved playlist'],['tidal','Your TIDAL account or playlist link'],['csv','Load a CSV file']])
+  for(const [provider,detail]of [['library','Choose a saved playlist'],['tidal','Your TIDAL account or playlist link'],['spotify','Your Spotify companion playlists'],['url','YouTube, SoundCloud, TIDAL or Spotify link'],['csv','Load a CSV file']])
     sourceCards.append(providers.card(provider,detail,()=>{sourceSelect.value=provider;sourceSelect.onchange();}));
   for(const [provider,detail]of [['youtube','Save matched tracks in RaveLink'],['tidal','Create a playlist in your account'],['soundcloud','Save matched tracks in RaveLink'],['csv','Download the original track details'],['library','Save an original local copy']])
     targetCards.append(providers.card(provider,detail,()=>chooseTarget(provider)));
@@ -27,7 +27,7 @@ window.installTransferFlow = function ({ panel, sourceControls, account, activit
   const csvHelp=document.createElement('p');csvHelp.textContent='The CSV is downloaded by your browser; a copy is also kept under Saved CSV exports.';exportBox.append(csvHelp);
   $('saveLocal').closest('.band').id='transferSourceSave';
   const names = {youtube:'YouTube',tidal:'TIDAL',soundcloud:'SoundCloud'};
-  let step=1,job=null,lastId='',choice='',connected=false,loadingLink=false;
+  let step=1,job=null,lastId='',choice='',connected=false,loadingLink=false,lastState='';
   function chooseTarget(provider){choice=provider;if(names[provider]){targetSelect.value=provider;targetSelect.onchange();}show(2);}
   function show(number){step=number;paint();}
   function paint(){
@@ -36,7 +36,11 @@ window.installTransferFlow = function ({ panel, sourceControls, account, activit
     [...stepper.children].forEach((button,index)=>{const n=index+1;button.setAttribute('aria-current',step===n?'step':'false');button.disabled=loadingLink||n===1&&busy||n===2&&(!job||busy||complete)||n===3&&(!matched&&!complete||changed);});
     for(const button of sourceCards.children){button.setAttribute('aria-pressed',String(button.dataset.provider===sourceSelect.value));button.disabled=busy||loadingLink;}
     for(const button of targetCards.children){button.setAttribute('aria-pressed',String(button.dataset.provider===choice));button.disabled=busy||Boolean(job?.targetLocked);}
-    for(const name of ['csv','library','tidal'])$(name+'Source').hidden=sourceSelect.value!==name;
+    for(const name of ['csv','library','tidal','spotify','url'])$(name+'Source').hidden=sourceSelect.value!==name;
+    sections[0].style.setProperty('--step-color',providers.colors[sourceSelect.value]||'var(--edge)');sections[1].style.setProperty('--step-color',providers.colors[choice]||'var(--edge)');sections[2].style.setProperty('--step-color',providers.colors[job?.target]||'var(--edge)');
+    const loaded = { library: $('transferCollection').options.length, tidal: $('tidalPlaylist').options.length, spotify: $('spotifyPlaylist').options.length, csv: job?.sourceKind === 'csv' && !job.dismissed };
+    $('transferName').closest('label').hidden=!loaded[sourceSelect.value];
+    $('readTidal').hidden=!loaded.tidal;$('readSpotify').hidden=!loaded.spotify;$('useCollection').hidden=!loaded.library;
     const service=Boolean(names[choice]);destination.hidden=!service;$('transferSourceSave').hidden=choice!=='library';exportBox.hidden=choice!=='csv';
     if(service){targetSelect.value=choice;$('matchTidal').textContent='Find '+names[choice]+' matches';}
     $('matchTidal').disabled=!job||busy||Boolean(job.targetLocked)||choice==='tidal'&&!connected;
@@ -47,13 +51,14 @@ window.installTransferFlow = function ({ panel, sourceControls, account, activit
     $('transferReview').hidden=!job||changed||busy||complete||job.state==='paused';$('exportTransferReport').hidden=!job;
     const needsAccount=!connected&&((step===1&&sourceSelect.value==='tidal')||(step===2&&choice==='tidal'));
     account.hidden=!needsAccount;if(needsAccount){account.open=true;(step===1?sections[0]:sections[1]).append(account);}
-    route.hidden=!job;if(job){route.replaceChildren(providers.badge(job.sourceKind==='csv'?'csv':job.sourceProviders?.length===1?job.sourceProviders[0]:job.sourceKind==='tidal'?'tidal':'library'));const name=document.createElement('span');name.textContent=job.name+' · '+job.count+' tracks';route.append(name);if(choice){const arrow=document.createElement('span');arrow.textContent='→';route.append(arrow,providers.badge(choice));}}
+    route.hidden=!job||step===1&&['complete','canceled'].includes(job.state);if(job){route.replaceChildren(providers.badge(job.sourceKind==='csv'?'csv':job.sourceProviders?.length===1?job.sourceProviders[0]:job.sourceKind==='tidal'?'tidal':'library'));const name=document.createElement('span');name.textContent=job.name+' · '+job.count+' tracks';route.append(name);if(choice){const arrow=document.createElement('span');arrow.textContent='→';route.append(arrow,providers.badge(choice));}}
     $('transferStartNew').hidden=!job||busy||step===1;$('transferStartNew').textContent='Change source';
   }
   $('transferStartNew').onclick=()=>show(1);
   return { render(current){job=current;if(job?.id!==lastId){lastId=job?.id||'';choice=job?.kind==='matching'?job.target:'';step=job?job.kind==='matching'?3:job.state==='reading'?1:2:1;}
-      if(job?.state==='matching'||job?.state==='writing'||job?.state==='uncertain'||job?.state==='complete')step=3;
-      if(job?.state==='review'&&job.kind!=='matching'&&step===1&&job.sourceKind==='tidal')step=2;paint(); },
+      if(job?.state==='matching'||job?.state==='writing'||job?.state==='uncertain'||job?.state==='complete'&&job.state!==lastState&&!job.dismissed)step=3;
+      if(job?.dismissed)step=1;lastState=job?.state||'';
+      if(job?.state==='review'&&job.kind!=='matching'&&step===1&&['tidal','spotify','youtube','soundcloud'].includes(job.sourceKind))step=2;paint(); },
     source(){show(1);},account(value){connected=value;paint();},loading(value){loadingLink=value;paint();},getSource:()=>sourceSelect.value,show
   };
 };

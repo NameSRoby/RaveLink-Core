@@ -1,6 +1,6 @@
 {
   "name": "ravelink-core",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "RaveLink Core for modular local lighting, Twitch, and creator features on Windows",
   "license": "Apache-2.0",
   "homepage": "https://github.com/NameSRoby/RaveLink-Core#readme",
@@ -18,7 +18,7 @@
     "start:core": "node src/app/core/index.js",
     "start:mods": "node src/app/optional/combined-enabled-server.js",
     "tidal:companion": "node scripts/manage-tidal-desktop.js",
-    "test": "node --test \"test/**/*.test.js\""
+    "test": "node --test --test-concurrency=1 \"test/**/*.test.js\""
   },
   "dependencies": {
     "axios": "^1.15.0",

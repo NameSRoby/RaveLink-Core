@@ -8,6 +8,8 @@ window.installPlaylistBrowser = function installPlaylistBrowser(select, label) {
   select.hidden = true; select.style.setProperty('display', 'none', 'important'); select.after(root);
   let page = 0, lastSelection = '';
   function render() {
+    root.hidden = select.options.length === 0;
+    if (select.parentElement.tagName === 'LABEL') select.parentElement.hidden = root.hidden;
     const needle = input.value.trim().toLocaleLowerCase(), options = [...select.options].filter(row => row.textContent.toLocaleLowerCase().includes(needle));
     if (select.value !== lastSelection && !needle) page = Math.max(0, Math.floor(options.findIndex(row => row.value === select.value) / 6));
     lastSelection = select.value; page = Math.max(0, Math.min(page, Math.ceil(options.length / 6) - 1)); list.replaceChildren();

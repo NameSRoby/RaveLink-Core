@@ -1,5 +1,5 @@
-let designerPresetConfigs=new Map(),designerPresetLoad=null,demoLongTitle=false,selectedPreviewPiece='',inspectedPiece=null,inspectedSectionId='';
-function demoTrack(){return {status:'paused',provider:'youtube',positionMs:84000,durationMs:200000,candidate:{provider:'youtube',title:demoLongTitle?'Midnight City / a deliberately long song title to test the overlay':'Midnight City',artists:['The Midnight Sessions'],album:'Live on stream'}}}
+let designerPresetConfigs=new Map(),designerPresetLoad=null,demoLongTitle=false,selectedPreviewPiece='',inspectedPiece=null,inspectedSectionId='',demoProvider='youtube',demoStatus='paused',demoObservedAt=Date.now();
+function demoTrack(){return {status:demoStatus,provider:demoProvider,positionMs:84000,durationMs:200000,observedAt:demoObservedAt,candidate:{provider:demoProvider,title:demoLongTitle?'Midnight City / a deliberately long song title to test the overlay':'Midnight City',artists:['The Midnight Sessions'],album:'Live on stream'}}}
 function renderQuickControls(){
   const host=$('content-controls');if(!host)return;
   const enabled=new Set(config.segments.filter(s=>s.enabled).flatMap(s=>s.blocks.map(b=>b.kind)));
@@ -19,6 +19,27 @@ function renderQuickControls(){
   $('skin').value=config.skin||'classic';
   $('preset-help').textContent=presets.find(p=>p.id===config.preset)?.description||'Your custom design. Save it as a profile to use it again.';
   for(const card of $('preset-gallery').querySelectorAll('button'))card.setAttribute('aria-pressed',String(card.dataset.preset===config.preset));
+  syncBehaviorControls();
+}
+function syncBehaviorControls(){
+  for(const id of ['hidePaused','hideStopped','hideLoading','providerColors','remainingTime'])if($(id))$(id).checked=config[id]===true;
+  if($('pauseHideSeconds')){$('pauseHideSeconds').value=config.pauseHideSeconds||5;$('pauseHideSeconds').disabled=!config.hidePaused;}
+}
+function setupBehaviorControls(){
+  const panel=$('behavior-panel');
+  panel.innerHTML='<h2>Overlay behavior</h2><p>Optional behaviors for OBS. Save overlay to apply them. Your existing display stays unchanged until you enable an option.</p>';
+  for(const [id,title,help]of [['hidePaused','Hide when paused','Fade out after the delay below; return as soon as playback resumes.'],['hideStopped','Hide when stopped','Hide a stopped track instead of keeping its last details visible.'],['hideLoading','Hide while loading','Keep the overlay out of the way while a track buffers.'],['providerColors','Use provider colors','YouTube red, SoundCloud orange, TIDAL pale blue. Overrides the accent only.'],['remainingTime','Show time remaining','Show the time left instead of elapsed time.']]){
+    const label=node('label','behavior-option'),input=node('input');input.type='checkbox';input.id=id;input.onchange=()=>{config[id]=input.checked;changed(true);status('Behavior updated locally. Save overlay to apply.')};
+    const text=node('span');text.append(node('strong','',title),node('small','',help));label.append(input,text);panel.append(label);
+    if(id==='hidePaused'){const delay=node('label','behavior-delay','Pause delay (seconds)'),seconds=node('input');seconds.id='pauseHideSeconds';seconds.type='number';seconds.min=1;seconds.max=120;seconds.value=5;seconds.onchange=()=>{if(seconds.reportValidity()){config.pauseHideSeconds=Number(seconds.value);changed(true);status('Pause delay updated locally. Save overlay to apply.')}};delay.append(seconds);panel.append(delay);}
+  }
+  const test=node('section','behavior-test');test.innerHTML='<h3>Try it in the preview</h3><p>This does not control your music.</p>';
+  const colors=node('div','behavior-buttons');colors.setAttribute('aria-label','Preview provider');
+  for(const [provider,name]of [['youtube','YouTube'],['tidal','TIDAL'],['soundcloud','SoundCloud']]){const button=node('button','',name);button.type='button';button.dataset.previewProvider=provider;button.onclick=()=>{demoProvider=provider;for(const row of colors.children)row.setAttribute('aria-pressed',String(row===button));renderPreview()};button.setAttribute('aria-pressed',String(provider===demoProvider));colors.append(button);}
+  const actions=node('div','behavior-buttons');
+  for(const [state,name]of [['paused','Pause preview'],['playing','Resume preview'],['stopped','Stop preview']]){const button=node('button','',name);button.type='button';button.onclick=()=>{demoStatus=state;demoObservedAt=Date.now();SongOverlayRenderer.reset($('preview'));$('preview').dataset.testVisibility='true';renderPreview();status('Preview '+state+'. Live playback is unchanged.')};actions.append(button);}
+  test.append(colors,actions);panel.append(test);document.querySelector('.designer-sidebar').append(panel);syncBehaviorControls();
+  const timer=setInterval(()=>SongOverlayRenderer.update($('preview')),250);addEventListener('pagehide',()=>clearInterval(timer),{once:true});
 }
 function updatePieceInspector(){
   const selected=config.segments.flatMap(s=>s.blocks).find(b=>b.id===selectedPreviewPiece);
@@ -72,7 +93,9 @@ function setupDesignerControls(){
   document.querySelector('.designer-sidebar').prepend(document.querySelector('.appearance'));
   setupStyleInspector();
   setupContentInspector();
+  setupBehaviorControls();
   $('designer-tasks').addEventListener('task-change',event=>{
+    if(event.detail!=='Behavior'){$('preview').dataset.testVisibility='false';demoStatus='paused';}
     requestAnimationFrame(()=>{renderPreview();updatePresetThumbnails()});
   });
   $('skin').onchange=()=>{config.skin=$('skin').value;changed(true)};

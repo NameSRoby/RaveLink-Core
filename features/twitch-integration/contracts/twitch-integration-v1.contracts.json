@@ -1030,7 +1030,7 @@
                 "enum": [
                   "lights",
                   "teach",
-                  "song_request"
+                  "song_request", "add_to_playlist"
                 ]
               },
               "title": {

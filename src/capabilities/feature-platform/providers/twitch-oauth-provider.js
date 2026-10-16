@@ -7,7 +7,7 @@ const { DEFAULT_SCOPES, normalizeScopes, createTwitchApiClient } = require("./tw
 const createTwitchEventSubMonitor = require("./twitch-eventsub-monitor");
 
 function text(value, maximum = 2048) { return String(value ?? "").trim().slice(0, maximum); }
-const REWARD_PURPOSES = new Set(["lights", "teach", "song_request"]);
+const REWARD_PURPOSES = new Set(["lights", "teach", "song_request", "add_to_playlist"]);
 const DEFAULT_MONITOR_CONFIG = Object.freeze({ intakeMode: "native", songRequestChatEnabled: false });
 const TOKEN_VALIDATE_INTERVAL_MS = 60 * 60 * 1000;
 const ROLE_DIRECTORY_TTL_MS = 30 * 60 * 1000;

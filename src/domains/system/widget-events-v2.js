@@ -7,7 +7,7 @@ const MAX_DEPTH = 16;
 const MAX_NODES = 2048;
 const FORBIDDEN_KEYS = new Set(["__proto__", "prototype", "constructor"]);
 const V2_KEYS = new Set(["contract", "source", "eventEnvelope", "widgetConfig", "target"]);
-const V2_CONFIG_KEYS = new Set(["colorRewardId", "teachRewardId", "songRewardId"]);
+const V2_CONFIG_KEYS = new Set(["colorRewardId", "teachRewardId", "songRewardId", "playlistRewardId"]);
 const TARGET_RE = /^[a-z0-9][a-z0-9.-]{0,63}$/;
 const DISPOSITIONS = Object.freeze({
   HANDLED: "handled",

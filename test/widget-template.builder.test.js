@@ -42,7 +42,7 @@ test("normalization keeps only bounded event-forwarding configuration", () => {
   }), {
     colorRewardId: "color",
     teachRewardId: "",
-    songRewardId: "",
+    songRewardId: "", playlistRewardId: "",
     baseUrl: "http://127.0.0.1:5050",
     widgetIntakeToken: ""
   });

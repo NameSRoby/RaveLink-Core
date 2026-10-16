@@ -37,7 +37,7 @@ test("Player connects TIDAL automatically, signs in, chooses supported countries
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto(base + '/features-ui/song-request/player');
   const surface = page.locator('#surface').contentFrame();
-  await surface.locator('#songPlayerProvider').waitFor();
+  await surface.locator('[data-choice-for="songPlayerProvider"]').waitFor();
   await surface.locator('iframe#playerFrame').waitFor();
   assert.equal(await surface.locator('#youtubeEmbedWarning').isVisible(),true);
   assert.match(await surface.locator('#youtubeEmbedWarning').innerText(),/crash/);
@@ -46,7 +46,9 @@ test("Player connects TIDAL automatically, signs in, chooses supported countries
   assert.ok(videoBox.width <= 561 && videoBox.height <= 316, JSON.stringify(videoBox));
   assert.equal(await surface.locator('.playerAdvancedPolicy').isHidden(), true);
   await page.screenshot({ path: path.join(__dirname, '../runtime/player-youtube-compact.png'), fullPage: true });
-  await surface.locator('#songPlayerProvider').selectOption('tidal');
+  await surface.locator('[data-choice-for="songPlayerProvider"] [data-choice-value="tidal"]').click();
+  await surface.locator('[data-choice-for="songPlayerProvider"] [data-choice-value="tidal"]:not([disabled])').waitFor();
+  await surface.locator('[data-choice-for="songPlayerProvider"] [data-choice-value="tidal"]:not([disabled])').waitFor();
   assert.equal(await surface.locator('#youtubeEmbedWarning').isHidden(),true);
   assert.equal(await surface.locator('#tidalCatalogSetup').isHidden(), true);
   assert.equal(await surface.locator('#requesters').isHidden(), true);
@@ -92,7 +94,7 @@ test("Player connects TIDAL automatically, signs in, chooses supported countries
   assert.equal(replay.status, 303); assert.equal(new URL(replay.headers.get('location'), base).href, base + '/auth/tidal/result?result=tidal_oauth_session_expired');
   assert.equal(replay.headers.get('cache-control'), 'no-store'); assert.equal(replay.headers.get('referrer-policy'), 'no-referrer');
   await surface.locator('#tidalApiState').filter({ hasText: 'TIDAL account connected' }).waitFor({ timeout: 8000 });
-  await surface.locator('#tidalAccountOptions > summary').click();
+  assert.equal(await surface.locator('#tidalAccountOptions').isVisible(), true);
   assert.equal(await surface.locator('#tidalCountry').evaluate(node => node.tagName), 'SELECT');
   assert.equal(await surface.locator('#tidalCountry option[value="PT"]').innerText(), 'Portugal');
   assert.equal(await surface.locator('#tidalCountry option[value="ZZ"]').count(), 0);
@@ -116,7 +118,7 @@ test("Player connects TIDAL automatically, signs in, chooses supported countries
   await surface.locator('#updateTidalCompanion').click();
   await surface.locator('#tidalInstallStatus').filter({ hasText: 'Companion installed' }).waitFor();
   assert.equal(installer.inspect(tidalResources).version, '0.1.7');
-  await surface.locator('#tidalConnectionOptions > summary').click();
+  assert.equal(await surface.locator('#tidalConnectionOptions').isVisible(), true);
   await surface.locator('#uninstallTidalCompanion').click();
   await surface.locator('#notice').filter({ hasText: 'archive restored' }).waitFor();
   assert.deepEqual(fs.readFileSync(path.join(tidalResources, 'app.asar')), originalArchive);
@@ -162,7 +164,7 @@ test("Player connects TIDAL automatically, signs in, chooses supported countries
   assert.ok(!(await surface.locator('body').innerText()).includes('sJO65HgFy1MmZi7i'));
   await page.evaluate(() => document.querySelector('#surface').contentWindow.postMessage({ channel: 'ravelink-feature-ui-v1', type: 'presentation', developerMode: false }, location.origin));
   await surface.locator('#tidalDeveloperSettings').waitFor({ state: 'hidden' });
-  await surface.locator('#tidalAccountOptions > summary').click();
+  assert.equal(await surface.locator('#tidalAccountOptions').isVisible(), true);
   await surface.getByRole('tab', {name:'Playback',exact:true}).click();
 
   await page.waitForFunction(() => { const frame = document.querySelector('#surface'); return frame.clientHeight + 2 >= frame.contentDocument.body.scrollHeight; });
@@ -185,7 +187,7 @@ test("Player connects TIDAL automatically, signs in, chooses supported countries
   assert.equal(await surface.locator('#viewerLimit').isHidden(), true);
   assert.equal(await surface.locator('#volumeCeiling').isHidden(), true);
   assert.equal(await surface.locator('#responseToggles').isHidden(), true);
-  await surface.locator('#songSearchFilters > summary').click();
+  assert.equal(await surface.locator('#songSearchFilters').isVisible(), true);
   assert.equal(await surface.locator('#minimumViews').isHidden(), true);
   assert.equal(await surface.locator('#minimumConfidence').isVisible(), true);
   await surface.locator('#maxSongMinutes').fill('15'); await surface.locator('#savePolicy').click();
@@ -241,7 +243,8 @@ test("Player connects TIDAL automatically, signs in, chooses supported countries
   await surface.locator('#videoInput').fill('125'); await surface.locator('#addSong').click();
   await respond({ candidate: { provider: 'tidal', providerItemId: '125', title: 'Timed track', artists: ['Artist'], durationMs: 180000 } });
   await surface.locator('#requestNotice').filter({ hasText: 'temporarily blocked' }).waitFor();
-  await surface.locator('#songPlayerProvider').selectOption('youtube');
+  await surface.locator('[data-choice-for="songPlayerProvider"] [data-choice-value="youtube"]').click();
+  await surface.locator('[data-choice-for="songPlayerProvider"] [data-choice-value="youtube"]:not([disabled])').waitFor();
   assert.equal(await surface.locator('#playerFrame').isVisible(), true);
   assert.equal(await surface.locator('#tidalPlayer').isHidden(), true);
   await surface.getByRole('tab', { name: 'Setup', exact: true }).click();

@@ -10,7 +10,7 @@ test('tab placement saves locally, survives reload and supports moving tabs back
  const base='http://127.0.0.1:'+server.address().port,page=await browser.newPage(),errors=[];
  page.on('pageerror',e=>errors.push(e.message));await page.goto(base,{waitUntil:'networkidle'});
  await page.locator('#themeButton').click();await page.locator('#customizeTabs').click();
- await page.locator('[data-tab-id="widget"]').selectOption('hidden');await page.locator('[data-tab-id="fixtures"]').selectOption('more');await page.locator('[data-tab-id="updates"]').selectOption('main');
+ await page.locator('label:has(select[data-tab-id="widget"]) [data-choice-value="hidden"]').click();await page.locator('label:has(select[data-tab-id="fixtures"]) [data-choice-value="more"]').click();await page.locator('label:has(select[data-tab-id="updates"]) [data-choice-value="main"]').click();
  await page.locator('#saveNavigation').click();await page.locator('#navigationNotice').filter({hasText:'Tab layout saved.'}).waitFor();
  await page.locator('#closeNavigation').click();await page.locator('#closeTheme').click();
  assert.equal(await page.locator('[data-tab="widget"]').isVisible(),false);
@@ -22,7 +22,7 @@ test('tab placement saves locally, survives reload and supports moving tabs back
  const remote=await fetch(base+'/api/presentation/navigation',{method:'PUT',headers:{'content-type':'application/json',origin:'https://example.invalid'},body:JSON.stringify({tabs:{widget:'main'}})});assert.equal(remote.status,403);
  const invalid=await fetch(base+'/api/presentation/navigation',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({tabs:{widget:'delete'}})});assert.equal(invalid.status,400);
  await page.locator('#themeButton').click();await page.locator('#customizeTabs').click();await page.locator('#resetNavigation').click();
- await page.locator('[data-tab-id="widget"]').filter({has:page.locator('option:checked[value="main"]')}).waitFor();
+ await page.locator('label:has(select[data-tab-id="widget"]) [data-choice-value="main"][aria-checked=true]').waitFor();
  await page.locator('#closeNavigation').click();assert.equal(await page.locator('[data-tab="widget"]').isVisible(),true);
  await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
  assert.deepEqual(errors,[]);

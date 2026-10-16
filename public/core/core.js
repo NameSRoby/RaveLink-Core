@@ -567,9 +567,9 @@ function applyWidgetSecurity(status = {}) {
   updateWidgetReadiness();
 }
 function widgetGenerationProblem() {
-  if (!byId("colorRewardId").value.trim() && !byId("teachRewardId").value.trim() && !byId("songRewardId").value.trim()) return "ADD AT LEAST ONE REWARD ID";
+  if (!byId("colorRewardId").value.trim() && !byId("teachRewardId").value.trim() && !byId("songRewardId").value.trim() && !byId("playlistRewardId").value.trim()) return "ADD AT LEAST ONE REWARD ID";
   if (byId("colorRewardId").value.trim() && configuredLightFixtures().length === 0) return "PAIR OR ADD A USABLE FIXTURE FOR THE LIGHT REWARD";
-  if (byId("songRewardId").value.trim() && !songRequestAvailable) return "INSTALL AND ENABLE SONG REQUEST BEFORE ROUTING ITS REWARD";
+  if ((byId("songRewardId").value.trim() || byId("playlistRewardId").value.trim()) && !songRequestAvailable) return "INSTALL AND ENABLE SONG REQUEST BEFORE ROUTING ITS REWARD";
   if (!byId("intakeToken").value.trim()) return widgetSecurityStatus.overlapActive
     ? "TOKEN WAS ROTATED // ROTATE ONCE MORE TO REVEAL A TOKEN, THEN VERIFY, GENERATE, AND REPLACE THE STREAM ELEMENTS CODE"
     : "GENERATE OR ENTER AN INTAKE TOKEN";
@@ -583,11 +583,11 @@ function widgetGenerationProblem() {
 function updateWidgetReadiness() {
   const problem = widgetGenerationProblem();
   byId("generateWidget").disabled = Boolean(problem);
-  const rebuildProblem = !byId("colorRewardId").value.trim() && !byId("teachRewardId").value.trim() && !byId("songRewardId").value.trim()
+  const rebuildProblem = !byId("colorRewardId").value.trim() && !byId("teachRewardId").value.trim() && !byId("songRewardId").value.trim() && !byId("playlistRewardId").value.trim()
     ? "Add at least one reward ID before rebuilding the widget."
     : (byId("colorRewardId").value.trim() && configuredLightFixtures().length === 0
       ? "Pair or add a usable fixture before rebuilding the lights widget."
-      : (byId("songRewardId").value.trim() && !songRequestAvailable ? "Install and enable Song Request before rebuilding its widget route." : ""));
+      : ((byId("songRewardId").value.trim() || byId("playlistRewardId").value.trim()) && !songRequestAvailable ? "Install and enable Song Request before rebuilding its widget route." : ""));
   setUnavailable(byId("rebuildWidget"), !widgetSecurityStatus.managementAvailable || Boolean(rebuildProblem), !widgetSecurityStatus.managementAvailable ? "The intake token is managed by the server environment." : rebuildProblem);
   byId("widgetNotice").textContent = problem || "READY TO GENERATE";
   byId("widgetNotice").className = `notice${problem ? " bad" : ""}`;
@@ -595,7 +595,7 @@ function updateWidgetReadiness() {
   setUnavailable(byId("copyWidget"), !hasOutput, "Generate widget code before copying it.");
   setUnavailable(byId("testIntakeToken"), !byId("intakeToken").value.trim(), "Generate or enter an intake token before verifying it.");
 }
-for (const id of ["colorRewardId", "teachRewardId", "songRewardId", "baseUrl", "intakeToken"]) byId(id).oninput = updateWidgetReadiness;
+for (const id of ["colorRewardId", "teachRewardId", "songRewardId", "playlistRewardId", "baseUrl", "intakeToken"]) byId(id).oninput = updateWidgetReadiness;
 byId("rotateIntakeToken").onclick = async () => {
   if (byId("rotateIntakeToken").textContent === "ROTATE TOKEN" && !confirm("Rotate the widget token? Existing widgets keep working briefly during the overlap window.")) return;
   try {
@@ -624,7 +624,7 @@ byId("testIntakeToken").onclick = async () => {
         contract: "widget.events.v2",
         source: "streamelements",
         eventEnvelope: { detail: { listener: "message", event: { text: "ravelink-intake-health-check" } } },
-        widgetConfig: { colorRewardId: byId("colorRewardId").value.trim(), teachRewardId: byId("teachRewardId").value.trim(), songRewardId: byId("songRewardId").value.trim() }
+        widgetConfig: { colorRewardId: byId("colorRewardId").value.trim(), teachRewardId: byId("teachRewardId").value.trim(), playlistRewardId: byId("playlistRewardId").value.trim(), songRewardId: byId("songRewardId").value.trim() }
       })
     });
     byId("widgetNotice").textContent = result.disposition === "irrelevant" ? "INTAKE TOKEN VERIFIED // GENERATE AND REPLACE THE STREAM ELEMENTS WIDGET CODE" : "INTAKE TOKEN VERIFIED";
@@ -638,7 +638,7 @@ byId("generateWidget").onclick = async () => {
   const problem = widgetGenerationProblem();
   if (problem) return updateWidgetReadiness();
   try {
-    const result = await request("/system/widget-template-get", { method: "POST", body: JSON.stringify({ colorRewardId: byId("colorRewardId").value, teachRewardId: byId("teachRewardId").value, songRewardId: byId("songRewardId").value, baseUrl: byId("baseUrl").value, widgetIntakeToken: byId("intakeToken").value }) });
+    const result = await request("/system/widget-template-get", { method: "POST", body: JSON.stringify({ colorRewardId: byId("colorRewardId").value, teachRewardId: byId("teachRewardId").value, playlistRewardId: byId("playlistRewardId").value, songRewardId: byId("songRewardId").value, baseUrl: byId("baseUrl").value, widgetIntakeToken: byId("intakeToken").value }) });
     byId("widgetOutput").value = result.script || "";
     byId("intakeToken").value = "";
     byId("generateWidget").disabled = true;
@@ -651,7 +651,7 @@ byId("generateWidget").onclick = async () => {
 byId("rebuildWidget").onclick = async () => {
   if (!confirm("Create replacement widget code? This rotates the intake token. The currently deployed widget remains valid for ten minutes while you replace its JavaScript.")) return;
   try {
-    const result = await request("/system/widget-template-rebuild", { method: "POST", body: JSON.stringify({ colorRewardId: byId("colorRewardId").value, teachRewardId: byId("teachRewardId").value, songRewardId: byId("songRewardId").value, baseUrl: byId("baseUrl").value }) });
+    const result = await request("/system/widget-template-rebuild", { method: "POST", body: JSON.stringify({ colorRewardId: byId("colorRewardId").value, teachRewardId: byId("teachRewardId").value, playlistRewardId: byId("playlistRewardId").value, songRewardId: byId("songRewardId").value, baseUrl: byId("baseUrl").value }) });
     byId("widgetOutput").value = result.script || "";
     byId("intakeToken").value = "";
     applyWidgetSecurity(result.widgetSecurity);

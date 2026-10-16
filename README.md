@@ -4,22 +4,23 @@
 
 RaveLink Core is a local Windows app for streamer lighting, music requests and optional Twitch integration. It runs in the tray and opens at `http://127.0.0.1:5050`.
 
-## Install 0.7.0
+## Install 0.7.1
 
-1. Download **RaveLink-Core-Windows-v0.7.0-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
+1. Download **RaveLink-Core-Windows-v0.7.1-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
 2. Choose an installation folder and optional features. Setup downloads and verifies only your selected features from this repository.
 3. Choose **Main**, **More** or **Hidden** placement for tabs. Change this later from the settings gear → **Choose tabs**.
 4. Launch from the Start menu or desktop shortcut. Use the tray icon to reopen, restart or exit.
 
-Windows 10 or 11, 64-bit, is required. Node.js and npm are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
+Windows 10 or 11, 64-bit, is required. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-For portable use, extract **RaveLink-Core-Windows-v0.7.0-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
+For portable use, extract **RaveLink-Core-Windows-v0.7.1-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
 
 ## Lighting
 
 - **Fixtures:** discover and pair Philips Hue and WiZ lights. Compatible Govee LAN models are supported as **Alpha** and must offer LAN Control in their app.
 - **Lights:** direct colors, brightness, tunable white, reusable profiles, natural-language color commands and independently routed synchronized effects.
 - **Light Commands:** copy viewer instructions generated from current routes.
+- **Viewer Controls:** configure Channel Points routing, teaching feedback and dynamic commands together.
 - **Room Layout (Alpha)** and **Light Lab:** enter physical positions, inspect capabilities and tune effects. Wi-Fi cannot determine room positions automatically.
 - **Widget:** generate an optional StreamElements widget for OAuth-free event intake.
 
@@ -29,13 +30,18 @@ Install, update, roll back or remove features in **Packages**. Hiding a tab chan
 
 **Twitch Integration** provides OAuth, EventSub, chat, managed Channel Points rewards, completion/refunds and optional chat responses. It works independently of Song Request.
 
-**Song Request** provides song-name parsing, FIFO requests, server playlists, quick song/requester bans and timeouts, artwork, playback details and customizable OBS overlays. Library Play, Shuffle and Pick Random start the correct player with one click. Player selection persists.
+**Song Request** provides song-name parsing, FIFO requests, local playlists, quick song/requester bans and timeouts, artwork, playback details and customizable OBS overlays. Library Play, Shuffle and Pick Random start the correct player with one click. Player selection persists.
+
+Frequent choices such as player, transfer grouping and overlay layout appear as visible option buttons. Saved lighting and overlay profiles use searchable lists; countries, timeout durations and detailed match candidates keep compact dropdowns.
 
 - **TIDAL:** sign in with your own account for catalog lookup and reviewed account-playlist transfers. The bundled desktop companion delivers requests in FIFO order, preserving your playlist. Ten upcoming requests enter native TIDAL at a time; additional requests wait locally. Close TIDAL before updating the companion. Account tokens remain encrypted locally; no developer client secret is bundled.
-- **SoundCloud (Alpha):** public song-name search, links and playlist import require no developer credentials. Playback uses the visible official widget. Public search can break with site changes; availability, ads and preview limits remain controlled by SoundCloud. Direct account-library writes are unavailable.
+- **SoundCloud:** public song-name search, links and playlist import require no developer credentials. Playback uses the visible official widget. Public search can break with site changes; availability, ads and preview limits remain controlled by SoundCloud. Direct SoundCloud account-library writes are unavailable.
 - **YouTube:** lookup and official embeds. Uploader, age, region, account and content restrictions can prevent playback. Repeated failures and rapid skips can overload playback and may stop or crash the server. A prominent warning appears on the YouTube Player page. Stop playback if songs keep skipping. Media is not downloaded or restreamed to bypass restrictions.
+- **Spotify:** Free accounts use the local desktop companion for requests and queue control. Optional Premium OAuth adds official search and playback controls; both connections cooperate on the same device. Prepare the companion, fully quit Spotify, then choose **Open Spotify with RaveLink**. Ten upcoming requests enter Spotify; extras wait in RaveLink. Unconfirmed deliveries are held for review. Spotify client updates may require preparing the companion again.
 
-**Now Playing Sources** follows local YouTube/SoundCloud playback or Spotify, Apple Music and TIDAL Windows media sessions. Spotify and Apple Music remain observation-only.
+**Now Playing Sources** follows local YouTube/SoundCloud playback or Spotify, Apple Music and TIDAL Windows media sessions. Apple Music remains observation-only; Spotify also has a desktop companion for requests.
+
+**Overlay Designer → Behavior** offers optional pause hiding (five seconds by default), stopped/loading hiding, provider-colored accents and remaining-time display. Test pause/resume in the preview, then save to apply. Classic, Album Card and Minimal remain available alongside compact Split Panels and other small presets.
 
 **Clip Studio (Alpha)** is package infrastructure; video analysis, suggestions and export are not active. **Community mods** are optional supervised third-party code; enable them only if you intend to review and run community packages.
 
@@ -43,9 +49,9 @@ Install, update, roll back or remove features in **Packages**. Hiding a tab chan
 
 ## Playlists and transfers
 
-**Song Request → Server Playlist → Transfer this playlist** opens Source → Destination or CSV → Check matches. Provider logos, confidence percentages, threshold shortcuts and weakest-first review simplify matching.
+**Song Request → Playlists & Transfers → Transfer this playlist** opens Source → Destination or CSV → Check matches. Provider logos, confidence percentages, threshold shortcuts and weakest-first review simplify matching.
 
-Transfer between YouTube, SoundCloud and TIDAL catalogs or import/export CSV. YouTube and SoundCloud destinations save matched IDs locally. TIDAL can create reviewed, verified unlisted account playlists. Liked-song transfers and direct YouTube/SoundCloud account writes remain planned; permissions alone do not enable them.
+Load Spotify account playlists and YouTube, SoundCloud, TIDAL or Spotify playlist links. Match into YouTube, SoundCloud or TIDAL, or import/export CSV. YouTube and SoundCloud destinations save matched IDs locally. TIDAL can create reviewed, verified unlisted account playlists. Liked-song transfers and direct YouTube/SoundCloud account writes remain planned; permissions alone do not enable them.
 
 Capacity defaults to 5,000 tracks and can increase to 10,000. Original order and deliberate repeats are retained. Destinations can be organized into one playlist, fixed-size parts, artist, album or genre where metadata exists. CSV downloads keep a local copy under **Saved CSV exports**, with an **Open exports folder** shortcut.
 
@@ -53,13 +59,27 @@ Capacity defaults to 5,000 tracks and can increase to 10,000. Original order and
 
 Optional GitHub checks detect stable releases. Updates verify checksums, preserve local data and retain a rollback snapshot. Failed startup health checks can restore the previous version; Updates also offers manual rollback.
 
-Core binds to loopback by default. Credentials, grants, playlists, exports, tab choices and logs are created locally and excluded from publication. Supported secrets are protected for the current Windows user. Network connections occur for services you use, including GitHub downloads and update checks, Twitch, TIDAL, YouTube and SoundCloud.
+Core binds to loopback by default. Credentials, grants, playlists, exports, tab choices and logs are created locally and excluded from publication. Supported secrets are protected for the current Windows user. Network connections occur for services you use, including GitHub downloads and update checks, Twitch, Spotify, TIDAL, YouTube and SoundCloud.
 
 Uninstall through Windows **Installed apps** or the Start menu; the uninstaller stops the tray host first.
 
 ## Source and tests
 
 Published source includes runtime code, first-party feature sources, licenses and relevant regression tests. Private state, logs, experiments and working archives are excluded. For source use, install a supported Node.js release, run `npm ci`, then `npm start`. Run `npm test`; browser tests also require `npx playwright install chromium`.
+
+## Report a bug
+
+Use the [GitHub bug report form](https://github.com/NameSRoby/RaveLink-Core/issues/new?template=bug_report.yml). Include your RaveLink version, affected feature, steps to reproduce, expected behavior and the actual error. Spotify and SoundCloud show a collapsed **Known issues & report a bug** panel on their Playback pages. Do not upload your runtime folder, tokens, credentials, pairing files or private account information; redact any screenshots or logs first.
+
+## Community playlist reward
+
+In **Twitch Integration**, choose the **Add to playlist** reward type and create the reward with song text input enabled. Each accepted redemption uses the selected player, enters its normal moderated request queue, and is saved once to a **Community - [provider]** playlist under **Playlists & Transfers > Library**. Repeat contributions do not duplicate the saved song.
+
+Spotify and TIDAL also sync the saved list to the connected music account. TIDAL needs playlist read/write access. For Spotify, prepare the updated companion, fully quit Spotify, and open it with RaveLink again; native playlist writes have automated coverage, with limited live validation. No Spotify Premium account or new OAuth app is required for the companion route. The Library shows pending, synced and uncertain-write states, with account links and explicit retry controls. Local copies remain available while the provider is offline.
+
+For StreamElements widget mode, create the reward in Twitch and paste its ID into **Widget > Add to playlist reward ID**, then regenerate the widget. Widget mode forwards requests only; reward fulfillment/refunds remain manual. YouTube and SoundCloud keep their community playlists in RaveLink.
+
+Spotify Premium setup requires a developer app whose owner has Premium and whose development allowlist includes the user. It uses OAuth PKCE without a client secret. Official-only queue entries cannot be removed individually; the desktop companion supplies that control for its own entries. Live Premium and native community-playlist validation remains limited.
 
 ## License
 

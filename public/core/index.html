@@ -92,6 +92,7 @@
       <section class="panel active" data-panel="lights">
         <div class="actions lightSubtabs" role="tablist" aria-label="Lights workspaces">
           <button class="active" data-light-tab="control" type="button">DIRECT CONTROL</button>
+          <button data-light-tab="viewer" type="button">VIEWER CONTROLS</button>
           <button data-light-tab="profiles" type="button">LIGHT PROFILES</button>
           <button data-light-tab="commands" type="button">LIGHT COMMANDS</button>
           <button data-light-tab="layout" type="button">ROOM LAYOUT <span class="alphaBadge">ALPHA</span></button>
@@ -183,8 +184,10 @@
           <div class="actions"><button id="stopControlRoutingTest" type="button">STOP DEFAULT ROUTE EFFECTS</button></div>
           <pre id="controlRoutingTestResult" class="result" hidden></pre>
         </div>
-        <details class="cluster" id="twitchLightProgram">
-          <summary>TWITCH CHANNEL-POINT PROGRAM</summary>
+        </div>
+        <div data-light-panel="viewer" hidden>
+        <section class="cluster" id="twitchLightProgram">
+          <h3>TWITCH CHANNEL-POINT PROGRAM</h3>
           <fieldset id="twitchProgramControls">
             <div class="controlGrid">
               <label
@@ -222,17 +225,17 @@
               <button id="moveSelectedFixture" type="button">MOVE</button>
             </div>
             <div id="twitchFixtureBoard" class="fixtureBoard"></div>
-            <details class="effectProgram" id="twitchTeachProgram">
-              <summary>TEACH COLOR FEEDBACK</summary>
+            <section class="effectProgram" id="twitchTeachProgram">
+              <h3>TEACH COLOR FEEDBACK</h3>
               <p>New names become available immediately. Existing names and existing color values cannot be overwritten, and native Channel Points redemptions are refunded when teaching fails.</p>
               <div class="controlGrid">
                 <label class="switchLabel" title="Briefly show a successfully taught color on the saved default route, then restore unchanged fixtures."><input id="teachColorPreview" type="checkbox" checked /><span class="toggleSwitch" aria-hidden="true"></span><span>PREVIEW NEW COLOR ON LIGHTS</span></label>
                 <label class="switchLabel" title="Post a short Twitch chat confirmation after a color is successfully taught."><input id="teachColorChatSuccess" type="checkbox" /><span class="toggleSwitch" aria-hidden="true"></span><span>CHAT MESSAGE WHEN SUCCESSFUL</span></label>
                 <label class="switchLabel" title="Explain duplicate names, duplicate values, and invalid input in Twitch chat when teaching fails."><input id="teachColorChatFailure" type="checkbox" /><span class="toggleSwitch" aria-hidden="true"></span><span>CHAT MESSAGE WHEN REJECTED</span></label>
               </div>
-            </details>
-            <details class="effectProgram" id="twitchEffectProgram">
-              <summary>DYNAMIC COLOR COMMANDS</summary>
+            </section>
+            <section class="effectProgram" id="twitchEffectProgram">
+              <h3>DYNAMIC COLOR COMMANDS</h3>
               <p>Let viewers run distinct synchronized and spatial effects with <strong>cycle</strong>, <strong>fade</strong>, <strong>breathe</strong>, <strong>rainbow</strong>, <strong>wave</strong>, <strong>sweep</strong>, <strong>ripple</strong>, or <strong>chase</strong>. Spatial commands use saved room positions. A new static color ends that effect session: selected fixtures take the new color and its other fixtures return to their previous lighting.</p>
               <label class="switchLabel" title="Allow dynamic commands on the fixtures selected below."><input id="twitchEffectsEnabled" type="checkbox" /><span class="toggleSwitch" aria-hidden="true"></span><span>ALLOW DYNAMIC COMMANDS</span></label>
               <label class="switchLabel" title="When an effect ends, run a short spatial settle pulse and restore the last state RaveLink sent before the effect."><input id="twitchEffectsReturn" type="checkbox" /><span class="toggleSwitch" aria-hidden="true"></span><span>ANIMATED RETURN TO PREVIOUS LIGHTING</span></label>
@@ -248,7 +251,7 @@
               <div class="effectExamples"><strong>EXAMPLES</strong><code>cycle red, green, blue</code><code>all fade purple, cyan slow</code><code>breathe deep blue</code><code>rainbow</code><code>wave red, green, blue</code><code>sweep cyan, purple</code><code>ripple white, blue</code><code>chase red, green, blue</code><code>stop</code></div>
               <div class="actions"><button id="saveTwitchEffects" type="button">SAVE DYNAMIC COMMANDS</button></div>
               <div id="twitchEffectsNotice" class="notice" role="status"></div>
-            </details>
+            </section>
             <div class="commandRow">
               <label
                 >REQUEST PREVIEW<input
@@ -265,7 +268,7 @@
             </div>
           </fieldset>
           <div id="twitchProgramNotice" class="notice" role="status"></div>
-        </details>
+        </section>
         </div>
         <div data-light-panel="profiles" hidden>
         <div class="panelTitle">
@@ -521,7 +524,7 @@
           <div class="formGrid">
             <label>CHANGE LIGHTS REWARD ID<input id="colorRewardId" /></label
             ><label>TEACH COLOR REWARD ID<input id="teachRewardId" /></label
-            ><label>SONG REQUEST REWARD ID<input id="songRewardId" /></label>
+            ><label>SONG REQUEST REWARD ID<input id="songRewardId" /></label><label>ADD TO PLAYLIST REWARD ID<input id="playlistRewardId" /><small>Queue the song and save it to the community playlist. Widget refunds and fulfillment are manual.</small></label>
           </div>
           <div id="settlementNotice" class="notice" role="status">CONVEYOR MODE // SUPPLY REWARD IDS FROM YOUR TWITCH DASHBOARD; THE WIDGET HAS NO TWITCH AUTHORIZATION OR HELIX ACCESS</div>
         </div>
@@ -731,5 +734,6 @@
     <script src="/lighting-commands.js"></script>
     <script src="/workspace-navigation.js"></script>
     <script src="/navigation-settings.js"></script>
+    <script src="/visible-choices.js"></script>
   </body>
 </html>

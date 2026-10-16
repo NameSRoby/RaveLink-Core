@@ -31,6 +31,13 @@ for (const directory of [tidalRoot, path.join(tidalRoot, 'dist')]) {
   if (fs.existsSync(license) && !fs.readFileSync(license, 'utf8').startsWith('Microsoft Public License (Ms-PL)')) errors.push('TIDAL companion license is invalid');
 }
 if (!notices.includes('**Inrixia/TidaLuna**')) errors.push('TIDAL companion attribution missing');
+const spotifyRoot = path.join(root, 'integrations/spotify-desktop');
+if (fs.existsSync(spotifyRoot)) {
+  for (const file of ['vendor/spicetify/LICENSE', 'vendor/spicetify/NOTICE.md', 'vendor/spicetify/platform-hook.cjs', 'dist/LICENSE.Spicetify', 'dist/NOTICE.md']) if (!fs.existsSync(path.join(spotifyRoot, file))) errors.push(`Spotify companion missing ${file}`);
+  const license = path.join(spotifyRoot, 'vendor/spicetify/LICENSE');
+  if (fs.existsSync(license) && !fs.readFileSync(license, 'utf8').includes('GNU LESSER GENERAL PUBLIC LICENSE')) errors.push('Spotify companion license is invalid');
+  if (!notices.includes('**Spicetify contributors**')) errors.push('Spotify companion attribution missing');
+}
 if (errors.length) {
   for (const error of errors) console.error(`[THIRD-PARTY] ${error}`);
   process.exit(1);

@@ -1,0 +1,22 @@
+body[data-player-provider=youtube]{--player-accent:#ff6978;--player-fill:#b9152b;--player-ink:#fff}
+body[data-player-provider=tidal]{--player-accent:#dce8ed;--player-fill:#dce8ed;--player-ink:#10191c}
+body[data-player-provider=spotify]{--player-accent:#1ed760;--player-fill:#1ed760;--player-ink:#071b0d}
+body[data-player-provider=soundcloud]{--player-accent:#ff9655;--player-fill:#ff9655;--player-ink:#241006}
+body[data-player-provider]{--accent:var(--player-accent)}
+.playerProviderPicker [data-choice-for=songPlayerProvider] button{display:inline-flex;align-items:center;gap:8px;min-height:36px!important;padding:8px 12px!important}
+.playerProviderPicker [data-choice-for=songPlayerProvider] button::before{content:'';display:inline-block;flex:none;width:18px;height:18px;background:var(--brand-color);mask-size:contain;mask-repeat:no-repeat;mask-position:center}
+.playerProviderPicker [data-choice-for=songPlayerProvider] button[aria-checked=true]{border-color:var(--brand-color);background:color-mix(in srgb,var(--brand-color) 12%,var(--surface));box-shadow:inset 0 -2px var(--brand-color)}
+.playerProviderPicker [data-choice-for=songPlayerProvider] button:hover:not(:disabled){border-color:var(--brand-color)}
+body[data-player-provider] .playerViewTabs [aria-selected=true]{border-color:var(--player-accent);background:color-mix(in srgb,var(--player-accent) 9%,var(--surface));box-shadow:inset 0 -2px var(--player-accent)}
+body[data-player-provider] button.primary,body[data-player-provider] #addSong{background:var(--player-fill);border-color:var(--player-fill);color:var(--player-ink)}
+body[data-player-provider] :is(button,input,select):focus-visible{outline:2px solid var(--player-accent);outline-offset:3px}
+.playerProviderMark{display:inline-block;width:22px;height:22px;vertical-align:middle;margin-right:9px;flex:none;color:var(--player-accent)}
+body[data-player-provider] :is(#tidalPlayback,#spotifyPlayback,#soundcloudPlayer){border-left:3px solid var(--player-accent);background:linear-gradient(110deg,color-mix(in srgb,var(--player-accent) 5%,var(--panel)),var(--panel) 65%);border-radius:10px}
+body[data-player-provider] #soundcloudPlayer{padding:16px}
+body[data-player-provider] #spotifyPlayback{padding:16px;border-top:1px solid var(--edge);border-right:1px solid var(--edge);border-bottom:1px solid var(--edge)}
+body[data-player-provider] :is(#spotifySetup,#tidalPlayer,#soundcloudSetup){border-top:2px solid var(--player-accent)}
+body[data-player-provider=spotify] :is(#spotifyPlayback,#spotifySetup) .primary{border-radius:20px}
+body[data-player-provider=soundcloud] #soundcloudFrame{border-radius:6px;overflow:hidden}
+body[data-player-provider] input[type=range]{accent-color:var(--player-accent)}
+body[data-player-provider] .nowProgressFill{background:var(--player-accent)}
+@media(max-width:620px){.playerProviderPicker [data-choice-for=songPlayerProvider] button{gap:6px;padding:7px 9px!important}.playerProviderPicker [data-choice-for=songPlayerProvider] button::before{width:16px;height:16px}body[data-player-provider] #spotifyPlayback{flex-direction:column;align-items:flex-start}#spotifyPlayback>.actions{margin-top:0}}

@@ -24,7 +24,7 @@ test('Library starts SoundCloud cold/warm and standalone YouTube without a secon
  const directLibrary=page.locator('[data-feature-page="song-request"][data-page-id="server-playlist"]');
  await directLibrary.waitFor({state:'attached'});await directLibrary.evaluate(button=>button.click());
  assert.equal(await page.locator('iframe[title="Song Request: Player"]').count(),0,'Library can open before the Player has ever loaded');
- const library=page.locator('iframe[title="Song Request: Server Playlist"]').contentFrame().locator('#surface').contentFrame();
+ const library=page.locator('iframe[title="Song Request: Playlists & Transfers"]').contentFrame().locator('#surface').contentFrame();
  await library.locator('#play:not([disabled])').waitFor();await library.locator('#play').click();
  const player=page.locator('iframe[title="Song Request: Player"]').contentFrame().locator('#surface').contentFrame();
  await player.locator('#soundcloudState').filter({hasText:'Playing Fixture song'}).waitFor({timeout:12000});

@@ -13,7 +13,7 @@ const OPTIONAL = Object.freeze({
 
 let context;
 let queue;
-let experimentalTidal;
+let experimentalTidal, spotify, playerRouting, community;
 let playlists,profileStorage,flushing,playerPreferences,soundcloud;
 let persistTimer;
 let dirty = false;
@@ -129,8 +129,8 @@ async function activate(nextContext) {
   persistedPlaylistPageCount = 0;
   for (const status of Object.values(optionalStatus)) Object.assign(status, { attempted: 0, succeeded: 0, failed: 0, lastError: "" });
   profileStorage=createOverlayProfileStorage(context);
-  queue = createSongQueue({ requestProviders: ["youtube", "tidal", "soundcloud"], playlistProviders: ["youtube"] });
-  experimentalTidal = require('./experimental-tidal')({ queue, context, changed: result => {
+  queue = createSongQueue({ requestProviders: ["youtube", "tidal", "soundcloud", "spotify"], playlistProviders: ["youtube"] });
+  experimentalTidal = require('./experimental-tidal')({ queue, context, isSelected: async () => (await playerPreferences('status', null)).player === 'tidal', changed: result => {
     if (result.code === 'tidal_native_queue_changed') {
       const state = queue.status();
       try { context.publishEvent('song.queue.events.v1', 'changed', { reason: result.code, counts: state.counts, paused: state.paused }); } catch {}
@@ -138,6 +138,7 @@ async function activate(nextContext) {
     }
     schedulePersistence(); publishChange(result, { method: 'experimental' }); publishPlayback(result);
   } });
+  spotify = require('./spotify-player')({ queue, context, isSelected: async () => (await playerPreferences('status', null)).player === 'spotify', changed: result => { schedulePersistence();publishChange(result, { method: 'spotify' });publishPlayback(result); } });
   playlists = createPlaylistService({ context, queue, schedulePersistence, publishChange });
   try {
     const stored = await context.callCapability("ravelink.storage.v1", "get", { key: "queue-state-v1" }, { timeoutMs: 1000 });
@@ -164,7 +165,9 @@ async function activate(nextContext) {
     }
   } catch {}
   await playlists.activate();
-  soundcloud = require("./soundcloud-player")({ queue, playlists, context, changed: result => { schedulePersistence(); publishChange(result, { method: "soundcloud" }); publishPlayback(result); } });
+  community = playlists.createCommunity({ changed: () => publishChange({ ok: true, code: 'community_updated' }, { method: 'community' }), player: async () => (await playerPreferences('status', null)).player, submit: payload => handleRequest({ capability: 'song.queue.submit.v1', method: 'submit', payload: { ...payload, addToPlaylist: false } }) });community.start();
+  soundcloud = require("./soundcloud-player")({ queue, playlists, context, isSelected: async () => (await playerPreferences("status", null)).player === "soundcloud", changed: result => { schedulePersistence(); publishChange(result, { method: "soundcloud" }); publishPlayback(result); } });
+  playerRouting = require('./player-routing')({ preferences: playerPreferences, queue, tidal: experimentalTidal, changed: () => { schedulePersistence();publishPlayback({ ok: true }); } });
   const source = queue.playbackStatus().playbackSource;
   if (!["youtube", "soundcloud"].includes(source)) {
     try {
@@ -175,6 +178,10 @@ async function activate(nextContext) {
 }
 
 async function handleRequest(request) {
+  const routing = await community.route(request) || await playerRouting(request);if (routing) return routing.value;
+  const intakePlayer = request.capability === 'song.queue.submit.v1' && request.method === 'submit' ? request.activePlayer : null;
+  const spotifyRequest = await spotify.route(request, playerPreferences);
+  if (spotifyRequest) return spotifyRequest.value;
   if (request.capability === "song.soundcloud.player.v1") return soundcloud(request.method, request.payload || {});
   if (request.capability === 'song.player.preferences.v1') return playerPreferences(request.method, request.payload);
   if (request.capability === 'song.playlist.transfer.v1') return playlists.transfer(request.payload || {});
@@ -209,7 +216,7 @@ async function handleRequest(request) {
   if (request.capability === "song.queue.read.v1") {
     return { ...queue.status(request.payload || {}), integrations: Object.fromEntries(Object.entries(optionalStatus).map(([name, value]) => [name, { ...value }])) };
   }
-  if (request.capability === "song.playlist.read.v1") return playlists.read(request.payload, request);
+  if (request.capability === "song.playlist.read.v1") return { ...await playlists.read(request.payload, request), community: community.status() };
   if (request.capability === "song.playlist.admin.v1") return playlists.mutate(request.payload || {}, request);
   if (request.capability === "song.catalog.read.v1") {
     try {
@@ -266,7 +273,7 @@ async function handleRequest(request) {
     }
   }
   let effectiveRequest = request;
-  const soundcloudInput = request.capability === "song.queue.submit.v1" && request.method === "submit" && (await playerPreferences("status", null)).player === "soundcloud";
+  const soundcloudInput = request.capability === "song.queue.submit.v1" && request.method === "submit" && intakePlayer === "soundcloud";
   if (soundcloudInput) { const found = await soundcloud.resolveQuery(request.payload?.query); effectiveRequest = { ...request, payload: { ...request.payload, candidate: found.ok ? found.candidate : undefined, catalogFailure: found.ok ? undefined : found.reason || "soundcloud_search_unavailable" } }; }
   if (!soundcloudInput && request.capability === 'song.queue.submit.v1' && request.method === 'submit' && request.payload?.candidate && request.payload.candidate.provider !== 'youtube') {
     return { ok: false, code: 'rejected', reason: 'youtube_reference_required' };
@@ -302,7 +309,7 @@ async function handleRequest(request) {
   const handler = request.capability === "song.overlay.admin.v1"
     ? request.method === 'profile' ? queue.overlayProfile : queue.configureOverlay
     : request.method === "self" ? queue.selfManage : queue[request.method];
-  const result = handler(effectiveRequest.payload);
+  const result = intakePlayer && (await playerPreferences('status', null)).player !== intakePlayer ? { ok: false, code: 'rejected', reason: 'player_inactive' } : handler(effectiveRequest.payload);
   if (request.capability === "song.queue.admin.v1" && request.method === "moderate" && result.ok && ["pause", "resume"].includes(request.payload?.action)) {
     optionalCall("rewardPause", { purpose: "song_request", paused: result.paused === true });
   }
@@ -331,6 +338,8 @@ async function handleRequest(request) {
 
 async function deactivate() {
   shuttingDown = true;
+  await community?.stop();
+  spotify?.stop();
   experimentalTidal?.stop();
   playlists?.stop();
   if (persistTimer) clearTimeout(persistTimer);

@@ -5,6 +5,7 @@ module.exports = function transfers({ context, library, saveLibrary }) {
   const plan = require('./playlist-transfer-plan');
   const match = require('./playlist-transfer-catalog')(context);
   const store = require('./playlist-transfer-store')(context);
+  const sources = require('./playlist-transfer-sources')(context);
   const limit = () => library.status().limits.tracksPerCollection;
   const provider = payload => context.callCapability('tidal.playlists.host.v1', 'action', payload, { timeoutMs: 15000 });
   let job = null, rows = [], work = null, timer = null, stopped = false, busy = false, recovering = false;
@@ -20,14 +21,13 @@ module.exports = function transfers({ context, library, saveLibrary }) {
     try { await store.save(job, rows); } catch (error) { const failed = job; job = previousJob; rows = previousRows; await store.remove(failed).catch(() => {}); throw error; }
     await store.remove(previousJob);
   }
-  function schedule() { if (!stopped && !timer && ['reading', 'matching', 'writing'].includes(job?.state)) { timer = setTimeout(() => { timer = null; work = tick().finally(async () => { if (job.control && !['uncertain', 'complete'].includes(job.state)) { job.resumeState = job.state; job.state = job.control === 'pause' ? 'paused' : 'canceled'; delete job.control; await save().catch(() => {}); } work = null; schedule(); }); }, 1000); timer.unref?.(); } }
+  function schedule() { if (!stopped && !timer && ['reading', 'matching', 'writing'].includes(job?.state)) { timer = setTimeout(() => { timer = null; work = tick().finally(async () => { if (job.control && !['uncertain', 'complete'].includes(job.state)) { await sources.cancel(job, job.control);job.resumeState = job.state; job.state = job.control === 'pause' ? 'paused' : 'canceled'; delete job.control; await save().catch(() => {}); } work = null; schedule(); }); }, 1000); timer.unref?.(); } }
   async function tick() {
     try {
       if (job.retryAt > Date.now()) return;
       if (job.state === 'writing') return await writer.step();
       if (job.state === 'reading') {
-        const reply = await provider({ action: 'read', id: job.sourceId, cursor: job.cursor });
-        if (!reply.ok) throw new Error(reply.error);
+        const reply = await sources.read(job);if (!reply) return;
         if (rows.length + reply.tracks.length > limit() || job.pages >= 1000) throw new Error('playlist_track_limit');
         const before = rows.length;
         rows.push(...reply.tracks.map(track => ({ track: normalizeTrack(track), error: track ? '' : 'Unavailable or non-track playlist item', choices: [], selected: null, include: Boolean(track) })));
@@ -54,6 +54,7 @@ module.exports = function transfers({ context, library, saveLibrary }) {
     if (recovering) return { ok: false, code: 'transfer_recovering' };
     if (['list_exports', 'open_exports'].includes(payload.action)) return context.callCapability('playlist.exports.host.v1', 'action', { action: payload.action === 'list_exports' ? 'list' : 'open' }, { timeoutMs: 5000 });
     if (payload.action === 'account') return provider({ action: 'status' });
+    if (payload.action === 'list_spotify') return sources.spotify({ action: 'list', offset: Number(payload.cursor || 0) });
     if (payload.action === 'list_tidal') return provider({ action: 'list', cursor: payload.cursor || '' });
     if (busy) return { ok: false, code: 'transfer_busy' };
     busy = true;
@@ -73,17 +74,19 @@ module.exports = function transfers({ context, library, saveLibrary }) {
       const collection = library.get(input.collectionId); if (!collection) throw new Error('playlist_not_found');
       await install(collection.tracks.map(track => ({ track: structuredClone(track), choices: [], selected: null, include: true, error: '' })), input.name || collection.name, 'local'); return status(0);
     }
-    if (input.action === 'read_tidal') {
-      let sourceId = String(input.id || '');
-      if (sourceId.startsWith('https://')) { const url = new URL(sourceId); if (!['tidal.com', 'listen.tidal.com', 'www.tidal.com'].includes(url.hostname)) throw new Error('tidal_playlist_invalid'); sourceId = /^\/(?:browse\/)?playlist\/([A-Za-z0-9_-]+)\/?$/.exec(url.pathname)?.[1] || ''; }
-      if (!/^[A-Za-z0-9_-]{1,160}$/.test(sourceId)) throw new Error('tidal_playlist_invalid');
-      await install([], input.name || 'TIDAL playlist', 'tidal'); job.sourceId = sourceId; job.state = 'reading'; job.pages = 0; await save(); schedule(); return status(0);
+    if (['read_spotify','read_youtube','read_tidal'].includes(input.action)) {
+      if (!mutable()) throw Error('transfer_busy');
+      const {kind,name,...source} = await sources.begin(input, limit());
+      try { await install([], name, kind); } catch (error) { if(source.sourceJobId) await sources.cancelYoutube(source).catch(()=>{});throw error; }
+      Object.assign(job, source, {sourceProviders:[kind],customName:Boolean(input.name),state:'reading',pages:0});await save();schedule();return status(0);
     }
     if (!job) throw new Error('transfer_not_found');
     if (input.jobId !== job.id) throw new Error('transfer_changed');
+    if (input.action === 'dismiss') { if (job.state !== 'complete') throw Error('transfer_busy');job.dismissed = true;await save();return status(offset); }
     if (input.action === 'pause' || input.action === 'cancel') {
       if (work) { job.control = input.action; await save(); return status(offset); }
       if (job.state === 'uncertain') throw new Error('tidal_playlist_reconcile_required');
+      await sources.cancel(job, input.action);
       job.resumeState = job.state; job.state = input.action === 'pause' ? 'paused' : 'canceled'; clearTimeout(timer); timer = null; await save(); return status(offset);
     }
     if (input.action === 'reconcile') { if (work || job.state !== 'uncertain') throw new Error('transfer_busy'); await writer.reconcile(); return status(offset); }

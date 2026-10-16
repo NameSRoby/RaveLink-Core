@@ -1,4 +1,4 @@
-module.exports = function createExperimentalTidal({ queue, context, changed }) {
+module.exports = function createExperimentalTidal({ queue, context, changed, isSelected = async () => true }) {
   const inFlight = new Map();
   let moderating = false;
   const entries = () => {
@@ -9,9 +9,10 @@ module.exports = function createExperimentalTidal({ queue, context, changed }) {
   };
   const provider = (method, payload) => context.callCapability('tidal.desktop.experimental.v1', method, payload, { timeoutMs: method === 'resolve' ? 20000 : 10000 });
   let stopped = false;
-  const delivery = require('./tidal-delivery')({ entries, provider, send, updated: () => changed({ ok: true, code: 'tidal_delivery_changed' }) });
+  const delivery = require('./tidal-delivery')({ entries, provider, send, isSelected, updated: () => changed({ ok: true, code: 'tidal_delivery_changed' }) });
   const moderate = require('./tidal-moderation')({ queue, provider, changed, waitForDelivery: () => Promise.allSettled([...inFlight.values()]) });
   async function send(entry, automatic = false) {
+    if (!await isSelected()) return { ok: false, error: 'player_inactive' };
     if (inFlight.has(entry.id)) return { ok: false, error: 'tidal_handoff_in_progress' };
     try {
       const operation = provider('enqueue', { entryId: entry.id, trackId: entry.candidate.providerItemId, candidate: entry.candidate, automatic,
@@ -55,18 +56,7 @@ module.exports = function createExperimentalTidal({ queue, context, changed }) {
       if (started.ok) { const result = queue.configurePlaybackSource({ source: 'tidal' }); changed(result); }
       return started;
     }
-    if (method === 'submit') {
-      const state = queue.status();
-      const resolved = await provider('resolve', { query: payload.query,
-        policy: { ...state.catalogPolicy, maxDurationMs: state.limits.maxDurationMs } });
-      if (!resolved?.ok) return resolved;
-      const result = queue.submit({ requestId: payload.requestId, requesterId: 'local-tidal-operator', requesterName: 'Local TIDAL operator',
-        requesterRole: 'moderator', query: payload.query, candidate: resolved.candidate });
-      if (result.ok) { changed(result); delivery.trigger(); }
-      if (!result.ok && result.reason === 'duration_limit') return { ...result,
-        details: { title: resolved.candidate.title, durationMs: resolved.candidate.durationMs, maxDurationMs: queue.status().limits.maxDurationMs } };
-      return result;
-    }
+    if (method === 'submit') return submit({ ...payload, requesterId: 'local-tidal-operator', requesterName: 'Local TIDAL operator', requesterRole: 'moderator' });
     if (method !== 'handoff') return { ok: false, error: 'tidal_method_invalid' };
     const entry = entries().find(row => row.id === payload.entryId);
     if (!entry) return { ok: false, error: 'tidal_entry_not_found' };
@@ -76,6 +66,21 @@ module.exports = function createExperimentalTidal({ queue, context, changed }) {
     if (!result.ok) delivery.hold(entry.id, result.error);
     return result;
   }
+  async function submit(payload) {
+    if (!await isSelected()) return { ok: false, code: 'rejected', reason: 'player_inactive' };
+      const state = queue.status();
+      const resolved = await provider('resolve', { query: payload.query,
+        policy: { ...state.catalogPolicy, maxDurationMs: state.limits.maxDurationMs } });
+      if (!resolved?.ok) return resolved;
+      if (!await isSelected()) return { ok: false, code: 'rejected', reason: 'player_inactive' };
+      const result = queue.submit({ requestId: payload.requestId, requesterId: payload.requesterId, requesterName: payload.requesterName,
+        requesterRole: payload.requesterRole, query: payload.query, candidate: resolved.candidate });
+      if (result.ok) { changed(result); delivery.trigger(); }
+      if (!result.ok && result.reason === 'duration_limit') return { ...result,
+        details: { title: resolved.candidate.title, durationMs: resolved.candidate.durationMs, maxDurationMs: queue.status().limits.maxDurationMs } };
+      return result;
+  }
+  handle.submit = submit;
   handle.stop = () => { stopped = true; delivery.stop(); };
   return handle;
 };

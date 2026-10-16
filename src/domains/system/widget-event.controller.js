@@ -28,6 +28,7 @@ function createSystemWidgetEventController(deps = {}) {
     color: 0,
     teach: 0,
     song_request: 0,
+    add_to_playlist: 0,
     rejected: 0,
     rateLimited: 0,
     dedupeEvictions: 0,
@@ -98,7 +99,8 @@ function createSystemWidgetEventController(deps = {}) {
     return {
       colorRewardId: asString(source.colorRewardId),
       teachRewardId: asString(source.teachRewardId),
-      songRewardId: asString(source.songRewardId)
+      songRewardId: asString(source.songRewardId),
+      playlistRewardId: asString(source.playlistRewardId)
     };
   }
 
@@ -301,6 +303,7 @@ function createSystemWidgetEventController(deps = {}) {
     const matchAny = configured => rewardCandidates.some(candidate => rewardTokensMatch(candidate, configured));
     if (matchAny(config.colorRewardId)) return "color";
     if (matchAny(config.teachRewardId)) return "teach";
+    if (config.playlistRewardId && normalizeToken(meta.rewardId) === normalizeToken(config.playlistRewardId)) return "add_to_playlist";
     if (config.songRewardId && normalizeToken(meta.rewardId) === normalizeToken(config.songRewardId)) return "song_request";
     return "";
   }
@@ -345,6 +348,7 @@ function createSystemWidgetEventController(deps = {}) {
     const requesterId = asString(meta.userId || meta.userName);
     if (!meta.redemptionId || !requesterId) return { status: 400, body: { ok: false, error: "redemption_identity_incomplete", refundRecommended: true } };
     return submitSongRequest({
+      ...(action === "add_to_playlist" ? { addToPlaylist: true } : {}),
       requestId: meta.redemptionId,
       requesterId,
       requesterName: meta.userName,

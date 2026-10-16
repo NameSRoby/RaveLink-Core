@@ -8,7 +8,7 @@ function candidate(sound) {
     durationMs: Math.max(0, Math.min(86400000, Math.trunc(Number(sound.duration ?? sound.durationMs) || 0))),
     sourceUrl: /^https:\/\/soundcloud\.com\/[\w-]+\/[\w-]+\/?$/.test(String(sound.permalink_url || '')) ? sound.permalink_url : '' };
 }
-module.exports = function soundcloudPlayer({ queue, playlists, changed, context }) {
+module.exports = function soundcloudPlayer({ queue, playlists, changed, context, isSelected = async () => true }) {
   let upload = null;
   async function resolveQuery(query) {
     const state = queue.status();
@@ -20,6 +20,7 @@ module.exports = function soundcloudPlayer({ queue, playlists, changed, context 
     try {
       if (method === 'submit-query') {
         const found = await resolveQuery(input.query); if (!found.ok) return { ok: false, code: 'rejected', reason: found.reason };
+        if (!await isSelected()) return { ok: false, code: 'rejected', reason: 'player_inactive' };
         const result = queue.submit({ requestId:text(input.requestId,80),requesterId:'local-soundcloud-operator',requesterName:'Local SoundCloud operator',requesterRole:'moderator',query:input.query,candidate:found.candidate });
         changed(result); return result;
       }

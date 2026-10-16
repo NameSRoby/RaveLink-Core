@@ -1,0 +1,62 @@
+name: Bug report
+description: Report a problem with RaveLink Core.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: "Please check existing issues first. Do not include OAuth tokens, client secrets, pairing files, private account details, or your runtime folder. Redact logs and screenshots before attaching them."
+  - type: input
+    id: version
+    attributes:
+      label: RaveLink version
+      placeholder: "0.7.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected feature
+      options:
+        - Spotify
+        - TIDAL
+        - SoundCloud
+        - YouTube
+        - Playlists and transfers
+        - Twitch integration or widget
+        - Lighting
+        - Setup or updates
+        - OBS overlay
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Windows version and installation type
+      placeholder: "Windows 11, installer or portable"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open...\n2. Choose...\n3. The problem happens..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and error message
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional details or redacted screenshots
+      description: "For music problems, include player version and companion or Premium mode if relevant. Attach only the specific redacted information needed to reproduce the issue."

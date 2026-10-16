@@ -50,7 +50,7 @@ function candidateFrom(input, query) {
   const album = text(source.album, 200);
   const artworkUrl = provider === "youtube" && /^[A-Za-z0-9_-]{11}$/.test(providerItemId)
     ? `https://i.ytimg.com/vi/${providerItemId}/hqdefault.jpg`
-    : provider === "soundcloud" ? require("./player-artwork").soundcloud(source.artworkUrl) : "";
+    : provider === "soundcloud" ? require("./player-artwork").soundcloud(source.artworkUrl) : provider === "spotify" ? require("./player-artwork").spotify(source.artworkUrl) : "";
   return Object.freeze({ provider, providerItemId, title, artists, album, artworkUrl, durationMs });
 }
 
@@ -109,8 +109,8 @@ function createSongQueue(options = {}) {
   function configurePlaybackSource(payload = {}) {
     const source = text(payload.source, 40).toLowerCase();
     if (!PLAYBACK_SOURCES.includes(source)) return { ...playbackStatus(), ok: false, code: "playback_source_invalid" };
-    if (source !== playbackSource) {
-      playbackSource = source;
+    if (source !== playbackSource || payload.suspend) {
+      playbackSource = source; managedPlayback = payload.suspend ? null : managedPlayback;
       observations.clear();
       playbackRevision += 1;
     }
@@ -125,15 +125,14 @@ function createSongQueue(options = {}) {
   }
 
   function pull(payload = {}) {
-    expireLease();
-    const driverId = text(payload.driverId, 80);
+    expireLease();const driverId = text(payload.driverId, 80);
     const providers = Array.isArray(payload.providers)
       ? payload.providers.slice(0, 8).map(value => text(value, 40).toLowerCase()).filter(value => PROVIDER_RE.test(value))
       : [];
     if (!driverId || !providers.length) return { ok: false, code: "driver_invalid" };
     if (!playbackEnabled) return { ok: true, code: "idle", action: null, revision: playbackRevision };
     if (managedPlayback) {
-      if (managedPlayback.driverId !== driverId || managedPlayback.status !== "loading") return { ok: true, code: "idle", action: null, revision: playbackRevision };
+      if (!providers.includes(managedPlayback.candidate.provider) || managedPlayback.driverId !== driverId || managedPlayback.status !== "loading") return { ok: true, code: "idle", action: null, revision: playbackRevision };
       return { ok: true, code: "load", action: { leaseId: managedPlayback.leaseId, entryId: managedPlayback.entryId, origin: managedPlayback.origin || "queue", candidate: clonePlayback(managedPlayback).candidate }, revision: playbackRevision };
     }
     const queuedEntry = queue.find(row => providers.includes(row.candidate.provider));
@@ -162,8 +161,7 @@ function createSongQueue(options = {}) {
   }
 
   function acknowledge(payload = {}) {
-    expireLease();
-    const driverId = text(payload.driverId, 80);
+    expireLease();const driverId = text(payload.driverId, 80);
     const leaseId = text(payload.leaseId, 80);
     const state = text(payload.state, 20).toLowerCase();
     if (!managedPlayback || managedPlayback.driverId !== driverId || managedPlayback.leaseId !== leaseId) return { ok: false, code: "lease_stale" };
@@ -205,7 +203,7 @@ function createSongQueue(options = {}) {
       observations.set(key, {
         source: "observed", provider, sourceId, available: true, title,
         artists: Array.isArray(payload.artists) ? payload.artists.slice(0, 8).map(value => text(value, 100)).filter(Boolean) : [],
-        artworkUrl: require("./player-artwork").observed(payload.artworkUrl), album: text(payload.album, 200), status: ["playing", "paused", "stopped"].includes(payload.status) ? payload.status : "stopped",
+        artworkUrl: (require("./player-artwork").observed(payload.artworkUrl) || (provider === "spotify" ? require("./player-artwork").spotify(payload.artworkUrl) : "")), album: text(payload.album, 200), status: ["playing", "paused", "stopped"].includes(payload.status) ? payload.status : "stopped",
         positionMs: integer(payload.positionMs, 0, 86400000, 0), durationMs: integer(payload.durationMs, 0, 86400000, 0),
         observedAt: integer(payload.observedAt, 0, Number.MAX_SAFE_INTEGER, Number(now()))
       });
@@ -473,7 +471,7 @@ function createSongQueue(options = {}) {
       const songPosition = integer(payload.position, 1, Math.max(1, queue.length), 0);
       const entry = queue.find(row => row.id === text(payload.entryId, 160)) || (songPosition ? queue[songPosition - 1] : null);
       const providerItemId = text(payload.providerItemId, 160);
-      const identity = entry?.identity || (providerItemId ? `${['tidal','soundcloud'].includes(payload.provider) ? payload.provider : 'youtube'}:${providerItemId}` : "");
+      const identity = entry?.identity || (providerItemId ? `${['tidal','soundcloud','spotify'].includes(payload.provider) ? payload.provider : 'youtube'}:${providerItemId}` : "");
       if (!identity) return response(false, "rejected", { reason: "entry_not_found" });
       const restriction = songRestrictions.apply(action, identity, integer(payload.minutes, 1, 1440, 10));
       if (['unblock_song', 'untimeout_song'].includes(action)) return restriction;
@@ -651,7 +649,6 @@ function createSongQueue(options = {}) {
     configure({ limits: snapshot.limits, responses: snapshot.version >= 7 ? snapshot.responses : undefined, catalogPolicy: snapshot.version >= 8 ? snapshot.catalogPolicy : undefined });
     return { ok: true, restored: queue.length };
   }
-
   function release(input) { if (!managedPlayback || managedPlayback.driverId !== input.driverId || managedPlayback.leaseId !== input.leaseId) return { ok: false, code: "lease_stale" }; managedPlayback = null; playbackRevision++; return { ok: true, code: "released" }; }
   return Object.freeze({ release, acknowledge, configure, configureOverlay, overlayProfile, configurePlaybackSource, exportPlaylist, exportSnapshot, importPlaylist, importSnapshot, moderate, observe, overlayStatus, playbackStatus, pull, selfManage, settle, status: publicState, submit, undo });
 }

@@ -1,8 +1,9 @@
 (function installPlayerProviders() {
   let view = 'player', providerReady = false, savedPlayer = 'youtube';
   const picker = document.createElement('div'); picker.className = 'playerProviderPicker';
-  picker.innerHTML = '<label for="songPlayerProvider">PLAYER</label><select id="songPlayerProvider"><option value="youtube">YouTube</option><option value="tidal">TIDAL</option><option value="soundcloud">SoundCloud (Alpha)</option></select><span id="playerProviderHint">Embedded YouTube playback</span>';
+  picker.innerHTML = '<label for="songPlayerProvider">PLAYER</label><select id="songPlayerProvider"><option value="youtube">YouTube</option><option value="tidal">TIDAL</option><option value="spotify">Spotify</option><option value="soundcloud">SoundCloud</option></select><span id="playerProviderHint">Embedded YouTube playback</span>';
   document.querySelector('main').prepend(picker);
+  const providerNotices = installProviderNotices();
   const embedWarning=document.createElement('aside');embedWarning.id='youtubeEmbedWarning';embedWarning.setAttribute('role','note');embedWarning.innerHTML='<strong>YouTube playback warning</strong><p>YouTube embeds can refuse songs because of uploader settings, account, age, region or content restrictions. A successful search does not guarantee playback.</p><p>Repeated failures and rapid automatic skips may overload playback and cause the server to stop or crash. Stop playback if songs keep skipping; try another source or restart Core if it stops responding.</p>';
   document.querySelector('.playerSide').prepend(embedWarning);
   const warningStyle=document.createElement('style');warningStyle.textContent='#youtubeEmbedWarning{border:1px solid #e5b647;border-left:5px solid #e5b647;background:#322818;color:#fff0c0;border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;line-height:1.5}#youtubeEmbedWarning strong{font-size:16px}#youtubeEmbedWarning p{margin:8px 0 0}';document.head.append(warningStyle);
@@ -18,9 +19,9 @@
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (current + keys[event.key] + 3) % 3;
     showView(buttons[next].dataset.view); buttons[next].focus();
   };
-  const policyGrid = document.querySelector('.queueSide > .settingsGrid'), policy = document.createElement('details');
+  const policyGrid = document.querySelector('.queueSide > .settingsGrid'), policy = document.createElement('section');
   policy.className = 'playerAdvancedPolicy';
-  const policySummary = document.createElement('summary'); policySummary.textContent = 'Request limits & song length';
+  const policySummary = document.createElement('h3'); policySummary.textContent = 'Request limits & song length';
   policyGrid.previousElementSibling.replaceWith(policy); policy.append(policySummary, policyGrid);
   const durationControl = document.createElement('label');
   durationControl.innerHTML = 'MAXIMUM SONG LENGTH (MINUTES)<input id="maxSongMinutes" type="number" min="0.5" max="60" step="0.5" value="10">';
@@ -38,18 +39,18 @@
     <p id="tidalAccountHelp">Sign in once for song lookup and playlist/collection transfers. Your password stays with TIDAL.</p>
     <div class="actions"><button id="signInTidal" class="primary">Sign in with TIDAL</button></div>
     <a id="tidalOpenLogin" target="_blank" rel="noopener noreferrer" hidden>Open TIDAL sign-in</a>
-    <details id="tidalAccountOptions"><summary>Account & region</summary>
+    <section id="tidalAccountOptions"><h4>Account & region</h4>
     <div class="actions"><label for="tidalCountry">Catalog country<select id="tidalCountry" required aria-label="Catalog country"><option value="">Loading countries…</option></select></label><button id="saveTidalRegion">Save region</button></div>
     <p class="tidalFinePrint">Choose your TIDAL account's country. Song availability varies by country.</p>
     <div class="actions"><button id="testTidalCatalog">Check connection</button><button id="clearTidalCatalog">Disconnect account</button></div>
-    <p class="tidalFinePrint">Sign-in is saved securely on this PC. Disconnect removes the local authorization.</p></details></section>
+    <p class="tidalFinePrint">Sign-in is saved securely on this PC. Disconnect removes the local authorization.</p></section></section>
     <section class="tidalStep"><div class="tidalStepHeading"><span class="tidalStepNumber" aria-hidden="true">2</span><h3>Connect the desktop player</h3><span id="tidalDesktopBadge" class="tidalBadge">Checking</span></div>
     <p id="tidalInstallStatus" role="status"></p>
-    <details id="tidalSetup"><summary>Set up desktop connection</summary>
+    <section id="tidalSetup"><h4>Set up desktop connection</h4>
     <ol class="tidalChecklist"><li>Quit TIDAL completely, including its tray icon.</li><li>Install or update the RaveLink companion below.</li><li>Open TIDAL and play a song, then choose Refresh.</li></ol>
     <div class="actions"><button id="installTidalCompanion" class="primary">Install companion</button><button id="updateTidalCompanion" class="primary" hidden>Update companion</button></div>
-    <p class="tidalFinePrint">Requires the regular Windows desktop app. The Microsoft Store app is not supported.</p></details>
-    <details id="tidalConnectionOptions"><summary>Connection options</summary><div class="actions"><button id="monitorTidal">Use TIDAL for now playing</button><button id="uninstallTidalCompanion">Remove companion</button></div><p class="tidalFinePrint">Close TIDAL before removal or updates. Removing the companion restores the original app files.</p></details></section>
+    <p class="tidalFinePrint">Requires the regular Windows desktop app. The Microsoft Store app is not supported.</p></section>
+    <section id="tidalConnectionOptions"><h4>Connection options</h4><div class="actions"><button id="monitorTidal">Use TIDAL for now playing</button><button id="uninstallTidalCompanion">Remove companion</button></div><p class="tidalFinePrint">Close TIDAL before removal or updates. Removing the companion restores the original app files.</p></section></section>
     </div>
     <p id="tidalReadyHelp" class="tidalReadyHelp">Add a song to send it to TIDAL automatically. All accepted requests join the queue in order; your playlist stays intact.</p>
     <details id="tidalHistory"><summary>Recently sent to TIDAL</summary><div id="tidalHandoffs"></div></details>
@@ -71,8 +72,8 @@
   const moderationPage = document.createElement('section'); moderationPage.id = 'songModerationPage';
   document.querySelector('main').append(workspace); workspace.append(setupPage, moderationPage);
   setupPage.append(panel, $('catalogSettings')); $('catalogSettings').open = true;
-  const searchFilters = document.createElement('details'); searchFilters.id = 'songSearchFilters';
-  searchFilters.innerHTML = '<summary>Song matching & version filters</summary>';
+  const searchFilters = document.createElement('section'); searchFilters.id = 'songSearchFilters';
+  searchFilters.innerHTML = '<h3>Song matching & version filters</h3>';
   searchFilters.append($('minimumSubscribers').closest('.settingsGrid'), $('allowNonMusic').parentElement, $('derivativeFilters'), $('saveCatalogPolicy').parentElement);
   moderationPage.append(policy, searchFilters, $('responseToggles').closest('details'));
   const restrictions = document.createElement('section'); restrictions.id = 'requesterRestrictions';
@@ -80,7 +81,6 @@
   moderationPage.append(restrictions);
   $('restrictionsPrevious').onclick = () => { moderationOffset = Math.max(0, moderationOffset - 25); void refreshState(); };
   $('restrictionsNext').onclick = () => { moderationOffset += 25; void refreshState(); };
-  policy.open = true;
   const playbackPanel = document.createElement('section'); playbackPanel.id = 'tidalPlayback'; playbackPanel.hidden = true;
   playbackPanel.innerHTML = '<div><h2>TIDAL Desktop</h2><p id="tidalPlaybackStatus" role="status">Checking desktop connection…</p></div><button id="openSongSetup">Setup</button>';
   $('tidalHistory').hidden = true;
@@ -92,24 +92,28 @@
     node.setAttribute('role', 'tabpanel'); node.setAttribute('aria-labelledby', `playerTab-${id}`);
   }
   let tidalState = null, refreshingTidal = false, tidalRefreshQueued = false, tidalRefreshTimer = null;
-  let companionInstall = null, companionCheckedAt = 0, catalogStatus = null, loginTimer = null, loginDeadline = 0, desktopSetupKey = '';
+  let companionInstall = null, companionCheckedAt = 0, catalogStatus = null, loginTimer = null, loginDeadline = 0;
   const callbackUri = () => { const url = new URL(location.origin); url.hostname = '127.0.0.1'; url.pathname = '/auth/tidal/callback'; return url.href; };
   const selected = () => $('songPlayerProvider').value;
+  window.ravelinkPlayerActive = provider => providerReady && selected() === provider;
+  const providerCall = call;
+  call = (capability, method, payload) => providerCall(capability, method, capability === 'song.queue.read.v1' && method === 'status' ? { ...payload, provider: selected() } : payload);
   function showView(next) {
     if (next !== view) setNotice('');
-    view = next; document.body.dataset.songView = view; embedWarning.hidden = view !== 'player' || selected() !== 'youtube';
+    view = next; providerNotices.update(view); document.body.dataset.songView = view; embedWarning.hidden = view !== 'player' || selected() !== 'youtube';
     playbackPage.hidden = view !== 'player'; workspace.hidden = view === 'player';
     setupPage.hidden = view !== 'setup'; moderationPage.hidden = view !== 'moderation';
     document.body.classList.toggle('song-settings-view', view !== 'player');
     for (const button of tabs.querySelectorAll('button')) { const active = button.dataset.view === view; button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1; }
     if (view === 'moderation' || view === 'setup' && selected() === 'youtube') void refreshCatalog();
     if (providerReady && view === 'player' && selected() === 'youtube') ensureYoutubePlayer();
-    void refreshTidal(); void refreshState();
+    void refreshTidal(); void spotify.refresh(); void refreshState();
   }
   const soundcloud = installSoundCloudPlayer(); const volumeControls = installPlayerVolumeControls(soundcloud); window.ravelinkSoundCloud = soundcloud; let soundcloudQueue = null;
+  const spotify = installSpotifyPlayer({ showView, volumeControls });
   const originalPull = maybePull, originalSubmit = submitRequest, originalRenderQueue = renderQueue;
   const originalModerate = moderate;
-  moderate = async function (payload, message) { await originalModerate(selected() === 'tidal' ? { ...payload, provider: 'tidal' } : payload, message); if (selected() === 'tidal') await refreshTidal(); };
+  moderate = async function (payload, message) { await originalModerate(['tidal', 'spotify'].includes(selected()) ? { ...payload, provider: selected() } : payload, message); if (selected() === 'tidal') await refreshTidal(); };
   const originalRenderPlayback = renderPlayback, renderNowDetails = installNowPlayingDetails();
   maybePull = async function () { if (providerReady && selected() === 'youtube') return originalPull(); if (providerReady && selected() === 'soundcloud') return soundcloud.pull(); };
   renderPlayback = function (state) {
@@ -122,6 +126,7 @@
     if (selected() === "soundcloud" && soundcloudQueue) soundcloud.render(soundcloudQueue, state, originalRenderQueue);
   };
   renderQueue = function (state) {
+    if (selected() === 'spotify') return spotify.renderQueue();
     if (selected() === 'soundcloud') { soundcloudQueue = state; return; }
     if (selected() === 'youtube') {
       const body = $('queue'), signature = JSON.stringify([state.queue || [], state.counts?.queued]);
@@ -227,8 +232,6 @@
     $('tidalDesktopBadge').textContent = needsUpdate ? 'Update needed' : ready ? 'Connected' : 'Setup needed';
     $('tidalDesktopBadge').classList.toggle('connected', Boolean(ready && !needsUpdate));
     $('tidalSetup').hidden = Boolean(ready && !needsUpdate);
-    const setupKey = `${Boolean(ready)}:${Boolean(companionInstall.installed)}:${Boolean(needsUpdate)}`;
-    if (setupKey !== desktopSetupKey) { $('tidalSetup').open = !ready || needsUpdate; $('tidalConnectionOptions').open = Boolean(needsUpdate); desktopSetupKey = setupKey; }
     $('installTidalCompanion').disabled = !tidalState?.enabled || !companionInstall.available || companionInstall.installed || companionInstall.foreignLoader;
     $('installTidalCompanion').hidden = companionInstall.installed;
     $('updateTidalCompanion').hidden = !needsUpdate;
@@ -245,6 +248,7 @@
     finally { await refreshCompanionInstall(); }
   }
   async function submitForPlayer(event) {
+    if (selected() === 'spotify') return spotify.submit(event);
     if (selected() === 'soundcloud') return soundcloud.submit(event);
     if (selected() === 'youtube') return originalSubmit(event);
     event?.preventDefault?.(); const query = $('videoInput').value.trim(); if (!query) { setRequestNotice('Enter an artist and song, TIDAL link, or track ID.', true); return; }
@@ -254,6 +258,8 @@
     finally { $('addSong').disabled = false; }
   }
   function choosePlayer() {
+    providerNotices.update(view);
+    applyPlayerBranding(selected());
     embedWarning.hidden = view !== 'player' || selected() !== 'youtube';
     delete $('queue').dataset.youtubeSignature;
     delete $('queue').dataset.signature;
@@ -283,10 +289,10 @@
     if (view === 'moderation' || view === 'setup' && !tidal) void refreshCatalog();
     if (tidal) void refreshTidal(); else if (selected() === 'youtube' && view === 'player') ensureYoutubePlayer();
     const staleControls = $('tidalNowControls'); if (staleControls) staleControls.hidden = !tidal;
-    void soundcloud.select(); void volumeControls.select();
+    void soundcloud.select(); void volumeControls.select(); spotify.select();
     void refreshState();
   }
-  $('songPlayerProvider').onchange = async () => { const picker = $('songPlayerProvider'); providerReady = true; choosePlayer(); picker.disabled = true; try { const result = await call('song.player.preferences.v1', 'select', { player: picker.value }); if (!result.ok) throw new Error('Could not save your player selection.'); savedPlayer = picker.value; } catch(error) { picker.value = savedPlayer; choosePlayer(); setNotice(error.message, true); } finally { picker.disabled = false; } };
+  $('songPlayerProvider').onchange = async () => { const picker = $('songPlayerProvider'); providerReady = false; player?.pauseVideo?.(); picker.disabled = true; try { const result = await call('song.player.preferences.v1', 'select', { player: picker.value }); if (!result.ok) throw new Error('Could not save your player selection.'); savedPlayer = picker.value; providerReady = true; choosePlayer(); } catch(error) { picker.value = savedPlayer; providerReady = true; choosePlayer(); setNotice(error.message, true); } finally { picker.disabled = false; } };
   $('requestForm').onsubmit = submitForPlayer; $('addSong').onclick = submitForPlayer;
   $('monitorTidal').onclick = async () => { $('monitorTidal').disabled = true; try { await call('song.tidal.experimental.v1', 'monitor', {}); setNotice('TIDAL Windows monitoring enabled.'); await refreshState(); } catch (error) { setNotice(error.message, true); } finally { $('monitorTidal').disabled = false; } };
   async function refreshDelivery() { companionCheckedAt = 0; await refreshTidal(); if (selected() === 'tidal') { await call('song.tidal.experimental.v1', 'flush', {}); await refreshTidal(); } }

@@ -29,7 +29,7 @@ test('room layout alpha places mixed-brand fixtures and explains segment capabil
   assert.deepEqual(errors, []);
   assert.equal(await page.locator('#layoutFixtureSelect option').count(), 2);
   await page.locator('#layoutFixtureSelect').selectOption('hue-strip');
-  await page.locator('#layoutKind').selectOption('strip');
+  await page.locator('[data-choice-for="layoutKind"] [data-choice-value="strip"]').click();
   await page.locator('#layoutX').fill('20'); await page.locator('#layoutY').fill('30'); await page.locator('#layoutRotation').fill('90');
   await page.locator('#placeLayoutFixture').click();
   await page.locator('#layoutFixtureSelect').selectOption('govee-strip');

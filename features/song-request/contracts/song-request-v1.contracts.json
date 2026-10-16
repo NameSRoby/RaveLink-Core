@@ -88,7 +88,8 @@
                   "cancel_import",
                   "configure_history",
                   "remove_track",
-                  "clear_tracks"
+                  "clear_tracks",
+                  "community_retry"
                 ]
               },
               "collectionId": {
@@ -113,6 +114,17 @@
               "trackId": {
                 "type": "string",
                 "maxLength": 80
+              },
+              "provider": {
+                "enum": [
+                  "youtube",
+                  "soundcloud",
+                  "tidal",
+                  "spotify"
+                ]
+              },
+              "confirmAbsent": {
+                "type": "boolean"
               }
             }
           },
@@ -191,7 +203,8 @@
                 "enum": [
                   "youtube",
                   "soundcloud",
-                  "tidal"
+                  "tidal",
+                  "spotify"
                 ]
               }
             }
@@ -271,6 +284,9 @@
               "catalogFailure": {
                 "type": "string",
                 "maxLength": 80
+              },
+              "addToPlaylist": {
+                "type": "boolean"
               }
             }
           },
@@ -467,7 +483,8 @@
                 "enum": [
                   "youtube",
                   "tidal",
-                  "soundcloud"
+                  "soundcloud",
+                  "spotify"
                 ]
               },
               "currentUid": {
@@ -2008,7 +2025,11 @@
                   "save_matched",
                   "save_export",
                   "list_exports",
-                  "open_exports"
+                  "open_exports",
+                  "list_spotify",
+                  "read_spotify",
+                  "read_youtube",
+                  "dismiss"
                 ]
               },
               "offset": {
@@ -2154,6 +2175,12 @@
               },
               "adaptive": {
                 "type": "boolean"
+              },
+              "sourceKind": {
+                "enum": [
+                  "csv",
+                  "soundcloud"
+                ]
               }
             }
           },
@@ -2196,7 +2223,8 @@
                 "enum": [
                   "youtube",
                   "tidal",
-                  "soundcloud"
+                  "soundcloud",
+                  "spotify"
                 ]
               }
             }
@@ -2214,7 +2242,8 @@
                 "enum": [
                   "youtube",
                   "tidal",
-                  "soundcloud"
+                  "soundcloud",
+                  "spotify"
                 ]
               }
             }
@@ -2232,7 +2261,8 @@
                 "enum": [
                   "youtube",
                   "tidal",
-                  "soundcloud"
+                  "soundcloud",
+                  "spotify"
                 ]
               }
             }
@@ -2593,6 +2623,253 @@
                 "maxLength": 80
               }
             }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.spotify.player.v1",
+      "methods": {
+        "status": {
+          "request": {
+            "type": [
+              "null",
+              "object"
+            ]
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "flush": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "monitor": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "submit": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "requestId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              }
+            },
+            "required": [
+              "query",
+              "requestId"
+            ]
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "setup": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "enum": [
+                  "status",
+                  "prepare",
+                  "launch",
+                  "configure",
+                  "begin",
+                  "disconnect",
+                  "devices",
+                  "select-device"
+                ]
+              },
+              "coreUrl": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "clientId": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "redirectUri": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "deviceId": {
+                "type": "string",
+                "maxLength": 120
+              }
+            },
+            "required": [
+              "action"
+            ]
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "control": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "enum": [
+                  "pause",
+                  "resume",
+                  "skip",
+                  "volume"
+                ]
+              },
+              "currentUid": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "value": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "action"
+            ]
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "lookup": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              }
+            },
+            "required": [
+              "query"
+            ]
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "ok"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "review": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "entryId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "decision": {
+                "enum": [
+                  "adopt",
+                  "absent"
+                ]
+              },
+              "uid": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "entryId",
+              "decision"
+            ]
           },
           "response": {
             "type": "object",

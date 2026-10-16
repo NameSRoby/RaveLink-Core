@@ -7,6 +7,7 @@ const DEFAULT_OVERLAY = Object.freeze({
   gap: 6, blockGap: 3, padding: 10, radius: 4, opacity: 78, accentWidth: 4, shadow: 70,
   accent: "#e21d48", surface: "#05070c", text: "#ffffff", muted: "#b8c2d8", motion: "subtle",
   followAppColors: true, skin: 'classic', font: 'system', titleMode: 'scroll', artworkSize: 110, accentPosition: 'left', borderWidth: 0, borderColor: '#303542',
+  hidePaused: false, pauseHideSeconds: 5, hideStopped: false, hideLoading: false, providerColors: false, remainingTime: false,
   segments: Object.freeze([Object.freeze({
     id: "main", enabled: true, direction: "column", align: "left", size: "wide",
     blocks: Object.freeze([
@@ -91,6 +92,9 @@ function overlayFrom(input, fallback = DEFAULT_OVERLAY) {
   return Object.freeze({
     version: 3, preset: oneOf(source.preset, ["classic", "custom", "album-card", "ribbon", "minimal", "broadcast", "split-panels", "spotlight", "two-column"], fallback.preset), flow: oneOf(source.flow, ["column", "row", "grid"], fallback.flow),
     followAppColors: source.followAppColors !== false,
+    hidePaused: source.hidePaused === true, pauseHideSeconds: integer(source.pauseHideSeconds, 1, 120, fallback.pauseHideSeconds || 5),
+    hideStopped: source.hideStopped === true, hideLoading: source.hideLoading === true,
+    providerColors: source.providerColors === true, remainingTime: source.remainingTime === true,
     skin: oneOf(source.skin, ['classic','glass','duo','neon','broadcast','vinyl','minimal','editorial'], fallback.skin || 'classic'),
     font: oneOf(source.font, ['system','serif','mono','cjk'], fallback.font || 'system'),
     titleMode: oneOf(source.titleMode, ['scroll','ellipsis','wrap'], fallback.titleMode || 'scroll'), artworkSize: integer(source.artworkSize, 40, 200, fallback.artworkSize || 110),

@@ -1,5 +1,6 @@
 const tasks = require('./feature-task-navigation');
 const feedback = require('../../../../public/core/action-feedback');
+const choices = require('../../../../public/core/visible-choices');
 function contributionPresentation() {
   const channel = 'ravelink-feature-ui-v1';
   let observer, scheduled = false, lastHeight = 0;
@@ -55,4 +56,4 @@ const css = `.flow-feature,.flow-feature body{min-height:0!important;height:auto
 .native-feature h1,.native-feature h2,.native-feature button{letter-spacing:0}`;
 
 module.exports = content => String(content).replace('</head>', `<style>${css}${tasks.css}</style></head>`)
-  .replace('</body>', `<script>(${tasks.taskNavigation.toString()})();(${contributionPresentation.toString()})();(${feedback.toString()})();</script></body>`);
+  .replace('</body>', `<script>(${tasks.taskNavigation.toString()})();(${contributionPresentation.toString()})();(${feedback.toString()})();(${choices.toString()})();</script></body>`);

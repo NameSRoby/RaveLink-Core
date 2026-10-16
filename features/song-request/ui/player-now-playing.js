@@ -19,7 +19,7 @@ function installNowPlayingDetails() {
   function tick() {
     if (!playback) return;
     const duration = Math.max(0, Number(playback.durationMs || playback.candidate?.durationMs) || 0);
-    let elapsed = Math.max(0, Number(playback.positionMs) || 0) + (playback.status === 'playing' ? Math.min(15000, Math.max(0, Date.now() - Number(playback.observedAt || Date.now()))) : 0);
+    let elapsed = Math.max(0, Number(playback.positionMs) || 0) + (playback.status === 'playing' ? Math.max(0, Date.now() - Number(playback.observedAt || Date.now())) : 0);
     if (playback.candidate?.provider === "youtube" && playerReady && typeof player?.getCurrentTime === "function") elapsed = Math.max(0, Number(player.getCurrentTime()) * 1000 || 0);
     timeline.hidden = !duration;
     $('nowProgress').value = duration ? Math.min(1, elapsed / duration) : 0;

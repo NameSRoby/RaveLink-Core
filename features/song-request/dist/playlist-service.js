@@ -195,7 +195,7 @@ function createPlaylistService(options) {
     const result = library.replace(created.collection.id, rows); schedulePersistence(); publishChange(result, { method: 'soundcloud' });
     return { ok: result.ok, code: result.code, collection: result.collection, collectionId: created.collection.id };
   }
-  return Object.freeze({ installPublicPlaylist, trackLimit: () => library.status().limits.tracksPerCollection, transfer: input => recovering || recoveryError ? { ok: false, code: recoveryError || 'playlist_recovering' } : transfers.handle(input), stop: transfers.stop, activate, capture, capturePlayback, mutate, persist, read });
+  return Object.freeze({ createCommunity: options => require('./community-playlists')({ ...options, context, library, saveLibrary: persist, ready: () => !recovering && !recoveryError }), installPublicPlaylist, trackLimit: () => library.status().limits.tracksPerCollection, transfer: input => recovering || recoveryError ? { ok: false, code: recoveryError || 'playlist_recovering' } : transfers.handle(input), stop: transfers.stop, activate, capture, capturePlayback, mutate, persist, read });
 }
 
 module.exports = { createPlaylistService };

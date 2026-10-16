@@ -44,5 +44,7 @@ Transitive production packages currently use MIT, ISC, BSD-2-Clause, BSD-3-Claus
 
 ## Protocol References
 
+- **Spicetify contributors** — LGPL-2.1. The optional Spotify desktop companion contains a reduced, modified platform-capture hook and native Player/Queue facade based on Spicetify v2.45.3. Its separate license, attribution, editable sources and build script are retained under `integrations/spotify-desktop/vendor/spicetify` and the generated companion bundle. The Spicetify CLI, marketplace, themes and extensions are not bundled. The companion is prepared locally from Setup; no Spotify executable, proprietary Spotify assets or account credentials are distributed.
+
 - WiZ local control documentation was used to implement the local `setPilot` protocol. No WiZ source code is included.
 - Twitch, YouTube, StreamElements, Philips Hue, WiZ, Spotify, and OBS are trademarks or services of their respective owners. RaveLink Core is not endorsed by them.

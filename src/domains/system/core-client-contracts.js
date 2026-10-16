@@ -24,7 +24,7 @@ const updateStatus = success({ currentVersion: version, checkOnLaunch: bool, che
   latest: nullable({ version, name: string(512), publishedAt: string(64), available: bool }),
   staged: nullable({ version, verified: bool }), rollback: nullable({ version }), hosted: bool, lastError: string(2048)
 }, ['currentVersion', 'checkOnLaunch', 'checking', 'downloading', 'latest', 'staged', 'rollback', 'hosted', 'lastError']);
-const widgetInput = object({ baseUrl: string(2048), colorRewardId: string(512), teachRewardId: string(512), songRewardId: string(512), widgetIntakeToken: string(512) });
+const widgetInput = object({ baseUrl: string(2048), colorRewardId: string(512), teachRewardId: string(512), songRewardId: string(512), playlistRewardId: string(512), widgetIntakeToken: string(512) });
 const widgetOutput = success({ script: string(131072), active: widgetInput,
   warnings: { type: 'array', maxItems: 16, items: object({ code: string(128), severity: string(32), message: string(2048) }, ['code', 'message'], true) }, oneTimeReveal: bool
 }, ['script', 'active', 'warnings']);

@@ -3,7 +3,7 @@
   "id": "song-request",
   "name": "Song Request",
   "description": "Song requests, portable playlists and reviewed cross-service transfers with moderation and OBS overlays.",
-  "version": "0.39.0",
+  "version": "0.44.3",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
@@ -21,7 +21,8 @@
     "tidal.desktop.experimental.v1?",
     "tidal.playlists.host.v1?",
     "soundcloud.catalog.host.v1?",
-    "playlist.exports.host.v1?"
+    "playlist.exports.host.v1?",
+    "spotify.desktop.host.v1?"
   ],
   "provides": [
     "song.playlist.read.v1",
@@ -43,7 +44,8 @@
     "song.tidal.experimental.v1",
     "song.playlist.transfer.v1",
     "song.player.preferences.v1",
-    "song.soundcloud.player.v1"
+    "song.soundcloud.player.v1",
+    "song.spotify.player.v1"
   ],
   "contracts": [
     "contracts/song-request-v1.contracts.json"
@@ -82,7 +84,8 @@
         ],
         "imageHosts": [
           "i.ytimg.com",
-          "i1.sndcdn.com"
+          "i1.sndcdn.com",
+          "i.scdn.co"
         ],
         "capabilities": [
           "song.queue.read.v1",
@@ -96,7 +99,8 @@
           "song.catalog.admin.v1",
           "song.tidal.experimental.v1",
           "song.player.preferences.v1",
-          "song.soundcloud.player.v1"
+          "song.soundcloud.player.v1",
+          "song.spotify.player.v1"
         ]
       },
       {
@@ -115,7 +119,7 @@
       },
       {
         "id": "server-playlist",
-        "title": "Server Playlist",
+        "title": "Playlists & Transfers",
         "entry": "ui/server-playlist.html",
         "surface": "panel",
         "embedHosts": [
@@ -142,7 +146,8 @@
         "embedHosts": [],
         "imageHosts": [
           "i1.sndcdn.com",
-          "i.ytimg.com"
+          "i.ytimg.com",
+          "i.scdn.co"
         ],
         "capabilities": [
           "song.observer.admin.v1",
@@ -158,7 +163,8 @@
         "embedHosts": [],
         "imageHosts": [
           "i.ytimg.com",
-          "i1.sndcdn.com"
+          "i1.sndcdn.com",
+          "i.scdn.co"
         ],
         "capabilities": [
           "song.queue.read.v1",
@@ -176,7 +182,8 @@
         "surface": "panel",
         "embedHosts": [],
         "imageHosts": [
-          "i1.sndcdn.com"
+          "i1.sndcdn.com",
+          "i.scdn.co"
         ],
         "capabilities": [
           "song.overlay.read.v1",
@@ -189,73 +196,83 @@
   "integrity": {
     "algorithm": "sha256",
     "files": {
-      "contracts/song-request-v1.contracts.json": "da8e6a25d36eb99d5da32b8f7f1ada913649241f245296a7f51644b01c79d331",
+      "contracts/song-request-v1.contracts.json": "043c4835eff1b588027f4a09ae5352e70da1b7ddc5d47c913885d49aa4132af1",
       "dist/catalog-policy.js": "c9eddb6a09351c7cf79ad7fd0ba66543e266781bac73aea4817adceead4d9893",
       "dist/chat-responses.js": "436f9c781dbf43c3244f424db12f0fc0b5aa79427a95813dd970c5e1bde7551b",
-      "dist/domain.js": "9bee4ba9f46f7c73b4ca970e9801a52c591d656f3e1fccd490ad6edd966d6c80",
-      "dist/main.js": "5c63774e78cccd459e579c5b5f20423607a6f5601d348199c1e9eadc85756bfc",
-      "dist/overlay-config.js": "712a30362dd3073eea278224ff4766530254d43b8cd88e201ceedc2ad7daed57",
+      "dist/domain.js": "68db1906dff826e506c7ceb86e60675fbb1a67843a97050525c8d5788c502c33",
+      "dist/experimental-tidal.js": "5395c6efcc9c2414fa44fc8b95587ba5a478c826e237087918ebb5f97c38d704",
+      "dist/main.js": "3c578ad313a0b3b3a588363a8a930012877e26e986e8f3393228f35e9e6ad928",
+      "dist/overlay-config.js": "c63a4d81021304df4b50159228f42215d19d184b60ff8f773bdb784c950b70fc",
+      "dist/overlay-presets.js": "d53bc5d7223d4633dbe43592b90d6ff4db2206f71f331bd7befe349f8bb300fc",
+      "dist/overlay-profile-storage.js": "a7131330054cae49b8629cab2dc70fdafa4bdc195a682b9be1cbf9a561955464",
+      "dist/overlay-profiles.js": "a3c7e8ae0eb70bd353a983c72965d63d681a7151a2ca1893829b6b612408bd30",
+      "dist/player-artwork.js": "352e273cccc922b424af6d037df84fc7f71a2ec22fe0c5cab33b8a84b76d9d52",
+      "dist/player-preferences.js": "7278d5c4e788c0fa35eccc603bc9201c5b6e63bc4707d56fc1bd3095790f321a",
+      "dist/player-routing.js": "76da59c69af71d12a99a583c829c6fe97fb503424a0165c249954def1c38265a",
+      "dist/playlist-csv-upload.js": "53c57e86826998cca72de1297ea44e98f5ff0fda09148da662405668a0dcb3de",
+      "dist/playlist-csv.js": "1ce17a13a0a0f8c2fac4199c0c7d714c3ebf46808b5dd15ea44cdca9c371ca15",
+      "dist/playlist-export-source.js": "01ab2fd0d2e638820c36df2a3cddb3c36b3a52024fc432fc223ec7266e6a329c",
       "dist/playlist-library.js": "a38e725a9d3f5424a91c1ddf0e275a1deaa82890af0e54a4fc1891e466dd860b",
-      "dist/playlist-service.js": "db879435bb18e36da0c232ce67e42bdeab0f2bde190f78429c0e3e0927ababb5",
+      "dist/playlist-service.js": "254a57bae0e88a77d88794986ac1993c6137ee84183088b3269028d208c038eb",
+      "dist/playlist-transfer-catalog.js": "1207bca30e77a8a453ce03294e2249027f0757938b783bfccdd691bdd732cc0e",
+      "dist/playlist-transfer-export-page.js": "7b0a7676a6a7c9f278083bf79beb9ceac2a569dc48309fe34f7d8bb77456b1fd",
+      "dist/playlist-transfer-export.js": "ca4e94eb8cc002e36e1469b0b7a82ffe99daa5e8816fe257a58d313685264690",
+      "dist/playlist-transfer-local.js": "67b03c0219e0c61fb15f1431937d20205beb96d33585af335a3b5cf5d2bdb0ae",
+      "dist/playlist-transfer-match-step.js": "6321ea51379305c26225be6bca01feb1e650cf5d627a452d969b3589e8dfe5b9",
+      "dist/playlist-transfer-matching.js": "e410329467a203935c16d80d9d0226c6cc77190b035ae394175fcbd0b1df805b",
+      "dist/playlist-transfer-plan.js": "fb43ad4980eb503d8bc5482cee8386fd84f366393be2c857faa12f9c457c8fee",
+      "dist/playlist-transfer-review.js": "b6241b75e77bf60401a6fed33374338a203ec10f5025d8b09d45383dad8e008e",
+      "dist/playlist-transfer-store.js": "537388d7a6ec2bdcad76d9cf7ab61602821f312e6687f9beba5f2bffbc9a4b9d",
+      "dist/playlist-transfer-writer.js": "5922990960a5b617a146314ae3865eb898a9039a8600a96c17264c34d8304c60",
+      "dist/playlist-transfers.js": "d2d9617abe348685ba4ed48ff24bfe9c3c73dd38dcb09ac6a1373c28fe1d6a8a",
+      "dist/portable-track.js": "c3cc7c6ec257e259d5dae0c0d91eabac5967da90863825163c192d1056cdb42a",
+      "dist/replay-policy.js": "4f89d4bb4766b46f4fd594621e59c168787084729515b3c1cd99b41906b9fec1",
+      "dist/requester-restrictions.js": "84a82b4e0f814fa2a7030a6f63f8978e55df878b543e9f602c4c11a301311464",
+      "dist/song-restrictions.js": "8af12ff3ea1bcc3acd25d50c817f9c8465a451f324bf91de05cb12dc60fa2ec4",
+      "dist/soundcloud-player.js": "bd8f516e4f4b33b54661f8615ad303d6b1ad8474b818c66d2c40e52970cafbf8",
+      "dist/spotify-player.js": "a0eede1825314f35cbc2917b1a2006c31b42f27a472c48282fc62d89b0bbcae2",
+      "dist/tidal-delivery.js": "31339bb15e7f86e8781b114885ec1aefbea1cf31917e68267708f96d5156d8b7",
+      "dist/tidal-moderation.js": "2383770c2ae9c2eece5240be70e31dc45718ed2fe5c45932ae8f7e9aad7da642",
+      "LICENSE.SimpleIcons.txt": "9046848b63a5c92bff14e4accca80bd987e0623b74adf9226ce5198d312b79d5",
       "schemas/provider-v1.schema.json": "d709067c1a3adcac30ed391609be9f185a88b829266beb4deb3473dfbb54fba8",
       "schemas/queue-v1.schema.json": "8e3b16d16c6195437e74df7ff9a70276f7c3a6eb48907029e4ee5e50858af5d2",
       "schemas/response-intent-v1.schema.json": "2805e15cd0d74c455c4f445e9c73f7a671d5223a9a931e253856bbd801de8646",
       "schemas/settlement-v1.schema.json": "06404c47b368a98e73c90d4adc9f3256efde94d10f994d76e864f70f0101c95c",
+      "THIRD_PARTY_NOTICES.md": "3061866b3f107465dab5c89e515283ddd584ab496d429f024ef2bbddf0ff0b62",
+      "ui/designer-controls.js": "0712c0bd3a22c585f8bbd2b45d5ca23e7b6fece2f4567e89f6f1ae3764265580",
+      "ui/designer.css": "7d185d90e6b4dbddd0facfcb9ac2f966bc3c98983b4447396d0c031f9a8fee77",
       "ui/now-playing.html": "fab6f3d464889807c9c398b2956a3a0007ba71fdc7179487f2afcadd765343e9",
-      "ui/obs-overlay.html": "205aba8dc93e91bc14358b81557a5cfbf3c03d5fbc11e72680204b61669590f0",
-      "ui/overlay-editor.html": "40c19f7a4b799ba0bcb035d975d2e785ba7271961b84d549d336fead9067e122",
-      "ui/player.html": "ee109340fe73df4fdc84f69081bef76ee41532b9216431a416b6e7c347c30549",
-      "ui/request-queue.html": "3ee23352430e6b4b115e060b936b2df95f996ee4181f4c7b8e9599a7816fc915",
-      "ui/server-playlist.html": "59a7f20c1e918f837ac92f5213e7e99786374e74bd6b17251197585551809b5a",
-      "dist/overlay-presets.js": "90ad1703fa7ca00bebc8878e7fa1f8c7b5b5aed928b55a0b35b74b3daa9c9760",
-      "ui/overlay-renderer.css": "a38d0fe88686f81f23d2d103bf2d31bd2a865684bdd1e46859c968830c4ba2a8",
-      "ui/overlay-renderer.js": "5eaedbed16f55b6bfd0f70bb5a5002b8c7513dd34020d3474a95320e53496091",
-      "dist/overlay-profiles.js": "a3c7e8ae0eb70bd353a983c72965d63d681a7151a2ca1893829b6b612408bd30",
-      "dist/overlay-profile-storage.js": "a7131330054cae49b8629cab2dc70fdafa4bdc195a682b9be1cbf9a561955464",
-      "ui/designer.css": "e8fbb84af88ec5b0e1a60f9fc1289ade9cc1544917bc0da8773bdb41f0d04c4b",
-      "ui/designer-controls.js": "23e922b70eaa4e4cece810cb3b1a82e5f643154c2f30f3b550edd3cda97a642f",
-      "dist/experimental-tidal.js": "8e6821af473342a5b695925f1fe1e8061ead8220480a49fe5b1ce8829e06233c",
-      "ui/player-providers.js": "57bfe89c4c1866b08449b93d528074b531ebd2cfdcf2ced499855f9f1729079f",
-      "ui/player-provider-errors.js": "221fcf3678bd79708f235f70139e6791029aed558f1a58709674951c47951176",
-      "dist/requester-restrictions.js": "84a82b4e0f814fa2a7030a6f63f8978e55df878b543e9f602c4c11a301311464",
-      "dist/tidal-delivery.js": "5437aa98d747e670b5b73bb1db2395c7096f83ac62e3b3699ecb367ad222649d",
-      "ui/player-tidal-queue.js": "1534301dde163039cbad27ce7cdbbf26d43a1d41e6a4f189dc476837f9881419",
-      "dist/tidal-moderation.js": "8347db44c6209761131b603ad555578eca83afe91ed452abb4d77c6f86e0968e",
-      "dist/song-restrictions.js": "8af12ff3ea1bcc3acd25d50c817f9c8465a451f324bf91de05cb12dc60fa2ec4",
-      "dist/playlist-csv.js": "1ce17a13a0a0f8c2fac4199c0c7d714c3ebf46808b5dd15ea44cdca9c371ca15",
-      "dist/playlist-transfer-matching.js": "e410329467a203935c16d80d9d0226c6cc77190b035ae394175fcbd0b1df805b",
-      "dist/playlist-transfer-store.js": "537388d7a6ec2bdcad76d9cf7ab61602821f312e6687f9beba5f2bffbc9a4b9d",
-      "dist/playlist-transfer-writer.js": "5922990960a5b617a146314ae3865eb898a9039a8600a96c17264c34d8304c60",
-      "dist/playlist-transfers.js": "d41e402689d913fd922b0ec10c459190cdecccdfca4069214bc981dbc8b72315",
-      "dist/portable-track.js": "c3cc7c6ec257e259d5dae0c0d91eabac5967da90863825163c192d1056cdb42a",
-      "ui/playlist-transfers.js": "38c397a85c556112e95a05625d2544602a269f4080553b46cd33de765fe5c937",
-      "dist/playlist-csv-upload.js": "7bbf5c827e5f39d9cb0ebee1142aab366a8c48bc2dbe9d5feb80695749fb9ce3",
-      "dist/playlist-transfer-plan.js": "fb43ad4980eb503d8bc5482cee8386fd84f366393be2c857faa12f9c457c8fee",
-      "dist/player-preferences.js": "1a8837ff0ccd5b102e52c142177d6fcd159dd8433593f2f86e26c523d9d65fd9",
-      "ui/playlist-browser.js": "44bde0ca6858e21bd25033b8b0e20fd4d4d26e3490a470ca351f69d40c884345",
-      "dist/soundcloud-player.js": "02889a24483e9a3c93cb5783f60f51569b9525876c4c9c660a45062600bd9007",
-      "ui/player-soundcloud.js": "59a36631009a53bc27cac052a3092109dd2894fe97fdf67ce515acb0218b4e8a",
-      "dist/player-artwork.js": "e114c78c0a2292d06af208a7bdd1b4e9e04669450da31c24282bdeaf1740f546",
-      "ui/player-now-playing.js": "d2d685ee94883318f1231ad9a32440ee7e43a9e48e1d32c79083f2097eb2e23f",
-      "ui/player-now-playing.css": "9973d8544ab1620bea712ce4c86e91802870cb8b3c7b37fb3302cb646ba5af85",
-      "dist/playlist-transfer-catalog.js": "1207bca30e77a8a453ce03294e2249027f0757938b783bfccdd691bdd732cc0e",
-      "dist/playlist-transfer-local.js": "67b03c0219e0c61fb15f1431937d20205beb96d33585af335a3b5cf5d2bdb0ae",
-      "dist/playlist-transfer-export.js": "ca4e94eb8cc002e36e1469b0b7a82ffe99daa5e8816fe257a58d313685264690",
-      "ui/playlist-link-imports.js": "960e488acfd5c944720d2dfb43f4d9a9b710598a1ad37cd3d39edb8525bdc685",
-      "dist/playlist-transfer-match-step.js": "6321ea51379305c26225be6bca01feb1e650cf5d627a452d969b3589e8dfe5b9",
-      "dist/playlist-transfer-export-page.js": "7b0a7676a6a7c9f278083bf79beb9ceac2a569dc48309fe34f7d8bb77456b1fd",
-      "ui/player-volume.js": "e228f802f2365a368f215c8deaae856fa915aa31ecdc9db955ead2193708661f",
-      "ui/playlist-workspace.js": "8a8af1ace57500a0b488836d6e0fb84f74b58090792305094aaa081fbf631ef9",
-      "dist/playlist-transfer-review.js": "b6241b75e77bf60401a6fed33374338a203ec10f5025d8b09d45383dad8e008e",
-      "ui/playlist-match-review.js": "c5a4d4d833dc1b27b437e1580cf58d0176b7761bdab042f4289d90db58a0e553",
+      "ui/obs-overlay.html": "c842b7b46925d1090afc786d80190f7d037c330b447522db227427db66c9b11e",
+      "ui/overlay-editor.html": "e34efa153bd068be946f2e796bed3e4ccaeb028e1d62e4f7ebec52941c8ddce9",
+      "ui/overlay-renderer.css": "25761f2defe343a6858856d83d28afb7e739ed89c902251e79cbbcfaae96e9ac",
+      "ui/overlay-renderer.js": "595b14ad320e23e6a8baf5bf61a5e1a66bc4bbf543e76b3a427d864f323af63e",
+      "ui/player-branding.css": "11fe284699d558c139fe7cb8ba4a74cabca60d27a58a632825da21c9a2534391",
+      "ui/player-branding.js": "2ac4c3832e3d91eea0a7c98026772fd4e7bfdf52fe5fa96a8c7fe3c686b11a75",
       "ui/player-moderation.js": "93a35c7f4e9a4e5c1d594bab6dec0a9d0a54e8a46868b7e0cfafbf3fcd34661b",
-      "dist/replay-policy.js": "4f89d4bb4766b46f4fd594621e59c168787084729515b3c1cd99b41906b9fec1",
-      "ui/provider-marks.js": "4e5bde15c18cd809bf8294c5f41a39a084663a8a7c57564e6c6137ff77e5d3b2",
-      "ui/playlist-provider-ui.js": "3b2f7b63b92ca3c6ba02996c50c7f6b6244d4cb292fc33e5ff245ae91dc2dac1",
-      "ui/playlist-transfer-flow.js": "7ef19e29ae6cc3f9a25ed8f881ec64bdcc559e12a64671924ccbb83241b1fa95",
-      "dist/playlist-export-source.js": "01ab2fd0d2e638820c36df2a3cddb3c36b3a52024fc432fc223ec7266e6a329c",
-      "LICENSE.SimpleIcons.txt": "9046848b63a5c92bff14e4accca80bd987e0623b74adf9226ce5198d312b79d5",
-      "THIRD_PARTY_NOTICES.md": "3061866b3f107465dab5c89e515283ddd584ab496d429f024ef2bbddf0ff0b62"
+      "ui/player-now-playing.css": "9973d8544ab1620bea712ce4c86e91802870cb8b3c7b37fb3302cb646ba5af85",
+      "ui/player-now-playing.js": "8ba5fd7809de50151d878b2670e2b4727a29417a3649f77c4bb1e0b3c5109961",
+      "ui/player-provider-errors.js": "5a990c31b5bd86ab3c04efe4c62a86f8b48ea59d607e2b81d0d3f2ece9aae0d6",
+      "ui/player-providers.js": "7fb75fff85597719a53155ac7f160c31e9550f949c3a1650ba4e8ec967c2440b",
+      "ui/player-soundcloud.js": "1e0e63ad6e5d0b501238de9f585ab6052d0f5753fe6eb3e21701f12c387d4791",
+      "ui/player-spotify-account.js": "fdaa7bc14fc5f793429ecd596474dee634cfb19878c086ad7ec881e8db387c4a",
+      "ui/player-spotify.js": "19a84baf960a93ce60846f851ce9e0bad30bb136f56d0e37d470e6b3e013c943",
+      "ui/player-tidal-queue.js": "1534301dde163039cbad27ce7cdbbf26d43a1d41e6a4f189dc476837f9881419",
+      "ui/player-volume.js": "caeb9e2a8608d8777647f1c18d5d13b427d3c5a459126f395dedf6d9b567becd",
+      "ui/player.html": "40f09641e94640fc6dd949519814e33d80814461e3e54cc9cf6d3d1d909bc13c",
+      "ui/playlist-browser.js": "d5946369d63ee39b7986d27da2d3fd8ac4d3ae1119ef8bd35234feeee05dc91d",
+      "ui/playlist-link-imports.js": "828a863fb5e8f0019a719b4a46ddc5dd50aff9986f5db7ad3baaffd3ad93b99c",
+      "ui/playlist-match-review.js": "c5a4d4d833dc1b27b437e1580cf58d0176b7761bdab042f4289d90db58a0e553",
+      "ui/playlist-provider-ui.js": "93a1c2fc67904c80a3825f44681dfc24149409161df210362d00a65a8d8dcfbb",
+      "ui/playlist-transfer-flow.js": "942943a90b1d490176d336a0ac0451b38f1cbf28033ff0a405d8cb741960125c",
+      "ui/playlist-transfers.js": "11bb607a81ad08ec00069131cd0f78003a241b8443a7ad2d71b48fac7cdc9263",
+      "ui/playlist-workspace.js": "18f11f237de6c51d5076404aae228ac8a209a67c417b265ba452264b89b3c223",
+      "ui/provider-marks.js": "8a31b46008f502dfd931c2dd3269c7112355236292da4b04b41d140e3d80f199",
+      "ui/request-queue.html": "3ee23352430e6b4b115e060b936b2df95f996ee4181f4c7b8e9599a7816fc915",
+      "ui/server-playlist.html": "5b7d97f199460c5fe27250dcc2b588ed8b33542de865ce59bd834ceffa61e7e7",
+      "dist/playlist-transfer-sources.js": "c66c1c107e9645268d71bb567e86c339656149e4ab1c69f59d16a735113e9b2e",
+      "dist/community-playlists.js": "f097a1d12d16f49762c31cb05d5a5704e5e7473d12912d65e119ad09bef0f3b9",
+      "ui/playlist-community.js": "6e01d4932b37bbdc76b03ce47ac0fab971a45791e63fa8d62f22c24e369860d8",
+      "ui/player-provider-notices.js": "70c81ae62d8c9139379197978c49193d027a79640a29f1a533144a3ef008c618"
     }
   }
 }

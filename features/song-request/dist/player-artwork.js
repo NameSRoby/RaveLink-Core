@@ -9,4 +9,7 @@ function soundcloud(value) {
       && /^\/[A-Za-z0-9._-]+\.(jpg|jpeg|png|webp)$/.test(url.pathname) ? url.href : '';
   } catch { return ''; }
 }
-module.exports = { observed, soundcloud };
+function spotify(value) {
+  return typeof value === 'string' && /^https:\/\/i\.scdn\.co\/image\/[a-f0-9]{40}$/i.test(value) ? value : '';
+}
+module.exports = { observed, soundcloud, spotify };

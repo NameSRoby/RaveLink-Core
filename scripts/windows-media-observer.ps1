@@ -81,6 +81,14 @@ function Get-MediaSnapshot {
   $media = Await-WinRt $Session.TryGetMediaPropertiesAsync() ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
   $playback = $Session.GetPlaybackInfo()
   $timeline = $Session.GetTimelineProperties()
+  $capturedAt = [DateTimeOffset]::UtcNow
+  $positionMs = [long]$timeline.Position.TotalMilliseconds
+  # Windows exposes a position anchored to LastUpdatedTime, not a continuously ticking clock.
+  if ($playback.PlaybackStatus -eq 'Playing' -and $timeline.LastUpdatedTime.Year -gt 2000) {
+    $timelineAgeMs = [Math]::Max(0, ($capturedAt - $timeline.LastUpdatedTime).TotalMilliseconds)
+    $positionMs += [long]$timelineAgeMs
+  }
+  if ($timeline.EndTime.TotalMilliseconds -gt 0) { $positionMs = [Math]::Min($positionMs, [long]$timeline.EndTime.TotalMilliseconds) }
   return [ordered]@{
     schemaVersion = 2
     available = $true
@@ -90,9 +98,9 @@ function Get-MediaSnapshot {
     album = [string]$media.AlbumTitle
     artworkUrl = Get-MediaArtwork $media (@($Session.SourceAppUserModelId, $media.Title, $media.Artist, $media.AlbumTitle) -join '|')
     status = [string]$playback.PlaybackStatus
-    positionMs = [long]$timeline.Position.TotalMilliseconds
+    positionMs = $positionMs
     durationMs = [long]$timeline.EndTime.TotalMilliseconds
-    observedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+    observedAt = $capturedAt.ToUnixTimeMilliseconds()
   }
 }
 
@@ -109,7 +117,6 @@ while ($true) {
     $positionBucket = if ($snapshot.available -and $snapshot.status -eq "Playing") { [long]($snapshot.positionMs / 2000) } else { [long]$snapshot.positionMs }
     $fingerprint = @($snapshot.available, $snapshot.title, $snapshot.artist, $snapshot.album, $snapshot.status, $positionBucket, $snapshot.durationMs, $snapshot.artworkUrl) -join "|"
     if ($fingerprint -ne $lastFingerprint) {
-      $snapshot.observedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
       $snapshot | ConvertTo-Json -Compress
       $lastFingerprint = $fingerprint
     }

@@ -14,7 +14,7 @@ const OFFICIAL_FEATURE_SOURCES = Object.freeze([
   Object.freeze({
     id: "song-request",
     name: "Song Request",
-    description: "YouTube, TIDAL and SoundCloud Alpha requests, portable playlists, reviewed transfers, moderation and OBS overlays.",
+    description: "YouTube, Spotify, TIDAL and SoundCloud requests, community playlists, reviewed transfers, moderation and OBS overlays.",
     baseUrl: `${GITHUB_RAW_ROOT}song-request/`,
     displaySource: "RaveLink GitHub repository"
   }),

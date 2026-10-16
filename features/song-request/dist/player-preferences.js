@@ -3,13 +3,13 @@ module.exports = function playerPreferences(context) {
   async function handle(method, input) {
     try {
       if (!loaded) {
-        const saved = await context.callCapability('ravelink.storage.v1', 'get', { key: 'player-preferences-v1' }, { timeoutMs: 5000 });
+        let saved;try { saved = await context.callCapability('ravelink.storage.v1', 'get', { key: 'player-preferences-v1' }, { timeoutMs: 5000 }); } catch (error) { if (error.code !== 'provider_unavailable') throw error; }
         if (saved?.ok === false) throw new Error('player_preferences_unavailable');
-        if (['youtube', 'tidal', 'soundcloud'].includes(saved?.value?.player)) player = saved.value.player;
+        if (['youtube', 'tidal', 'soundcloud', 'spotify'].includes(saved?.value?.player)) player = saved.value.player;
         loaded = true;
       }
       if (method === 'select') {
-        if (!['youtube', 'tidal', 'soundcloud'].includes(input?.player)) return { ok: false, code: 'player_invalid' };
+        if (!['youtube', 'tidal', 'soundcloud', 'spotify'].includes(input?.player)) return { ok: false, code: 'player_invalid' };
         const saved = await context.callCapability('ravelink.storage.v1', 'set', { key: 'player-preferences-v1', value: { version: 1, player: input.player } }, { timeoutMs: 5000 });
         if (saved?.ok === false) throw new Error('player_preferences_unavailable');
         player = input.player;

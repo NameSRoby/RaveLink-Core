@@ -9,6 +9,7 @@ function normalizeWidgetPayload(input = {}) {
     colorRewardId: String(source.colorRewardId || "").trim().slice(0, 512),
     teachRewardId: String(source.teachRewardId || "").trim().slice(0, 512),
     songRewardId: String(source.songRewardId || "").trim().slice(0, 512),
+    playlistRewardId: String(source.playlistRewardId || "").trim().slice(0, 512),
     baseUrl: baseUrl || "http://127.0.0.1:5050",
     widgetIntakeToken: String(source.widgetIntakeToken || "").trim().slice(0, 512)
   };
@@ -47,7 +48,7 @@ function generateSlimWidgetTemplateScript(config = {}) {
     "",
     "(function ravelinkWidgetBootstrap() {",
     "  const CFG = Object.freeze(RAVELINK_WIDGET_CONFIG);",
-    "  const rewardIds = new Set([CFG.colorRewardId, CFG.teachRewardId, CFG.songRewardId].filter(Boolean));",
+    "  const rewardIds = new Set([CFG.colorRewardId, CFG.teachRewardId, CFG.songRewardId, CFG.playlistRewardId].filter(Boolean));",
     "  const recent = new Map();",
     "  let inFlight = false;",
     "  const FORWARD_TIMEOUT_MS = 3500;",
@@ -119,7 +120,7 @@ function generateSlimWidgetTemplateScript(config = {}) {
     "        method: \"POST\",",
     "        headers,",
     "        body: JSON.stringify({ contract: \"widget.events.v2\", source: \"streamelements\", eventEnvelope: compactEvent(envelope), widgetConfig: {",
-    "          colorRewardId: CFG.colorRewardId, teachRewardId: CFG.teachRewardId, songRewardId: CFG.songRewardId",
+    "          colorRewardId: CFG.colorRewardId, teachRewardId: CFG.teachRewardId, songRewardId: CFG.songRewardId, playlistRewardId: CFG.playlistRewardId",
     "        } }),",
     "        signal: controller.signal",
     "      });",

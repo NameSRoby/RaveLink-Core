@@ -35,7 +35,7 @@ test("operator can route mixed fixtures and apply a default profile from the HUD
   await page.locator("#lightingProfileName").fill("Streaming default");
   await page.locator("#lightingProfileDefault").check();
   await page.locator('[data-fixture-id="hue-desk"] [data-route]').check();
-  await page.locator('[data-fixture-id="hue-desk"] [data-field="mode"]').selectOption("temperature");
+  await page.locator('[data-fixture-id="hue-desk"] [data-choice-value="temperature"]').click();
   await page.locator('[data-fixture-id="wiz-wall"] [data-route]').check();
   await page.locator('[data-fixture-id="wiz-wall"] [data-field="color"]').fill("#123456");
   await page.locator("#saveLightingProfile").click();

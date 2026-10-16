@@ -42,6 +42,18 @@ function fixture(t) {
       if (method === 'remove') storage.delete(value.key); else storage.set(value.key, structuredClone(value.value));
       return { ok: true };
     }
+    if (cap === 'spotify.desktop.host.v1') {
+      assert.equal(method,'playlist');native.calls.push(value);
+      if (value.action === 'list') return {ok:true,playlists:[{id:'spotify:playlist:'+'A'.repeat(22),name:'Spotify source'}],cursor:''};
+      const offset=value.offset||0;return {ok:true,name:'Spotify source',total:27,tracks:Array.from({length:offset?2:25},(_,i)=>!offset&&i===1?null:track('spotify','B'.repeat(22))),cursor:offset?'':'25'};
+    }
+    if (cap === 'youtube.catalog.host.v1') {
+      native.calls.push({method,...value});
+      if(method==='import-playlist-start')return {ok:true,jobId:'youtube-source',state:'running'};
+      if(method==='import-playlist-status')return {ok:true,state:'complete',count:2,title:'YouTube source',truncated:false};
+      if(method==='import-playlist-page')return {ok:true,items:[track('youtube','abcdefghijk'),track('youtube','abcdefghijk')]};
+      if(method==='import-playlist-cancel')return {ok:true};
+    }
     assert.equal(cap, 'tidal.playlists.host.v1'); native.calls.push(structuredClone(value));
     if (value.action === 'track') return { ok: true, candidate: track('tidal', value.id) };
     if (value.action === 'search') return { ok: true, candidates: [track()] };
@@ -159,4 +171,23 @@ test('grouped writes create and verify distinct destinations and lock the review
   assert.deepEqual([...destinations.values()], [['1', '2'], ['3']]);
   const status = await call('status'); assert.equal(status.job.state, 'complete'); assert.equal(status.job.destinations.length, 2);
   assert.equal((await call('choose', { index: 0, choice: -1 })).code, 'transfer_destination_locked');
+});
+
+
+test('Spotify source pages load for review without saving or changing the library and completion is dismissible',async t=>{
+  const f=fixture(t), selected=f.library.status().selectedId;
+  assert.equal((await f.call('list_spotify')).playlists[0].name,'Spotify source');
+  assert.equal((await f.call('read_spotify',{id:(await f.call('list_spotify')).playlists[0].id})).job.state,'reading');
+  await f.run(4);let state=await f.call('status');assert.equal(state.job.state,'review');assert.equal(state.job.count,27);assert.equal(state.job.valid,26);
+  assert.equal(state.rows[1].track,null);assert.equal(state.rows[0].track.candidate.providerItemId,state.rows[2].track.candidate.providerItemId);
+  assert.equal(f.library.status().collections.length,1);assert.equal(f.library.status().selectedId,selected);
+  assert.equal((await f.call('dismiss')).ok,false,'active review cannot be dismissed as completed');
+  await f.call('save_local');assert.equal((await f.call('dismiss')).job.dismissed,true);await f.restart();assert.equal((await f.call('status')).job.dismissed,true);
+  assert.ok(f.native.calls.every(row=>['list','read'].includes(row.action)));
+});
+test('YouTube links stage ordered source tracks in Transfers and reject foreign hosts before lookup',async t=>{
+  const f=fixture(t);assert.equal((await f.call('read_youtube',{id:'https://example.com/?list=PLabcdefghijk'})).ok,false);assert.equal(f.native.calls.length,0);
+  await f.call('read_youtube',{id:'https://www.youtube.com/playlist?list=PLabcdefghijk'});await f.run(3);
+  const state=await f.call('status');assert.equal(state.job.sourceKind,'youtube');assert.equal(state.job.state,'review');assert.equal(state.job.count,2);assert.equal(state.job.name,'YouTube source');
+  assert.equal(f.library.status().collections.length,1,'reading a URL is not a Library write');
 });

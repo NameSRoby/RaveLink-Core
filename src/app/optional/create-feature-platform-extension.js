@@ -61,6 +61,14 @@ function createFeaturePlatformExtension(options = {}) {
       vaultPath: path.join(context.runtimeDir, 'tidal-catalog-vault.json'), fetchImpl: options.tidalCatalogFetch, egressGovernor: context.egressGovernor
     }));
     require('../../capabilities/feature-platform/http/register-tidal-oauth.routes')(context.app, getTidalCatalog);
+    const spotifyProvider = require('../../../integrations/spotify-desktop/playback-provider.cjs')({ runtimeDir: context.runtimeDir, fetch: options.spotifyOfficialFetch, protect: options.spotifyProtect, unprotect: options.spotifyUnprotect,
+      onQueueChanged: () => { registry?.request('song-request', 'song.spotify.player.v1', 'flush', {}).catch(() => {}); },
+      onSnapshot: snapshot => {
+        const current = snapshot.current;
+        registry?.request('song-request', 'song.playback.observe.v1', 'observe', current ? { provider: 'spotify', sourceId: 'ravelink-companion', available: true, title: current.title || 'Spotify', artists: current.artists, album: current.album, artworkUrl: current.artworkUrl, durationMs: Math.round(current.durationMs), positionMs: Math.round(current.positionMs), status: current.paused ? 'paused' : current.buffering ? 'paused' : 'playing', observedAt: Date.now() } : { provider: 'spotify', sourceId: 'ravelink-companion', available: false }, { timeoutMs: 1000 }).catch(() => {});
+      } });
+    context.app.use('/api/spotify/bridge', spotifyProvider.router());
+    require('../../capabilities/feature-platform/http/register-spotify-oauth.routes')(context.app, () => spotifyProvider);
     registry = createFeatureHostRegistry({
       featuresRoot: options.featuresRoot || path.join(rootDir, "features", "installed"),
       packageRoots: options.packageRoots || [path.join(rootDir, "feature-packages"), path.join(rootDir, "features")],
@@ -68,6 +76,7 @@ function createFeaturePlatformExtension(options = {}) {
       fetchImpl: options.featureFetch,
       runtimeRoot: featureRuntimeRoot,
       providers: {
+        ...Object.fromEntries(['status', 'setup', 'resolve', 'enqueue', 'remove', 'control', 'review', 'playlist'].map(method => ['spotify.desktop.host.v1/' + method, (payload, caller) => caller.featureId === 'song-request' ? spotifyProvider.handle(method, payload || {}) : { ok: false, error: 'spotify_access_denied' }])),
         'playlist.exports.host.v1/action': (payload, caller) => caller.featureId === 'song-request' ? playlistExports.action(payload) : { ok: false, code: 'export_denied' },
         'soundcloud.catalog.host.v1/resolve': (payload, caller) => caller.featureId === 'song-request' ? getSoundCloudCatalog().resolve(payload) : { ok: false, reason: 'soundcloud_catalog_denied' },
         "media.windows.now-playing.v1/control": payload => mediaObserver.control(payload),
@@ -94,7 +103,7 @@ function createFeaturePlatformExtension(options = {}) {
         "twitch.host.v1/inspect-reward": payload => twitchProvider().inspectReward(payload),
         "twitch.host.v1/list-rewards": payload => twitchProvider().listRewards(payload),
         "twitch.host.v1/create-reward": payload => twitchProvider().createReward(payload),
-        "twitch.rewards.manage.v1/set-paused": payload => twitchProvider().setManagedRewardPaused(payload),
+        "twitch.rewards.manage.v1/set-paused": payload => require('../../capabilities/feature-platform/providers/twitch-song-reward-pause')(twitchProvider(), payload),
         "twitch.host.v1/settle": payload => twitchProvider().settle(payload),
         "twitch.host.v1/review-transactions": () => twitchProvider().reviewTransactions(),
         "twitch.host.v1/reconcile-transaction": payload => twitchProvider().reconcileTransaction(payload),
@@ -143,6 +152,7 @@ function createFeaturePlatformExtension(options = {}) {
       mediaObserver,
       async shutdown() {
         unsubscribeLifecycle?.();
+        spotifyProvider.close();
         tidalBridge?.shutdown();
         tidalCatalog?.shutdown();
         await mediaObserver.stop();

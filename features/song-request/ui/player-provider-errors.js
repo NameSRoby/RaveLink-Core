@@ -39,3 +39,7 @@ function tidalErrorMessage(error) {
   if (/^tidal_/.test(code)) return 'TIDAL could not complete this action. Refresh the connection and try again.';
   return error.message;
 }
+
+function playerNativeErrorMessage(error) {
+  return ({ spotify_queue_removal_unsupported: 'The Spotify official API cannot remove an individual queued song. The restriction is saved for future requests.', spotify_current_changed: 'The playing song changed. Refresh and choose the action again.', spotify_account_or_app_access_required: 'Check Premium and your Spotify app allowed users in Setup.' })[error.message] || tidalErrorMessage(error);
+}
