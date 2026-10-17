@@ -41,7 +41,6 @@ Transitive production packages currently use MIT, ISC, BSD-2-Clause, BSD-3-Claus
 
 ## Optional Feature Packages
 
-- **Clip Studio 0.1.0 infrastructure** - first-party RaveLink code only. It bundles no FFmpeg binary, machine-learning runtime, model weights, or other third-party processing payload. The downloadable package carries its own `THIRD_PARTY_NOTICES.md`; future engine and model updates must update both notice files before publication.
 
 ## Protocol References
 

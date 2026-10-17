@@ -4732,7 +4732,6 @@ function installSpotifyPlayer({ showView, volumeControls }) {
     <p>Permissions: search.read, playlists.read/write, collection.read/write. Transfers change your library only after you review and start them.</p>
     <p id="tidalDiagnostic" class="tidalFinePrint"></p>
     <div class="actions"><button id="saveTidalCatalog">Replace client ID</button><button id="resetTidalClient">Use bundled app</button></div>
-    <details><summary>Legacy Luna companion</summary><p>An already paired Luna companion can still use this address:</p><code id="tidalPluginAddress"></code><p>Its pairing-file environment variable must point to:</p><code id="tidalPairingFile"></code></details>
     </details>`;
   document.querySelector(".playerSide").prepend(panel);
   // Subtabs share the live player and controllers; navigation never replaces it.
@@ -4948,10 +4947,6 @@ function installSpotifyPlayer({ showView, volumeControls }) {
             ? "Finish the steps below to connect TIDAL."
             : "Open Setup to connect TIDAL.";
       $("monitorTidal").disabled = tidalState.enabled !== true;
-      $("tidalPairingFile").textContent =
-        tidalState.pairingFile || "Select TIDAL to create the pairing file.";
-      $("tidalPluginAddress").textContent =
-        location.origin + "/experimental/tidal/plugin/ravelink.tidal-experiment";
       if (view === "setup" || !companionInstall || Date.now() - companionCheckedAt > 10000)
         await refreshCompanionInstall().catch(() => {
           if ($("tidalInstallStatus"))

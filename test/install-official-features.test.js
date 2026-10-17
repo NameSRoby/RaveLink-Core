@@ -6,10 +6,11 @@ const {
 } = require("../scripts/install-official-features");
 
 test("installer feature selection accepts only unique official package IDs", () => {
-  assert.deepEqual(selectedFeatureIds(["clip-studio", "clip-studio", "song-request"]), [
-    "clip-studio",
+  assert.deepEqual(selectedFeatureIds(["song-request", "song-request", "twitch-integration"]), [
     "song-request",
+    "twitch-integration",
   ]);
+  assert.throws(() => selectedFeatureIds(["clip-studio"]), /invalid_feature_selection/);
   assert.throws(() => selectedFeatureIds([]), /invalid_feature_selection/);
   assert.throws(() => selectedFeatureIds(["../local-package"]), /invalid_feature_selection/);
 });
@@ -21,25 +22,18 @@ test("installer downloads missing selections, updates older ones, and keeps curr
       ok: true,
       features: [
         {
-          id: "clip-studio",
+          id: "song-request",
           version: "0.14.0",
           installed: false,
           installedVersion: "",
           updateAvailable: false,
         },
         {
-          id: "song-request",
+          id: "twitch-integration",
           version: "0.13.10",
           installed: true,
           installedVersion: "0.13.9",
           updateAvailable: true,
-        },
-        {
-          id: "twitch-integration",
-          version: "0.10.3",
-          installed: true,
-          installedVersion: "0.10.3",
-          updateAvailable: false,
         },
       ],
     }),
@@ -53,23 +47,37 @@ test("installer downloads missing selections, updates older ones, and keeps curr
     },
   };
   const results = await installSelectedFeatures({
-    featureIds: ["clip-studio", "song-request", "twitch-integration"],
+    featureIds: ["song-request", "twitch-integration"],
     manager,
   });
   assert.deepEqual(calls, [
-    ["install", "clip-studio"],
-    ["update", "song-request"],
+    ["install", "song-request"],
+    ["update", "twitch-integration"],
   ]);
+  manager.listAvailable = async () => ({
+    ok: true,
+    features: [
+      {
+        id: "twitch-integration",
+        version: "0.13.10",
+        installed: true,
+        installedVersion: "0.13.10",
+        updateAvailable: false,
+      },
+    ],
+  });
+  const current = await installSelectedFeatures({ featureIds: ["twitch-integration"], manager });
+  assert.equal(current[0].operation, "already_current");
   assert.deepEqual(
     results.map((row) => row.operation),
-    ["installed", "updated", "already_current"],
+    ["installed", "updated"],
   );
 });
 
 test("installer fails clearly instead of accepting an unavailable official selection", async () => {
   const manager = { listAvailable: async () => ({ ok: true, features: [] }) };
   await assert.rejects(
-    installSelectedFeatures({ featureIds: ["clip-studio"], manager }),
-    /feature_package_not_available:clip-studio/,
+    installSelectedFeatures({ featureIds: ["song-request"], manager }),
+    /feature_package_not_available:song-request/,
   );
 });

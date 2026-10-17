@@ -7,7 +7,6 @@ const SOURCE_ROOTS = [
   "public/core",
   "features/song-request",
   "features/twitch-integration",
-  "features/clip-studio",
   "integrations",
   "desktop",
   "packages",

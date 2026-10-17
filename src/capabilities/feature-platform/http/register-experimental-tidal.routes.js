@@ -1,11 +1,13 @@
 /**
- * Register experimental tidal routes.
+ * Register TIDAL companion bridge and compatibility action routes.
  * Developer context and change constraints:
  * docs/DEVELOPMENT.md#request-security-and-the-feature-ui-relay
  */
 const { isLocalOrSameHostRequest } = require("../../../app/runtime/request-security.middleware");
-const path = require("node:path");
-module.exports = function registerExperimentalTidal(app, { bridge, registry, rootDir }) {
+// The bundled companion still uses these bridge URLs. Their historical name is
+// a wire-compatibility boundary, not a dependency on the removed Luna installer.
+// Keep token authentication and the Origin rejection on native bridge requests.
+module.exports = function registerExperimentalTidal(app, { bridge, registry }) {
   const local = (req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
     if (
@@ -25,26 +27,6 @@ module.exports = function registerExperimentalTidal(app, { bridge, registry, roo
       return res.status(403).json({ ok: false, error: "tidal_pairing_required" });
     next();
   };
-  app.get("/experimental/tidal", local, (_req, res) => {
-    res.setHeader(
-      "Content-Security-Policy",
-      "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'self'",
-    );
-    res.sendFile(path.join(rootDir, "experiments/tidal-luna/operator.html"));
-  });
-  app.get("/experimental/tidal/plugin/:asset", (req, res) => {
-    if (!["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress))
-      return res.sendStatus(403);
-    if (
-      !["ravelink.tidal-experiment.json", "ravelink.tidal-experiment.mjs"].includes(
-        req.params.asset,
-      )
-    )
-      return res.sendStatus(404);
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Cache-Control", "no-store");
-    res.sendFile(path.join(rootDir, "experiments/tidal-luna/dist", req.params.asset));
-  });
   app.post("/experimental/tidal/action", local, async (req, res) => {
     if (!["status", "submit", "handoff", "review", "monitor"].includes(req.body?.method))
       return res.status(400).json({ ok: false, error: "tidal_method_invalid" });

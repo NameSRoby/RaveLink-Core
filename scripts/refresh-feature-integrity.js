@@ -10,7 +10,7 @@ const crypto = require("node:crypto");
 const root = path.resolve(__dirname, "..");
 const check = process.argv.includes("--check");
 
-for (const feature of ["song-request", "twitch-integration", "clip-studio"]) {
+for (const feature of ["song-request", "twitch-integration"]) {
   const directory = path.join(root, "features", feature);
   const filename = path.join(directory, "ravelink.feature.json");
   const manifest = JSON.parse(fs.readFileSync(filename, "utf8"));

@@ -5,6 +5,11 @@ TIDAL Desktop app, not TidaLuna or an external plugin installer. No account toke
 audio files, DRM code, TIDAL binaries, or upstream plugin platform are packaged.
 Live desktop and account acceptance are tracked separately from automated checks.
 
+The external Luna plugin download and its separate operator page are retired.
+Use the bundled companion's Player setup below. The authenticated bridge URLs
+and `song.tidal.experimental.v1` capability keep their existing names for
+compatibility; removing the old distribution does not remove live queue support.
+
 Song lookup uses each user's TIDAL OAuth authorization with PKCE. RaveLink ships
 only its public client ID, no developer secret or maintainer account token, and
 uses no hosted credential server. User tokens are encrypted on the local PC.

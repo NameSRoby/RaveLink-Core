@@ -25,7 +25,8 @@ for (const entry of fs.readdirSync(featureRoot, { withFileTypes: true })) {
   const manifest = path.join(featureRoot, entry.name, "ravelink.feature.json");
   if (!fs.existsSync(manifest)) continue;
   const featureNotices = path.join(featureRoot, entry.name, "THIRD_PARTY_NOTICES.md");
-  if (["clip-studio"].includes(entry.name) && !fs.existsSync(featureNotices))
+  // Song Request bundles provider marks; Twitch Integration uses first-party code only.
+  if (entry.name === "song-request" && !fs.existsSync(featureNotices))
     errors.push(`${entry.name} package notice is missing`);
 }
 

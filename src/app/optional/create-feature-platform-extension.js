@@ -321,7 +321,7 @@ function createFeaturePlatformExtension(options = {}) {
           });
         require("../../capabilities/feature-platform/http/register-experimental-tidal.routes")(
           context.app,
-          { bridge: tidalBridge, registry, rootDir },
+          { bridge: tidalBridge, registry },
         );
       }
       return tidalBridge.status();

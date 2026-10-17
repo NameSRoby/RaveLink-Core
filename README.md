@@ -69,7 +69,7 @@ Frequent choices such as player, transfer grouping and overlay layout appear as 
 
 **Overlay Designer → Behavior** offers optional pause hiding (five seconds by default), stopped/loading hiding, provider-colored accents and remaining-time display. Test pause/resume in the preview, then save to apply. Classic, Album Card and Minimal remain available alongside compact Split Panels and other small presets.
 
-**Clip Studio (Alpha)** is package infrastructure; video analysis, suggestions and export are not active. **Community mods** are optional supervised third-party code; enable them only if you intend to review and run community packages.
+**Community mods** are optional supervised third-party code; enable them only if you intend to review and run community packages.
 
 **TTS, Alerts / TTS and Lighting Automation have been removed in 0.7.0.** No speech runtime or voice asset is shipped.
 
@@ -118,3 +118,6 @@ source changes; edit readable fragments and rebuild their checked-in payloads.
 ## License
 
 Apache-2.0. Third-party code and provider marks retain their licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The [product direction and JavaFX preparation](docs/PRODUCT_DIRECTION.md) explains
+retained workflows, shelved programs and the native-client delivery order.

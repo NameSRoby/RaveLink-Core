@@ -19,7 +19,6 @@ const defaults = {
   mods: "more",
   "feature:song-request": "main",
   "feature:twitch-integration": "main",
-  "feature:clip-studio": "more",
 };
 module.exports = function registerNavigationRoutes(app, { runtimeDir, rateLimitOptions = {} }) {
   const file = path.join(runtimeDir, "system", "navigation.json");

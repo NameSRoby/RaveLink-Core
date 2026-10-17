@@ -15,7 +15,6 @@
     mods: "Community mods",
     "feature:song-request": "Song Request",
     "feature:twitch-integration": "Twitch Integration",
-    "feature:clip-studio": "Clip Studio (Alpha)",
   };
   let saved = {},
     loaded = false;
