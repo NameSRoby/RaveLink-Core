@@ -3,7 +3,7 @@
   "id": "song-request",
   "name": "Song Request",
   "description": "Song requests, portable playlists and reviewed cross-service transfers with moderation and OBS overlays.",
-  "version": "0.44.7",
+  "version": "0.44.8",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
