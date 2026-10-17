@@ -298,6 +298,9 @@ module.exports = function createSpotifyHostBridge(options = {}) {
       lastSeen = Date.now();
       next();
     });
+    // Authenticated liveness must not depend on a native command or receipt
+    // finishing. This route never issues commands or settles pending writes.
+    router.post("/heartbeat", (_req, res) => res.json({ ok: true }));
     router.post("/next", (req, res) => {
       const job = [...jobs.values()].find((row) => !row.done);
       if (!job || job.issued) return res.json({ ok: true, command: null });

@@ -838,7 +838,10 @@ module.exports = function createSpotifyConnection(client, options = {}) {
     results = new Map();
   let sessionId = "",
     pendingReceipt = null,
+    receiptSessionId = "",
     inFlight = null,
+    heartbeatWork = null,
+    heartbeatAt = 0,
     closed = false,
     lastError = "";
   async function post(method, payload) {
@@ -872,7 +875,12 @@ module.exports = function createSpotifyConnection(client, options = {}) {
     const reply = JSON.parse(new TextDecoder().decode(joined));
     if (response.status === 409 && reply.error === "spotify_companion_session_required")
       sessionId = "";
-    if (!response.ok || reply.ok !== true) throw Error("spotify_bridge_rejected");
+    if (!response.ok || reply.ok !== true) {
+      const error = Error("spotify_bridge_rejected");
+      if (["spotify_companion_session_required", "spotify_result_unknown"].includes(reply.error))
+        error.code = reply.error;
+      throw error;
+    }
     return reply;
   }
   const BufferBytes = (text) => new TextEncoder().encode(text).byteLength;
@@ -951,7 +959,13 @@ module.exports = function createSpotifyConnection(client, options = {}) {
   async function step() {
     if (closed) return;
     try {
-      if (!sessionId) sessionId = (await post("hello", {})).sessionId;
+      if (!sessionId) {
+        sessionId = (await post("hello", {})).sessionId;
+        // A restarted host has a new session and cannot accept an old lease.
+        // Keep cached outcomes to prevent another native write, but release the
+        // obsolete acknowledgement so it cannot block all future polling.
+        if (pendingReceipt && receiptSessionId !== sessionId) pendingReceipt = null;
+      }
       if (!sessionId) throw Error("spotify_bridge_session_invalid");
       // Only the receipt is retried after a dropped reply, never the native command.
       if (pendingReceipt) {
@@ -966,20 +980,37 @@ module.exports = function createSpotifyConnection(client, options = {}) {
         lastError = "";
         return;
       }
+      const commandSessionId = sessionId;
+      const result = await execute(command);
+      receiptSessionId = commandSessionId;
       pendingReceipt = {
         id: command.id,
         lease: command.lease,
-        result: await execute(command),
+        result,
       };
       await post("result", pendingReceipt);
       pendingReceipt = null;
       lastError = "";
-    } catch {
+    } catch (error) {
+      // Completed read receipts can be evicted by the host before an ACK retry.
+      // Never execute the command again just to replace an unknown receipt.
+      if (error.code === "spotify_result_unknown") pendingReceipt = null;
       lastError = "spotify_bridge_unavailable";
     }
   }
   return {
     step() {
+      // The renderer already ticks once per second. While a native call or ACK
+      // is pending, send a separate bounded heartbeat without fetching another
+      // command or creating another timer. At most one heartbeat is in flight.
+      if (inFlight && !closed && sessionId && !heartbeatWork && Date.now() - heartbeatAt >= 2000) {
+        heartbeatAt = Date.now();
+        heartbeatWork = post("heartbeat", {})
+          .catch(() => {})
+          .finally(() => {
+            heartbeatWork = null;
+          });
+      }
       if (!inFlight)
         inFlight = step().finally(() => {
           inFlight = null;

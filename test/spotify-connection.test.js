@@ -119,6 +119,117 @@ test("lost result acknowledgement retries the receipt without replaying the Spot
   assert.equal(writes, 1);
 });
 
+test("Spotify keeps its authenticated heartbeat alive while a result acknowledgement waits", async (t) => {
+  const { host, coreUrl } = await setup(t);
+  let releaseReceipt, receiptStarted, heartbeatSeen;
+  const waiting = new Promise((resolve) => {
+    receiptStarted = resolve;
+  });
+  const gate = new Promise((resolve) => {
+    releaseReceipt = resolve;
+  });
+  const heartbeat = new Promise((resolve) => {
+    heartbeatSeen = resolve;
+  });
+  let writes = 0,
+    heartbeats = 0;
+  const worker = createWorker(
+    {
+      append: async (uri) => {
+        writes++;
+        return { ok: true, delivery: "confirmed", uri, uid: "one" };
+      },
+    },
+    {
+      coreUrl,
+      token: host.pairing().token,
+      clientId: "heartbeat",
+      fetch: async (url, options) => {
+        if (url.pathname.endsWith("/result")) {
+          receiptStarted();
+          await gate;
+        }
+        const response = await fetch(url, options);
+        if (url.pathname.endsWith("/heartbeat")) {
+          heartbeats++;
+          heartbeatSeen();
+        }
+        return response;
+      },
+    },
+  );
+  t.after(() => {
+    releaseReceipt();
+    worker.close();
+  });
+  await worker.step();
+  const result = host.invoke("append", { uri: A }, "slow-ack");
+  const operation = worker.step();
+  await waiting;
+  for (let i = 0; i < 10; i++) assert.equal(worker.step(), operation);
+  await heartbeat;
+  assert.equal(heartbeats, 1);
+  assert.equal(host.status().connected, true);
+  assert.equal(host.status().pending, 1, "heartbeats do not settle pending writes");
+  releaseReceipt();
+  await operation;
+  assert.equal((await result).delivery, "confirmed");
+  assert.equal(writes, 1);
+});
+
+test("Spotify reconnects after a host session change without resending an old native write", async () => {
+  let session = "old-session",
+    queued = null,
+    writes = 0,
+    dropAck = true;
+  const worker = createWorker(
+    {
+      append: async (uri) => {
+        writes++;
+        return { ok: true, delivery: "confirmed", uri, uid: "one" };
+      },
+    },
+    {
+      coreUrl: "http://127.0.0.1:5050",
+      token: "a".repeat(64),
+      clientId: "reconnect",
+      fetch: async (url, options) => {
+        const input = JSON.parse(options.body);
+        const reply = (value, status = 200) => new Response(JSON.stringify(value), { status });
+        if (url.pathname.endsWith("/hello")) return reply({ ok: true, sessionId: session });
+        if (input.sessionId !== session)
+          return reply({ ok: false, error: "spotify_companion_session_required" }, 409);
+        if (url.pathname.endsWith("/result")) {
+          if (dropAck) {
+            dropAck = false;
+            throw Error("lost acknowledgement");
+          }
+          return reply({ ok: true });
+        }
+        const command = queued;
+        queued = null;
+        return reply({ ok: true, command });
+      },
+    },
+  );
+  try {
+    await worker.step();
+    queued = { id: "same-write", lease: "1".repeat(32), kind: "append", payload: { uri: A } };
+    await worker.step();
+    assert.equal(worker.status().awaitingReceipt, true);
+    session = "new-session";
+    await worker.step();
+    assert.equal(worker.status().paired, false);
+    queued = { id: "same-write", lease: "2".repeat(32), kind: "append", payload: { uri: A } };
+    await worker.step();
+    assert.equal(worker.status().paired, true);
+    assert.equal(worker.status().awaitingReceipt, false);
+    assert.equal(writes, 1, "recovery reuses the cached outcome rather than executing again");
+  } finally {
+    worker.close();
+  }
+});
+
 test("Spotify bridge rejects foreign origins, missing pairing, stale sessions and forged result leases", async (t) => {
   const { host, coreUrl, post } = await setup(t);
   assert.equal(
