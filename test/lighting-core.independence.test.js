@@ -82,7 +82,11 @@ test("lighting core modules have no retired-capability imports", () => {
 test("core HTTP server declares absent capabilities and applies color independently", async (t) => {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-core-http-"));
   t.after(() => fs.rmSync(runtimeDir, { recursive: true, force: true }));
-  const { app, services } = createCoreServer({ runtimeDir, dryRun: true });
+  const { app, services } = createCoreServer({
+    runtimeDir,
+    dryRun: true,
+    fixtureSecretVaultOptions: require("./support/fixture-vault-codec.cjs"),
+  });
   const server = await new Promise((resolve) => {
     const listening = app.listen(0, "127.0.0.1", () => resolve(listening));
   });

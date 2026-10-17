@@ -8,9 +8,13 @@ const createCoreServer = require("../src/app/core/create-core-server");
 
 test("Light Commands builds and copies guides from active saved routes", async (t) => {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-command-guide-"));
-  const created = createCoreServer({ runtimeDir, dryRun: true });
+  const created = createCoreServer({
+    runtimeDir,
+    dryRun: true,
+    fixtureSecretVaultOptions: require("./support/fixture-vault-codec.cjs"),
+  });
   const lighting = created.services.lightingCore;
-  lighting.fixtureRegistry.upsertFixtures([
+  const savedFixtures = lighting.fixtureRegistry.upsertFixtures([
     {
       id: "hue-desk",
       name: "Desk Hue",
@@ -30,6 +34,7 @@ test("Light Commands builds and copies guides from active saved routes", async (
       twitchEnabled: true,
     },
   ]);
+  assert.equal(savedFixtures.ok, true, JSON.stringify(savedFixtures));
   assert.equal(
     lighting.twitchLightRouting.save({
       revision: 0,
