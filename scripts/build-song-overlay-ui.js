@@ -12,7 +12,7 @@ for (const page of ["overlay-editor.html", "obs-overlay.html"]) {
           "SONG_OVERLAY",
           [
             ["style", "overlay-renderer.css"],
-            ["script", "overlay-renderer.js"],
+            ["script", ["overlay-palette.js", "overlay-renderer.js"]],
           ],
         ],
       ];
@@ -21,17 +21,21 @@ for (const page of ["overlay-editor.html", "obs-overlay.html"]) {
           "SONG_DESIGNER",
           [
             ["style", "designer.css"],
-            ["script", "designer-controls.js"],
+            ["script", ["designer-controls.js", "designer-canvas.js"]],
           ],
         ]);
       for (const [group, assets] of groups) {
         for (const [tag, source] of assets) {
           const marker = `${group}_${tag.toUpperCase()}`;
+          const contentSources = Array.isArray(source) ? source : [source];
+          const embedded = contentSources
+            .map((file) => read(path.join(root, file)).trim())
+            .join("\n\n");
           content = replaceBlock(
             content,
             `<!-- ${marker}_START -->`,
             `<!-- ${marker}_END -->`,
-            `\n<${tag}>\n${read(path.join(root, source)).trim()}\n</${tag}>\n`,
+            `\n<${tag}>\n${embedded}\n</${tag}>\n`,
           );
         }
       }

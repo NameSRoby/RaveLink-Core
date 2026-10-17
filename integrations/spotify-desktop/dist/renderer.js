@@ -390,7 +390,7 @@ module.exports = function createSpotifyDesktopAdapter(api, options = {}) {
     control(input) {
       return ordered(async () => {
         if (!(await local())) return { ok: false, error: "spotify_local_device_unverified" };
-        if (!["pause", "resume", "skip"].includes(input?.action))
+        if (!["pause", "resume", "skip", "volume"].includes(input?.action))
           return { ok: false, error: "spotify_command_invalid" };
         if (
           input.action === "skip" &&
@@ -398,6 +398,12 @@ module.exports = function createSpotifyDesktopAdapter(api, options = {}) {
         )
           return { ok: false, error: "spotify_current_changed" };
         try {
+          if (input.action === "volume") {
+            if (!Number.isInteger(input.value) || input.value < 0 || input.value > 100)
+              return { ok: false, error: "spotify_volume_invalid" };
+            await api.Player.setVolume(input.value / 100);
+            return { ok: true, accepted: true };
+          }
           await api.Player[
             input.action === "resume" ? "play" : input.action === "skip" ? "next" : "pause"
           ]();
@@ -679,6 +685,10 @@ module.exports = function createNativeFacade(platform, options = {}) {
       pause: () => player().pause(),
       play: () => player().resume(),
       next: () => player().skipToNext(),
+      setVolume: (value) => {
+        if (typeof player().setVolume !== "function") throw Error("spotify_volume_unavailable");
+        return player().setVolume(value);
+      },
     },
     localDevice() {
       try {

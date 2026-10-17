@@ -1,9 +1,11 @@
 /**
  * Twitch chat command router.
  * Developer context and change constraints:
- * docs/DEVELOPMENT.md#lighting-and-dynamic-effects
+ * docs/DEVELOPMENT.md#chat-command-permissions-and-player-controls
  */
 const { youtubeVideoId } = require("../../../shared/media/youtube-reference");
+const { normalizeCommandPermissions } = require("./twitch-command-policy");
+const { classify: classifySongInput } = require("./song-link-input");
 
 const MAX_CHAT_COMMAND_USERS = 512;
 const MODERATOR_COMMANDS = new Set([
@@ -86,6 +88,7 @@ module.exports = function createTwitchChatCommandRouter(options = {}) {
   const now = options.now || Date.now;
   const cooldowns = new Map();
   const profiles = new Map();
+  const handledMessages = new Map();
 
   function observeProfile(event) {
     const userId = boundedText(event?.chatter_user_id, 160);
@@ -163,28 +166,29 @@ module.exports = function createTwitchChatCommandRouter(options = {}) {
     };
   }
 
-  async function selfOrModerator(command, profile, argument, event) {
+  async function selfOrModerator(command, profile, argument, event, canManageOthers) {
     const position = /^\d{1,3}$/.test(argument) ? Number(argument) : undefined;
-    const result =
-      profile.role === "moderator"
-        ? resultValue(
-            await moderateSongRequest({
-              action: command,
-              position,
-              requesterName: profile.displayName,
-              notifyChat: true,
-              responseMessageId: boundedText(event?.message_id, 160),
-            }),
-          )
-        : resultValue(
-            await selfManageSongRequest({
-              action: command,
-              requesterId: profile.userId,
-              requesterName: profile.displayName,
-              notifyChat: true,
-              responseMessageId: boundedText(event?.message_id, 160),
-            }),
-          );
+    const result = canManageOthers
+      ? resultValue(
+          await moderateSongRequest({
+            action: command,
+            position,
+            ...(argument && position === undefined ? { query: argument } : {}),
+            requesterName: profile.displayName,
+            notifyChat: true,
+            responseMessageId: boundedText(event?.message_id, 160),
+          }),
+        )
+      : resultValue(
+          await selfManageSongRequest({
+            action: command,
+            requesterId: profile.userId,
+            ...(argument ? { query: argument } : {}),
+            requesterName: profile.displayName,
+            notifyChat: true,
+            responseMessageId: boundedText(event?.message_id, 160),
+          }),
+        );
     return {
       handled: true,
       accepted: result?.ok === true,
@@ -212,7 +216,11 @@ module.exports = function createTwitchChatCommandRouter(options = {}) {
       bansong: { action: "block_song", position: position || 1 },
       unbansong: {
         action: "unblock_song",
-        providerItemId: youtubeVideoId(parts[0]),
+        providerItemId:
+          classifySongInput(parts[0]).id ||
+          (/^(?:[A-Za-z0-9_-]{11}|[A-Za-z0-9]{22}|[1-9][0-9]{0,19})$/.test(parts[0] || "")
+            ? parts[0]
+            : ""),
       },
     };
     return routes[command];
@@ -227,21 +235,59 @@ module.exports = function createTwitchChatCommandRouter(options = {}) {
     if (!command) return { handled: false, reason: "not_allowlisted" };
     const argument = boundedText(match[2], 500);
     if (!profile.userId) return { handled: false, reason: "invalid_command" };
+    const messageId = boundedText(event.message_id, 160);
+    if (command !== "request" && messageId) {
+      if (handledMessages.has(messageId))
+        return { handled: true, accepted: false, code: "command_duplicate" };
+      handledMessages.set(messageId, Number(now()));
+      if (handledMessages.size > MAX_CHAT_COMMAND_USERS)
+        handledMessages.delete(handledMessages.keys().next().value);
+    }
+    const grants = normalizeCommandPermissions(config.commandPermissions);
+    const owner =
+      event.chatter_user_id === event.broadcaster_user_id ||
+      event.badges?.some((badge) => badge.set_id === "broadcaster");
+    if (!owner && !grants[command]?.[profile.role]) {
+      await options.reply?.({
+        message: `@${profile.displayName} You do not have permission to use !${match[1]}.`,
+        replyParentMessageId: boundedText(event.message_id, 160),
+      });
+      return {
+        handled: true,
+        accepted: false,
+        code: profile.role === "moderator" ? "command_not_allowed" : "moderator_required",
+      };
+    }
     if (command === "request")
       return argument
         ? requestSong(event, profile, argument, config)
         : { handled: false, reason: "invalid_command" };
     if (command === "skip" || command === "remove")
-      return selfOrModerator(command, profile, argument, event);
-    if (!MODERATOR_COMMANDS.has(command) || profile.role !== "moderator")
+      return selfOrModerator(
+        command,
+        profile,
+        argument,
+        event,
+        owner || grants[command + "Any"][profile.role],
+      );
+    if (!MODERATOR_COMMANDS.has(command))
       return { handled: true, accepted: false, code: "moderator_required" };
     const payload = moderatorPayload(command, argument);
     const invalid =
       (command === "volume" &&
-        (!Number.isInteger(payload.value) || payload.value < 1 || payload.value > 100)) ||
+        (!/^\d{1,3}$/.test(argument) ||
+          !Number.isInteger(payload.value) ||
+          payload.value < 0 ||
+          payload.value > 100)) ||
       (["ban", "unban", "timeout", "untimeout"].includes(command) && !payload.requesterName) ||
       (command === "unbansong" && !payload.providerItemId);
-    if (invalid) return { handled: true, accepted: false, code: "invalid_command" };
+    if (invalid) {
+      await options.reply?.({
+        message: `@${profile.displayName} Invalid command${command === "volume" ? "; use !volume 0–100" : " arguments"}.`,
+        replyParentMessageId: messageId,
+      });
+      return { handled: true, accepted: false, code: "invalid_command" };
+    }
     const result = resultValue(
       await moderateSongRequest({
         ...payload,

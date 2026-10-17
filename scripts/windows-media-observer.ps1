@@ -10,7 +10,9 @@ directly await their projected interfaces. See docs/DEVELOPMENT.md for the flow.
 param(
   [ValidateSet("tidal", "spotify", "apple-music")]
   [string]$Provider = "tidal",
-  [switch]$Once
+  [switch]$Once,
+  [ValidateSet("observe", "pause", "resume")]
+  [string]$Action = "observe"
 )
 
 # Resolve standard cmdlets from this host rather than an inherited pwsh 7 path.
@@ -152,6 +154,18 @@ function Get-MediaSnapshot {
 }
 
 $manager = Await-WinRt ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager])
+if ($Action -ne 'observe') {
+  # A command may affect only one unambiguous session belonging to this provider.
+  $sessions = @($manager.GetSessions() | Where-Object { [string]$_.SourceAppUserModelId -match $SourcePatterns[$Provider] })
+  if ($sessions.Count -ne 1) {
+    @{ ok = $false; error = 'media_session_unavailable' } | ConvertTo-Json -Compress
+    exit 0
+  }
+  $operation = if ($Action -eq 'pause') { $sessions[0].TryPauseAsync() } else { $sessions[0].TryPlayAsync() }
+  $accepted = Await-WinRt $operation ([bool])
+  @{ ok = [bool]$accepted; error = $(if ($accepted) { '' } else { 'media_control_rejected' }) } | ConvertTo-Json -Compress
+  exit 0
+}
 $snapshot = Get-MediaSnapshot (Find-MediaSession $manager)
 $snapshot | ConvertTo-Json -Compress
 if ($Once) { exit 0 }

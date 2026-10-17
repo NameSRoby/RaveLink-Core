@@ -13,6 +13,7 @@ const {
 } = require("../../../shared/security/windows-dpapi");
 const { DEFAULT_SCOPES, normalizeScopes, createTwitchApiClient } = require("./twitch-api-client");
 const createTwitchEventSubMonitor = require("./twitch-eventsub-monitor");
+const { normalizeCommandPermissions } = require("./twitch-command-policy");
 
 function text(value, maximum = 2048) {
   return String(value ?? "")
@@ -146,6 +147,7 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     return {
       intakeMode,
       songRequestChatEnabled: intakeMode === "native" && source.songRequestChatEnabled === true,
+      commandPermissions: normalizeCommandPermissions(source.commandPermissions),
     };
   }
 
@@ -259,7 +261,9 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
       managedRewards: Object.values(profile.managedRewards || {}).map((row) => ({ ...row })),
       monitorConfig: {
         ...profile.monitorConfig,
-        enabled: profile.monitorConfig.intakeMode === "native",
+        enabled:
+          profile.monitorConfig.intakeMode === "native" ||
+          canSubscribe("channel.chat.message", "1"),
       },
       eventSub: monitor?.status?.() || {
         enabled: false,
@@ -466,7 +470,7 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
       connected &&
       anyAuthorized &&
       monitorAvailable &&
-      profile.monitorConfig?.intakeMode === "native"
+      (profile.monitorConfig?.intakeMode === "native" || canSubscribe("channel.chat.message", "1"))
     ) {
       if (restart) monitor?.restart?.();
       else monitor?.start?.();
@@ -782,7 +786,7 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     };
   }
   async function configureMonitor(input = {}) {
-    const next = normalizeMonitorConfig(input);
+    const next = normalizeMonitorConfig({ ...profile.monitorConfig, ...input });
     const subscriptionsChanged = next.intakeMode !== profile.monitorConfig.intakeMode;
     profile.monitorConfig = next;
     publishIntakeMode();
@@ -813,7 +817,11 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     );
   }
   function canReceive(type, version) {
-    return status().connected && canSubscribe(type, version);
+    return (
+      status().connected &&
+      canSubscribe(type, version) &&
+      (type === "channel.chat.message" || profile.monitorConfig.intakeMode === "native")
+    );
   }
 
   load();
@@ -825,7 +833,9 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
       runBackground(validateAuthorization, "twitch_validate_failed");
     },
     getSubscriptionConfig: () => ({
-      redemptions: canSubscribe("channel.channel_points_custom_reward_redemption.add", "1"),
+      redemptions:
+        profile.monitorConfig.intakeMode === "native" &&
+        canSubscribe("channel.channel_points_custom_reward_redemption.add", "1"),
       chat: canSubscribe("channel.chat.message", "1"),
       events: [],
     }),

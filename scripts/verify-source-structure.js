@@ -13,7 +13,6 @@ const DEBT_LIMITS = Object.freeze({
   "src/app/core/register-lighting-core.routes.js": { tokens: 7000, branches: 70 },
   "public/core/core.js": { tokens: 9300, branches: 50 },
   "features/song-request/dist/domain.js": { tokens: 8500, branches: 82 },
-  "features/song-request/ui/designer-controls.js": { tokens: 8300, branches: 60 },
 });
 function verify() {
   const result = audit();

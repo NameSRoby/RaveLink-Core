@@ -353,8 +353,7 @@
         <div id="playerFrame"></div>
         <div class="now">
           <div>
-            <strong id="nowTitle">NOTHING PLAYING</strong
-            ><span id="nowArtist">QUEUE READY</span>
+            <strong id="nowTitle">NOTHING PLAYING</strong><span id="nowArtist">QUEUE READY</span>
           </div>
           <span id="nowProvider" class="status">LOCAL PLAYER</span>
         </div>
@@ -366,25 +365,14 @@
             title="Skip the currently playing queue item"
           >
             SKIP</button
-          ><button
-            id="refresh"
-            type="button"
-            title="Refresh queue and playback state"
-          >
+          ><button id="refresh" type="button" title="Refresh queue and playback state">
             REFRESH</button
-          ><button
-            id="openOverlay"
-            type="button"
-            title="Open the OBS overlay in a separate view"
-          >
+          ><button id="openOverlay" type="button" title="Open the OBS overlay in a separate view">
             OPEN OBS OVERLAY
           </button>
         </div>
         <label class="volumeControl"
-          ><div>
-            <span>PLAYER VOLUME</span
-            ><output id="volumeOut">100 // OUTPUT 40%</output>
-          </div>
+          ><div><span>PLAYER VOLUME</span><output id="volumeOut">100 // OUTPUT 40%</output></div>
           <input id="volume" type="range" min="0" max="100" value="100"
         /></label>
         <div id="notice" class="notice" role="status"></div>
@@ -400,12 +388,7 @@
               max="20"
               value="5" /></label
           ><label
-            >VIP QUEUE LIMIT<input
-              id="vipLimit"
-              type="number"
-              min="1"
-              max="40"
-              value="10" /></label
+            >VIP QUEUE LIMIT<input id="vipLimit" type="number" min="1" max="40" value="10" /></label
           ><label
             >MINIMUM AUDIO OUTPUT %<input
               id="volumeFloor"
@@ -498,6 +481,8 @@
       let policyDraftDirty = false;
       let responseDraftDirty = false;
       let volumeDraftDirty = false;
+      let appliedChatPlaybackRevision = 0;
+      let chatPlaybackPaused = false;
       let eventRefreshTimer = null;
       const timeoutDurations = new Map();
       let volumeFloorPercent = 0;
@@ -514,8 +499,7 @@
       startPlayer.id = "startPlayer";
       startPlayer.type = "button";
       startPlayer.textContent = "START PLAYBACK";
-      startPlayer.title =
-        "Start this playback session or resume the current track";
+      startPlayer.title = "Start this playback session or resume the current track";
       document.querySelector(".playerSide .actions").prepend(startPlayer);
       document
         .querySelector("#requesters")
@@ -605,12 +589,9 @@
         };
       }
       function renderResponses(state) {
-        $("rewardSyncStatus").hidden =
-          !state.integrations?.rewardPause?.lastError;
+        $("rewardSyncStatus").hidden = !state.integrations?.rewardPause?.lastError;
         if (!responseDraftDirty)
-          for (const input of document.querySelectorAll(
-            "#responseToggles input",
-          ))
+          for (const input of document.querySelectorAll("#responseToggles input"))
             input.checked = state.responses?.[input.dataset.response] === true;
         const chat = state.integrations?.chat || {},
           status = $("chatResponseStatus");
@@ -652,8 +633,7 @@
           "border-bottom:1px solid var(--edge);padding:0 0 12px;margin-bottom:12px";
         const summary = document.createElement("summary");
         summary.textContent = "YOUTUBE SEARCH";
-        summary.title =
-          "Choose the active YouTube resolver and configure result filters";
+        summary.title = "Choose the active YouTube resolver and configure result filters";
         summary.style.cssText =
           "cursor:pointer;font-size:12px;font-weight:800;color:#cdd8ee;padding:8px 0";
         const setup = document.createElement("div");
@@ -671,8 +651,7 @@
         mode.style.margin = "10px 0";
         mode.title =
           "Permit search results that are not identified as music. This can make unrelated videos more likely.";
-        mode.innerHTML =
-          '<input id="allowNonMusic" type="checkbox"> ALLOW NON-MUSIC VIDEOS';
+        mode.innerHTML = '<input id="allowNonMusic" type="checkbox"> ALLOW NON-MUSIC VIDEOS';
         const filters = document.createElement("div");
         filters.id = "derivativeFilters";
         filters.style.cssText =
@@ -690,10 +669,8 @@
           '<button id="saveCatalogPolicy" type="button">SAVE SEARCH FILTERS</button><span id="catalogStatus" class="status">CHECKING PROVIDER</span>';
         details.append(summary, setup, policy, mode, filters, actions);
         firstHeading.before(details);
-        $("videoInput").closest("label").firstChild.textContent =
-          "SONG QUERY OR TRUSTED LINK";
-        $("videoInput").placeholder =
-          "Artist and song, YouTube, or Spotify link";
+        $("videoInput").closest("label").firstChild.textContent = "SONG QUERY OR TRUSTED LINK";
+        $("videoInput").placeholder = "Artist and song, YouTube, or Spotify link";
         $("saveCatalogMode").onclick = async () => {
           try {
             const selected = $("catalogMode").value;
@@ -707,8 +684,7 @@
             const result = await call("song.catalog.admin.v1", "configure", {
               mode: selected,
             });
-            if (!result.ok)
-              throw new Error(result.error || "Search provider unavailable");
+            if (!result.ok) throw new Error(result.error || "Search provider unavailable");
             setNotice(
               `${selected === "keyless" ? "Keyless" : "Official"} YouTube search selected.`,
             );
@@ -724,8 +700,7 @@
               apiKey: $("youtubeApiKey").value.trim(),
             });
             $("youtubeApiKey").value = "";
-            if (!result.ok)
-              throw new Error(result.error || "YouTube key rejected");
+            if (!result.ok) throw new Error(result.error || "YouTube key rejected");
             setNotice("YouTube API key saved and official search selected.");
             await refreshCatalog();
           } catch (error) {
@@ -792,18 +767,14 @@
               : keyless
                 ? "KEYLESS PROVIDER UNAVAILABLE"
                 : "API KEY REQUIRED";
-          $("catalogStatus").className =
-            `status${catalogState.configured ? " ok" : " bad"}`;
+          $("catalogStatus").className = `status${catalogState.configured ? " ok" : " bad"}`;
           const policy = catalogState.policy || {};
           $("minimumSubscribers").value = policy.minimumSubscribers ?? 100000;
           $("minimumViews").value = policy.minimumViews ?? 50000;
           $("minimumConfidence").value = policy.minimumConfidence ?? 0.4;
           $("allowNonMusic").checked = policy.allowNonMusic === true;
-          for (const input of document.querySelectorAll(
-            "#derivativeFilters input",
-          ))
-            input.checked =
-              policy.derivatives?.[input.dataset.derivative] !== false;
+          for (const input of document.querySelectorAll("#derivativeFilters input"))
+            input.checked = policy.derivatives?.[input.dataset.derivative] !== false;
         } catch (error) {
           $("catalogStatus").textContent = "PROVIDER UNAVAILABLE";
           $("catalogStatus").className = "status bad";
@@ -831,8 +802,7 @@
         const call = pendingCalls.get(message.id);
         if (!call) return;
         pendingCalls.delete(message.id);
-        if (message.ok && message.value?.ok !== false)
-          call.resolve(message.value);
+        if (message.ok && message.value?.ok !== false) call.resolve(message.value);
         else {
           const error = new Error(
             message.value?.reason ||
@@ -841,11 +811,7 @@
               message.error ||
               "Feature call failed",
           );
-          error.code =
-            message.value?.reason ||
-            message.value?.error ||
-            message.value?.code ||
-            "";
+          error.code = message.value?.reason || message.value?.error || message.value?.code || "";
           error.details = message.value?.details;
           call.reject(error);
         }
@@ -868,16 +834,10 @@
           const url = new URL(value);
           const host = url.hostname.toLowerCase();
           let id = "";
-          if (host === "youtu.be")
-            id = url.pathname.split("/").filter(Boolean)[0] || "";
-          else if (
-            ["youtube.com", "www.youtube.com", "music.youtube.com"].includes(
-              host,
-            )
-          ) {
+          if (host === "youtu.be") id = url.pathname.split("/").filter(Boolean)[0] || "";
+          else if (["youtube.com", "www.youtube.com", "music.youtube.com"].includes(host)) {
             id = url.searchParams.get("v") || "";
-            if (!id && url.pathname.startsWith("/shorts/"))
-              id = url.pathname.split("/")[2] || "";
+            if (!id && url.pathname.startsWith("/shorts/")) id = url.pathname.split("/")[2] || "";
           }
           return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : "";
         } catch {
@@ -890,8 +850,7 @@
       }
       function setRequestNotice(message, bad = false) {
         $("requestNotice").textContent = message;
-        $("requestNotice").className =
-          `notice requestNotice${bad ? " bad" : ""}`;
+        $("requestNotice").className = `notice requestNotice${bad ? " bad" : ""}`;
       }
       function actionButton(label, title, handler, danger = false) {
         const button = document.createElement("button");
@@ -905,15 +864,11 @@
       async function moderate(payload, message) {
         try {
           const result = await call("song.queue.admin.v1", "moderate", payload);
-          if (!result.ok)
-            throw new Error(
-              result.reason || result.code || "Moderation failed",
-            );
+          if (!result.ok) throw new Error(result.reason || result.code || "Moderation failed");
           setNotice(
             result.nativeError
               ? "Restriction saved, but " +
-                  (document.getElementById("songPlayerProvider")?.value ===
-                  "spotify"
+                  (document.getElementById("songPlayerProvider")?.value === "spotify"
                     ? "Spotify"
                     : "TIDAL") +
                   " needs attention: " +
@@ -931,8 +886,7 @@
         const body = $("queue"),
           rows = state.queue || [],
           total = state.counts?.queued || 0;
-        $("queueHeading").textContent =
-          `PLAY NEXT // ${Math.min(3, total)} OF ${total} FIFO`;
+        $("queueHeading").textContent = `PLAY NEXT // ${Math.min(3, total)} OF ${total} FIFO`;
         body.replaceChildren();
         if (!rows.length) {
           const row = body.insertRow(),
@@ -966,11 +920,7 @@
             actionButton(
               "BAN SONG",
               "Block this YouTube video and remove matching requests",
-              () =>
-                moderate(
-                  { action: "block_song", entryId: item.id },
-                  "Song blocked.",
-                ),
+              () => moderate({ action: "block_song", entryId: item.id }, "Song blocked."),
               true,
             ),
           );
@@ -980,10 +930,7 @@
         const actions = document.createElement("div");
         actions.className = "rowActions";
         const duration = document.createElement("select");
-        duration.setAttribute(
-          "aria-label",
-          "Timeout duration for " + item.displayName,
-        );
+        duration.setAttribute("aria-label", "Timeout duration for " + item.displayName);
         for (const [minutes, label] of [
           [1, "1 minute"],
           [5, "5 minutes"],
@@ -1001,20 +948,17 @@
         };
         actions.append(
           duration,
-          actionButton(
-            "TIMEOUT",
-            "Remove pending songs and time out this requester",
-            () =>
-              moderate(
-                {
-                  action: "timeout",
-                  requesterKey: item.requesterKey,
-                  requesterName: item.displayName,
-                  minutes: Number(duration.value),
-                  removePending: true,
-                },
-                item.displayName + " timed out; pending songs removed.",
-              ),
+          actionButton("TIMEOUT", "Remove pending songs and time out this requester", () =>
+            moderate(
+              {
+                action: "timeout",
+                requesterKey: item.requesterKey,
+                requesterName: item.displayName,
+                minutes: Number(duration.value),
+                removePending: true,
+              },
+              item.displayName + " timed out; pending songs removed.",
+            ),
           ),
           actionButton(
             item.blocked ? "UNBAN" : "BAN",
@@ -1056,10 +1000,7 @@
       function renderRequesters(state) {
         const body = $("requesters"),
           rows = state.moderation?.recentRequesters || [];
-        if (
-          body.contains(document.activeElement) &&
-          document.activeElement.tagName === "SELECT"
-        )
+        if (body.contains(document.activeElement) && document.activeElement.tagName === "SELECT")
           return;
         body.replaceChildren();
         if (!rows.length) {
@@ -1078,11 +1019,7 @@
           meta.className = "requesterMeta";
           meta.textContent =
             item.role +
-            (item.blocked
-              ? " // BANNED"
-              : item.timedOutUntil > Date.now()
-                ? " // TIMED OUT"
-                : "");
+            (item.blocked ? " // BANNED" : item.timedOutUntil > Date.now() ? " // TIMED OUT" : "");
           user.append(meta);
           row.insertCell().textContent = String(item.pending || 0);
           row.insertCell().append(requesterActions(item));
@@ -1092,8 +1029,7 @@
         const body = $("restrictedRequesters");
         if (
           !body ||
-          (body.contains(document.activeElement) &&
-            document.activeElement.tagName === "SELECT")
+          (body.contains(document.activeElement) && document.activeElement.tagName === "SELECT")
         )
           return;
         const moderation = state.moderation || {},
@@ -1111,8 +1047,7 @@
           row.insertCell().textContent = [
             item.blocked ? "Banned" : "",
             item.timedOutUntil > Date.now()
-              ? "Timed out until " +
-                new Date(item.timedOutUntil).toLocaleString()
+              ? "Timed out until " + new Date(item.timedOutUntil).toLocaleString()
               : "",
           ]
             .filter(Boolean)
@@ -1143,8 +1078,7 @@
         }
         const candidate = current.candidate || current;
         $("nowTitle").textContent = candidate.title || "UNTITLED";
-        $("nowArtist").textContent =
-          (candidate.artists || []).join(", ") || current.album || "";
+        $("nowArtist").textContent = (candidate.artists || []).join(", ") || current.album || "";
         $("nowProvider").textContent = clean(
           candidate.provider || current.provider || current.source,
         ).toUpperCase();
@@ -1180,8 +1114,7 @@
             $("viewerLimit").value = queueState.limits?.maxPerRequester || 5;
             $("vipLimit").value = queueState.limits?.maxPerVip || 10;
             if ($("maxSongMinutes"))
-              $("maxSongMinutes").value =
-                (queueState.limits?.maxDurationMs || 600000) / 60000;
+              $("maxSongMinutes").value = (queueState.limits?.maxDurationMs || 600000) / 60000;
           }
           if (!volumeDraftDirty) {
             volumeFloorPercent = queueState.volume?.floorPercent ?? 0;
@@ -1193,6 +1126,12 @@
           $("volumeOut").textContent =
             `${$("volume").value} // OUTPUT ${queueState.volume?.outputPercent ?? 40}%`;
           player?.setVolume?.(queueState.volume?.outputPercent ?? 40);
+          if (playback.control?.revision > appliedChatPlaybackRevision) {
+            appliedChatPlaybackRevision = playback.control.revision;
+            chatPlaybackPaused = playback.control.paused;
+            if ($("songPlayerProvider").value === "youtube")
+              playback.control.paused ? player?.pauseVideo?.() : player?.playVideo?.();
+          }
           if (lease && playback.managed?.entryId !== lease.entryId) {
             player?.stopVideo?.();
             lease = null;
@@ -1215,9 +1154,7 @@
       function outputVolume() {
         return Math.round(
           volumeFloorPercent +
-            (Number($("volume").value) *
-              (volumeCeilingPercent - volumeFloorPercent)) /
-              100,
+            (Number($("volume").value) * (volumeCeilingPercent - volumeFloorPercent)) / 100,
         );
       }
       async function maybePull() {
@@ -1230,8 +1167,7 @@
           });
           if (
             result.action &&
-            (!window.ravelinkPlayerActive ||
-              window.ravelinkPlayerActive("youtube"))
+            (!window.ravelinkPlayerActive || window.ravelinkPlayerActive("youtube"))
           ) {
             lease = result.action;
             player.loadVideoById(result.action.candidate.providerItemId);
@@ -1250,20 +1186,10 @@
             driverId: DRIVER,
             leaseId: active.leaseId,
             state,
-            positionMs: Math.max(
-              0,
-              Math.trunc(player?.getCurrentTime?.() * 1000 || 0),
-            ),
-            durationMs: Math.max(
-              0,
-              Math.trunc(player?.getDuration?.() * 1000 || 0),
-            ),
+            positionMs: Math.max(0, Math.trunc(player?.getCurrentTime?.() * 1000 || 0)),
+            durationMs: Math.max(0, Math.trunc(player?.getDuration?.() * 1000 || 0)),
           });
-          if (
-            lease === active &&
-            ["ended", "failed", "skipped"].includes(state)
-          )
-            lease = null;
+          if (lease === active && ["ended", "failed", "skipped"].includes(state)) lease = null;
           return result;
         } catch (error) {
           if (lease === active && error.code === "lease_stale") {
@@ -1275,11 +1201,7 @@
         }
       }
       window.onYouTubeIframeAPIReady = () => {
-        if (
-          $("songPlayerProvider") &&
-          $("songPlayerProvider").value !== "youtube"
-        )
-          return;
+        if ($("songPlayerProvider") && $("songPlayerProvider").value !== "youtube") return;
         player = new YT.Player("playerFrame", {
           width: "100%",
           height: "100%",
@@ -1290,9 +1212,7 @@
               player.setVolume(
                 Math.round(
                   volumeFloorPercent +
-                    (Number($("volume").value) *
-                      (volumeCeilingPercent - volumeFloorPercent)) /
-                      100,
+                    (Number($("volume").value) * (volumeCeilingPercent - volumeFloorPercent)) / 100,
                 ),
               );
               void maybePull();
@@ -1300,14 +1220,13 @@
             onStateChange: (event) => {
               if (
                 document.getElementById("songPlayerProvider")?.value &&
-                document.getElementById("songPlayerProvider").value !==
-                  "youtube"
+                document.getElementById("songPlayerProvider").value !== "youtube"
               ) {
-                if (event.data === YT.PlayerState.PLAYING)
-                  player?.pauseVideo?.();
+                if (event.data === YT.PlayerState.PLAYING) player?.pauseVideo?.();
                 return;
               }
               if (event.data === YT.PlayerState.PLAYING) {
+                if (chatPlaybackPaused) { player?.pauseVideo?.(); return; }
                 startPlayer.textContent = "PLAY";
                 void acknowledge("started").then(refreshState);
               }
@@ -1338,10 +1257,7 @@
                           : code === 153
                             ? "YouTube could not identify this local player."
                             : "YouTube rejected playback.";
-              setNotice(
-                `${reason} Error ${code || "unknown"}; moving to the next request.`,
-                true,
-              );
+              setNotice(`${reason} Error ${code || "unknown"}; moving to the next request.`, true);
               void acknowledge("failed").then(() => {
                 void refreshState();
                 void maybePull();
@@ -1359,18 +1275,12 @@
           button = $("addSong"),
           idleLabel = button.textContent;
         if (!query) {
-          setRequestNotice(
-            "Enter a song name or trusted YouTube or Spotify link.",
-            true,
-          );
+          setRequestNotice("Enter a song name or trusted YouTube or Spotify link.", true);
           return;
         }
         if (!id && catalogState?.configured !== true) {
           $("catalogSettings").open = true;
-          setRequestNotice(
-            "The selected YouTube search provider is unavailable.",
-            true,
-          );
+          setRequestNotice("The selected YouTube search provider is unavailable.", true);
           return;
         }
         button.disabled = true;
@@ -1394,10 +1304,7 @@
             query,
             ...(candidate ? { candidate } : {}),
           });
-          if (!result.ok)
-            throw new Error(
-              result.reason || result.code || "Song was not accepted",
-            );
+          if (!result.ok) throw new Error(result.reason || result.code || "Song was not accepted");
           $("videoInput").value = "";
           $("titleInput").value = "";
           const added = result.entry?.candidate?.title || "song";
@@ -1420,8 +1327,7 @@
           if (lease) {
             player.stopVideo();
             await acknowledge("skipped");
-          } else
-            await call("song.queue.admin.v1", "moderate", { action: "skip" });
+          } else await call("song.queue.admin.v1", "moderate", { action: "skip" });
           await refreshState();
           await maybePull();
         } catch (error) {
@@ -1430,10 +1336,7 @@
       };
       startPlayer.onclick = async () => {
         if (!playerReady) {
-          setNotice(
-            "The YouTube player is still loading. Try again in a moment.",
-            true,
-          );
+          setNotice("The YouTube player is still loading. Try again in a moment.", true);
           return;
         }
         try {
@@ -1470,9 +1373,7 @@
             limits: {
               maxPerRequester: Number($("viewerLimit").value),
               maxPerVip: Number($("vipLimit").value),
-              maxDurationMs: Math.round(
-                Number($("maxSongMinutes").value) * 60000,
-              ),
+              maxDurationMs: Math.round(Number($("maxSongMinutes").value) * 60000),
             },
           });
           policyDraftDirty = false;
@@ -1484,15 +1385,11 @@
       };
       $("volume").oninput = () => {
         const output = outputVolume();
-        $("volumeOut").textContent =
-          `${$("volume").value} // OUTPUT ${output}%`;
+        $("volumeOut").textContent = `${$("volume").value} // OUTPUT ${output}%`;
         player?.setVolume?.(output);
       };
       $("volume").onchange = () =>
-        void moderate(
-          { action: "volume", value: Number($("volume").value) },
-          "Volume saved.",
-        );
+        void moderate({ action: "volume", value: Number($("volume").value) }, "Volume saved.");
       $("refresh").onclick = () => {
         void refreshState();
         void maybePull();
@@ -1511,9 +1408,7 @@
           }, 150);
         }
       });
-      window.addEventListener("pagehide", () =>
-        clearTimeout(eventRefreshTimer),
-      );
+      window.addEventListener("pagehide", () => clearTimeout(eventRefreshTimer));
       void refreshState();
       let youtubeRequested = false;
       function ensureYoutubePlayer() {
@@ -1528,9 +1423,7 @@
         const script = document.createElement("script");
         script.src = "https://www.youtube.com/iframe_api";
         script.onerror = () => {
-          if (
-            document.getElementById("songPlayerProvider")?.value === "youtube"
-          )
+          if (document.getElementById("songPlayerProvider")?.value === "youtube")
             setNotice(
               "YouTube player failed to load. Check the network connection and refresh.",
               true,
@@ -1538,14 +1431,8 @@
         };
         document.head.appendChild(script);
         setTimeout(() => {
-          if (
-            !playerReady &&
-            document.getElementById("songPlayerProvider")?.value !== "tidal"
-          )
-            setNotice(
-              "YouTube player did not initialize. Refresh the Player tab to retry.",
-              true,
-            );
+          if (!playerReady && document.getElementById("songPlayerProvider")?.value !== "tidal")
+            setNotice("YouTube player did not initialize. Refresh the Player tab to retry.", true);
         }, 10000);
       }
     </script>
@@ -3275,6 +3162,8 @@ function installSoundCloudPlayer() {
     lastProgress = 0,
     page = 0,
     paused = false,
+    chatControlRevision = 0,
+    chatPlaybackPaused = false,
     hasStarted = false;
   let renderedRows = "",
     renderedCurrent = "";
@@ -3607,7 +3496,7 @@ function installSoundCloudPlayer() {
       playing.bind(SC.Widget.Events.READY, () => {
         if (!owns()) return;
         playing.setVolume(outputVolume());
-        playing.play();
+        if (!chatPlaybackPaused) playing.play();
       });
       playing.bind(SC.Widget.Events.PLAY, () => {
         if (!owns()) {
@@ -3751,6 +3640,11 @@ function installSoundCloudPlayer() {
       void pull();
     }
     widget?.setVolume(state.volume?.outputPercent ?? 40);
+    if (playback.control?.revision > chatControlRevision) {
+      chatControlRevision = playback.control.revision;
+      chatPlaybackPaused = playback.control.paused;
+      playback.control.paused ? widget?.pause() : widget?.play();
+    }
     void pull();
   }
   function songActions(item) {

@@ -97,6 +97,7 @@ function createSongQueue(options = {}) {
     : null;
   let sequence = 0;
   let paused = false;
+  let playbackControl = { revision: 0, paused: false };
   let queue = [];
   let recent = [];
   let seenRequests = [];
@@ -156,6 +157,7 @@ function createSongQueue(options = {}) {
       playbackSource,
       playbackEnabled,
       primary,
+      control: { ...playbackControl },
       managed,
       observed: observed.map((row) => ({ ...row, artworkUrl: undefined })),
     };
@@ -200,7 +202,7 @@ function createSongQueue(options = {}) {
           .filter((value) => PROVIDER_RE.test(value))
       : [];
     if (!driverId || !providers.length) return { ok: false, code: "driver_invalid" };
-    if (!playbackEnabled)
+    if (!playbackEnabled || playbackControl.paused)
       return {
         ok: true,
         code: "idle",
@@ -849,11 +851,23 @@ function createSongQueue(options = {}) {
         entry: entry || undefined,
       });
     }
+    // Skipping background playlist playback advances the lease without deleting
+    // the playlist entry. The cursor already advanced when that lease was issued.
+    if (
+      action === "skip" &&
+      managedPlayback?.origin === "playlist" &&
+      payload.entryId === managedPlayback.entryId
+    ) {
+      const entry = playlist.find((row) => row.id === managedPlayback.entryId);
+      managedPlayback = null;
+      playbackRevision += 1;
+      return response(true, "skipped", { entryId: payload.entryId, entry });
+    }
     const requestedPosition = integer(payload.position, 1, Math.max(1, queue.length), 0);
     const selectedIndex = requestedPosition > 0 ? requestedPosition - 1 : 0;
     const entryId = text(payload.entryId, 160);
     const index = entryId ? queue.findIndex((row) => row.id === entryId) : selectedIndex;
-    if (index < 0 || !["skip", "remove"].includes(action))
+    if (index < 0 || !queue[index] || !["skip", "remove"].includes(action))
       return response(false, "rejected", { reason: "entry_not_found" });
     const [entry] = queue.splice(index, 1);
     if (managedPlayback?.entryId === entry.id) {
@@ -1137,6 +1151,15 @@ function createSongQueue(options = {}) {
     return { ok: true, code: "released" };
   }
   return Object.freeze({
+    requesterModerationKey: resolveRequesterModerationKey,
+    controlPlayback: ({ action }) => {
+      playbackControl = {
+        revision: Math.max(Number(now()), playbackControl.revision + 1),
+        paused: action === "pause",
+      };
+      playbackRevision += 1;
+      return { ok: true, code: "playback_" + action, playbackControl: action };
+    },
     release,
     acknowledge,
     configure,

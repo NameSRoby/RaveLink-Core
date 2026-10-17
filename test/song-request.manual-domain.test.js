@@ -689,3 +689,19 @@ test("driver pull is provider-filtered and ack is lease-bound", () => {
   );
   assert.equal(queue.status().queue[0].candidate.provider, "manual");
 });
+
+test("skipping a background playlist lease preserves its songs and advances playback", () => {
+  const queue = createSongQueue({ now: () => 42 });
+  queue.importPlaylist([
+    {
+      id: "pl_fixture",
+      candidate: { provider: "soundcloud", providerItemId: "123", title: "Background" },
+    },
+  ]);
+  queue.moderate({ action: "playlist_play" });
+  const action = queue.pull({ driverId: "fixture", providers: ["soundcloud"] }).action;
+  assert.equal(queue.moderate({ action: "skip", entryId: action.entryId }).ok, true);
+  assert.equal(queue.playbackStatus().managed, null);
+  assert.equal(queue.status().playlistState.total, 1);
+  assert.equal(queue.moderate({ action: "skip" }).ok, false);
+});

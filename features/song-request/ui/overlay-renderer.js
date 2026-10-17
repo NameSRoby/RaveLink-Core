@@ -86,7 +86,11 @@
           duration || Infinity,
           base + (d.status === "playing" ? Math.max(0, Date.now() - Number(d.observed)) : 0),
         );
-      if (n.classList.contains("playbackTime"))
+      if (n.classList.contains("playbackRemaining"))
+        n.textContent = duration
+          ? "-" + clock(Math.ceil(Math.max(0, duration - position) / 1000) * 1000)
+          : "";
+      else if (n.classList.contains("playbackTime"))
         n.textContent = duration
           ? (visibility.get(stage)?.config.remainingTime
               ? "-" + clock(Math.ceil(Math.max(0, duration - position) / 1000) * 1000)
@@ -109,8 +113,12 @@
       const track = node("div", "marqueeTrack");
       track.append(node("h1", "", item.title || "Untitled"));
       n.append(track);
-    } else if (kind === "artists") n = node("p", "artists muted", (item.artists || []).join(", "));
-    else if (kind === "album") {
+    } else if (kind === "artists") {
+      n = node("div", "artists muted artistViewport");
+      const track = node("div", "artistTrack");
+      track.append(node("p", "", (item.artists || []).join(", ")));
+      n.append(track);
+    } else if (kind === "album") {
       if (!item.album) return null;
       n = node("p", "album muted", item.album);
     } else if (kind === "artwork") {
@@ -139,6 +147,9 @@
           ),
         );
       n.append(clockData(node("span", "playbackTime"), current));
+    } else if (kind === "remaining") {
+      n = clockData(node("div", "meta playbackRemaining"), current);
+      n.setAttribute("aria-label", "Time remaining");
     } else if (kind === "progress") {
       n = node("div", "bar progress");
       n.append(clockData(node("span", "playbackProgress"), current));
@@ -148,18 +159,18 @@
     } else return null;
     n.classList.add("block", "pv");
     n.dataset.blockId = raw.id;
-    if (config.layoutMode === "canvas" && raw.frame) place(n, raw.frame);
     const s = raw.style || {},
-      target = kind === "title" ? n.querySelector("h1") : n;
+      target =
+        kind === "title" ? n.querySelector("h1") : kind === "artists" ? n.querySelector("p") : n;
     if (s.align) {
       n.style.textAlign = s.align;
-      if (kind === "title") n.dataset.textAlign = s.align;
+      if (["title", "artists"].includes(kind)) n.dataset.textAlign = s.align;
     }
     if (sizes[s.size]) {
       if (kind === "artwork")
         n.style.setProperty("--oart", (artSizes[s.size] * config.scale) / 100 + "px");
       else if (kind === "progress")
-        n.style.height = { small: 2, medium: 4, large: 7, display: 10 }[s.size] + "px";
+        n.style.height = { small: 4, medium: 7, large: 10, display: 14 }[s.size] + "px";
       else target.style.fontSize = (sizes[s.size] * config.scale) / 100 + "px";
     }
     if (fonts[s.font]) target.style.fontFamily = fonts[s.font];
@@ -170,11 +181,23 @@
     if (s.bold) target.style.fontWeight = "800";
     if (s.italic) target.style.fontStyle = "italic";
     if (s.uppercase) target.style.textTransform = "uppercase";
+    if (config.layoutMode === "canvas" && raw.frame) {
+      place(n, raw.frame);
+      // Keep the saved frame in overlay pixels. Render the contents at their
+      // original logical size, then scale the whole block, including nested
+      // title tracks, artwork, and progress fill. This survives save/reload and
+      // uses the same representation in OBS and the designer.
+      const scale = Math.max(0.05, Math.min(20, Number(raw.contentScale) || 1));
+      n.style.width = raw.frame.width / scale + "px";
+      n.style.height = raw.frame.height / scale + "px";
+      n.style.transformOrigin = "0 0";
+      n.style.transform = "scale(" + scale + ")";
+    }
     return n;
   }
   function marquee(stage) {
     if (!stage.classList.contains("title-scroll")) return;
-    stage.querySelectorAll(".titleViewport").forEach((view) => {
+    stage.querySelectorAll(".titleViewport,.artistViewport").forEach((view) => {
       const track = view.firstElementChild,
         title = track?.firstElementChild,
         width = Math.ceil(title?.scrollWidth || 0),
@@ -218,7 +241,10 @@
         if (/^#[0-9a-f]{6}$/i.test(theme[source] || "")) c[key] = theme[source];
     }
     const provider = (current.candidate || current).provider;
-    if (c.providerColors && providerColors[provider]) c.accent = providerColors[provider];
+    const source = c.providerColors ? "provider" : c.accentSource || "theme";
+    if (source === "custom") c.accent = config.accent;
+    if (["provider", "artwork"].includes(source) && providerColors[provider])
+      c.accent = providerColors[provider];
     trackVisibility(stage, c, current);
     const vars = {
       owidth: c.width + "px",
@@ -258,8 +284,12 @@
       (c.separated ? " separated" : "") +
       (c.autoHeight ? "" : " height-fixed");
     stage.classList.toggle("canvas-layout", c.layoutMode === "canvas");
+    stage.classList.toggle("accent-fade", c.colorFade === true);
+    stage.classList.add("surface-" + (c.surfaceEffect || "preset"));
     const item = current.candidate || current,
       next = rows.filter((r) => r.id !== current.entryId).map((r) => r.candidate?.title || r.query);
+    if (source === "artwork") root.SongOverlayPalette?.apply(stage, item.artworkUrl);
+    else root.SongOverlayPalette?.clear(stage);
     stage.replaceChildren(
       ...c.segments
         .filter((s) => s.enabled)
@@ -314,7 +344,7 @@
     resizeObservers.get(stage)?.disconnect();
     const observer = new ResizeObserver(() => marquee(stage));
     resizeObservers.set(stage, observer);
-    stage.querySelectorAll(".titleViewport").forEach((n) => observer.observe(n));
+    stage.querySelectorAll(".titleViewport,.artistViewport").forEach((n) => observer.observe(n));
     document.fonts?.ready.then(() => marquee(stage));
     if (options.animate && c.motion !== "off") stage.classList.add(c.motion);
     stage.classList.toggle("hidden", !stage.childElementCount);

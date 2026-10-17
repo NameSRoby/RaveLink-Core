@@ -141,6 +141,10 @@ module.exports = function createNativeFacade(platform, options = {}) {
       pause: () => player().pause(),
       play: () => player().resume(),
       next: () => player().skipToNext(),
+      setVolume: (value) => {
+        if (typeof player().setVolume !== "function") throw Error("spotify_volume_unavailable");
+        return player().setVolume(value);
+      },
     },
     localDevice() {
       try {

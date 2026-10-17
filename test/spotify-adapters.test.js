@@ -197,3 +197,22 @@ test("Premium transport honors Spotify backoff, contains API errors and does not
     assert.equal((await denied.search("Artist")).error, error);
   }
 });
+
+test("desktop volume uses a bounded normalized value and requires the local device", async () => {
+  const calls = [];
+  const api = { Player: { setVolume: async (value) => calls.push(value) } };
+  const client = desktop(api, { verifyLocalDevice: () => true });
+  assert.equal((await client.control({ action: "volume", value: 40 })).ok, true);
+  assert.deepEqual(calls, [0.4]);
+  assert.equal((await client.control({ action: "volume", value: 101 })).ok, false);
+  assert.equal(
+    (
+      await desktop(api, { verifyLocalDevice: () => false }).control({
+        action: "volume",
+        value: 50,
+      })
+    ).ok,
+    false,
+  );
+  assert.deepEqual(calls, [0.4]);
+});

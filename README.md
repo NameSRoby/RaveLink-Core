@@ -4,6 +4,17 @@
 
 RaveLink Core is a local Windows app for streamer lighting, music requests and optional Twitch integration. It runs in the tray and opens at `http://127.0.0.1:5050`.
 
+## 0.7.1c patch notes
+
+- Fixed Twitch chat controls reaching the selected YouTube, SoundCloud, Spotify or TIDAL player. Volume respects the configured output range; chat pause/resume controls playback separately from request intake.
+- Added Moderator, VIP and Viewer command permissions under **Twitch Integration > Event intake**. Moderators can manage all requests by default; viewers and VIPs can skip their own playing request or remove their own pending request with **!remove song title**. Separate anyone's-song permissions remain off for viewers and VIPs by default. Ambiguous titles and stale request IDs cannot silently target a different song.
+- Kept authorized native chat controls available when StreamElements handles reward intake. Repeated Twitch control events do not execute twice.
+- Improved Overlay Designer selection, segment resizing, snapping, measurements, size and aspect-ratio locks, and proportional content scaling. Compact Countdown includes artwork, song, artist, progress and remaining time; refreshed presets improve text and progress visibility.
+- Added overlay accent choices for the server theme, a custom color, provider or artwork, with glass/fade treatments and independent long-artist scrolling.
+- Included Spotify companion heartbeat recovery and clearer transfer-pause recovery from the maintenance updates since 0.7.1b.
+
+**Updating:** install 0.7.1c or stop Core and extract the portable update into the installation folder, preserving local data. Update **Song Request to 0.44.11** and **Twitch Integration to 0.12.3** under **Packages**, then restart Core and reload the dashboard and OBS browser sources. For updated Spotify desktop controls, prepare the companion in **Player > Spotify > Setup**, fully quit Spotify, then choose **Open Spotify with RaveLink**. Existing accounts, playlists and overlay profiles are preserved. The original 0.7.1 updater needs a manual upgrade to recognize letter-suffixed releases.
+
 ## 0.7.1b patch notes
 
 - Spotify is available as both a playlist source and destination. Import account playlists or playlist links, review matches from other services, then create verified Spotify account playlists through the desktop companion. Order and repeated tracks are preserved; split and grouped destinations are supported.
@@ -30,16 +41,16 @@ This patch fixes problems in 0.7.1 while retaining its existing lighting, music,
 
 **Updating from 0.7.1:** use the installer below, or stop Core and extract the portable update into your installation folder. Keep your existing local data. The 0.7.1 updater does not recognize letter-suffixed releases; 0.7.1a adds support for them. After upgrading Core, update **Song Request** under **Packages** to receive the feature fixes. Restart Core, then reload the dashboard and refresh OBS browser sources. There is no need to reconnect accounts or erase playlists.
 
-## Install 0.7.1b
+## Install 0.7.1c
 
-1. Download **RaveLink-Core-Windows-v0.7.1b-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
+1. Download **RaveLink-Core-Windows-v0.7.1c-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
 2. Choose an installation folder and optional features. Setup downloads and verifies only your selected features from this repository.
 3. Choose **Main**, **More** or **Hidden** placement for tabs. Change this later from the settings gear → **Choose tabs**.
 4. Launch from the Start menu or desktop shortcut. Use the tray icon to reopen, restart or exit.
 
 Windows 10 or 11, 64-bit, is required. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-For portable use, extract **RaveLink-Core-Windows-v0.7.1b-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
+For portable use, extract **RaveLink-Core-Windows-v0.7.1c-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
 
 ## Lighting
 

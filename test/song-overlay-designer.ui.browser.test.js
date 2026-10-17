@@ -40,7 +40,9 @@ test("overlay designer presets, profiles, undo and shared app colors work throug
   const server = await new Promise((r) => {
     const s = created.app.listen(0, "127.0.0.1", () => r(s));
   });
-  const browser = await chromium.launch({ headless: true });
+  // Exercise operator actions at a human pace: each configuration fans out to
+  // both open overlays and the editor through the supervised IPC rate limit.
+  const browser = await chromium.launch({ headless: true, slowMo: 25 });
   t.after(async () => {
     await browser.close();
     await created.extension.shutdown();
@@ -128,7 +130,7 @@ test("overlay designer presets, profiles, undo and shared app colors work throug
   await editor.locator(".preset-card").nth(7).waitFor();
   await editor.locator(".preset-thumb .song-overlay").nth(7).waitFor();
   assert.equal(await editor.locator("#composition").isVisible(), false);
-  assert.equal(await editor.locator(".preset-thumb .song-overlay").count(), 8);
+  assert.equal(await editor.locator(".preset-thumb .song-overlay").count(), 10);
   const thumbnails = await editor.locator(".preset-thumb").evaluateAll((thumbs) =>
     thumbs.map((thumb) => {
       const bounds = thumb.getBoundingClientRect(),
@@ -373,7 +375,15 @@ test("overlay designer presets, profiles, undo and shared app colors work throug
   await editor.locator('[data-preset="album-card"]').click();
   await editor.locator("#status").filter({ hasText: "Preset loaded locally" }).waitFor();
   await editor.locator("#save").click();
-  await editor.locator("#status").filter({ hasText: "Overlay saved" }).waitFor();
+  await editor
+    .locator("#status")
+    .filter({ hasText: "Overlay saved" })
+    .waitFor()
+    .catch(async (error) => {
+      throw new Error("Save status: " + (await editor.locator("#status").textContent()), {
+        cause: error,
+      });
+    });
   const submitted = await call(
     "submit",
     {
@@ -418,7 +428,7 @@ test("overlay designer presets, profiles, undo and shared app colors work throug
       new Promise((resolve, reject) => {
         const started = Date.now();
         const check = () =>
-          getComputedStyle(el).getPropertyValue("--oaccent").trim() === "#00cc88"
+          el.style.getPropertyValue("--oaccent").trim() === "#00cc88"
             ? resolve()
             : Date.now() - started > 6000
               ? reject(Error("theme did not arrive"))
@@ -531,6 +541,28 @@ test("overlay designer presets, profiles, undo and shared app colors work throug
     .click();
   assert.equal(await editor.locator("#hidePaused").isChecked(), true);
   assert.equal(await editor.locator("#pauseHideSeconds").inputValue(), "5");
+  await editor
+    .locator(".task-navigation")
+    .getByRole("button", { name: "Style", exact: true })
+    .click();
+  await editor
+    .locator(".style-navigation")
+    .getByRole("button", { name: "Colors", exact: true })
+    .click();
+  await editor.locator("#accent-source").selectOption("artwork");
+  await editor.locator("#color-fade").check();
+  await editor
+    .locator(".style-navigation")
+    .getByRole("button", { name: "Look", exact: true })
+    .click();
+  await editor.locator("#surface-effect").selectOption("glass");
+  await editor.locator("#save").click();
+  await editor.locator("#status").filter({ hasText: "Overlay saved" }).waitFor();
+  const colorSaved = await call("status", null, "song.overlay.read.v1");
+  assert.equal(colorSaved.config.accentSource, "artwork");
+  assert.equal(colorSaved.config.providerColors, false);
+  assert.equal(colorSaved.config.colorFade, true);
+  assert.equal(colorSaved.config.surfaceEffect, "glass");
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(
     await editor

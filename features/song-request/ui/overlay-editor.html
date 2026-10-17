@@ -489,10 +489,9 @@
         max-width: 100%;
       }
       .segment-head {
-        grid-template-columns: minmax(70px, 1fr) repeat(
-            3,
-            minmax(50px, 1fr)
-          ) repeat(4, 28px);
+        grid-template-columns:
+          minmax(70px, 1fr) repeat(3, minmax(50px, 1fr))
+          repeat(4, 28px);
       }
       .segment-head select {
         width: 100%;
@@ -805,6 +804,11 @@ summary > span {
   line-height: 1.4;
   color: var(--muted);
   margin: 0 4px 6px;
+}
+.preset-dimensions {
+  margin: 0 4px 4px;
+  font-size: 11px;
+  color: var(--muted);
 }
 .preset-thumb {
   width: 100%;
@@ -1279,6 +1283,10 @@ summary > span {
 #preview.canvas-layout {
   touch-action: none;
 }
+#preview {
+  overflow: visible;
+  touch-action: none;
+}
 #preview.canvas-layout .block,
 #preview.canvas-layout .preview-segment {
   cursor: move;
@@ -1299,6 +1307,38 @@ summary > span {
   border: 2px solid #e21d48;
   pointer-events: auto;
   touch-action: none;
+}
+.canvas-measurement {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  background: #131c30;
+  color: #fff;
+  font: 11px/1.6 system-ui;
+  white-space: nowrap;
+  padding: 2px 5px;
+}
+#preview .canvas-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(#a4c9ff18 1px, transparent 1px),
+    linear-gradient(90deg, #a4c9ff18 1px, transparent 1px);
+  background-size: 24px 24px;
+  z-index: 900;
+}
+#preview .canvas-segment-label {
+  position: absolute;
+  z-index: 999;
+  font: 10px/16px system-ui;
+  color: #fff;
+  background: #26354d;
+  border: 1px solid #91a7ca;
+  border-radius: 3px;
+  padding: 0 4px;
+  min-height: 18px;
+  cursor: pointer;
 }
 .canvas-handle.nw {
   left: 0;
@@ -1581,13 +1621,18 @@ body[data-canvas-editing="true"] #composition {
 .song-overlay .playbackTime {
   white-space: nowrap;
 }
+.song-overlay .playbackRemaining {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  justify-content: flex-end;
+}
 .song-overlay .provider {
   font-size: calc(12px * var(--oscale));
   font-weight: 900;
   color: var(--oaccent);
 }
 .song-overlay .bar {
-  height: calc(4px * var(--oscale));
+  height: calc(7px * var(--oscale));
   min-height: 2px;
   background: rgba(128, 144, 170, 0.28);
   border-radius: 4px;
@@ -1620,35 +1665,43 @@ body[data-canvas-editing="true"] #composition {
   height: 100%;
   object-fit: cover;
 }
-.song-overlay .titleViewport {
+.song-overlay .titleViewport,
+.song-overlay .artistViewport {
   display: block;
   width: 100%;
   overflow: hidden;
 }
-.song-overlay .marqueeTrack {
+.song-overlay .marqueeTrack,
+.song-overlay .artistTrack {
   display: flex;
   width: max-content;
   gap: var(--marquee-gap, 32px);
 }
-.song-overlay .marqueeTrack h1 {
+.song-overlay .marqueeTrack h1,
+.song-overlay .artistTrack p {
   white-space: nowrap;
   flex: none;
 }
-.song-overlay.title-ellipsis .marqueeTrack {
+.song-overlay.title-ellipsis .marqueeTrack,
+.song-overlay.title-ellipsis .artistTrack {
   width: 100%;
 }
-.song-overlay.title-ellipsis h1 {
+.song-overlay.title-ellipsis h1,
+.song-overlay.title-ellipsis .artistTrack p {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.song-overlay.title-wrap .marqueeTrack {
+.song-overlay.title-wrap .marqueeTrack,
+.song-overlay.title-wrap .artistTrack {
   width: 100%;
 }
-.song-overlay.title-wrap h1 {
+.song-overlay.title-wrap h1,
+.song-overlay.title-wrap .artistTrack p {
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.song-overlay .titleViewport.scrolling .marqueeTrack {
+.song-overlay .titleViewport.scrolling .marqueeTrack,
+.song-overlay .artistViewport.scrolling .artistTrack {
   animation: song-ticker var(--marquee-duration) linear infinite;
   will-change: transform;
 }
@@ -1697,7 +1750,9 @@ body[data-canvas-editing="true"] #composition {
 }
 
 .song-overlay.title-wrap h1,
-.song-overlay.title-ellipsis h1 {
+.song-overlay.title-ellipsis h1,
+.song-overlay.title-wrap .artistTrack p,
+.song-overlay.title-ellipsis .artistTrack p {
   min-width: 0;
   width: 100%;
   flex: 0 1 100%;
@@ -1737,7 +1792,7 @@ body[data-canvas-editing="true"] #composition {
   font-size: 10px;
 }
 .song-overlay.skin-glass .bar {
-  height: 3px;
+  height: calc(7px * var(--oscale));
 }
 .song-overlay.skin-glass .meta {
   font-weight: 500;
@@ -1781,7 +1836,7 @@ body[data-canvas-editing="true"] #composition {
   text-transform: uppercase;
 }
 .song-overlay.skin-broadcast .bar {
-  height: 2px;
+  height: calc(7px * var(--oscale));
 }
 .song-overlay.skin-vinyl .artwork {
   border-radius: 50%;
@@ -1840,7 +1895,7 @@ body[data-canvas-editing="true"] #composition {
   font-weight: 500;
 }
 .song-overlay.skin-minimal .bar {
-  height: 2px;
+  height: calc(6px * var(--oscale));
 }
 .song-overlay.skin-minimal .artists {
   font-size: 12px;
@@ -1880,7 +1935,7 @@ body[data-canvas-editing="true"] #composition {
   margin: 0;
 }
 .song-overlay.skin-duo .bar {
-  height: 3px;
+  height: calc(7px * var(--oscale));
 }
 .song-overlay:not(.skin-classic):not(.skin-broadcast) .label,
 .song-overlay:not(.skin-classic) .provider {
@@ -1901,7 +1956,7 @@ body[data-canvas-editing="true"] #composition {
   pointer-events: none;
 }
 .song-overlay.skin-duo.grid {
-  grid-template-columns: minmax(0, 1fr) 100px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
 }
 .song-overlay.skin-duo .playbackTime {
   font-size: 11px;
@@ -1910,7 +1965,10 @@ body[data-canvas-editing="true"] #composition {
   font-size: calc(18px * var(--oscale));
 }
 .song-overlay.skin-duo .artists {
-  font-size: calc(12px * var(--oscale));
+  font-size: calc(17px * var(--oscale));
+}
+.song-overlay.skin-minimal.row .artwork {
+  border-radius: 4px;
 }
 @media (prefers-reduced-motion: reduce) {
   .song-overlay,
@@ -1959,9 +2017,50 @@ body[data-canvas-editing="true"] #composition {
 .song-overlay .titleViewport[data-text-align="right"]:not(.scrolling) .marqueeTrack {
   margin-left: auto;
 }
+.song-overlay .artistViewport[data-text-align="center"]:not(.scrolling) .artistTrack {
+  margin-inline: auto;
+}
+.song-overlay .artistViewport[data-text-align="right"]:not(.scrolling) .artistTrack {
+  margin-left: auto;
+}
 /* Scroll is an explicit content setting, independent of entrance effects. */
+@property --oaccent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #8b001f;
+}
+.song-overlay.accent-fade {
+  transition:
+    opacity 0.2s ease,
+    --oaccent 0.65s ease;
+}
+.song-overlay.surface-solid:not(.separated),
+.song-overlay.surface-solid.separated > .segment {
+  background: var(--osurface);
+  box-shadow: none;
+}
+.song-overlay.surface-glass:not(.separated),
+.song-overlay.surface-glass.separated > .segment {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--oaccent) 18%, var(--osurface)),
+    var(--osurface)
+  );
+  box-shadow:
+    inset 0 1px 0 #ffffff30,
+    inset 0 0 0 1px #ffffff14;
+  backdrop-filter: blur(12px);
+}
+.song-overlay.surface-transparent:not(.separated),
+.song-overlay.surface-transparent.separated > .segment {
+  background: transparent;
+  box-shadow: none;
+}
 @media (prefers-reduced-motion: reduce) {
   .song-overlay.title-scroll .titleViewport.scrolling .marqueeTrack {
+    animation: song-ticker var(--marquee-duration) linear infinite !important;
+  }
+  .song-overlay.title-scroll .artistViewport.scrolling .artistTrack {
     animation: song-ticker var(--marquee-duration) linear infinite !important;
   }
 }
@@ -1977,29 +2076,16 @@ body[data-canvas-editing="true"] #composition {
         <button id="save" class="primary">Save overlay</button>
       </div>
     </header>
-    <div
-      id="designer-tasks"
-      data-task-workspace="Overlay tasks"
-      data-default-task="Style"
-    >
+    <div id="designer-tasks" data-task-workspace="Overlay tasks" data-default-task="Style">
       <div id="status" class="status" role="status" aria-live="polite"></div>
-      <details
-        id="preset-library"
-        class="preset-library"
-        data-task-panel="Presets"
-        open
-      >
+      <details id="preset-library" class="preset-library" data-task-panel="Presets" open>
         <summary>Choose a look <span>Live preset previews</span></summary>
         <div class="preset-selector">
           <label for="preset">Start from a preset</label
           ><select id="preset"></select
           ><span id="preset-help"></span>
         </div>
-        <div
-          id="preset-gallery"
-          class="preset-gallery"
-          aria-label="Overlay presets"
-        ></div>
+        <div id="preset-gallery" class="preset-gallery" aria-label="Overlay presets"></div>
       </details>
       <main class="layout">
         <section class="left">
@@ -2017,19 +2103,13 @@ body[data-canvas-editing="true"] #composition {
           </div>
           <div class="preview-wrap" data-mode="focus">
             <p id="preview-warning" role="status"></p>
-            <div
-              id="preview-canvas"
-              style="position: absolute; transform-origin: top left"
-            >
+            <div id="preview-canvas" style="position: absolute; transform-origin: top left">
               <div id="preview" class="preview"></div>
             </div>
           </div>
           <div class="preview-footer">
             <span>Transparent areas stay transparent in OBS</span
-            ><label
-              ><input id="demo-long-title" type="checkbox" /> Test a long
-              title</label
-            >
+            ><label><input id="demo-long-title" type="checkbox" /> Test a long title</label>
           </div>
           <div id="selection-inspector" hidden>
             <div class="inspector-heading">
@@ -2041,8 +2121,7 @@ body[data-canvas-editing="true"] #composition {
           <div class="appearance" data-task-panel="Style">
             <h2>Make it yours</h2>
             <label class="switchLabel"
-              ><input id="followAppColors" type="checkbox" checked /> Follow app
-              colors</label
+              ><input id="followAppColors" type="checkbox" checked /> Follow app colors</label
             >
             <p class="theme-help">
               Your app palette, reflected in OBS. Turn off for custom colors.
@@ -2083,19 +2162,10 @@ body[data-canvas-editing="true"] #composition {
                 </select></label
               ><label class="field"
                 >Width <span id="widthOut"></span
-                ><input
-                  id="width"
-                  type="range"
-                  min="240"
-                  max="960"
-                  step="10" /></label
+                ><input id="width" type="range" min="240" max="960" step="10" /></label
               ><label class="field"
                 >Artwork size <span id="artworkSizeOut"></span
-                ><input
-                  id="artworkSize"
-                  type="range"
-                  min="40"
-                  max="200" /></label
+                ><input id="artworkSize" type="range" min="40" max="200" /></label
               ><label class="field"
                 >Surface opacity <span id="opacityOut"></span
                 ><input id="opacity" type="range" min="0" max="100" /></label
@@ -2115,15 +2185,10 @@ body[data-canvas-editing="true"] #composition {
                   ><input id="radius" type="range" min="0" max="40" /></label
                 ><label class="field"
                   >Padding <span id="paddingOut"></span
-                  ><input id="padding" type="range" min="8" max="36" /></label
+                  ><input id="padding" type="range" min="0" max="36" /></label
                 ><label class="field"
                   >Content scale <span id="scaleOut"></span
-                  ><input
-                    id="scale"
-                    type="range"
-                    min="75"
-                    max="150"
-                    step="5" /></label
+                  ><input id="scale" type="range" min="75" max="150" step="5" /></label
                 ><label class="field"
                   >Segment gap <span id="gapOut"></span
                   ><input id="gap" type="range" min="0" max="40" /></label
@@ -2140,29 +2205,15 @@ body[data-canvas-editing="true"] #composition {
                   </select></label
                 ><label class="field"
                   >Accent edge <span id="accentWidthOut"></span
-                  ><input
-                    id="accentWidth"
-                    type="range"
-                    min="0"
-                    max="12" /></label
+                  ><input id="accentWidth" type="range" min="0" max="12" /></label
                 ><label class="field"
                   >Border <span id="borderWidthOut"></span
-                  ><input
-                    id="borderWidth"
-                    type="range"
-                    min="0"
-                    max="6" /></label
-                ><label class="field"
-                  >Border color<input id="borderColor" type="color" /></label
-                ><label class="field"
-                  >Accent<input id="accent" type="color" /></label
-                ><label class="field"
-                  >Surface<input id="surface" type="color" /></label
-                ><label class="field"
-                  >Text<input id="text" type="color" /></label
-                ><label class="field"
-                  >Muted<input id="muted" type="color"
-                /></label>
+                  ><input id="borderWidth" type="range" min="0" max="6" /></label
+                ><label class="field">Border color<input id="borderColor" type="color" /></label
+                ><label class="field">Accent<input id="accent" type="color" /></label
+                ><label class="field">Surface<input id="surface" type="color" /></label
+                ><label class="field">Text<input id="text" type="color" /></label
+                ><label class="field">Muted<input id="muted" type="color" /></label>
               </div>
             </details>
             <details class="control-group" id="sizing-options">
@@ -2181,12 +2232,7 @@ body[data-canvas-editing="true"] #composition {
                   </select></label
                 ><label class="field"
                   >Height <span id="heightOut"></span
-                  ><input
-                    id="height"
-                    type="range"
-                    min="80"
-                    max="600"
-                    step="10" /></label
+                  ><input id="height" type="range" min="32" max="600" step="1" /></label
                 ><label class="field"
                   >Vertical content<select id="contentAlign">
                     <option value="start">Top</option>
@@ -2207,37 +2253,23 @@ body[data-canvas-editing="true"] #composition {
             <p>Choose the information your viewers see.</p>
             <div id="content-controls" class="content-controls"></div>
           </section>
-          <section
-            class="behavior-panel"
-            id="behavior-panel"
-            data-task-panel="Behavior"
-          ></section>
+          <section class="behavior-panel" id="behavior-panel" data-task-panel="Behavior"></section>
           <section class="profile-bar" data-task-panel="Profiles">
             <h2>Your profiles</h2>
             <label for="profile-select">Saved design</label
             ><select id="profile-select">
               <option value="">Choose a saved profile</option></select
             ><label for="profile-name">Profile name</label
-            ><input
-              id="profile-name"
-              maxlength="64"
-              placeholder="e.g. Just Chatting"
-            />
+            ><input id="profile-name" maxlength="64" placeholder="e.g. Just Chatting" />
             <div class="profile-actions">
               <button id="profile-new">Save as new profile</button
               ><button id="profile-update" disabled>Update profile</button
               ><button id="profile-delete" disabled>Delete profile</button
-              ><button id="profile-delete-confirm" hidden>
-                Confirm delete
-              </button>
+              ><button id="profile-delete-confirm" hidden>Confirm delete</button>
             </div>
           </section>
         </aside>
-        <details
-          id="composition"
-          class="composition"
-          data-task-panel="Content &amp; layout"
-        >
+        <details id="composition" class="composition" data-task-panel="Content &amp; layout">
           <summary>
             Advanced layout
             <span>Arrange sections and style individual pieces</span>
@@ -2253,8 +2285,7 @@ body[data-canvas-editing="true"] #composition {
               <div class="actions">
                 <button id="addSegment">Add section</button
                 ><label class="switchLabel"
-                  ><input id="separated" type="checkbox" /> Separate
-                  surfaces</label
+                  ><input id="separated" type="checkbox" /> Separate surfaces</label
                 >
               </div>
             </fieldset>
@@ -2264,6 +2295,106 @@ body[data-canvas-editing="true"] #composition {
     </div>
     <!-- SONG_OVERLAY_SCRIPT_START -->
 <script>
+/**
+ * Cover-derived accents, shared by the designer and OBS.
+ * Decode a small, separate CORS-enabled probe: changing the display image's CORS
+ * mode would make covers disappear on hosts that prohibit canvas access. Failure
+ * leaves the caller's provider/theme fallback in place. A generation token keeps
+ * a late cover from recoloring the next song. Cache and concurrent probes are
+ * bounded; image loading and canvas sampling never run on playback clock ticks.
+ */
+(function (root) {
+  const colors = new Map(),
+    pending = new Map(),
+    generations = new WeakMap();
+  function sample(image) {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 16;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.drawImage(image, 0, 0, 16, 16);
+    const pixels = context.getImageData(0, 0, 16, 16).data,
+      buckets = new Map();
+    for (let index = 0; index < pixels.length; index += 4) {
+      if (pixels[index + 3] < 128) continue;
+      const rgb = [...pixels.slice(index, index + 3)];
+      const high = Math.max(...rgb),
+        low = Math.min(...rgb);
+      const luminance = rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
+      if (luminance < 60 || low > 230) continue;
+      const key = rgb.map((v) => Math.floor(v / 32)).join(":");
+      const bucket = buckets.get(key) || { rgb, weight: 0 };
+      bucket.weight += 1 + (3 * (high - low)) / 255;
+      buckets.set(key, bucket);
+    }
+    const best = [...buckets.values()].sort((a, b) => b.weight - a.weight)[0];
+    if (!best) return null;
+    // Accents sit on dark panels; brighten dark extracted colors without changing
+    // the text/muted palette, which must remain legible independently of the cover.
+    const brightness = best.rgb.reduce(
+      (sum, v, index) => sum + v * [0.2126, 0.7152, 0.0722][index],
+      0,
+    );
+    const lift = Math.max(0, 135 - brightness);
+    return (
+      "#" +
+      best.rgb
+        .map((v) =>
+          Math.min(255, Math.round(v + lift))
+            .toString(16)
+            .padStart(2, "0"),
+        )
+        .join("")
+    );
+  }
+  function probe(url) {
+    if (colors.has(url)) return Promise.resolve(colors.get(url));
+    if (pending.has(url)) return pending.get(url);
+    if (pending.size >= 4) return Promise.resolve(null);
+    const work = new Promise((resolve) => {
+      const image = new Image();
+      let timer;
+      const finish = (color) => {
+        clearTimeout(timer);
+        image.onload = image.onerror = null;
+        image.src = "";
+        resolve(color);
+      };
+      image.crossOrigin = "anonymous";
+      image.referrerPolicy = "no-referrer";
+      image.onload = () => {
+        try {
+          finish(sample(image));
+        } catch {
+          finish(null);
+        }
+      };
+      image.onerror = () => finish(null);
+      timer = setTimeout(() => finish(null), 5000);
+      image.src = url;
+    }).then((color) => {
+      pending.delete(url);
+      colors.set(url, color);
+      if (colors.size > 64) colors.delete(colors.keys().next().value);
+      return color;
+    });
+    pending.set(url, work);
+    return work;
+  }
+  function clear(stage) {
+    generations.set(stage, {});
+  }
+  function apply(stage, url) {
+    const generation = {};
+    generations.set(stage, generation);
+    if (!url) return;
+    probe(url).then((color) => {
+      if (color && generations.get(stage) === generation)
+        stage.style.setProperty("--oaccent", color);
+    });
+  }
+  root.SongOverlayPalette = { apply, clear };
+})(window);
+
 /**
  * Shared designer and OBS rendering engine.
  * DOM replacement is separate from clock/progress updates. Retain marquee identity
@@ -2352,7 +2483,11 @@ body[data-canvas-editing="true"] #composition {
           duration || Infinity,
           base + (d.status === "playing" ? Math.max(0, Date.now() - Number(d.observed)) : 0),
         );
-      if (n.classList.contains("playbackTime"))
+      if (n.classList.contains("playbackRemaining"))
+        n.textContent = duration
+          ? "-" + clock(Math.ceil(Math.max(0, duration - position) / 1000) * 1000)
+          : "";
+      else if (n.classList.contains("playbackTime"))
         n.textContent = duration
           ? (visibility.get(stage)?.config.remainingTime
               ? "-" + clock(Math.ceil(Math.max(0, duration - position) / 1000) * 1000)
@@ -2375,8 +2510,12 @@ body[data-canvas-editing="true"] #composition {
       const track = node("div", "marqueeTrack");
       track.append(node("h1", "", item.title || "Untitled"));
       n.append(track);
-    } else if (kind === "artists") n = node("p", "artists muted", (item.artists || []).join(", "));
-    else if (kind === "album") {
+    } else if (kind === "artists") {
+      n = node("div", "artists muted artistViewport");
+      const track = node("div", "artistTrack");
+      track.append(node("p", "", (item.artists || []).join(", ")));
+      n.append(track);
+    } else if (kind === "album") {
       if (!item.album) return null;
       n = node("p", "album muted", item.album);
     } else if (kind === "artwork") {
@@ -2405,6 +2544,9 @@ body[data-canvas-editing="true"] #composition {
           ),
         );
       n.append(clockData(node("span", "playbackTime"), current));
+    } else if (kind === "remaining") {
+      n = clockData(node("div", "meta playbackRemaining"), current);
+      n.setAttribute("aria-label", "Time remaining");
     } else if (kind === "progress") {
       n = node("div", "bar progress");
       n.append(clockData(node("span", "playbackProgress"), current));
@@ -2414,18 +2556,18 @@ body[data-canvas-editing="true"] #composition {
     } else return null;
     n.classList.add("block", "pv");
     n.dataset.blockId = raw.id;
-    if (config.layoutMode === "canvas" && raw.frame) place(n, raw.frame);
     const s = raw.style || {},
-      target = kind === "title" ? n.querySelector("h1") : n;
+      target =
+        kind === "title" ? n.querySelector("h1") : kind === "artists" ? n.querySelector("p") : n;
     if (s.align) {
       n.style.textAlign = s.align;
-      if (kind === "title") n.dataset.textAlign = s.align;
+      if (["title", "artists"].includes(kind)) n.dataset.textAlign = s.align;
     }
     if (sizes[s.size]) {
       if (kind === "artwork")
         n.style.setProperty("--oart", (artSizes[s.size] * config.scale) / 100 + "px");
       else if (kind === "progress")
-        n.style.height = { small: 2, medium: 4, large: 7, display: 10 }[s.size] + "px";
+        n.style.height = { small: 4, medium: 7, large: 10, display: 14 }[s.size] + "px";
       else target.style.fontSize = (sizes[s.size] * config.scale) / 100 + "px";
     }
     if (fonts[s.font]) target.style.fontFamily = fonts[s.font];
@@ -2436,11 +2578,23 @@ body[data-canvas-editing="true"] #composition {
     if (s.bold) target.style.fontWeight = "800";
     if (s.italic) target.style.fontStyle = "italic";
     if (s.uppercase) target.style.textTransform = "uppercase";
+    if (config.layoutMode === "canvas" && raw.frame) {
+      place(n, raw.frame);
+      // Keep the saved frame in overlay pixels. Render the contents at their
+      // original logical size, then scale the whole block, including nested
+      // title tracks, artwork, and progress fill. This survives save/reload and
+      // uses the same representation in OBS and the designer.
+      const scale = Math.max(0.05, Math.min(20, Number(raw.contentScale) || 1));
+      n.style.width = raw.frame.width / scale + "px";
+      n.style.height = raw.frame.height / scale + "px";
+      n.style.transformOrigin = "0 0";
+      n.style.transform = "scale(" + scale + ")";
+    }
     return n;
   }
   function marquee(stage) {
     if (!stage.classList.contains("title-scroll")) return;
-    stage.querySelectorAll(".titleViewport").forEach((view) => {
+    stage.querySelectorAll(".titleViewport,.artistViewport").forEach((view) => {
       const track = view.firstElementChild,
         title = track?.firstElementChild,
         width = Math.ceil(title?.scrollWidth || 0),
@@ -2484,7 +2638,10 @@ body[data-canvas-editing="true"] #composition {
         if (/^#[0-9a-f]{6}$/i.test(theme[source] || "")) c[key] = theme[source];
     }
     const provider = (current.candidate || current).provider;
-    if (c.providerColors && providerColors[provider]) c.accent = providerColors[provider];
+    const source = c.providerColors ? "provider" : c.accentSource || "theme";
+    if (source === "custom") c.accent = config.accent;
+    if (["provider", "artwork"].includes(source) && providerColors[provider])
+      c.accent = providerColors[provider];
     trackVisibility(stage, c, current);
     const vars = {
       owidth: c.width + "px",
@@ -2524,8 +2681,12 @@ body[data-canvas-editing="true"] #composition {
       (c.separated ? " separated" : "") +
       (c.autoHeight ? "" : " height-fixed");
     stage.classList.toggle("canvas-layout", c.layoutMode === "canvas");
+    stage.classList.toggle("accent-fade", c.colorFade === true);
+    stage.classList.add("surface-" + (c.surfaceEffect || "preset"));
     const item = current.candidate || current,
       next = rows.filter((r) => r.id !== current.entryId).map((r) => r.candidate?.title || r.query);
+    if (source === "artwork") root.SongOverlayPalette?.apply(stage, item.artworkUrl);
+    else root.SongOverlayPalette?.clear(stage);
     stage.replaceChildren(
       ...c.segments
         .filter((s) => s.enabled)
@@ -2580,7 +2741,7 @@ body[data-canvas-editing="true"] #composition {
     resizeObservers.get(stage)?.disconnect();
     const observer = new ResizeObserver(() => marquee(stage));
     resizeObservers.set(stage, observer);
-    stage.querySelectorAll(".titleViewport").forEach((n) => observer.observe(n));
+    stage.querySelectorAll(".titleViewport,.artistViewport").forEach((n) => observer.observe(n));
     document.fonts?.ready.then(() => marquee(stage));
     if (options.animate && c.motion !== "off") stage.classList.add(c.motion);
     stage.classList.toggle("hidden", !stage.childElementCount);
@@ -2617,6 +2778,13 @@ let designerPresetConfigs = new Map(),
   demoProvider = "youtube",
   demoStatus = "paused",
   demoObservedAt = Date.now();
+// Original SVG fixture, used only in the editor. A real cover-shaped sample lets
+// users judge artwork sizing and cover-derived colors without network requests.
+const demoArtwork =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#152641"/><stop offset="1" stop-color="#39536b"/></linearGradient></defs><rect width="256" height="256" fill="url(#sky)"/><circle cx="174" cy="94" r="46" fill="#f18179"/><path d="M0 158L45 123L100 170L144 140L210 180L256 143V256H0Z" fill="#101b31"/><path d="M0 203L67 176L128 213L195 183L256 206V256H0Z" fill="#233a51"/><path d="M0 235H256" stroke="#80b0bd" stroke-width="3"/></svg>',
+  );
 function demoTrack() {
   return {
     status: demoStatus,
@@ -2631,6 +2799,7 @@ function demoTrack() {
         : "Midnight City",
       artists: ["The Midnight Sessions"],
       album: "Live on stream",
+      artworkUrl: demoArtwork,
     },
   };
 }
@@ -2678,6 +2847,11 @@ function renderQuickControls() {
   syncBehaviorControls();
 }
 function syncBehaviorControls() {
+  if ($("accent-source")) {
+    $("accent-source").value = config.providerColors ? "provider" : config.accentSource || "theme";
+    $("color-fade").checked = config.colorFade === true;
+    $("surface-effect").value = config.surfaceEffect || "preset";
+  }
   for (const id of ["hidePaused", "hideStopped", "hideLoading", "providerColors", "remainingTime"])
     if ($(id)) $(id).checked = config[id] === true;
   if ($("pauseHideSeconds")) {
@@ -2714,6 +2888,12 @@ function setupBehaviorControls() {
     input.id = id;
     input.onchange = () => {
       config[id] = input.checked;
+      if (id === "providerColors")
+        config.accentSource = input.checked
+          ? "provider"
+          : config.followAppColors === false
+            ? "custom"
+            : "theme";
       changed(true);
       status("Behavior updated locally. Save overlay to apply.");
     };
@@ -2833,6 +3013,7 @@ async function renderPresetGallery() {
         button.append(
           thumb,
           node("strong", "", entry.name),
+          node("span", "preset-dimensions", designerPresetConfigs.get(entry.id)?.width + "px wide"),
           node("span", "preset-description", entry.description),
         );
         button.onclick = async () => {
@@ -2962,19 +3143,61 @@ function setupStyleInspector() {
     panels.push(panel);
     const button = node("button", "", name);
     button.type = "button";
-    button.onclick = () => select(name);
+    button.onclick = () => selectPanel(name);
     nav.append(button);
   }
   appearance.querySelectorAll(".control-group,.fields").forEach((el) => {
     if (!panels.some((p) => p.contains(el))) el.remove();
   });
   appearance.append(nav, ...panels);
-  function select(name) {
+  const colorFields = panels
+    .find((p) => p.dataset.stylePanel === "Colors")
+    .querySelector(".fields");
+  const accent = select(
+    ["theme", "custom", "provider", "artwork"],
+    config.accentSource || "theme",
+    (value) => {
+      config.accentSource = value;
+      config.providerColors = value === "provider";
+      if (value === "theme") config.followAppColors = true;
+      changed(true);
+    },
+  );
+  accent.id = "accent-source";
+  const names = {
+    theme: "Server theme",
+    custom: "Custom accent",
+    provider: "Music provider",
+    artwork: "Album artwork",
+  };
+  for (const option of accent.options) option.textContent = names[option.value];
+  const fade = node("input");
+  fade.id = "color-fade";
+  fade.type = "checkbox";
+  fade.onchange = () => {
+    config.colorFade = fade.checked;
+    changed(true);
+  };
+  colorFields.prepend(labeled("Accent follows", accent), labeled("Fade between colors", fade));
+  const effect = select(
+    ["preset", "solid", "glass", "transparent"],
+    config.surfaceEffect || "preset",
+    (value) => {
+      config.surfaceEffect = value;
+      changed(true);
+    },
+  );
+  effect.id = "surface-effect";
+  panels
+    .find((p) => p.dataset.stylePanel === "Look")
+    .querySelector(".fields")
+    .append(labeled("Surface finish", effect));
+  function selectPanel(name) {
     for (const panel of panels) panel.hidden = panel.dataset.stylePanel !== name;
     for (const button of nav.children)
       button.setAttribute("aria-pressed", String(button.textContent === name));
   }
-  select("Look");
+  selectPanel("Look");
 }
 function setupContentInspector() {
   const panel = document.querySelector(".content-panel"),
@@ -3049,12 +3272,52 @@ function showInspectedSection() {
     card.hidden = config.segments[index]?.id !== inspectedSectionId;
 }
 
+/**
+ * Canvas geometry, selection, and direct manipulation.
+ * Embedded after designer-controls.js: both share the editor configuration and
+ * selection state. All measurements use overlay pixels, independent of zoom.
+ */
+/* exported setupCanvasControls */
 let selectedShapeId = "",
   canvasGesture = null,
   canvasSnap = true,
   canvasGuides = [],
   updatingCanvasInspector = false;
 const bounded = (value, min, max) => Math.max(min, Math.min(max, Math.round(value)));
+/** Resize from an immutable baseline, never the previous pointer event. Otherwise
+ * rounding errors accumulate and a drag out and back changes the original design.
+ * Frames stretch along both axes; typography and decoration scale uniformly so
+ * letters and circles retain their shapes. Container-only resizing is opt-in.
+ */
+function resizeCanvasTarget(target, next, baseline = structuredClone(target)) {
+  if (target.lockSize) return;
+  const before = baseline.frame;
+  if (target.lockRatio) {
+    const factor = Math.min(next.width / before.width, 960 / before.width, 600 / before.height);
+    next.width = bounded(before.width * factor, 1, 960);
+    next.height = bounded(before.height * factor, 1, 600);
+  }
+  Object.assign(target.frame, next);
+  if (!target.blocks || target.scaleContents === false) return;
+  const sx = next.width / before.width,
+    sy = next.height / before.height;
+  for (const block of target.blocks) {
+    const original = baseline.blocks.find((b) => b.id === block.id);
+    if (!original?.frame) continue;
+    block.frame = {
+      x: bounded(original.frame.x * sx, 0, 960),
+      y: bounded(original.frame.y * sy, 0, 600),
+      width: bounded(original.frame.width * sx, 1, 960),
+      height: bounded(original.frame.height * sy, 1, 600),
+    };
+    block.contentScale = Math.max(
+      0.05,
+      Math.min(20, (original.contentScale || 1) * Math.min(sx, sy)),
+    );
+  }
+  if (baseline.style?.radius != null)
+    target.style.radius = bounded(baseline.style.radius * Math.min(sx, sy), 0, 48);
+}
 function canvasTarget() {
   const row = selectedPreviewPiece
     ? config.segments.find((s) => s.blocks.some((b) => b.id === selectedPreviewPiece))
@@ -3089,7 +3352,7 @@ function enableCanvas() {
       };
     }
   }
-  config.height = bounded(stage.offsetHeight, 80, 600);
+  config.height = bounded(stage.offsetHeight, 32, 600);
   config.autoHeight = false;
   config.layoutMode = "canvas";
   changed(true);
@@ -3107,7 +3370,7 @@ function setupCanvasControls() {
     height = node("input");
   for (const [input, key, min, max] of [
     [width, "width", 240, 960],
-    [height, "height", 80, 600],
+    [height, "height", 32, 600],
   ]) {
     input.type = "number";
     input.id = "canvas-" + key;
@@ -3124,6 +3387,16 @@ function setupCanvasControls() {
   const trim = node("button", "", "Fit to objects");
   trim.onclick = () => {
     enableCanvas();
+    config.width = bounded(
+      Math.max(
+        ...config.segments
+          .filter((s) => s.enabled)
+          .map((s) => (s.frame?.x || 0) + (s.frame?.width || 0)),
+      ) +
+        config.borderWidth * 2,
+      240,
+      960,
+    );
     config.height = bounded(
       Math.max(
         ...config.segments
@@ -3131,7 +3404,7 @@ function setupCanvasControls() {
           .map((s) => (s.frame?.y || 0) + (s.frame?.height || 0)),
       ) +
         config.borderWidth * 2,
-      80,
+      32,
       600,
     );
     changed(true);
@@ -3180,6 +3453,13 @@ function setupCanvasControls() {
   snap.onchange = () => (canvasSnap = snap.checked);
   const snapLabel = node("label", "switchLabel");
   snapLabel.append(snap, node("span", "", "Snap to guides"));
+  const grid = node("input");
+  grid.type = "checkbox";
+  grid.id = "canvas-grid";
+  grid.checked = true;
+  grid.onchange = () => updateCanvasInspector();
+  const gridLabel = node("label", "switchLabel");
+  gridLabel.append(grid, node("span", "", "24px grid & segment labels"));
   toolbar.append(
     edit,
     labeled("Width", width),
@@ -3188,12 +3468,13 @@ function setupCanvasControls() {
     shape,
     add,
     snapLabel,
+    gridLabel,
   );
   document.querySelector(".preview-footer").after(toolbar);
   const help = node(
     "p",
     "canvas-help",
-    "Click information or a shape to select it. In canvas mode, drag to move, pull a corner to resize, or use the exact size controls. Arrow keys nudge; Shift moves 10px.",
+    "Drag information to move it. Select its segment to resize everything together. Corner handles resize; ratio lock preserves proportions. Measurements are in overlay pixels. Arrows nudge 1px; Shift moves 10px; Alt bypasses snapping.",
   );
   toolbar.after(help);
   const library = node("section", "canvas-library");
@@ -3232,7 +3513,7 @@ function setupCanvasControls() {
       x: 8,
       y: 8,
       width: Math.max(1, Math.min(160, (row.frame?.width || 180) - 16)),
-      height: kind === "progress" ? 4 : kind === "artwork" ? 60 : 28,
+      height: kind === "progress" ? 7 : kind === "artwork" ? 60 : 28,
     };
     selectedPreviewPiece = block.id;
     selectedShapeId = row.id;
@@ -3247,6 +3528,14 @@ function setupCanvasControls() {
   $("preview").onpointerdown = startCanvasGesture;
   $("preview").onclick = (event) => {
     if (canvasGesture) return;
+    const label = event.target.closest("[data-select-segment]");
+    if (label) {
+      selectedShapeId = label.dataset.selectSegment;
+      selectedPreviewPiece = "";
+      enableCanvas();
+      updatePieceInspector();
+      return;
+    }
     const b = event.target.closest("[data-block-id]"),
       s = event.target.closest("[data-segment-id]");
     if (event.target.closest(".canvas-selection")) return;
@@ -3308,8 +3597,26 @@ function updateCanvasInspector() {
     $("edit-canvas").textContent =
       config.layoutMode === "canvas" ? "Canvas editing active" : "Edit on canvas";
     $("preview")
-      .querySelectorAll(".canvas-selection,.canvas-guide")
+      .querySelectorAll(".canvas-selection,.canvas-guide,.canvas-segment-label,.canvas-grid")
       .forEach((n) => n.remove());
+    if ($("canvas-grid").checked) {
+      if (config.layoutMode === "canvas") $("preview").append(node("div", "canvas-grid"));
+      const stage = $("preview"),
+        origin = stage.getBoundingClientRect(),
+        scale = origin.width / stage.offsetWidth;
+      for (const row of config.segments.filter((s) => s.enabled)) {
+        const element = [...stage.children].find((n) => n.dataset.segmentId === row.id);
+        if (!element) continue;
+        const rect = element.getBoundingClientRect();
+        const label = node("button", "canvas-segment-label", row.name || "Segment");
+        label.type = "button";
+        label.dataset.selectSegment = row.id;
+        label.setAttribute("aria-label", "Select segment " + row.name);
+        label.style.left = (rect.left - origin.left) / scale + "px";
+        label.style.top = Math.max(0, (rect.top - origin.top) / scale - 20) + "px";
+        stage.append(label);
+      }
+    }
     const target = canvasTarget(),
       panel = $("canvas-inspector");
     panel.hidden = !target;
@@ -3331,6 +3638,17 @@ function updateCanvasInspector() {
     const heading = node("div", "inspector-heading");
     heading.append(title, done);
     panel.replaceChildren(heading);
+    if (selectedPreviewPiece) {
+      const parent = node("button", "", "Select segment");
+      parent.id = "select-parent-segment";
+      parent.onclick = () => {
+        selectedShapeId = row.id;
+        selectedPreviewPiece = "";
+        enableCanvas();
+        updatePieceInspector();
+      };
+      panel.append(parent);
+    }
     if (config.layoutMode !== "canvas") {
       const edit = node("button", "", "Move and resize on canvas");
       edit.onclick = enableCanvas;
@@ -3353,14 +3671,39 @@ function updateCanvasInspector() {
       input.max = ["x", "width"].includes(key) ? 960 : 600;
       input.value = target.frame?.[key] || 0;
       input.dataset.geometry = key;
+      input.disabled = target.lockSize && ["width", "height"].includes(key);
       input.onchange = () => {
         if (!input.reportValidity() || target.frame[key] === Number(input.value)) return;
-        target.frame[key] = Number(input.value);
+        if (["width", "height"].includes(key)) {
+          const next = { ...target.frame, [key]: Number(input.value) };
+          if (key === "height" && target.lockRatio)
+            next.width = (next.height * target.frame.width) / target.frame.height;
+          resizeCanvasTarget(target, next);
+        } else target.frame[key] = Number(input.value);
         queueMicrotask(() => changed());
       };
       fields.append(labeled(key[0].toUpperCase() + key.slice(1), input));
     }
     panel.append(fields);
+    const locks = node("div", "canvas-actions");
+    for (const [key, label] of [
+      ["lockSize", "Lock size"],
+      ["lockRatio", "Lock aspect ratio"],
+      ...(!selectedPreviewPiece ? [["scaleContents", "Scale contents with segment"]] : []),
+    ]) {
+      const input = node("input");
+      input.type = "checkbox";
+      input.dataset.constraint = key;
+      input.checked = key === "scaleContents" ? target[key] !== false : target[key] === true;
+      input.onchange = () => {
+        target[key] = input.checked;
+        changed();
+      };
+      const control = node("label", "switchLabel");
+      control.append(input, node("span", "", label));
+      locks.append(control);
+    }
+    panel.append(locks);
     if (!selectedPreviewPiece) {
       const shape = select(["rectangle", "rounded", "ellipse"], row.shape || "rectangle", (v) => {
         row.shape = v;
@@ -3464,7 +3807,13 @@ function updateCanvasInspector() {
       width: frame.width + "px",
       height: frame.height + "px",
     });
-    for (const corner of ["nw", "ne", "sw", "se"]) {
+    const measurement = node(
+      "span",
+      "canvas-measurement",
+      `${frame.width} × ${frame.height} px · X ${frame.x} · Y ${frame.y}`,
+    );
+    overlay.append(measurement);
+    for (const corner of target.lockSize ? [] : ["nw", "ne", "sw", "se"]) {
       const handle = node("span", "canvas-handle " + corner);
       handle.dataset.corner = corner;
       overlay.append(handle);
@@ -3492,20 +3841,47 @@ function updateCanvasInspector() {
     updatingCanvasInspector = false;
   }
 }
-function startCanvasGesture(event) {
-  if (event.button !== 0 || config.layoutMode !== "canvas") return;
+function startCanvasGesture(event, firstMove = null) {
+  if (event.button !== 0) return;
+  const segmentLabel = event.target.closest("[data-select-segment]");
+  if (segmentLabel) {
+    event.preventDefault();
+    return;
+  }
   const handle = event.target.closest("[data-corner]"),
     b = event.target.closest("[data-block-id]"),
     s = event.target.closest("[data-segment-id]");
   if (!handle) {
-    selectedPreviewPiece = b?.dataset.blockId || "";
+    selectedPreviewPiece = event.altKey ? "" : b?.dataset.blockId || "";
     selectedShapeId = s?.dataset.segmentId || "";
   }
+  if (!handle && !s) return;
+  // A click still opens typography controls without converting a flow preset.
+  // Only an actual drag commits its measured geometry to the canvas model.
+  if (config.layoutMode !== "canvas" && b && !event.altKey) {
+    const clear = () => {
+      window.removeEventListener("pointermove", beginDrag);
+      window.removeEventListener("pointerup", clear);
+      window.removeEventListener("pointercancel", clear);
+    };
+    const beginDrag = (move) => {
+      if (Math.hypot(move.clientX - event.clientX, move.clientY - event.clientY) < 3) return;
+      clear();
+      enableCanvas();
+      startCanvasGesture(event, move);
+    };
+    window.addEventListener("pointermove", beginDrag);
+    window.addEventListener("pointerup", clear);
+    window.addEventListener("pointercancel", clear);
+    return;
+  }
+  enableCanvas();
   const target = canvasTarget();
   if (!target?.frame) return;
   event.preventDefault();
   updatePieceInspector();
-  const start = { ...target.frame },
+  const baseline = structuredClone(target),
+    start = { ...target.frame },
     stage = $("preview"),
     ratio = stage.getBoundingClientRect().width / stage.offsetWidth,
     px = event.clientX,
@@ -3519,16 +3895,30 @@ function startCanvasGesture(event) {
     if (!corner) {
       f.x = bounded(start.x + dx, 0, 960);
       f.y = bounded(start.y + dy, 0, 600);
-    } else {
+    } else if (!target.lockSize) {
       const west = corner.includes("w"),
         north = corner.includes("n");
       f.width = bounded(start.width + (west ? -dx : dx), 1, 960);
       f.height = bounded(start.height + (north ? -dy : dy), 1, 600);
+      if (target.lockRatio) {
+        // Use the dominant pointer axis so vertical and horizontal drags both
+        // work. Snapping is skipped for locked resize to preserve the ratio.
+        const factor =
+          Math.abs(dx / start.width) >= Math.abs(dy / start.height)
+            ? f.width / start.width
+            : f.height / start.height;
+        f.width = bounded(start.width * factor, 1, 960);
+        f.height = bounded(start.height * factor, 1, 600);
+      }
+      resizeCanvasTarget(target, { ...f }, baseline);
       if (west) f.x = bounded(start.x + start.width - f.width, 0, 960);
       if (north) f.y = bounded(start.y + start.height - f.height, 0, 600);
     }
     canvasGuides = [];
-    if (canvasSnap && !e.altKey) snapCanvasFrame(target, corner, 6 / ratio);
+    if (canvasSnap && !e.altKey && !(corner && target.lockRatio))
+      snapCanvasFrame(target, corner, 6 / ratio);
+    if (corner && !target.lockSize && !target.lockRatio)
+      resizeCanvasTarget(target, { ...f }, baseline);
     config.preset = "custom";
     renderPreview();
   };
@@ -3544,6 +3934,7 @@ function startCanvasGesture(event) {
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", end);
   window.addEventListener("pointercancel", end);
+  if (firstMove) move(firstMove);
 }
 function snapCanvasFrame(target, corner, tolerance) {
   const row = config.segments.find((s) => s.blocks.includes(target)),
@@ -3616,6 +4007,7 @@ function focusCanvasTarget() {
           "meta",
           "provider",
           "time",
+          "remaining",
           "progress",
           "queue",
         ],
@@ -3628,6 +4020,7 @@ function focusCanvasTarget() {
           meta: "Provider + time",
           provider: "Provider",
           time: "Time",
+          remaining: "Time remaining",
           progress: "Progress",
           queue: "Up next",
         };
@@ -3781,15 +4174,7 @@ function focusCanvasTarget() {
           $(id).disabled = config.followAppColors !== false;
         $("artworkSizeOut").textContent = (config.artworkSize || 110) + "px";
         $("borderWidthOut").textContent = (config.borderWidth || 0) + "px";
-        for (const id of [
-          "width",
-          "height",
-          "gap",
-          "blockGap",
-          "radius",
-          "padding",
-          "accentWidth",
-        ])
+        for (const id of ["width", "height", "gap", "blockGap", "radius", "padding", "accentWidth"])
           $(`${id}Out`).textContent = `${config[id]}px`;
         for (const id of ["scale", "opacity", "shadow"])
           $(`${id}Out`).textContent = `${config[id]}%`;
@@ -3804,8 +4189,7 @@ function focusCanvasTarget() {
       }
       function check(label, checked, change) {
         const help = {
-          "Custom color":
-            "Override the overlay's default text color for this information piece.",
+          "Custom color": "Override the overlay's default text color for this information piece.",
           Bold: "Use a heavier font weight for this information piece.",
           Italic: "Slant the text for this information piece.",
           Uppercase: "Display this information piece in capital letters.",
@@ -3871,12 +4255,7 @@ function focusCanvasTarget() {
             changed();
           }),
         );
-        tray.append(
-          labeled("Size", size),
-          labeled("Font", font),
-          colorField,
-          checks,
-        );
+        tray.append(labeled("Size", size), labeled("Font", font), colorField, checks);
         return tray;
       }
       function piece(block, location) {
@@ -3901,14 +4280,10 @@ function focusCanvasTarget() {
             dropAt(location.segment, location.index);
           };
           if (block.kind === "queue") {
-            const count = select(
-              ["1", "2", "3", "4", "5"],
-              String(block.count || 3),
-              (value) => {
-                block.count = Number(value);
-                changed();
-              },
-            );
+            const count = select(["1", "2", "3", "4", "5"], String(block.count || 3), (value) => {
+              block.count = Number(value);
+              changed();
+            });
             count.title = "Queued songs shown";
             count.onmousedown = (event) => event.stopPropagation();
             el.append(count);
@@ -3941,11 +4316,8 @@ function focusCanvasTarget() {
         );
       }
       function addBlock(kind, segmentIndex) {
-        if (!config.segments[segmentIndex])
-          return status("Add a segment first");
-        if (
-          config.segments.reduce((sum, row) => sum + row.blocks.length, 0) >= 32
-        )
+        if (!config.segments[segmentIndex]) return status("Add a segment first");
+        if (config.segments.reduce((sum, row) => sum + row.blocks.length, 0) >= 32)
           return status("32 piece limit reached");
         config.segments[segmentIndex].blocks.push({
           ...(config.layoutMode === "canvas"
@@ -3955,13 +4327,9 @@ function focusCanvasTarget() {
                   y: 8,
                   width: Math.max(
                     1,
-                    Math.min(
-                      160,
-                      (config.segments[segmentIndex].frame?.width || 180) - 16,
-                    ),
+                    Math.min(160, (config.segments[segmentIndex].frame?.width || 180) - 16),
                   ),
-                  height:
-                    kind === "progress" ? 4 : kind === "artwork" ? 60 : 28,
+                  height: kind === "progress" ? 7 : kind === "artwork" ? 60 : 28,
                 },
               }
             : {}),
@@ -4016,15 +4384,12 @@ function focusCanvasTarget() {
           controls[key] = input;
         }
         const setDisabled = () =>
-          Object.values(controls).forEach(
-            (input) => (input.disabled = !custom.checked),
-          );
+          Object.values(controls).forEach((input) => (input.disabled = !custom.checked));
         custom.onchange = () => {
           if (custom.checked) {
             style.surface = surface.value;
             style.accent = accent.value;
-            for (const key of Object.keys(ranges))
-              style[key] = Number(controls[key].value);
+            for (const key of Object.keys(ranges)) style[key] = Number(controls[key].value);
           } else
             Object.assign(style, {
               surface: "",
@@ -4077,14 +4442,10 @@ function focusCanvasTarget() {
                 row.direction = value;
                 changed(true);
               }),
-              align = select(
-                ["left", "center", "right"],
-                row.align,
-                (value) => {
-                  row.align = value;
-                  changed(true);
-                },
-              ),
+              align = select(["left", "center", "right"], row.align, (value) => {
+                row.align = value;
+                changed(true);
+              }),
               size = select(["compact", "wide", "full"], row.size, (value) => {
                 row.size = value;
                 changed(true);
@@ -4093,9 +4454,7 @@ function focusCanvasTarget() {
                 styleTray.hidden = !styleTray.hidden;
               }),
               up = icon("^", "Move segment up", () => moveSegment(index, -1)),
-              down = icon("v", "Move segment down", () =>
-                moveSegment(index, 1),
-              ),
+              down = icon("v", "Move segment down", () => moveSegment(index, 1)),
               remove = icon("x", "Remove segment", () => {
                 config.segments.splice(index, 1);
                 changed(true);
@@ -4127,10 +4486,7 @@ function focusCanvasTarget() {
                   piece(block, { segment: index, index: blockIndex }),
                 ),
               );
-            else
-              zone.append(
-                node("span", "empty", "Drop information pieces here"),
-              );
+            else zone.append(node("span", "empty", "Drop information pieces here"));
             card.append(head, styleTray, zone);
             return card;
           }),
@@ -4141,10 +4497,7 @@ function focusCanvasTarget() {
         if (!drag) return;
         if (drag.palette) addBlock(drag.block.kind, target);
         else {
-          const [block] = config.segments[drag.segment].blocks.splice(
-            drag.index,
-            1,
-          );
+          const [block] = config.segments[drag.segment].blocks.splice(drag.index, 1);
           config.segments[target].blocks.push(block);
           config.preset = "custom";
           sync();
@@ -4154,10 +4507,7 @@ function focusCanvasTarget() {
       function dropAt(target, targetIndex) {
         if (!drag) return;
         if (drag.palette) {
-          if (
-            config.segments.reduce((sum, row) => sum + row.blocks.length, 0) >=
-            32
-          )
+          if (config.segments.reduce((sum, row) => sum + row.blocks.length, 0) >= 32)
             return status("32 piece limit reached");
           config.segments[target].blocks.splice(targetIndex, 0, {
             id: `${drag.block.kind}-${Date.now().toString(36)}-${sequence++}`,
@@ -4165,12 +4515,8 @@ function focusCanvasTarget() {
             ...(drag.block.kind === "queue" ? { count: 3 } : {}),
           });
         } else {
-          const [block] = config.segments[drag.segment].blocks.splice(
-            drag.index,
-            1,
-          );
-          if (drag.segment === target && drag.index < targetIndex)
-            targetIndex -= 1;
+          const [block] = config.segments[drag.segment].blocks.splice(drag.index, 1);
+          if (drag.segment === target && drag.index < targetIndex) targetIndex -= 1;
           config.segments[target].blocks.splice(targetIndex, 0, block);
         }
         config.preset = "custom";
@@ -4180,11 +4526,7 @@ function focusCanvasTarget() {
       function select(values, current, change) {
         const el = node("select");
         for (const value of values) {
-          const option = node(
-            "option",
-            "",
-            value[0].toUpperCase() + value.slice(1),
-          );
+          const option = node("option", "", value[0].toUpperCase() + value.slice(1));
           option.value = value;
           option.selected = value === current;
           el.append(option);
@@ -4223,10 +4565,7 @@ function focusCanvasTarget() {
         recordDraft();
         $("preset").value = config.preset;
         for (const card of $("preset-gallery").querySelectorAll("button"))
-          card.setAttribute(
-            "aria-pressed",
-            String(card.dataset.preset === config.preset),
-          );
+          card.setAttribute("aria-pressed", String(card.dataset.preset === config.preset));
         SongOverlayRenderer.render(
           $("preview"),
           config,
@@ -4239,9 +4578,26 @@ function focusCanvasTarget() {
         );
         updatePieceInspector();
         requestAnimationFrame(() => {
+          // Editor handles and measurement labels deliberately extend outside
+          // the preview. Measure saved objects, not those editor-only adornments.
+          const overflowing =
+            config.layoutMode === "canvas"
+              ? config.segments.some(
+                  (row) =>
+                    row.enabled &&
+                    row.frame &&
+                    (row.frame.x + row.frame.width > config.width ||
+                      row.frame.y + row.frame.height > config.height ||
+                      row.blocks.some(
+                        (block) =>
+                          block.frame &&
+                          (block.frame.x + block.frame.width > row.frame.width ||
+                            block.frame.y + block.frame.height > row.frame.height),
+                      )),
+                )
+              : $("preview").scrollHeight > $("preview").clientHeight + 2;
           $("preview-warning").textContent =
-            config.autoHeight === false &&
-            $("preview").scrollHeight > $("preview").clientHeight + 2
+            config.autoHeight === false && overflowing
               ? "Content exceeds fixed height. Increase height or choose Fit content."
               : "";
         });
@@ -4284,10 +4640,17 @@ function focusCanvasTarget() {
       for (const id of ["accent", "surface", "text", "muted", "borderColor"])
         $(id).oninput = () => {
           config[id] = $(id).value;
+          if (id === "accent") {
+            config.accentSource = "custom";
+            config.providerColors = false;
+            syncBehaviorControls();
+          }
           changed();
         };
       $("followAppColors").onchange = () => {
         config.followAppColors = $("followAppColors").checked;
+        if (!config.providerColors && ["theme", "custom"].includes(config.accentSource || "theme"))
+          config.accentSource = config.followAppColors ? "theme" : "custom";
         changed(true);
       };
       $("separated").onchange = () => {
@@ -4295,8 +4658,7 @@ function focusCanvasTarget() {
         changed();
       };
       $("addSegment").onclick = () => {
-        if (config.segments.length >= 8)
-          return status("Eight segment limit reached");
+        if (config.segments.length >= 8) return status("Eight segment limit reached");
         config.segments.push({
           id: `segment-${Date.now().toString(36)}`,
           name: `Segment ${config.segments.length + 1}`,
@@ -4356,14 +4718,7 @@ function focusCanvasTarget() {
         document.querySelector("main").inert = value;
         document.querySelector(".profile-bar").inert = value;
         $("preset-library").inert = value;
-        for (const id of [
-          "save",
-          "reset",
-          "discard",
-          "preset",
-          "profile-select",
-          "profile-new",
-        ])
+        for (const id of ["save", "reset", "discard", "preset", "profile-select", "profile-new"])
           $(id).disabled = value;
       }
       function draft(operation, value = null) {
@@ -4383,19 +4738,13 @@ function focusCanvasTarget() {
               reject(error);
             },
           });
-          parent.postMessage(
-            { channel: CHANNEL, type: "draft", id, operation, value },
-            "*",
-          );
+          parent.postMessage({ channel: CHANNEL, type: "draft", id, operation, value }, "*");
         });
       }
       function recordDraft() {
         if (baseline === null) return;
         const current = JSON.stringify(config),
-          value =
-            current === baseline
-              ? null
-              : JSON.stringify({ version: 1, baseline, config });
+          value = current === baseline ? null : JSON.stringify({ version: 1, baseline, config });
         $("discard").hidden = value === null;
         if (value === lastDraft) return;
         lastDraft = value;
@@ -4408,8 +4757,7 @@ function focusCanvasTarget() {
         });
       }
       function validDraft(value) {
-        if (!value || value.version !== 1 || typeof value.baseline !== "string")
-          return false;
+        if (!value || value.version !== 1 || typeof value.baseline !== "string") return false;
         const c = value.config;
         if (
           c?.skin !== undefined &&
@@ -4428,9 +4776,7 @@ function focusCanvasTarget() {
         if (
           !c ||
           c.version !== 3 ||
-          ![...presets.map((p) => p.id), "classic", "custom"].includes(
-            c.preset,
-          ) ||
+          ![...presets.map((p) => p.id), "classic", "custom"].includes(c.preset) ||
           typeof c.separated !== "boolean" ||
           typeof c.autoHeight !== "boolean"
         )
@@ -4451,18 +4797,17 @@ function focusCanvasTarget() {
           if (!values.includes(c[key])) return false;
         for (const [key, [min, max]] of Object.entries({
           width: [240, 960],
-          height: [80, 600],
+          height: [32, 600],
           scale: [75, 150],
           gap: [0, 40],
           blockGap: [0, 24],
           radius: [0, 40],
-          padding: [8, 36],
+          padding: [0, 36],
           opacity: [0, 100],
           accentWidth: [0, 12],
           shadow: [0, 100],
         }))
-          if (!Number.isInteger(c[key]) || c[key] < min || c[key] > max)
-            return false;
+          if (!Number.isInteger(c[key]) || c[key] < min || c[key] > max) return false;
         for (const key of [
           "hidePaused",
           "hideStopped",
@@ -4478,11 +4823,7 @@ function focusCanvasTarget() {
             c.pauseHideSeconds > 120)
         )
           return false;
-        if (
-          c.followAppColors !== undefined &&
-          typeof c.followAppColors !== "boolean"
-        )
-          return false;
+        if (c.followAppColors !== undefined && typeof c.followAppColors !== "boolean") return false;
         for (const [key, values] of Object.entries({
           font: ["system", "serif", "mono", "cjk"],
           titleMode: ["scroll", "wrap", "ellipsis"],
@@ -4493,26 +4834,14 @@ function focusCanvasTarget() {
           artworkSize: [40, 200],
           borderWidth: [0, 6],
         }))
-          if (
-            c[key] !== undefined &&
-            (!Number.isInteger(c[key]) || c[key] < min || c[key] > max)
-          )
+          if (c[key] !== undefined && (!Number.isInteger(c[key]) || c[key] < min || c[key] > max))
             return false;
-        if (
-          c.borderColor !== undefined &&
-          !/^#[0-9a-f]{6}$/i.test(c.borderColor)
-        )
-          return false;
-        if (
-          !["accent", "surface", "text", "muted"].every((key) =>
-            /^#[0-9a-f]{6}$/i.test(c[key]),
-          )
-        )
+        if (c.borderColor !== undefined && !/^#[0-9a-f]{6}$/i.test(c.borderColor)) return false;
+        if (!["accent", "surface", "text", "muted"].every((key) => /^#[0-9a-f]{6}$/i.test(c[key])))
           return false;
         if (!Array.isArray(c.segments) || c.segments.length > 8) return false;
         const optional = (number, min, max) =>
-            number === null ||
-            (Number.isInteger(number) && number >= min && number <= max),
+            number === null || (Number.isInteger(number) && number >= min && number <= max),
           blockStyleValid = (style) =>
             style &&
             BLOCK_SIZES.includes(style.size) &&
@@ -4552,9 +4881,7 @@ function focusCanvasTarget() {
                 KINDS.includes(block.kind) &&
                 blockStyleValid(block.style) &&
                 (block.kind !== "queue" ||
-                  (Number.isInteger(block.count) &&
-                    block.count >= 1 &&
-                    block.count <= 5)),
+                  (Number.isInteger(block.count) && block.count >= 1 && block.count <= 5)),
             ),
         );
       }
@@ -4607,8 +4934,7 @@ function focusCanvasTarget() {
         );
         $("profile-select").firstChild.value = "";
         $("profile-select").value = selectedProfileId;
-        $("profile-name").value =
-          profiles.find((p) => p.id === selectedProfileId)?.name || "";
+        $("profile-name").value = profiles.find((p) => p.id === selectedProfileId)?.name || "";
         $("profile-update").disabled = !selectedProfileId;
         $("profile-delete").disabled = !selectedProfileId;
         $("profile-delete-confirm").hidden = true;
@@ -4627,9 +4953,7 @@ function focusCanvasTarget() {
           sync();
           $("preset-help").textContent =
             presets.find((p) => p.id === config.preset)?.description || "";
-          status(
-            "Preset loaded locally. Save overlay or save a profile to apply.",
-          );
+          status("Preset loaded locally. Save overlay or save a profile to apply.");
         } catch (e) {
           status(e.message);
         }
@@ -4671,11 +4995,7 @@ function focusCanvasTarget() {
           if (!r.ok) throw new Error(r.code);
           loadSaved(r);
           sync();
-          status(
-            update
-              ? "Profile updated and applied"
-              : "Profile saved and applied",
-          );
+          status(update ? "Profile updated and applied" : "Profile saved and applied");
         } catch (e) {
           status(e.message);
         } finally {
@@ -4719,9 +5039,7 @@ function focusCanvasTarget() {
           event.data.message?.capability === "song.overlay.events.v1" &&
           event.data.message.payload?.revision > serverRevision
         )
-          status(
-            "Saved overlay changed elsewhere. Undo changes loads the latest version.",
-          );
+          status("Saved overlay changed elsewhere. Undo changes loads the latest version.");
       });
 
       new ResizeObserver(() => {
@@ -4745,9 +5063,7 @@ function focusCanvasTarget() {
               );
             }
           } catch {
-            status(
-              "Draft could not be recovered. The saved overlay is loaded.",
-            );
+            status("Draft could not be recovered. The saved overlay is loaded.");
           }
           sync();
           lock(false);

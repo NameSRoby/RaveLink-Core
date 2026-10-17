@@ -190,3 +190,33 @@ test("SoundCloud playlist artwork survives portable normalization without accept
   ])
     assert.equal(normalizeTrack({ ...original, artworkUrl }).candidate.artworkUrl, undefined);
 });
+
+test("media playback targets one provider and cancels bounded commands on shutdown", async () => {
+  const children = [],
+    calls = [];
+  const control = require("../src/capabilities/feature-platform/providers/windows-media-playback")({
+    supported: true,
+    observerPath: "observer.ps1",
+    spawn: (exe, args, options) => {
+      calls.push({ exe, args, options });
+      const child = fakeProcess(123);
+      children.push(child);
+      return child;
+    },
+  });
+  assert.equal((await control({ provider: "unknown", action: "pause" })).ok, false);
+  assert.equal(calls.length, 0);
+  const first = control({ provider: "tidal", action: "pause" });
+  assert.equal(
+    (await control({ provider: "spotify", action: "resume" })).error,
+    "media_control_busy",
+  );
+  assert.ok(calls[0].args.includes("tidal"));
+  assert.equal(calls[0].options.windowsHide, true);
+  children[0].stdout.write(JSON.stringify({ ok: true }));
+  children[0].emit("close", 0);
+  assert.equal((await first).accepted, true);
+  const second = control({ provider: "tidal", action: "resume" });
+  control.close();
+  assert.equal((await second).error, "media_control_stopped");
+});

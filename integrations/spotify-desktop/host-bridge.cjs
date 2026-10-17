@@ -52,7 +52,9 @@ module.exports = function createSpotifyHostBridge(options = {}) {
       return { query: raw.query.trim() };
     if (
       kind === "control" &&
-      ["pause", "resume", "skip"].includes(raw.action) &&
+      ["pause", "resume", "skip", "volume"].includes(raw.action) &&
+      (raw.action !== "volume" ||
+        (Number.isInteger(raw.value) && raw.value >= 0 && raw.value <= 100)) &&
       (raw.action !== "skip" ||
         (typeof raw.currentUid === "string" &&
           raw.currentUid.length > 0 &&
@@ -60,6 +62,7 @@ module.exports = function createSpotifyHostBridge(options = {}) {
     )
       return {
         action: raw.action,
+        ...(raw.action === "volume" ? { value: raw.value } : {}),
         ...(raw.action === "skip" ? { currentUid: raw.currentUid } : {}),
       };
     const uri = trackUri(raw.uri);

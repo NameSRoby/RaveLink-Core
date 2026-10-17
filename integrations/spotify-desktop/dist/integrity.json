@@ -3,14 +3,14 @@
   "installable": false,
   "upstream": "8c92e3067de9659caca4c9da7979da3897458e27",
   "files": {
-    "renderer.js": "b1597bf66f6f961c5deb04ea1bb8a57a3ecde7620b247c37c61438c55148734e",
+    "renderer.js": "3962d8ff353e5f77d1406b6bd541077f41ae0f93b8dbfd55c25b113607f1ab85",
     "platform-hook.cjs": "3b5e516920bf74affe0c10c7a95c97fadcfa7149529857cac6850bc3e43ba4d8",
     "LICENSE.Spicetify": "20c17d8b8c48a600800dfd14f95d5cb9ff47066a9641ddeab48dc54aec96e331",
     "NOTICE.md": "930656a4ec34199cac8c2b5fd01902551bbe391a81a0c9a08cbf02e22b616471",
     "catalog.cjs": "4635a27f2dc16ae5225527a8d22ff8205f199f76db37a2e84009f21967878469",
     "playlist-reader.cjs": "0d85e680da129df0f85243e0b135685590ec1cc78799aa093b2636ea98ec2f0c",
-    "desktop-adapter.cjs": "652879a85a1e7271dfa207b4b9d451b47401a6a6a4293cabb2988700ecd4760f",
-    "native-facade.cjs": "48a395f0d444a878c223314506d1386c126b50b1d147616918db8b017fe2a4f1",
+    "desktop-adapter.cjs": "121d5cdc15e04ac8581d25c3d8f2f310568db4e9706110fd423f999bcfc16314",
+    "native-facade.cjs": "cc071d96d3afabddd83d871e0a43bb98082301bccdafa6a4d1b323cea64340ce",
     "connection-worker.cjs": "90346cebe210c57df0e6b71903ed2ee939341bc9313bfb11bcb1ec20697b43e2",
     "renderer-bootstrap.cjs": "1ea0f7a99731e6e4bc4dfa2dadf5ff7604e91984a4d23cae3a6082c7b60eee7e",
     "build-spotify-desktop.js": "f83d01dc9cfb6efa0d02dcf58504f236c9c1fc1cdf892845d2dbc4f9bd4d4e10"

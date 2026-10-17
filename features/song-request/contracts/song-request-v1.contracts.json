@@ -316,6 +316,10 @@
               "responseMessageId": {
                 "type": "string",
                 "maxLength": 160
+              },
+              "query": {
+                "type": "string",
+                "maxLength": 500
               }
             }
           },
@@ -426,6 +430,10 @@
               },
               "source": {
                 "enum": ["youtube"]
+              },
+              "query": {
+                "type": "string",
+                "maxLength": 500
               }
             }
           },
@@ -936,7 +944,7 @@
               },
               "presets": {
                 "type": "array",
-                "maxItems": 8,
+                "maxItems": 16,
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
@@ -1076,7 +1084,7 @@
               },
               "presets": {
                 "type": "array",
-                "maxItems": 8,
+                "maxItems": 16,
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
@@ -1194,7 +1202,7 @@
               },
               "presets": {
                 "type": "array",
-                "maxItems": 8,
+                "maxItems": 16,
                 "items": {
                   "type": "object",
                   "additionalProperties": false,

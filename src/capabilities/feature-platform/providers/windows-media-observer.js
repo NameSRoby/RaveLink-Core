@@ -76,6 +76,7 @@ module.exports = function createWindowsMediaObserver(options = {}) {
   );
   const supported =
     options.supported === undefined ? process.platform === "win32" : options.supported === true;
+  const playback = require("./windows-media-playback")({ spawn: spawnFn, observerPath, supported });
   let child = null;
   let buffer = "";
   let pending = null;
@@ -221,6 +222,7 @@ module.exports = function createWindowsMediaObserver(options = {}) {
   }
 
   async function stop() {
+    playback.close();
     const worker = child;
     if (!worker) return status();
     stopping = true;
@@ -255,6 +257,7 @@ module.exports = function createWindowsMediaObserver(options = {}) {
 
   async function control(payload = {}) {
     const action = String(payload.action || "status");
+    if (["pause", "resume"].includes(action)) return playback(payload);
     if (action === "start") return start();
     if (action === "stop") return stop();
     if (action === "status") return status();

@@ -26,6 +26,12 @@ test("OBS behavior follows pause duration across polls, resumes immediately, and
   });
   const config = overlayFrom({
     ...presets.get("split-panels"),
+    // Clock behavior is independent of which information the preset includes.
+    segments: presets.get("split-panels").segments.map((segment, index) => ({
+      ...segment,
+      blocks:
+        index === 0 ? [...segment.blocks, { id: "test-clock", kind: "time" }] : segment.blocks,
+    })),
     hidePaused: true,
     pauseHideSeconds: 5,
     providerColors: true,
@@ -51,7 +57,7 @@ test("OBS behavior follows pause duration across polls, resumes immediately, and
   const stage = page.locator("#stage");
   assert.equal(await stage.evaluate((el) => el.style.getPropertyValue("--oaccent")), "#ff9655");
   const bounds = await stage.boundingBox();
-  assert.ok(bounds.width <= 360 && bounds.height < 110, JSON.stringify(bounds));
+  assert.ok(bounds.width <= config.width && bounds.height < 110, JSON.stringify(bounds));
   await page.clock.fastForward(45000);
   await stage.evaluate((el) => SongOverlayRenderer.update(el));
   assert.equal(await stage.locator(".playbackTime").textContent(), "-2:05 / 3:00");
@@ -162,4 +168,115 @@ test("overlay behavior defaults, validation and saved profiles preserve explicit
     "remainingTime",
   ])
     assert.equal(settings[key], config[key]);
+});
+
+test("accent sources follow server, custom, provider and artwork colors without stale cover updates", async (t) => {
+  const browser = await chromium.launch({ headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage();
+  await page.setContent('<div id="stage"></div>');
+  await page.addStyleTag({
+    path: path.join(__dirname, "../features/song-request/ui/overlay-renderer.css"),
+  });
+  for (const file of ["overlay-palette.js", "overlay-renderer.js"])
+    await page.addScriptTag({ path: path.join(__dirname, "../features/song-request/ui", file) });
+  const config = presets.get("compact-countdown");
+  await page.evaluate((config) => {
+    window.config = structuredClone(config);
+    config = window.config;
+    config.colorFade = false;
+    window.current = {
+      status: "paused",
+      positionMs: 84000,
+      durationMs: 200000,
+      candidate: {
+        provider: "spotify",
+        title: "A long track name that must remain readable",
+        artists: ["Artist"],
+      },
+    };
+    window.theme = { accent: "#12ab34", text: "#eaeaea", surface: "#121a2f", muted: "#96a5c7" };
+    window.paint = () =>
+      SongOverlayRenderer.render(
+        document.getElementById("stage"),
+        window.config,
+        current,
+        [],
+        theme,
+      );
+    paint();
+  }, config);
+  const stage = page.locator("#stage");
+  const accent = () => stage.evaluate((el) => el.style.getPropertyValue("--oaccent"));
+  assert.equal(await accent(), "#12ab34");
+  await page.evaluate(() => {
+    theme.accent = "#5544ee";
+    paint();
+  });
+  assert.equal(await accent(), "#5544ee", "server accent changes remain live");
+  await page.evaluate(() => {
+    config.accentSource = "custom";
+    config.accent = "#eb5678";
+    paint();
+  });
+  assert.equal(await accent(), "#eb5678");
+  await page.evaluate(() => {
+    config.accentSource = "provider";
+    paint();
+  });
+  assert.equal(await accent(), "#6ed9aa");
+  await page.evaluate(() => {
+    const image = document.createElement("canvas");
+    image.width = image.height = 32;
+    image.getContext("2d").fillStyle = "#f05898";
+    image.getContext("2d").fillRect(0, 0, 32, 32);
+    current.candidate.artworkUrl = image.toDataURL();
+    config.accentSource = "artwork";
+    paint();
+  });
+  await page.waitForFunction(
+    () => document.getElementById("stage").style.getPropertyValue("--oaccent") !== "#6ed9aa",
+  );
+  assert.match(await accent(), /^#[0-9a-f]{6}$/);
+  assert.equal(
+    await stage.evaluate((el) => el.style.getPropertyValue("--otext")),
+    "#eaeaea",
+    "artwork never overrides text contrast",
+  );
+  let release;
+  const delayed = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.route("https://art.example/late.png", async (route) => {
+    await delayed;
+    await route.fulfill({
+      status: 200,
+      contentType: "image/svg+xml",
+      headers: { "access-control-allow-origin": "*" },
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#2244ff"/></svg>',
+    });
+  });
+  await page.evaluate(() => {
+    current.candidate.artworkUrl = "https://art.example/late.png";
+    paint();
+  });
+  await page.evaluate(() => {
+    config.accentSource = "theme";
+    theme.accent = "#aa2233";
+    paint();
+  });
+  release();
+  await page.waitForLoadState("networkidle");
+  assert.equal(await accent(), "#aa2233", "late cover cannot overwrite the next color source");
+  await page.evaluate(() => {
+    config.colorFade = true;
+    config.surfaceEffect = "glass";
+    paint();
+  });
+  assert.ok(
+    await stage.evaluate((el) => getComputedStyle(el).transitionProperty.includes("--oaccent")),
+  );
+  assert.notEqual(await stage.evaluate((el) => getComputedStyle(el).backgroundImage), "none");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  assert.equal(await stage.evaluate((el) => getComputedStyle(el).transitionDuration), "0s");
 });

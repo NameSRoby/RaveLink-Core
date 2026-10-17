@@ -57,7 +57,7 @@ test("overlay profiles support save, rename, conflict checks, restart and deleti
 });
 test("preset catalog and saved profile metadata remain bounded", () => {
   execFileSync(process.execPath, ["scripts/build-song-overlay-ui.js", "--check"]);
-  assert.equal(presets.list().length, 8);
+  assert.equal(presets.list().length, 10);
   for (const id of ["ribbon", "broadcast", "split-panels", "spotlight", "two-column"])
     assert.ok(presets.get(id).width <= 460, id + " stays compact");
   assert.equal(presets.get("split-panels").separated, true);

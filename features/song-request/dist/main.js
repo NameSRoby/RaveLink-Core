@@ -353,6 +353,19 @@ async function handleRequest(request) {
   return result;
 }
 async function handleOperation(request) {
+  const chatCommand = await require("./chat-player-commands")({
+    queue,
+    preferences: playerPreferences,
+    tidal: experimentalTidal,
+    spotify,
+    context,
+    changed: (result) => {
+      schedulePersistence();
+      publishChange(result, request);
+      publishPlayback(result);
+    },
+  })(request);
+  if (chatCommand) return chatCommand.value;
   const routing = (await community.route(request)) || (await playerRouting(request));
   if (routing) return routing.value;
   const intakePlayer =

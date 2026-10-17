@@ -17,6 +17,8 @@ function installSoundCloudPlayer() {
     lastProgress = 0,
     page = 0,
     paused = false,
+    chatControlRevision = 0,
+    chatPlaybackPaused = false,
     hasStarted = false;
   let renderedRows = "",
     renderedCurrent = "";
@@ -349,7 +351,7 @@ function installSoundCloudPlayer() {
       playing.bind(SC.Widget.Events.READY, () => {
         if (!owns()) return;
         playing.setVolume(outputVolume());
-        playing.play();
+        if (!chatPlaybackPaused) playing.play();
       });
       playing.bind(SC.Widget.Events.PLAY, () => {
         if (!owns()) {
@@ -493,6 +495,11 @@ function installSoundCloudPlayer() {
       void pull();
     }
     widget?.setVolume(state.volume?.outputPercent ?? 40);
+    if (playback.control?.revision > chatControlRevision) {
+      chatControlRevision = playback.control.revision;
+      chatPlaybackPaused = playback.control.paused;
+      playback.control.paused ? widget?.pause() : widget?.play();
+    }
     void pull();
   }
   function songActions(item) {

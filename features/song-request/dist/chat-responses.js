@@ -96,6 +96,15 @@ const REASONS = Object.freeze({
   invalid_requester: "that requester was not found",
   moderator_required: "a moderator is required",
   invalid_request: "the command was invalid",
+  song_ambiguous: "several songs match; use the exact song name or queue position",
+  player_control_unavailable:
+    "the selected player's controls are unavailable; check its connection in Setup",
+  tidal_companion_update_required:
+    "update and reconnect the TIDAL companion to enable volume control",
+  spotify_command_invalid: "update and reconnect the Spotify companion to enable this control",
+  spotify_playback_restricted: "Spotify did not allow this playback control",
+  media_session_unavailable: "the selected music app has no unique Windows media session",
+  media_control_rejected: "the music app did not accept the playback command",
 });
 
 function clean(value, maximum = 180) {
@@ -142,6 +151,9 @@ function contextFrom(request, result, state) {
     removed: Math.max(0, Number(result?.removed || 0)),
     minutes: Math.max(1, Number(payload.minutes || 10)),
     volume: Math.max(0, Math.min(100, Number(payload.value || result?.volume?.control || 0))),
+    outputVolume: result?.volume?.outputPercent ?? state?.volume?.outputPercent ?? 0,
+    playbackControl: result?.playbackControl,
+    succeeded: result?.ok === true,
   };
 }
 
@@ -174,11 +186,20 @@ const MESSAGES = Object.freeze({
     `${mention(c.target)}was blocked from Song Request for ${c.minutes} minute${c.minutes === 1 ? "" : "s"}.`,
   user_timeout_failed: (c) => `Requester timeout failed: ${c.reason}.`,
   user_timeout_removed: (c) => `${mention(c.target)}Song Request timeout was removed.`,
-  volume_changed: (c) =>
-    `Song Request volume changed to ${c.volume}% (maximum output ${Math.round(c.volume * 0.4)}%).`,
+  volume_changed: (c) => `Song Request volume changed to ${c.volume}% (output ${c.outputVolume}%).`,
   volume_failed: (c) => `Volume change failed: ${c.reason}.`,
-  intake_paused: () => "Song Request intake is paused.",
-  intake_resumed: () => "Song Request intake is open.",
+  intake_paused: (c) =>
+    c.playbackControl
+      ? "Music playback is paused."
+      : c.succeeded
+        ? "Song Request intake is paused."
+        : `Pause failed: ${c.reason}.`,
+  intake_resumed: (c) =>
+    c.playbackControl
+      ? "Music playback resumed."
+      : c.succeeded
+        ? "Song Request intake is open."
+        : `Resume failed: ${c.reason}.`,
 });
 
 function composeChatResponse(request, result, state) {

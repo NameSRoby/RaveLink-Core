@@ -34,6 +34,26 @@ blocks because feature content runs in sandboxed frames. They are deliberately
 self-contained. A byte-identical generated copy is not an independent module to
 delete. The builders define the authoritative fragment order and verify the copies.
 
+The overlay builder embeds `overlay-palette.js` before `overlay-renderer.js`, then
+`designer-controls.js` before `designer-canvas.js` in the editor. Canvas geometry
+uses overlay pixels, not preview pixels. Segment resize scales child frames and
+their saved `contentScale` from a gesture snapshot; do not multiply the previous
+pointer event's rounded frames. Size locks prevent direct size edits, ratio locks
+preserve proportions, and container-only resizing deliberately retains children.
+OBS consumes the same saved frames and content scales as the preview.
+
+Preset layouts follow the familiar cover/title/artist/progress hierarchy seen in
+[Amuse](https://docs.6klabs.com/docs/widgets/amuse) and
+[LocalSpotifyWidget](https://github.com/BertHcoder/LocalSpotifyWidget). These are
+layout references, not copied assets or implementation. Keep artwork unobscured,
+reserve a separate box for countdown text beside the progress bar, and check long
+track names at the preset's native dimensions rather than only gallery thumbnails.
+Surface and accent effects must not change text contrast or displace information.
+Server colors remain live; provider and cover accents override only the accent.
+Cover sampling uses a bounded CORS probe and falls back to provider/theme colors
+when pixel access fails. A late image must never recolor a later track. Color fade
+is optional and respects reduced motion; it must not restart marquee animations.
+
 Compatibility re-exports under the mod platform preserve older import paths while
 delegating implementation to the shared supervisor. Keep those wrappers until
 their callers and supported integration contract have been migrated together.
@@ -269,3 +289,34 @@ imports, and whole-file token duplicates. They cannot prove that a dynamic
 capability is unused, detect every similar algorithm, validate hardware behavior,
 or replace a review of cancellation and recovery logic. Delete an exported path
 only after checking its runtime registrations, manifests, builders, and tests.
+
+## Chat command permissions and player controls
+
+Twitch badges and broadcaster identity establish command roles. The encrypted
+monitor configuration stores a fixed command/role matrix; normalization drops
+unknown keys and preserves explicit false grants. Broadcasters retain access.
+The command's grant and its anyone's-song grant are independent: enabling remove
+for viewers never grants access to other requesters' songs. Ownership uses the
+same requester hash as queue admission and desktop handoff receipts.
+
+The host router forwards bounded command arguments; the Song Request worker
+selects the active player. Named removals match only eligible pending requests,
+prefer exact titles, and reject ambiguous matches. Native requests may have left
+the local queue, so include active handoff receipts and preserve occurrence IDs.
+Skipping must guard the current UID against a song change during the round trip.
+Repeated Twitch message IDs must not execute a second control operation.
+
+Chat pause/resume controls playback. Operator intake pause/resume remains a
+separate queue policy. Browser players consume a monotonic control revision;
+Windows TIDAL playback uses an explicit provider-targeted WinRT operation, never
+a global media-key toggle. The bounded helper is canceled during host shutdown.
+Spotify uses its selected official/desktop transport. A running desktop renderer
+must reload an updated companion before it can accept newly supported commands.
+Logical volume is mapped through the user's configured output range and is saved
+only after native acceptance. Do not test by changing real playback or posting
+live Twitch messages; use fake providers, synthetic events and browser fixtures.
+
+Native chat stays subscribed in StreamElements reward mode when authorized.
+Reward subscriptions and delivery remain exclusive to the chosen reward intake
+transport. This separation prevents changing reward transport from silently
+turning off moderator commands or delivering a redemption twice.

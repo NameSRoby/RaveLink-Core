@@ -276,6 +276,11 @@ summary > span {
   color: var(--muted);
   margin: 0 4px 6px;
 }
+.preset-dimensions {
+  margin: 0 4px 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
 .preset-thumb {
   width: 100%;
   height: 100px;
@@ -749,6 +754,10 @@ summary > span {
 #preview.canvas-layout {
   touch-action: none;
 }
+#preview {
+  overflow: visible;
+  touch-action: none;
+}
 #preview.canvas-layout .block,
 #preview.canvas-layout .preview-segment {
   cursor: move;
@@ -769,6 +778,38 @@ summary > span {
   border: 2px solid #e21d48;
   pointer-events: auto;
   touch-action: none;
+}
+.canvas-measurement {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  background: #131c30;
+  color: #fff;
+  font: 11px/1.6 system-ui;
+  white-space: nowrap;
+  padding: 2px 5px;
+}
+#preview .canvas-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(#a4c9ff18 1px, transparent 1px),
+    linear-gradient(90deg, #a4c9ff18 1px, transparent 1px);
+  background-size: 24px 24px;
+  z-index: 900;
+}
+#preview .canvas-segment-label {
+  position: absolute;
+  z-index: 999;
+  font: 10px/16px system-ui;
+  color: #fff;
+  background: #26354d;
+  border: 1px solid #91a7ca;
+  border-radius: 3px;
+  padding: 0 4px;
+  min-height: 18px;
+  cursor: pointer;
 }
 .canvas-handle.nw {
   left: 0;

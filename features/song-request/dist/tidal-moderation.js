@@ -55,7 +55,9 @@ module.exports = function createTidalModeration({
             trackId,
             ...(payload.currentUid ? { currentUid: payload.currentUid } : {}),
           }
-        : { entryId: payload.entryId };
+        : payload.currentUid
+          ? { currentUid: payload.currentUid, trackId }
+          : { entryId: payload.entryId };
     if (!Object.values(selection).some(Boolean)) return result;
     let removal;
     try {
