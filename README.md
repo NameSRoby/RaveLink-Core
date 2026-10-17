@@ -107,6 +107,14 @@ For StreamElements widget mode, create the reward in Twitch and paste its ID int
 
 Spotify Premium setup requires a developer app whose owner has Premium and whose development allowlist includes the user. It uses OAuth PKCE without a client secret. Official-only queue entries cannot be removed individually; the desktop companion supplies that control for its own entries. Live Premium and native community-playlist validation remains limited.
 
+## Developer documentation
+
+See the [developer guide](docs/DEVELOPMENT.md) for source ownership, runtime flows,
+state and security boundaries, playlist-write recovery, and build/test commands.
+The [repository health review](docs/REPOSITORY_HEALTH.md) records maintenance
+findings and regression coverage. Run `npm run verify:health` before submitting
+source changes; edit readable fragments and rebuild their checked-in payloads.
+
 ## License
 
 Apache-2.0. Third-party code and provider marks retain their licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

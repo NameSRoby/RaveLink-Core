@@ -1,9 +1,16 @@
-const tasks = require('./feature-task-navigation');
-const feedback = require('../../../../public/core/action-feedback');
-const choices = require('../../../../public/core/visible-choices');
+/**
+ * Feature presentation.
+ * Developer context and change constraints:
+ * docs/DEVELOPMENT.md#request-security-and-the-feature-ui-relay
+ */
+const tasks = require("./feature-task-navigation");
+const feedback = require("../../../../public/core/action-feedback");
+const choices = require("../../../../public/core/visible-choices");
 function contributionPresentation() {
-  const channel = 'ravelink-feature-ui-v1';
-  let observer, scheduled = false, lastHeight = 0;
+  const channel = "ravelink-feature-ui-v1";
+  let observer,
+    scheduled = false,
+    lastHeight = 0;
   const report = () => {
     if (scheduled) return;
     scheduled = true;
@@ -12,31 +19,53 @@ function contributionPresentation() {
       if (!document.body.getBoundingClientRect().width) return;
       const bounds = document.body.getBoundingClientRect();
       const style = getComputedStyle(document.body);
-      const height = Math.ceil(Math.max(bounds.height, document.body.scrollHeight) +
-        (Number.parseFloat(style.marginTop) || 0) + (Number.parseFloat(style.marginBottom) || 0));
+      const height = Math.ceil(
+        Math.max(bounds.height, document.body.scrollHeight) +
+          (Number.parseFloat(style.marginTop) || 0) +
+          (Number.parseFloat(style.marginBottom) || 0),
+      );
       // Focus can scroll a short iframe before its parent applies the new height.
       // Once it fits, keep scrolling owned by the surrounding control panel.
       if (parent !== window && innerHeight >= height && (scrollX || scrollY)) scrollTo(0, 0);
       if (height === lastHeight) return;
       lastHeight = height;
-      parent.postMessage({ channel, type: 'feature-height', height, contentHeight: true }, '*');
+      parent.postMessage({ channel, type: "feature-height", height, contentHeight: true }, "*");
     });
   };
-  window.addEventListener('message', event => {
-    if (event.source !== parent || event.data?.channel !== channel || event.data.type !== 'presentation') return;
-    document.documentElement.classList.add('native-feature');
+  window.addEventListener("message", (event) => {
+    if (
+      event.source !== parent ||
+      event.data?.channel !== channel ||
+      event.data.type !== "presentation"
+    )
+      return;
+    document.documentElement.classList.add("native-feature");
     const theme = event.data.theme || {};
-    for (const key of ['bg', 'panel', 'surface', 'accent', 'edge', 'text', 'muted', 'ok', 'warn', 'bad']) {
-      if (/^#[0-9a-f]{3,8}$/i.test(theme[key])) document.documentElement.style.setProperty(`--${key}`, theme[key]);
+    for (const key of [
+      "bg",
+      "panel",
+      "surface",
+      "accent",
+      "edge",
+      "text",
+      "muted",
+      "ok",
+      "warn",
+      "bad",
+    ]) {
+      if (/^#[0-9a-f]{3,8}$/i.test(theme[key]))
+        document.documentElement.style.setProperty(`--${key}`, theme[key]);
     }
-    if (/^#[0-9a-f]{3,8}$/i.test(theme.ok)) document.documentElement.style.setProperty('--good', theme.ok);
-    if (/^#[0-9a-f]{3,8}$/i.test(theme.edge)) document.documentElement.style.setProperty('--line', theme.edge);
+    if (/^#[0-9a-f]{3,8}$/i.test(theme.ok))
+      document.documentElement.style.setProperty("--good", theme.ok);
+    if (/^#[0-9a-f]{3,8}$/i.test(theme.edge))
+      document.documentElement.style.setProperty("--line", theme.edge);
     report();
   });
-  document.documentElement.classList.add('flow-feature');
+  document.documentElement.classList.add("flow-feature");
   observer = new ResizeObserver(report);
   observer.observe(document.body);
-  window.addEventListener('resize', report);
+  window.addEventListener("resize", report);
   report();
 }
 
@@ -55,5 +84,10 @@ const css = `.flow-feature,.flow-feature body{min-height:0!important;height:auto
 .native-feature .field select,.native-feature .segment-head select{background:var(--bg);border-color:var(--edge)}
 .native-feature h1,.native-feature h2,.native-feature button{letter-spacing:0}`;
 
-module.exports = content => String(content).replace('</head>', `<style>${css}${tasks.css}</style></head>`)
-  .replace('</body>', `<script>(${tasks.taskNavigation.toString()})();(${contributionPresentation.toString()})();(${feedback.toString()})();(${choices.toString()})();</script></body>`);
+module.exports = (content) =>
+  String(content)
+    .replace("</head>", `<style>${css}${tasks.css}</style></head>`)
+    .replace(
+      "</body>",
+      `<script>(${tasks.taskNavigation.toString()})();(${contributionPresentation.toString()})();(${feedback.toString()})();(${choices.toString()})();</script></body>`,
+    );

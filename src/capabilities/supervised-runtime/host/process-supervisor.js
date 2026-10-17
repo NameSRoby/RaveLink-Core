@@ -1,3 +1,11 @@
+/**
+ * Supervisor lifecycle and request ownership.
+ * Startup is complete only after the validated handshake, not the fork event.
+ * Queued, outbound pending, and inbound broker work have distinct concurrency and
+ * deadline accounting. Every completion, cancellation, crash, and stop path must
+ * settle promises and release timers exactly once. Feature/mod adapters supply
+ * policy; changes here must be tested through both trust classes.
+ */
 // [TITLE] Module: capabilities/supervised-runtime/host/process-supervisor.js
 // [TITLE] Purpose: supervise one optional workload process without owning its policy
 // [TITLE] Functionality Index:
@@ -24,13 +32,16 @@ function boundedInt(value, minimum, maximum, fallback) {
 }
 
 function safeError(error, fallback = "mod_process_error") {
-  return String(error?.message || error || fallback).replace(/[\r\n]+/g, " ").slice(0, 300);
+  return String(error?.message || error || fallback)
+    .replace(/[\r\n]+/g, " ")
+    .slice(0, 300);
 }
 
 function sanitizedChildEnvironment(source = process.env) {
   const allowed = ["SystemRoot", "WINDIR", "TEMP", "TMP", "ComSpec", "PATHEXT", "LANG", "LC_ALL"];
   const out = {};
-  for (const key of allowed) if (typeof source[key] === "string" && source[key]) out[key] = source[key];
+  for (const key of allowed)
+    if (typeof source[key] === "string" && source[key]) out[key] = source[key];
   return out;
 }
 
@@ -39,7 +50,8 @@ function resolveContainedEntry(modRoot, entry) {
   const candidate = path.resolve(root, entry);
   const resolved = fs.realpathSync(candidate);
   const relative = path.relative(root, resolved);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) throw new Error("mod_entry_escaped_root");
+  if (relative.startsWith("..") || path.isAbsolute(relative))
+    throw new Error("mod_entry_escaped_root");
   if (!fs.statSync(resolved).isFile()) throw new Error("mod_entry_not_file");
   if (fs.lstatSync(candidate).isSymbolicLink()) throw new Error("mod_entry_symlink_not_allowed");
   return { root, entry: resolved };
@@ -61,18 +73,29 @@ module.exports = function createProcessSupervisor(options = {}) {
   const modRoot = path.resolve(String(options.modRoot || ""));
   const storageRoot = path.resolve(String(options.storageRoot || path.join(modRoot, ".data")));
   const platformRoot = path.resolve(String(options.platformRoot || path.join(__dirname, "..")));
-  const bootstrapPath = path.resolve(String(options.bootstrapPath || path.join(__dirname, "..", "runtime", "worker-bootstrap.js")));
-  const startupTimeoutMs = boundedInt(options.startupTimeoutMs, 100, 30000, DEFAULT_STARTUP_TIMEOUT_MS);
+  const bootstrapPath = path.resolve(
+    String(options.bootstrapPath || path.join(__dirname, "..", "runtime", "worker-bootstrap.js")),
+  );
+  const startupTimeoutMs = boundedInt(
+    options.startupTimeoutMs,
+    100,
+    30000,
+    DEFAULT_STARTUP_TIMEOUT_MS,
+  );
   const crashWindowMs = boundedInt(options.crashWindowMs, 1000, 300000, DEFAULT_CRASH_WINDOW_MS);
   const crashLimit = boundedInt(options.crashLimit, 1, 10, DEFAULT_CRASH_LIMIT);
   const protocolLimit = boundedInt(options.protocolViolationLimit, 1, 10, DEFAULT_PROTOCOL_LIMIT);
-  const onBrokerRequest = typeof options.onBrokerRequest === "function" ? options.onBrokerRequest : null;
+  const onBrokerRequest =
+    typeof options.onBrokerRequest === "function" ? options.onBrokerRequest : null;
   const onBrokerEvent = typeof options.onBrokerEvent === "function" ? options.onBrokerEvent : null;
   const onExit = typeof options.onExit === "function" ? options.onExit : null;
-  const permissionBuilder = typeof options.buildPermissions === "function" ? options.buildPermissions : buildProcessPermissions;
+  const permissionBuilder =
+    typeof options.buildPermissions === "function"
+      ? options.buildPermissions
+      : buildProcessPermissions;
   const permissionOptions = {
     allowUnsafeRuntime: options.allowUnsafeRuntime === true,
-    support: options.permissionSupport
+    support: options.permissionSupport,
   };
 
   let child = null;
@@ -101,7 +124,7 @@ module.exports = function createProcessSupervisor(options = {}) {
     isolationCode: "",
     lastError: manifestResult.ok ? "" : "manifest_invalid",
     lastStartedAt: 0,
-    lastStoppedAt: 0
+    lastStoppedAt: 0,
   };
   const inboundRate = { windowAt: Number(now()), messages: 0, bytes: 0 };
 
@@ -125,7 +148,7 @@ module.exports = function createProcessSupervisor(options = {}) {
       lastError: state.lastError,
       lastStartedAt: state.lastStartedAt,
       lastStoppedAt: state.lastStoppedAt,
-      manifestErrors: manifestResult.ok ? [] : manifestResult.errors.map(error => ({ ...error }))
+      manifestErrors: manifestResult.ok ? [] : manifestResult.errors.map((error) => ({ ...error })),
     };
   }
 
@@ -144,7 +167,8 @@ module.exports = function createProcessSupervisor(options = {}) {
       entry.resolve({ ok: false, error: { code, message, retryable: true } });
     }
     pending.clear();
-    while (queue.length) queue.shift().resolve({ ok: false, error: { code, message, retryable: true } });
+    while (queue.length)
+      queue.shift().resolve({ ok: false, error: { code, message, retryable: true } });
   }
 
   function cancelInbound(code, message) {
@@ -161,7 +185,7 @@ module.exports = function createProcessSupervisor(options = {}) {
     const validation = parseBrokerFrameV1(frame, {
       now: Number(now()),
       maxFrameBytes: manifest.resources.ipcFrameBytes,
-      maxDeadlineMs: 60000
+      maxDeadlineMs: 60000,
     });
     if (!validation.ok) return false;
     try {
@@ -178,13 +202,16 @@ module.exports = function createProcessSupervisor(options = {}) {
     settleAllRequests(code, message);
     cancelInbound(code, message);
     settleStartup();
-    try { child?.kill?.("SIGTERM"); } catch {}
+    try {
+      child?.kill?.("SIGTERM");
+    } catch {}
   }
 
   function recordProtocolViolation(detail) {
     state.protocolViolations += 1;
     state.lastError = `protocol_violation:${detail}`;
-    if (state.protocolViolations >= protocolLimit) quarantine("protocol_quarantined", `${displayName} exceeded the protocol violation limit`);
+    if (state.protocolViolations >= protocolLimit)
+      quarantine("protocol_quarantined", `${displayName} exceeded the protocol violation limit`);
   }
 
   function pumpQueue() {
@@ -200,27 +227,51 @@ module.exports = function createProcessSupervisor(options = {}) {
         capability: task.capability,
         method: task.method,
         deadlineAt,
-        payload: task.payload
+        payload: task.payload,
       };
       const timer = setTimeout(() => {
         if (!pending.has(task.id)) return;
         pending.delete(task.id);
-        sendEnvelope({ protocolVersion: 1, type: "cancel", sentAt: Number(now()), replyTo: task.id });
-        task.resolve({ ok: false, error: { code: "request_timeout", message: `${displayName} request exceeded its deadline`, retryable: true } });
+        sendEnvelope({
+          protocolVersion: 1,
+          type: "cancel",
+          sentAt: Number(now()),
+          replyTo: task.id,
+        });
+        task.resolve({
+          ok: false,
+          error: {
+            code: "request_timeout",
+            message: `${displayName} request exceeded its deadline`,
+            retryable: true,
+          },
+        });
         pumpQueue();
       }, task.timeoutMs);
       pending.set(task.id, { ...task, timer });
       if (!sendEnvelope(envelope)) {
         clearTimeout(timer);
         pending.delete(task.id);
-        task.resolve({ ok: false, error: { code: "ipc_send_failed", message: `Unable to send request to ${workloadKind}`, retryable: true } });
+        task.resolve({
+          ok: false,
+          error: {
+            code: "ipc_send_failed",
+            message: `Unable to send request to ${workloadKind}`,
+            retryable: true,
+          },
+        });
       }
     }
   }
 
   function handleMessage(message) {
     let frame;
-    try { frame = JSON.stringify(message); } catch { recordProtocolViolation("non_json"); return; }
+    try {
+      frame = JSON.stringify(message);
+    } catch {
+      recordProtocolViolation("non_json");
+      return;
+    }
     const at = Number(now());
     if (at - inboundRate.windowAt >= 1000) {
       inboundRate.windowAt = at;
@@ -236,17 +287,27 @@ module.exports = function createProcessSupervisor(options = {}) {
     const validation = parseBrokerFrameV1(frame, {
       now: Number(now()),
       maxFrameBytes: manifest.resources.ipcFrameBytes,
-      maxDeadlineMs: 60000
+      maxDeadlineMs: 60000,
     });
     if (!validation.ok) {
       // A valid request may expire in transit while the host is busy. Reject it
       // without invoking its provider or treating scheduler delay as misconduct.
-      if (validation.errors.length === 1 && validation.errors[0].code === 'invalid_deadline') {
+      if (validation.errors.length === 1 && validation.errors[0].code === "invalid_deadline") {
         const expired = JSON.parse(frame);
-        if (expired.type === 'request' && expired.deadlineAt <= Number(now())) {
+        if (expired.type === "request" && expired.deadlineAt <= Number(now())) {
           state.providerTimeouts += 1;
-          sendEnvelope({ protocolVersion: 1, type: 'response', sentAt: Number(now()), replyTo: expired.id, ok: false,
-            error: { code: 'broker_timeout', message: 'Capability request expired before dispatch', retryable: true } });
+          sendEnvelope({
+            protocolVersion: 1,
+            type: "response",
+            sentAt: Number(now()),
+            replyTo: expired.id,
+            ok: false,
+            error: {
+              code: "broker_timeout",
+              message: "Capability request expired before dispatch",
+              retryable: true,
+            },
+          });
           return;
         }
       }
@@ -255,20 +316,33 @@ module.exports = function createProcessSupervisor(options = {}) {
     }
     const envelope = validation.value;
     if (envelope.type === "hello" && state.lifecycle === "enabling") {
-      if (envelope.payload?.[identityField] !== manifest.id || Number(envelope.payload?.apiMajor) !== apiMajor) {
-        quarantine("handshake_mismatch", `${displayName} handshake identity or API did not match its manifest`);
+      if (
+        envelope.payload?.[identityField] !== manifest.id ||
+        Number(envelope.payload?.apiMajor) !== apiMajor
+      ) {
+        quarantine(
+          "handshake_mismatch",
+          `${displayName} handshake identity or API did not match its manifest`,
+        );
         return;
       }
-      if (!sendEnvelope({
-        protocolVersion: 1,
-        type: "ready",
-        sentAt: Number(now()),
-        payload: { phase: "authorize", [identityField]: manifest.id }
-      })) quarantine("handshake_send_failed", `Unable to authorize ${workloadKind} activation`);
+      if (
+        !sendEnvelope({
+          protocolVersion: 1,
+          type: "ready",
+          sentAt: Number(now()),
+          payload: { phase: "authorize", [identityField]: manifest.id },
+        })
+      )
+        quarantine("handshake_send_failed", `Unable to authorize ${workloadKind} activation`);
       else handshakeAuthorized = true;
       return;
     }
-    if (envelope.type === "ready" && state.lifecycle === "enabling" && envelope.payload?.phase === "active") {
+    if (
+      envelope.type === "ready" &&
+      state.lifecycle === "enabling" &&
+      envelope.payload?.phase === "active"
+    ) {
       if (envelope.payload?.ok === true && envelope.payload?.[identityField] === manifest.id) {
         state.lifecycle = "active";
         state.lastError = "";
@@ -278,7 +352,9 @@ module.exports = function createProcessSupervisor(options = {}) {
         state.lifecycle = "crashed";
         state.lastError = `activation_failed:${safeError(envelope.payload?.error, "unknown")}`;
         settleStartup();
-        try { child?.kill?.("SIGTERM"); } catch {}
+        try {
+          child?.kill?.("SIGTERM");
+        } catch {}
       }
       return;
     }
@@ -287,17 +363,32 @@ module.exports = function createProcessSupervisor(options = {}) {
       if (!task) return;
       pending.delete(envelope.replyTo);
       clearTimeout(task.timer);
-      task.resolve(envelope.ok
-        ? { ok: true, value: envelope.payload }
-        : { ok: false, error: { ...envelope.error } });
+      task.resolve(
+        envelope.ok
+          ? { ok: true, value: envelope.payload }
+          : { ok: false, error: { ...envelope.error } },
+      );
       pumpQueue();
       return;
     }
-    if (envelope.type === "request" && (["active", "draining"].includes(state.lifecycle) || (state.lifecycle === "enabling" && handshakeAuthorized)) && onBrokerRequest) {
+    if (
+      envelope.type === "request" &&
+      (["active", "draining"].includes(state.lifecycle) ||
+        (state.lifecycle === "enabling" && handshakeAuthorized)) &&
+      onBrokerRequest
+    ) {
       if (inbound.has(envelope.id) || inbound.size >= manifest.resources.inFlightCalls) {
         sendEnvelope({
-          protocolVersion: 1, type: "response", sentAt: Number(now()), replyTo: envelope.id, ok: false,
-          error: { code: "broker_busy", message: `${displayName} capability request limit reached`, retryable: true }
+          protocolVersion: 1,
+          type: "response",
+          sentAt: Number(now()),
+          replyTo: envelope.id,
+          ok: false,
+          error: {
+            code: "broker_busy",
+            message: `${displayName} capability request limit reached`,
+            retryable: true,
+          },
         });
         return;
       }
@@ -306,42 +397,85 @@ module.exports = function createProcessSupervisor(options = {}) {
       const timer = setTimeout(() => {
         if (!inbound.has(envelope.id)) return;
         state.providerTimeouts += 1;
-        controller.abort(Object.assign(new Error(`${displayName} provider request exceeded its deadline`), { code: "broker_timeout" }));
+        controller.abort(
+          Object.assign(new Error(`${displayName} provider request exceeded its deadline`), {
+            code: "broker_timeout",
+          }),
+        );
       }, timeoutMs);
       inbound.set(envelope.id, { controller, timer });
-      Promise.race([Promise.resolve(onBrokerRequest(envelope.capability, envelope.method, envelope.payload, {
-        providerId: envelope.providerId,
-        timeoutMs,
-        deadlineAt: envelope.deadlineAt,
-        signal: controller.signal
-      })), new Promise((resolve, reject) => {
-        controller.signal.addEventListener("abort", () => reject(controller.signal.reason), { once: true });
-      })]).then(result => {
-        if (result?.ok) {
-          sendEnvelope({ protocolVersion: 1, type: "response", sentAt: Number(now()), replyTo: envelope.id, ok: true, payload: result.value });
-        } else {
-          sendEnvelope({
-            protocolVersion: 1, type: "response", sentAt: Number(now()), replyTo: envelope.id, ok: false,
-            error: result?.error || { code: "broker_failed", message: "Capability broker rejected the request", retryable: false }
+      Promise.race([
+        Promise.resolve(
+          onBrokerRequest(envelope.capability, envelope.method, envelope.payload, {
+            providerId: envelope.providerId,
+            timeoutMs,
+            deadlineAt: envelope.deadlineAt,
+            signal: controller.signal,
+          }),
+        ),
+        new Promise((resolve, reject) => {
+          controller.signal.addEventListener("abort", () => reject(controller.signal.reason), {
+            once: true,
           });
-        }
-      }).catch(error => {
-        const timedOut = error?.code === "broker_timeout";
-        sendEnvelope({
-          protocolVersion: 1, type: "response", sentAt: Number(now()), replyTo: envelope.id, ok: false,
-          error: timedOut
-            ? { code: "broker_timeout", message: `${displayName} provider request exceeded its deadline`, retryable: true }
-            : { code: "broker_failed", message: "Capability broker failed", retryable: true }
+        }),
+      ])
+        .then((result) => {
+          if (result?.ok) {
+            sendEnvelope({
+              protocolVersion: 1,
+              type: "response",
+              sentAt: Number(now()),
+              replyTo: envelope.id,
+              ok: true,
+              payload: result.value,
+            });
+          } else {
+            sendEnvelope({
+              protocolVersion: 1,
+              type: "response",
+              sentAt: Number(now()),
+              replyTo: envelope.id,
+              ok: false,
+              error: result?.error || {
+                code: "broker_failed",
+                message: "Capability broker rejected the request",
+                retryable: false,
+              },
+            });
+          }
+        })
+        .catch((error) => {
+          const timedOut = error?.code === "broker_timeout";
+          sendEnvelope({
+            protocolVersion: 1,
+            type: "response",
+            sentAt: Number(now()),
+            replyTo: envelope.id,
+            ok: false,
+            error: timedOut
+              ? {
+                  code: "broker_timeout",
+                  message: `${displayName} provider request exceeded its deadline`,
+                  retryable: true,
+                }
+              : {
+                  code: "broker_failed",
+                  message: "Capability broker failed",
+                  retryable: true,
+                },
+          });
+        })
+        .finally(() => {
+          const entry = inbound.get(envelope.id);
+          if (entry) clearTimeout(entry.timer);
+          inbound.delete(envelope.id);
         });
-      }).finally(() => {
-        const entry = inbound.get(envelope.id);
-        if (entry) clearTimeout(entry.timer);
-        inbound.delete(envelope.id);
-      });
       return;
     }
     if (envelope.type === "event" && state.lifecycle === "active" && onBrokerEvent) {
-      Promise.resolve(onBrokerEvent(envelope.capability, envelope.method, envelope.payload)).catch(() => {});
+      Promise.resolve(onBrokerEvent(envelope.capability, envelope.method, envelope.payload)).catch(
+        () => {},
+      );
       return;
     }
     recordProtocolViolation(`unexpected_${envelope.type}`);
@@ -375,11 +509,14 @@ module.exports = function createProcessSupervisor(options = {}) {
       stopResolve = null;
       resolve(getStatus());
     }
-    try { onExit?.(getStatus()); } catch {}
+    try {
+      onExit?.(getStatus());
+    } catch {}
   }
 
   async function start() {
-    if (!manifestResult.ok || ["active", "enabling", "quarantined"].includes(state.lifecycle)) return getStatus();
+    if (!manifestResult.ok || ["active", "enabling", "quarantined"].includes(state.lifecycle))
+      return getStatus();
     let paths;
     try {
       paths = resolveContainedEntry(modRoot, manifest.entry);
@@ -395,7 +532,7 @@ module.exports = function createProcessSupervisor(options = {}) {
       storageRoot,
       platformRoot,
       allowUnsafeRuntime: permissionOptions.allowUnsafeRuntime,
-      support: permissionOptions.support
+      support: permissionOptions.support,
     });
     state.unsafeRuntime = isolation.unsafe === true;
     state.isolationCode = isolation.code;
@@ -404,14 +541,17 @@ module.exports = function createProcessSupervisor(options = {}) {
       state.lastError = isolation.code;
       return getStatus();
     }
-    const bootConfig = Buffer.from(JSON.stringify({
-      [identityField]: manifest.id,
-      identityField,
-      entryPath: paths.entry,
-      provides: manifest.provides,
-      consumes: manifest.consumes,
-      maxFrameBytes: manifest.resources.ipcFrameBytes
-    }), "utf8").toString("base64url");
+    const bootConfig = Buffer.from(
+      JSON.stringify({
+        [identityField]: manifest.id,
+        identityField,
+        entryPath: paths.entry,
+        provides: manifest.provides,
+        consumes: manifest.consumes,
+        maxFrameBytes: manifest.resources.ipcFrameBytes,
+      }),
+      "utf8",
+    ).toString("base64url");
     expectedStop = false;
     handshakeAuthorized = false;
     state.lifecycle = "enabling";
@@ -424,13 +564,17 @@ module.exports = function createProcessSupervisor(options = {}) {
         env: sanitizedChildEnvironment(options.environment),
         execArgv: isolation.execArgv,
         windowsHide: true,
-        stdio: ["ignore", "ignore", "ignore", "ipc"]
+        stdio: ["ignore", "ignore", "ignore", "ipc"],
       });
       state.pid = Number(child.pid || 0);
       const worker = child;
-      child.on("message", message => { if (child === worker) handleMessage(message); });
-      child.once("exit", (code, signal) => { if (child === worker) handleExit(code, signal); });
-      child.once("error", error => {
+      child.on("message", (message) => {
+        if (child === worker) handleMessage(message);
+      });
+      child.once("exit", (code, signal) => {
+        if (child === worker) handleExit(code, signal);
+      });
+      child.once("error", (error) => {
         if (child !== worker) return;
         state.lastError = safeError(error, "mod_spawn_error");
       });
@@ -441,22 +585,50 @@ module.exports = function createProcessSupervisor(options = {}) {
       state.lastError = safeError(error, "mod_spawn_failed");
       return getStatus();
     }
-    return await new Promise(resolve => {
+    return await new Promise((resolve) => {
       startupResolve = resolve;
       startupTimer = setTimeout(() => {
         state.lifecycle = "crashed";
         state.lastError = "activation_timeout";
         settleStartup();
-        try { child?.kill?.("SIGTERM"); } catch {}
+        try {
+          child?.kill?.("SIGTERM");
+        } catch {}
       }, startupTimeoutMs);
     });
   }
 
   function request(capability, method, payload = null, requestOptions = {}) {
-    if (state.lifecycle !== "active") return Promise.resolve({ ok: false, error: { code: `${workloadKind}_unavailable`, message: `${displayName} is not active`, retryable: true } });
-    if (!manifest.provides.includes(capability)) return Promise.resolve({ ok: false, error: { code: "capability_not_provided", message: `Capability is not declared by this ${workloadKind}`, retryable: false } });
-    if (pending.size + queue.length >= manifest.resources.inFlightCalls + manifest.resources.queuedCalls) {
-      return Promise.resolve({ ok: false, error: { code: "queue_full", message: `${displayName} request queue is full`, retryable: true } });
+    if (state.lifecycle !== "active")
+      return Promise.resolve({
+        ok: false,
+        error: {
+          code: `${workloadKind}_unavailable`,
+          message: `${displayName} is not active`,
+          retryable: true,
+        },
+      });
+    if (!manifest.provides.includes(capability))
+      return Promise.resolve({
+        ok: false,
+        error: {
+          code: "capability_not_provided",
+          message: `Capability is not declared by this ${workloadKind}`,
+          retryable: false,
+        },
+      });
+    if (
+      pending.size + queue.length >=
+      manifest.resources.inFlightCalls + manifest.resources.queuedCalls
+    ) {
+      return Promise.resolve({
+        ok: false,
+        error: {
+          code: "queue_full",
+          message: `${displayName} request queue is full`,
+          retryable: true,
+        },
+      });
     }
     const timeoutMs = boundedInt(requestOptions.timeoutMs, 10, 60000, 5000);
     requestSequence += 1;
@@ -471,15 +643,22 @@ module.exports = function createProcessSupervisor(options = {}) {
         capability,
         method,
         deadlineAt: Number(now()) + timeoutMs,
-        payload
+        payload,
       });
     } catch {
-      return Promise.resolve({ ok: false, error: { code: "invalid_request", message: "Request payload must be JSON", retryable: false } });
+      return Promise.resolve({
+        ok: false,
+        error: {
+          code: "invalid_request",
+          message: "Request payload must be JSON",
+          retryable: false,
+        },
+      });
     }
     const requestValidation = parseBrokerFrameV1(requestFrame, {
       now: Number(now()),
       maxFrameBytes: manifest.resources.ipcFrameBytes,
-      maxDeadlineMs: 60000
+      maxDeadlineMs: 60000,
     });
     if (!requestValidation.ok) {
       return Promise.resolve({
@@ -487,11 +666,11 @@ module.exports = function createProcessSupervisor(options = {}) {
         error: {
           code: "invalid_request",
           message: `Request failed broker validation: ${requestValidation.errors[0]?.code || "unknown"}`,
-          retryable: false
-        }
+          retryable: false,
+        },
       });
     }
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       queue.push({ id, capability, method, payload, timeoutMs, resolve });
       pumpQueue();
     });
@@ -499,12 +678,20 @@ module.exports = function createProcessSupervisor(options = {}) {
 
   function sendEvent(capability, method, payload = null) {
     if (state.lifecycle !== "active") return false;
-    return sendEnvelope({ protocolVersion: 1, type: "event", sentAt: Number(now()), capability, method, payload });
+    return sendEnvelope({
+      protocolVersion: 1,
+      type: "event",
+      sentAt: Number(now()),
+      capability,
+      method,
+      payload,
+    });
   }
 
   async function stop() {
     if (!child) {
-      if (state.lifecycle !== "quarantined" && state.lifecycle !== "incompatible") state.lifecycle = "installed-disabled";
+      if (state.lifecycle !== "quarantined" && state.lifecycle !== "incompatible")
+        state.lifecycle = "installed-disabled";
       return getStatus();
     }
     if (stopPromise) return stopPromise;
@@ -514,17 +701,26 @@ module.exports = function createProcessSupervisor(options = {}) {
     settleAllRequests(`${workloadKind}_stopping`, `${displayName} is stopping`);
     const graceMs = manifest.resources.shutdownGraceMs;
     const worker = child;
-    stopPromise = new Promise(resolve => {
+    stopPromise = new Promise((resolve) => {
       stopResolve = resolve;
       stopTimer = setTimeout(() => {
         if (child !== worker) return;
         state.lastError = "shutdown_timeout";
         state.forcedStops += 1;
-        try { worker.kill?.("SIGKILL"); } catch {}
+        try {
+          worker.kill?.("SIGKILL");
+        } catch {}
         if (child === worker) handleExit(null, "forced");
       }, graceMs);
-      sendEnvelope({ protocolVersion: 1, type: "shutdown", sentAt: Number(now()), deadlineAt: Number(now()) + graceMs });
-    }).finally(() => { stopPromise = null; });
+      sendEnvelope({
+        protocolVersion: 1,
+        type: "shutdown",
+        sentAt: Number(now()),
+        deadlineAt: Number(now()) + graceMs,
+      });
+    }).finally(() => {
+      stopPromise = null;
+    });
     return stopPromise;
   }
 
@@ -537,7 +733,14 @@ module.exports = function createProcessSupervisor(options = {}) {
     return getStatus();
   }
 
-  return Object.freeze({ getStatus, request, resetQuarantine, sendEvent, start, stop });
+  return Object.freeze({
+    getStatus,
+    request,
+    resetQuarantine,
+    sendEvent,
+    start,
+    stop,
+  });
 };
 
 module.exports.resolveContainedEntry = resolveContainedEntry;

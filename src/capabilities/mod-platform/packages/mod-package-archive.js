@@ -19,7 +19,7 @@ const DEFAULT_ARCHIVE_LIMITS = Object.freeze({
   maxFileBytes: 8 * 1024 * 1024,
   maxCompressionRatio: 100,
   maxDepth: 16,
-  maxPathBytes: 512
+  maxPathBytes: 512,
 });
 const WINDOWS_RESERVED_NAME_RE = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
 const WINDOWS_UNSAFE_RE = /[<>:"|?*\u0000-\u001f]/;
@@ -37,17 +37,20 @@ function boundedArchiveLimits(overrides = {}, ceilings = DEFAULT_ARCHIVE_LIMITS)
 
 function archivePathIsPortable(fileName) {
   if (!isSafePackagePath(fileName)) return false;
-  return fileName.split("/").every(segment => (
-    segment.length <= 120
-    && !WINDOWS_UNSAFE_RE.test(segment)
-    && !/[. ]$/.test(segment)
-    && !WINDOWS_RESERVED_NAME_RE.test(segment)
-  ));
+  return fileName
+    .split("/")
+    .every(
+      (segment) =>
+        segment.length <= 120 &&
+        !WINDOWS_UNSAFE_RE.test(segment) &&
+        !/[. ]$/.test(segment) &&
+        !WINDOWS_RESERVED_NAME_RE.test(segment),
+    );
 }
 
 function unixEntryType(entry) {
   const host = (entry.versionMadeBy >>> 8) & 0xff;
-  return host === 3 ? ((entry.externalFileAttributes >>> 16) & 0xf000) : 0;
+  return host === 3 ? (entry.externalFileAttributes >>> 16) & 0xf000 : 0;
 }
 
 function classifyEntry(entry) {
@@ -69,7 +72,9 @@ function compressionRatio(entry) {
 function addPathEntry(pathKinds, relative, kind) {
   const key = relative.toLowerCase();
   if (pathKinds.has(key)) {
-    return pathKinds.get(key).path === relative ? "archive_duplicate_path" : "archive_case_collision";
+    return pathKinds.get(key).path === relative
+      ? "archive_duplicate_path"
+      : "archive_case_collision";
   }
   const segments = relative.split("/");
   for (let index = 1; index < segments.length; index += 1) {
@@ -90,7 +95,11 @@ async function extractZipArchive(archivePath, destinationPath, options = {}) {
   const archive = path.resolve(String(archivePath || ""));
   const destination = path.resolve(String(destinationPath || ""));
   let stat;
-  try { stat = await fs.promises.lstat(archive); } catch { return { ok: false, error: "archive_missing" }; }
+  try {
+    stat = await fs.promises.lstat(archive);
+  } catch {
+    return { ok: false, error: "archive_missing" };
+  }
   if (!stat.isFile() || stat.isSymbolicLink()) return { ok: false, error: "archive_invalid" };
   if (stat.size > limits.maxArchiveBytes) return { ok: false, error: "archive_size_limit" };
   try {
@@ -106,7 +115,7 @@ async function extractZipArchive(archivePath, destinationPath, options = {}) {
       autoClose: false,
       decodeStrings: true,
       strictFileNames: true,
-      validateEntrySizes: true
+      validateEntrySizes: true,
     });
     if (zipfile.fileSize > limits.maxArchiveBytes) throw new Error("archive_size_limit");
     if (zipfile.entryCount > limits.maxEntries) throw new Error("archive_entry_count_limit");
@@ -129,9 +138,11 @@ async function extractZipArchive(archivePath, destinationPath, options = {}) {
       if (kind === "directory") {
         if (entry.uncompressedSize !== 0) throw new Error("archive_directory_has_data");
       } else {
-        if (entry.isEncrypted() || !entry.canDecodeFileData()) throw new Error("archive_encoding_unsupported");
+        if (entry.isEncrypted() || !entry.canDecodeFileData())
+          throw new Error("archive_encoding_unsupported");
         if (entry.uncompressedSize > limits.maxFileBytes) throw new Error("archive_file_too_large");
-        if (compressionRatio(entry) > limits.maxCompressionRatio) throw new Error("archive_compression_ratio_limit");
+        if (compressionRatio(entry) > limits.maxCompressionRatio)
+          throw new Error("archive_compression_ratio_limit");
         expandedBytes += entry.uncompressedSize;
         compressedBytes += entry.compressedSize;
         if (expandedBytes > limits.maxExpandedBytes) throw new Error("archive_expanded_size_limit");
@@ -160,18 +171,27 @@ async function extractZipArchive(archivePath, destinationPath, options = {}) {
           } else {
             callback(null, chunk);
           }
-        }
+        },
       });
       const input = await zipfile.openReadStreamPromise(row.entry);
       await pipeline(input, meter, fs.createWriteStream(outputPath, { flags: "wx", mode: 0o600 }));
       if (fileBytes !== row.entry.uncompressedSize) throw new Error("archive_entry_size_mismatch");
     }
-    return { ok: true, root: destination, entries: entries.length, expandedBytes: measuredBytes };
+    return {
+      ok: true,
+      root: destination,
+      entries: entries.length,
+      expandedBytes: measuredBytes,
+    };
   } catch (error) {
     await fs.promises.rm(destination, { recursive: true, force: true }).catch(() => {});
     const message = String(error?.message || error);
     const known = message.match(/archive_[a-z_]+/)?.[0];
-    return { ok: false, error: known || "archive_invalid_zip", detail: known ? undefined : message.slice(0, 160) };
+    return {
+      ok: false,
+      error: known || "archive_invalid_zip",
+      detail: known ? undefined : message.slice(0, 160),
+    };
   } finally {
     zipfile?.close();
   }
@@ -182,5 +202,5 @@ module.exports = {
   archivePathIsPortable,
   boundedArchiveLimits,
   classifyEntry,
-  extractZipArchive
+  extractZipArchive,
 };

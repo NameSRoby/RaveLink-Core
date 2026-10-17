@@ -6,54 +6,94 @@ const path = require("node:path");
 const { chromium } = require("playwright");
 const createCoreServer = require("../src/app/core/create-core-server");
 const createFeaturePlatformExtension = require("../src/app/optional/create-feature-platform-extension");
-const unicodeTitle = "美波 - カワキヲアメク — a deliberately long title that must keep scrolling without restarting";
+const unicodeTitle =
+  "美波 - カワキヲアメク — a deliberately long title that must keep scrolling without restarting";
 
-test("Features HUD lazy-loads integrity-checked Song Request player and overlay pages", async t => {
+test("Features HUD lazy-loads integrity-checked Song Request player and overlay pages", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-feature-ui-"));
   const installed = path.join(root, "installed", "song-request");
-  fs.cpSync(path.join(__dirname, "..", "features", "song-request"), installed, { recursive: true });
-  const desktopObserver = { lifecycle: "stopped", selectedProvider: "spotify", observations: 0 };
+  fs.cpSync(path.join(__dirname, "..", "features", "song-request"), installed, {
+    recursive: true,
+  });
+  const desktopObserver = {
+    lifecycle: "stopped",
+    selectedProvider: "spotify",
+    observations: 0,
+  };
   const created = createCoreServer({
-    rootDir: path.join(__dirname, ".."), runtimeDir: path.join(root, "runtime"), dryRun: true,
+    rootDir: path.join(__dirname, ".."),
+    runtimeDir: path.join(root, "runtime"),
+    dryRun: true,
     capabilities: { features: true },
     extend: createFeaturePlatformExtension({
-      featuresRoot: path.join(root, "installed"), runtimeRoot: path.join(root, "runtime", "features"), allowUnsafeRuntime: true,
+      featuresRoot: path.join(root, "installed"),
+      runtimeRoot: path.join(root, "runtime", "features"),
+      allowUnsafeRuntime: true,
       providers: {
-        "media.windows.now-playing.v1/control": async payload => {
+        "media.windows.now-playing.v1/control": async (payload) => {
           if (payload.action === "select") desktopObserver.selectedProvider = payload.provider;
           if (payload.action === "start") desktopObserver.lifecycle = "active";
           if (payload.action === "stop") desktopObserver.lifecycle = "stopped";
-          return { ok: true, supported: true, lifecycle: desktopObserver.lifecycle, selectedProvider: desktopObserver.selectedProvider, counters: { observations: desktopObserver.observations } };
+          return {
+            ok: true,
+            supported: true,
+            lifecycle: desktopObserver.lifecycle,
+            selectedProvider: desktopObserver.selectedProvider,
+            counters: { observations: desktopObserver.observations },
+          };
         },
-        "youtube.catalog.host.v1/status": async () => ({ ok: true, configured: true, mode: "keyless" }),
-        "youtube.catalog.host.v1/resolve": async payload => ({ ok: true, candidate: { provider: "youtube", providerItemId: payload.videoId || "M7lc1UVf-VE", title: unicodeTitle, artists: ["美波 / Minami"], durationMs: 285920 } })
-      }
-    })
+        "youtube.catalog.host.v1/status": async () => ({
+          ok: true,
+          configured: true,
+          mode: "keyless",
+        }),
+        "youtube.catalog.host.v1/resolve": async (payload) => ({
+          ok: true,
+          candidate: {
+            provider: "youtube",
+            providerItemId: payload.videoId || "M7lc1UVf-VE",
+            title: unicodeTitle,
+            artists: ["美波 / Minami"],
+            durationMs: 285920,
+          },
+        }),
+      },
+    }),
   });
   await created.extension.startup;
-  const server = await new Promise(resolve => {
+  const server = await new Promise((resolve) => {
     const listener = created.app.listen(0, "127.0.0.1", () => resolve(listener));
   });
   let browser;
   t.after(async () => {
     if (browser) await browser.close();
     await created.extension.shutdown();
-    await new Promise(resolve => server.close(resolve));
+    await new Promise((resolve) => server.close(resolve));
     fs.rmSync(root, { recursive: true, force: true });
   });
   const base = `http://127.0.0.1:${server.address().port}`;
   let streamConnections = 0;
-  server.on('request', (req, res) => {
-    if (req.url !== '/api/features-stream') return;
+  server.on("request", (req, res) => {
+    if (req.url !== "/api/features-stream") return;
     streamConnections++;
-    res.on('close', () => { streamConnections--; });
+    res.on("close", () => {
+      streamConnections--;
+    });
   });
-  const snapshot = await fetch(`${base}/api/features`).then(response => response.json());
-  const deniedStream = await fetch(`${base}/api/features-stream`, { headers: { origin: 'https://untrusted.invalid' } });
+  const snapshot = await fetch(`${base}/api/features`).then((response) => response.json());
+  const deniedStream = await fetch(`${base}/api/features-stream`, {
+    headers: { origin: "https://untrusted.invalid" },
+  });
   assert.equal(deniedStream.status, 403);
   assert.equal(snapshot.features[0].uiContributions.length, 6);
-  assert.deepEqual(snapshot.features[0].uiContributions.map(row => row.surface), ["panel", "panel", "panel", "panel", "overlay", "panel"]);
-  assert.equal((await fetch(`${base}/health`).then(response => response.json())).capabilities.songRequest, true);
+  assert.deepEqual(
+    snapshot.features[0].uiContributions.map((row) => row.surface),
+    ["panel", "panel", "panel", "panel", "overlay", "panel"],
+  );
+  assert.equal(
+    (await fetch(`${base}/health`).then((response) => response.json())).capabilities.songRequest,
+    true,
+  );
   const playerResponse = await fetch(`${base}/features-ui/song-request/player`);
   assert.equal(playerResponse.status, 200);
   for (const pageId of ["request-queue", "server-playlist", "now-playing"]) {
@@ -65,34 +105,70 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   const contentResponse = await fetch(`${base}/features-content/song-request/player`);
   assert.equal(contentResponse.status, 200);
   assert.equal(contentResponse.headers.get("referrer-policy"), "origin");
-  assert.match(contentResponse.headers.get("content-security-policy"), /script-src 'unsafe-inline' https:\/\/www\.youtube\.com/);
+  assert.match(
+    contentResponse.headers.get("content-security-policy"),
+    /script-src 'unsafe-inline' https:\/\/www\.youtube\.com/,
+  );
   assert.match(contentResponse.headers.get("content-security-policy"), /connect-src 'none'/);
-  assert.match(contentResponse.headers.get("content-security-policy"), /sandbox allow-scripts allow-presentation allow-same-origin/);
+  assert.match(
+    contentResponse.headers.get("content-security-policy"),
+    /sandbox allow-scripts allow-presentation allow-same-origin/,
+  );
   const overlayContent = await fetch(`${base}/features-content/song-request/obs-overlay`);
   assert.equal(overlayContent.headers.get("referrer-policy"), "no-referrer");
-  assert.match(overlayContent.headers.get("content-security-policy"), /img-src data: https:\/\/i\.ytimg\.com/);
+  assert.match(
+    overlayContent.headers.get("content-security-policy"),
+    /img-src data: https:\/\/i\.ytimg\.com/,
+  );
   assert.doesNotMatch(overlayContent.headers.get("content-security-policy"), /allow-same-origin/);
   async function featureCall(capability, method, payload) {
     const response = await fetch(`${base}/api/features/song-request/call`, {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ capability, method, payload })
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ capability, method, payload }),
     });
     const body = await response.json();
     assert.equal(response.ok, true, JSON.stringify(body));
     return body.value;
   }
   await featureCall("song.queue.submit.v1", "submit", {
-    requestId: "ui-playback", requesterId: "viewer", query: "Blood and Guts",
-    candidate: { provider: "youtube", providerItemId: "M7lc1UVf-VE", title: unicodeTitle, artists: ["美波 / Minami"], durationMs: 285920 }
+    requestId: "ui-playback",
+    requesterId: "viewer",
+    query: "Blood and Guts",
+    candidate: {
+      provider: "youtube",
+      providerItemId: "M7lc1UVf-VE",
+      title: unicodeTitle,
+      artists: ["美波 / Minami"],
+      durationMs: 285920,
+    },
   });
-  await featureCall("song.queue.admin.v1", "moderate", { action: "playback_start" });
-  const playbackLease = (await featureCall("song.playback.driver.v1", "pull", { driverId: "ui-test", providers: ["youtube"] })).action;
-  await featureCall("song.playback.driver.v1", "acknowledge", { driverId: "ui-test", leaseId: playbackLease.leaseId, state: "started", positionMs: 20000, durationMs: 285920 });
+  await featureCall("song.queue.admin.v1", "moderate", {
+    action: "playback_start",
+  });
+  const playbackLease = (
+    await featureCall("song.playback.driver.v1", "pull", {
+      driverId: "ui-test",
+      providers: ["youtube"],
+    })
+  ).action;
+  await featureCall("song.playback.driver.v1", "acknowledge", {
+    driverId: "ui-test",
+    leaseId: playbackLease.leaseId,
+    state: "started",
+    positionMs: 20000,
+    durationMs: 285920,
+  });
   browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-  await context.route("https://www.youtube.com/**", route => route.abort());
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+  });
+  await context.route("https://www.youtube.com/**", (route) => route.abort());
   const page = await context.newPage();
   const contributionRequests = [];
-  page.on("request", request => { if (request.url().includes("/features-ui/")) contributionRequests.push(request.url()); });
+  page.on("request", (request) => {
+    if (request.url().includes("/features-ui/")) contributionRequests.push(request.url());
+  });
   await page.goto(base, { waitUntil: "domcontentloaded" });
   await page.locator("#featuresTab").waitFor({ state: "attached" });
   await page.waitForFunction(() => document.getElementById("featuresTab")?.hidden === false);
@@ -112,93 +188,196 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   const box = await playerSurface.locator("#playerFrame").boundingBox();
   assert.ok(box.width >= 480);
   assert.ok(box.height >= 270);
-  assert.equal(await popup.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true);
+  assert.equal(
+    await popup.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+    ),
+    true,
+  );
   const queuePopup = await context.newPage();
-  await queuePopup.goto(`${base}/features-ui/song-request/request-queue`, { waitUntil: "domcontentloaded" });
+  await queuePopup.goto(`${base}/features-ui/song-request/request-queue`, {
+    waitUntil: "domcontentloaded",
+  });
   const queueSurface = queuePopup.locator("#surface").contentFrame();
   await queueSurface.locator("#queue").waitFor();
   await queueSurface.getByRole("button", { name: "Previous" }).waitFor();
   await queueSurface.getByRole("button", { name: "Next" }).waitFor();
-  assert.equal(await queueSurface.locator("body").evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true);
+  assert.equal(
+    await queueSurface
+      .locator("body")
+      .evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+      ),
+    true,
+  );
   const playlistPopup = await context.newPage();
-  await playlistPopup.goto(`${base}/features-ui/song-request/server-playlist`, { waitUntil: "domcontentloaded" });
+  await playlistPopup.goto(`${base}/features-ui/song-request/server-playlist`, {
+    waitUntil: "domcontentloaded",
+  });
   const playlistSurface = playlistPopup.locator("#surface").contentFrame();
   await playlistSurface.locator("#playlist").waitFor();
   await playlistSurface.getByRole("button", { name: "PLAY", exact: true }).waitFor();
   await playlistSurface.getByRole("button", { name: "Shuffle" }).waitFor();
   await playlistSurface.locator("#collectionsBrowser").waitFor();
-  assert.equal(await playlistSurface.locator('#libraryView #importUrl').count(),0);
-  await playlistSurface.getByRole('button',{name:'Transfers',exact:true}).click();
-  await playlistSurface.locator('#transferSourceChoices button[data-provider=url]').click();
-  await playlistSurface.getByRole('button',{name:'Load playlist',exact:true}).waitFor();
-  assert.equal(await playlistSurface.locator('#importUrl').isVisible(),true);
-  assert.equal(await playlistSurface.locator("body").evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true);
+  assert.equal(await playlistSurface.locator("#libraryView #importUrl").count(), 0);
+  await playlistSurface.getByRole("button", { name: "Transfers", exact: true }).click();
+  await playlistSurface.locator("#transferSourceChoices button[data-provider=url]").click();
+  await playlistSurface.getByRole("button", { name: "Load playlist", exact: true }).waitFor();
+  assert.equal(await playlistSurface.locator("#importUrl").isVisible(), true);
+  assert.equal(
+    await playlistSurface
+      .locator("body")
+      .evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+      ),
+    true,
+  );
   const sourcesPopup = await context.newPage();
-  await sourcesPopup.goto(`${base}/features-ui/song-request/now-playing`, { waitUntil: "domcontentloaded" });
+  await sourcesPopup.goto(`${base}/features-ui/song-request/now-playing`, {
+    waitUntil: "domcontentloaded",
+  });
   const sourcesSurface = sourcesPopup.locator("#surface").contentFrame();
   assert.equal(await sourcesSurface.locator(".sourceCard").count(), 5);
   assert.equal(await sourcesSurface.locator("#youtubeSourceNote").isVisible(), true);
   assert.equal(await sourcesSurface.locator("#observerControls").isVisible(), false);
   await sourcesSurface.locator("#source").selectOption("spotify");
-  assert.equal(await sourcesSurface.locator('[data-source="spotify"]').getAttribute("aria-pressed"), "true");
+  assert.equal(
+    await sourcesSurface.locator('[data-source="spotify"]').getAttribute("aria-pressed"),
+    "true",
+  );
   assert.equal(await sourcesSurface.locator("#youtubeSourceNote").isVisible(), false);
   assert.equal(await sourcesSurface.locator("#observerControls").isVisible(), true);
   await sourcesSurface.locator("#select").click();
-  await sourcesSurface.locator("#notice").filter({ hasText: "SPOTIFY is now the overlay source" }).waitFor();
+  await sourcesSurface
+    .locator("#notice")
+    .filter({ hasText: "SPOTIFY is now the overlay source" })
+    .waitFor();
   assert.equal(await sourcesSurface.locator("#select").isEnabled(), true);
   await sourcesSurface.locator("#source").selectOption("apple-music");
   await sourcesSurface.locator("#select").click();
-  await sourcesSurface.locator("#notice").filter({ hasText: "APPLE-MUSIC is now the overlay source" }).waitFor();
+  await sourcesSurface
+    .locator("#notice")
+    .filter({ hasText: "APPLE-MUSIC is now the overlay source" })
+    .waitFor();
   assert.equal(await sourcesSurface.locator("#select").isEnabled(), true);
-  await featureCall("song.playback.observe.v1", "observe", { provider: "apple-music", sourceId: "Apple.Music", available: true, title: unicodeTitle, artists: ["美波 / Minami"], album: "カワキヲアメク", status: "playing", positionMs: 5000, durationMs: 285920, observedAt: Date.now() });
+  await featureCall("song.playback.observe.v1", "observe", {
+    provider: "apple-music",
+    sourceId: "Apple.Music",
+    available: true,
+    title: unicodeTitle,
+    artists: ["美波 / Minami"],
+    album: "カワキヲアメク",
+    status: "playing",
+    positionMs: 5000,
+    durationMs: 285920,
+    observedAt: Date.now(),
+  });
   await sourcesSurface.locator("#title").filter({ hasText: unicodeTitle }).waitFor();
   await sourcesSurface.locator("#source").selectOption("youtube");
   await sourcesSurface.locator("#select").click();
-  await sourcesSurface.locator("#notice").filter({ hasText: "YOUTUBE is now the overlay source" }).waitFor();
+  await sourcesSurface
+    .locator("#notice")
+    .filter({ hasText: "YOUTUBE is now the overlay source" })
+    .waitFor();
   await sourcesPopup.close();
-  if (process.env.RAVELINK_CAPTURE_UI === '1') {
-    const output = path.join(__dirname, '..', 'runtime', 'logs');
+  if (process.env.RAVELINK_CAPTURE_UI === "1") {
+    const output = path.join(__dirname, "..", "runtime", "logs");
     fs.mkdirSync(output, { recursive: true });
-    await queuePopup.screenshot({ path: path.join(output, 'song-request-request-queue-desktop.png'), fullPage: true });
-    await playlistPopup.screenshot({ path: path.join(output, 'song-request-server-playlist-desktop.png'), fullPage: true });
+    await queuePopup.screenshot({
+      path: path.join(output, "song-request-request-queue-desktop.png"),
+      fullPage: true,
+    });
+    await playlistPopup.screenshot({
+      path: path.join(output, "song-request-server-playlist-desktop.png"),
+      fullPage: true,
+    });
   }
   await queuePopup.close();
   await playlistPopup.close();
-  await playerSurface.getByRole('tab', {name:'Moderation',exact:true}).click();
-  assert.equal(await playerSurface.locator('#songSearchFilters').isVisible(), true);
-  assert.equal(await playerSurface.locator('#derivativeFilters input').count(), 18);
-  assert.equal(await playerSurface.locator('#minimumSubscribers').inputValue(), '100000');
-  assert.equal(await playerSurface.locator('#minimumViews').inputValue(), '50000');
-  assert.equal(await playerSurface.locator('#allowNonMusic').isChecked(), false);
-  assert.equal(await playerSurface.locator('#catalogMode').inputValue(), 'keyless');
-  assert.equal(await playerSurface.locator('#officialKeyField').isHidden(), true);
-  assert.equal(await playerSurface.locator('#minimumSubscribers').isDisabled(), true);
+  await playerSurface.getByRole("tab", { name: "Moderation", exact: true }).click();
+  assert.equal(await playerSurface.locator("#songSearchFilters").isVisible(), true);
+  assert.equal(await playerSurface.locator("#derivativeFilters input").count(), 18);
+  assert.equal(await playerSurface.locator("#minimumSubscribers").inputValue(), "100000");
+  assert.equal(await playerSurface.locator("#minimumViews").inputValue(), "50000");
+  assert.equal(await playerSurface.locator("#allowNonMusic").isChecked(), false);
+  assert.equal(await playerSurface.locator("#catalogMode").inputValue(), "keyless");
+  assert.equal(await playerSurface.locator("#officialKeyField").isHidden(), true);
+  assert.equal(await playerSurface.locator("#minimumSubscribers").isDisabled(), true);
   await playerSurface.locator('#derivativeFilters input[data-derivative="cover"]').uncheck();
-  await playerSurface.locator('#saveCatalogPolicy').click();
-  await playerSurface.locator('#notice').filter({ hasText: 'Song matching filters saved' }).waitFor();
-  await playerSurface.locator("body").evaluate(() => call("lighting.output.v1", "apply", {}).catch(error => { document.body.dataset.denied = error.message; }));
+  await playerSurface.locator("#saveCatalogPolicy").click();
+  await playerSurface
+    .locator("#notice")
+    .filter({ hasText: "Song matching filters saved" })
+    .waitFor();
+  await playerSurface.locator("body").evaluate(() =>
+    call("lighting.output.v1", "apply", {}).catch((error) => {
+      document.body.dataset.denied = error.message;
+    }),
+  );
   await playerSurface.locator('body[data-denied="capability_denied"]').waitFor();
   await page.locator("#moreNav > summary").click();
-  await page.locator('#featuresTab').click();
+  await page.locator("#featuresTab").click();
   await page.locator('#featureRows [data-page-id="overlay-editor"]').click();
-  const firstEditor=page.locator('[data-panel="feature:song-request"] iframe:visible').contentFrame().locator('#surface').contentFrame();await firstEditor.locator('.task-navigation').getByRole('button',{name:'Content & layout',exact:true}).click();await firstEditor.locator('.content-navigation').getByRole('button',{name:'Arrangement',exact:true}).click();
-  await page.locator('[data-panel="feature:song-request"] iframe:visible').contentFrame().locator('#surface').contentFrame().locator('#workspace').waitFor();
+  const firstEditor = page
+    .locator('[data-panel="feature:song-request"] iframe:visible')
+    .contentFrame()
+    .locator("#surface")
+    .contentFrame();
+  await firstEditor
+    .locator(".task-navigation")
+    .getByRole("button", { name: "Content & layout", exact: true })
+    .click();
+  await firstEditor
+    .locator(".content-navigation")
+    .getByRole("button", { name: "Arrangement", exact: true })
+    .click();
+  await page
+    .locator('[data-panel="feature:song-request"] iframe:visible')
+    .contentFrame()
+    .locator("#surface")
+    .contentFrame()
+    .locator("#workspace")
+    .waitFor();
   assert.equal(context.pages().length, originalPageCount + 1);
   const editorPopup = await context.newPage();
   await editorPopup.goto(`${base}/features-ui/song-request/overlay-editor`);
   await editorPopup.waitForLoadState("domcontentloaded");
   const editorSurface = editorPopup.locator("#surface").contentFrame();
-  await editorSurface.locator('.task-navigation').getByRole('button',{name:'Content & layout',exact:true}).click();await editorSurface.locator('.content-navigation').getByRole('button',{name:'Arrangement',exact:true}).click();
+  await editorSurface
+    .locator(".task-navigation")
+    .getByRole("button", { name: "Content & layout", exact: true })
+    .click();
+  await editorSurface
+    .locator(".content-navigation")
+    .getByRole("button", { name: "Arrangement", exact: true })
+    .click();
   await editorSurface.locator("#workspace .segment").first().waitFor();
   assert.equal(await editorSurface.locator("#workspace .segment").count(), 1);
   await editorSurface.locator("#separated").check();
   await editorSurface.locator("#preview.separated").waitFor();
-  await editorSurface.locator('.task-navigation').getByRole('button',{name:'Style',exact:true}).click();await editorSurface.locator('.style-navigation').getByRole('button',{name:'Size & position',exact:true}).click();
+  await editorSurface
+    .locator(".task-navigation")
+    .getByRole("button", { name: "Style", exact: true })
+    .click();
+  await editorSurface
+    .locator(".style-navigation")
+    .getByRole("button", { name: "Size & position", exact: true })
+    .click();
   await editorSurface.locator('[data-choice-for="heightMode"] [data-choice-value="fixed"]').click();
-  await editorSurface.locator("#height").evaluate(input => { input.value = "180"; input.dispatchEvent(new Event("input", { bubbles: true })); });
+  await editorSurface.locator("#height").evaluate((input) => {
+    input.value = "180";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
   await editorSurface.locator("#preview.height-fixed").waitFor();
   assert.equal(await editorSurface.locator("#heightOut").textContent(), "180px");
-  await editorSurface.locator('.task-navigation').getByRole('button',{name:'Content & layout',exact:true}).click();await editorSurface.locator('.content-navigation').getByRole('button',{name:'Arrangement',exact:true}).click();
+  await editorSurface
+    .locator(".task-navigation")
+    .getByRole("button", { name: "Content & layout", exact: true })
+    .click();
+  await editorSurface
+    .locator(".content-navigation")
+    .getByRole("button", { name: "Arrangement", exact: true })
+    .click();
   const firstPiece = editorSurface.locator("#workspace .piece").first();
   await firstPiece.locator('button[title="Format this information piece"]').click();
   const blockFormat = firstPiece.locator(".format-tray");
@@ -206,238 +385,464 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   await blockFormat.locator("[data-choice-value=serif]").click();
   await blockFormat.locator(".checks input").nth(1).check();
   const formattedLabel = editorSurface.locator("#preview .pv.label");
-  assert.equal(await formattedLabel.evaluate(el => getComputedStyle(el).fontSize), "27px");
-  assert.match(await formattedLabel.evaluate(el => getComputedStyle(el).fontFamily), /Georgia/);
+  assert.equal(await formattedLabel.evaluate((el) => getComputedStyle(el).fontSize), "27px");
+  assert.match(await formattedLabel.evaluate((el) => getComputedStyle(el).fontFamily), /Georgia/);
   await editorSurface.locator('.segment-head button[title="Format this segment"]').first().click();
   await editorSurface.locator(".segment-style").first().locator("input[type=checkbox]").check();
-  assert.equal(await editorSurface.locator("#preview .preview-segment").first().evaluate(el => getComputedStyle(el).backgroundColor), "rgba(5, 7, 12, 0.78)");
+  assert.equal(
+    await editorSurface
+      .locator("#preview .preview-segment")
+      .first()
+      .evaluate((el) => getComputedStyle(el).backgroundColor),
+    "rgba(5, 7, 12, 0.78)",
+  );
   await editorSurface.locator("#save").click();
   await editorSurface.locator("#status").filter({ hasText: "Overlay saved" }).waitFor();
   await editorSurface.locator("#addSegment").click();
-  await editorSurface.locator("#palette .piece").nth(1).dragTo(editorSurface.locator("#workspace .dropzone").nth(1));
+  await editorSurface
+    .locator("#palette .piece")
+    .nth(1)
+    .dragTo(editorSurface.locator("#workspace .dropzone").nth(1));
   assert.equal(await editorSurface.locator("#workspace .segment").count(), 2);
-  assert.equal(await editorSurface.locator("#workspace .dropzone").nth(1).locator(".piece").count(), 1);
-  await editorPopup.waitForFunction(() => sessionStorage.getItem('ravelink-ui-draft-v1:song-request:overlay-editor') !== null);
-  editorPopup.once('dialog', dialog => dialog.accept());
+  assert.equal(
+    await editorSurface.locator("#workspace .dropzone").nth(1).locator(".piece").count(),
+    1,
+  );
+  await editorPopup.waitForFunction(
+    () => sessionStorage.getItem("ravelink-ui-draft-v1:song-request:overlay-editor") !== null,
+  );
+  editorPopup.once("dialog", (dialog) => dialog.accept());
   await editorPopup.reload();
-  await editorSurface.locator('#status').filter({ hasText: 'Unsaved draft recovered' }).waitFor();
-  assert.equal(await editorSurface.locator('#workspace .segment').count(), 2);
+  await editorSurface.locator("#status").filter({ hasText: "Unsaved draft recovered" }).waitFor();
+  assert.equal(await editorSurface.locator("#workspace .segment").count(), 2);
   await editorPopup.setViewportSize({ width: 390, height: 844 });
-  assert.equal(await editorSurface.locator('body').evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true);
-  if (process.env.RAVELINK_CAPTURE_UI === '1') {
-    const output = path.join(__dirname, '..', 'runtime', 'logs');
+  assert.equal(
+    await editorSurface
+      .locator("body")
+      .evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+      ),
+    true,
+  );
+  if (process.env.RAVELINK_CAPTURE_UI === "1") {
+    const output = path.join(__dirname, "..", "runtime", "logs");
     fs.mkdirSync(output, { recursive: true });
-    await editorPopup.screenshot({ path: path.join(output, 'overlay-draft-mobile.png'), fullPage: true });
+    await editorPopup.screenshot({
+      path: path.join(output, "overlay-draft-mobile.png"),
+      fullPage: true,
+    });
   }
   await editorPopup.setViewportSize({ width: 1280, height: 800 });
   await editorSurface.locator("#reset").click();
   await editorSurface.locator("#save").click();
   await editorSurface.locator("#status").filter({ hasText: "Overlay saved" }).waitFor();
   await page.locator('[data-tab="feature:song-request"]').click();
-  if (process.env.RAVELINK_CAPTURE_UI === '1') {
-    const output = path.join(__dirname, '..', 'runtime', 'logs');
-    await popup.screenshot({ path: path.join(output, 'song-request-player-desktop.png'), fullPage: true });
-    await editorPopup.screenshot({ path: path.join(output, 'song-request-overlay-designer.png'), fullPage: true });
+  if (process.env.RAVELINK_CAPTURE_UI === "1") {
+    const output = path.join(__dirname, "..", "runtime", "logs");
+    await popup.screenshot({
+      path: path.join(output, "song-request-player-desktop.png"),
+      fullPage: true,
+    });
+    await editorPopup.screenshot({
+      path: path.join(output, "song-request-overlay-designer.png"),
+      fullPage: true,
+    });
   }
   await popup.close();
   await editorPopup.close();
   const workspace = page.locator('[data-panel="feature:song-request"]');
-  await workspace.locator('iframe').first().waitFor({ state: 'attached' });
-  const embeddedPlayer = workspace.locator('iframe').first();
-  await workspace.getByRole('button', { name: 'Player', exact: true }).click();
-  const embeddedPlayerSurface = embeddedPlayer.contentFrame().locator('#surface').contentFrame();
-  await embeddedPlayerSurface.locator('#playerFrame').waitFor();
-  assert.equal(await embeddedPlayerSurface.locator('#responseToggles input').count(), 20);
-  await embeddedPlayerSurface.getByRole('tab', { name: 'Moderation', exact: true }).click();
-  const moderationSurface = workspace.locator('iframe:visible').contentFrame().locator('#surface').contentFrame();
-  await moderationSurface.locator('details', { has: moderationSurface.locator('#responseToggles') }).locator('summary').click();
+  await workspace.locator("iframe").first().waitFor({ state: "attached" });
+  const embeddedPlayer = workspace.locator("iframe").first();
+  await workspace.getByRole("button", { name: "Player", exact: true }).click();
+  const embeddedPlayerSurface = embeddedPlayer.contentFrame().locator("#surface").contentFrame();
+  await embeddedPlayerSurface.locator("#playerFrame").waitFor();
+  assert.equal(await embeddedPlayerSurface.locator("#responseToggles input").count(), 20);
+  await embeddedPlayerSurface.getByRole("tab", { name: "Moderation", exact: true }).click();
+  const moderationSurface = workspace
+    .locator("iframe:visible")
+    .contentFrame()
+    .locator("#surface")
+    .contentFrame();
+  await moderationSurface
+    .locator("details", { has: moderationSurface.locator("#responseToggles") })
+    .locator("summary")
+    .click();
   await moderationSurface.locator('[data-response="queued"]').check();
-  await moderationSurface.locator('#saveResponses').click();
-  await moderationSurface.locator('#notice').filter({ hasText: 'Native Twitch chat responses saved' }).waitFor();
-  await embeddedPlayer.evaluate(frame => { frame.dataset.preserved = 'yes'; });
-  await workspace.getByRole('button', { name: 'Overlay Designer', exact: true }).click();
-  const designer = workspace.locator('iframe:visible').contentFrame().locator('#surface').contentFrame();
-  await designer.locator('.task-navigation').getByRole('button',{name:'Content & layout',exact:true}).click();await designer.locator('.content-navigation').getByRole('button',{name:'Arrangement',exact:true}).click();
-  await designer.locator('#workspace .segment').waitFor();
-  await designer.locator('html.native-feature').waitFor();
-  const wrapper = workspace.locator('iframe:visible').contentFrame();
-  await wrapper.locator('#surface').evaluate(async surface => {
-    await new Promise(resolve => {
-      const transparent = value => value === 'rgba(0, 0, 0, 0)';
+  await moderationSurface.locator("#saveResponses").click();
+  await moderationSurface
+    .locator("#notice")
+    .filter({ hasText: "Native Twitch chat responses saved" })
+    .waitFor();
+  await embeddedPlayer.evaluate((frame) => {
+    frame.dataset.preserved = "yes";
+  });
+  await workspace.getByRole("button", { name: "Overlay Designer", exact: true }).click();
+  const designer = workspace
+    .locator("iframe:visible")
+    .contentFrame()
+    .locator("#surface")
+    .contentFrame();
+  await designer
+    .locator(".task-navigation")
+    .getByRole("button", { name: "Content & layout", exact: true })
+    .click();
+  await designer
+    .locator(".content-navigation")
+    .getByRole("button", { name: "Arrangement", exact: true })
+    .click();
+  await designer.locator("#workspace .segment").waitFor();
+  await designer.locator("html.native-feature").waitFor();
+  const wrapper = workspace.locator("iframe:visible").contentFrame();
+  await wrapper.locator("#surface").evaluate(async (surface) => {
+    await new Promise((resolve) => {
+      const transparent = (value) => value === "rgba(0, 0, 0, 0)";
       const check = () => {
-        if (transparent(getComputedStyle(document.documentElement).backgroundColor)
-          && transparent(getComputedStyle(document.body).backgroundColor)
-          && transparent(getComputedStyle(surface).backgroundColor)) resolve();
+        if (
+          transparent(getComputedStyle(document.documentElement).backgroundColor) &&
+          transparent(getComputedStyle(document.body).backgroundColor) &&
+          transparent(getComputedStyle(surface).backgroundColor)
+        )
+          resolve();
         else requestAnimationFrame(check);
       };
       check();
     });
   });
-  assert.equal(await designer.locator('header h1').isVisible(), false);
-  await page.evaluate(() => document.documentElement.style.setProperty('--accent', '#228866'));
-  await designer.locator('html').evaluate(async () => {
-    await new Promise(resolve => {
-      const check = () => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() === '#228866' ? resolve() : requestAnimationFrame(check);
+  assert.equal(await designer.locator("header h1").isVisible(), false);
+  await page.evaluate(() => document.documentElement.style.setProperty("--accent", "#228866"));
+  await designer.locator("html").evaluate(async () => {
+    await new Promise((resolve) => {
+      const check = () =>
+        getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() === "#228866"
+          ? resolve()
+          : requestAnimationFrame(check);
       check();
     });
   });
-  await workspace.getByRole('button', { name: 'Player', exact: true }).click();
-  await embeddedPlayer.contentFrame().locator('#surface').contentFrame().getByRole('tab', {name:'Playback',exact:true}).click();
-  await embeddedPlayer.contentFrame().locator('#surface').contentFrame().locator('#openOverlay').click();
+  await workspace.getByRole("button", { name: "Player", exact: true }).click();
+  await embeddedPlayer
+    .contentFrame()
+    .locator("#surface")
+    .contentFrame()
+    .getByRole("tab", { name: "Playback", exact: true })
+    .click();
+  await embeddedPlayer
+    .contentFrame()
+    .locator("#surface")
+    .contentFrame()
+    .locator("#openOverlay")
+    .click();
   await workspace.locator('[data-page="obs-overlay"].active').waitFor();
-  await workspace.locator('.overlaySourceTools').waitFor({ state: 'visible' });
-  const songVersion = JSON.parse(fs.readFileSync(path.join(installed, 'ravelink.feature.json'), 'utf8')).version;
-  assert.equal(await workspace.locator('.overlaySourceTools input').first().inputValue(), `${base}/features-ui/song-request/obs-overlay?v=${encodeURIComponent(songVersion)}`);
-  assert.equal(await workspace.locator('.overlaySourceTools input').nth(1).inputValue(), '1280 x 720');
+  await workspace.locator(".overlaySourceTools").waitFor({ state: "visible" });
+  const songVersion = JSON.parse(
+    fs.readFileSync(path.join(installed, "ravelink.feature.json"), "utf8"),
+  ).version;
+  assert.equal(
+    await workspace.locator(".overlaySourceTools input").first().inputValue(),
+    `${base}/features-ui/song-request/obs-overlay?v=${encodeURIComponent(songVersion)}`,
+  );
+  assert.equal(
+    await workspace.locator(".overlaySourceTools input").nth(1).inputValue(),
+    "1280 x 720",
+  );
   const compactOverlay = await context.newPage();
   await compactOverlay.addInitScript(() => {
-    Object.defineProperty(window, 'SharedWorker', { value: undefined });
-    Object.defineProperty(window, 'EventSource', { value: class { addEventListener() {} close() {} } });
+    Object.defineProperty(window, "SharedWorker", { value: undefined });
+    Object.defineProperty(window, "EventSource", {
+      value: class {
+        addEventListener() {}
+        close() {}
+      },
+    });
   });
   await compactOverlay.setViewportSize({ width: 360, height: 150 });
-  await compactOverlay.goto(`${base}/features-ui/song-request/obs-overlay`, { waitUntil: 'domcontentloaded' });
-  const compactSurface = compactOverlay.locator('#surface').contentFrame();
-  const compactStage = compactSurface.locator('#stage:not(.hidden)');
+  await compactOverlay.goto(`${base}/features-ui/song-request/obs-overlay`, {
+    waitUntil: "domcontentloaded",
+  });
+  const compactSurface = compactOverlay.locator("#surface").contentFrame();
+  const compactStage = compactSurface.locator("#stage:not(.hidden)");
   await compactStage.waitFor();
-  const compactVisual = await compactStage.evaluate(stage => {
+  const compactVisual = await compactStage.evaluate((stage) => {
     const body = getComputedStyle(document.body);
     const style = getComputedStyle(stage);
-    const title = stage.querySelector('h1');
+    const title = stage.querySelector("h1");
     const box = stage.getBoundingClientRect();
-    return { bodyBackground: body.backgroundColor, stageBackground: style.backgroundColor, colorScheme: getComputedStyle(document.documentElement).colorScheme, titleSize: title ? getComputedStyle(title).fontSize : '', width: box.width, height: box.height, left: box.left, top: box.top };
+    return {
+      bodyBackground: body.backgroundColor,
+      stageBackground: style.backgroundColor,
+      colorScheme: getComputedStyle(document.documentElement).colorScheme,
+      titleSize: title ? getComputedStyle(title).fontSize : "",
+      width: box.width,
+      height: box.height,
+      left: box.left,
+      top: box.top,
+    };
   });
-  assert.equal(compactVisual.bodyBackground, 'rgba(0, 0, 0, 0)');
-  assert.equal(compactVisual.stageBackground, 'rgba(18, 26, 47, 0.78)');
-  assert.equal(compactVisual.colorScheme, 'normal');
-  assert.equal(compactVisual.titleSize, '21px');
-  assert.ok(compactVisual.width <= 336 && compactVisual.height <= 126, JSON.stringify(compactVisual));
+  assert.equal(compactVisual.bodyBackground, "rgba(0, 0, 0, 0)");
+  assert.equal(compactVisual.stageBackground, "rgba(18, 26, 47, 0.78)");
+  assert.equal(compactVisual.colorScheme, "normal");
+  assert.equal(compactVisual.titleSize, "21px");
+  assert.ok(
+    compactVisual.width <= 336 && compactVisual.height <= 126,
+    JSON.stringify(compactVisual),
+  );
   assert.ok(compactVisual.left >= 12 && compactVisual.top >= 12, JSON.stringify(compactVisual));
-  const marquee = compactSurface.locator('.titleViewport.scrolling');
+  const marquee = compactSurface.locator(".titleViewport.scrolling");
   await marquee.waitFor();
-  assert.equal(await marquee.locator('h1').count(), 2);
-  assert.equal(await marquee.locator('h1').first().textContent(), unicodeTitle);
-  assert.equal(await marquee.evaluate(el => getComputedStyle(el).overflowX), 'hidden');
-  assert.equal(await marquee.locator('.marqueeTrack').evaluate(el => getComputedStyle(el).animationName), 'song-ticker');
-  const marqueeTransform = await marquee.locator('.marqueeTrack').evaluate(el => getComputedStyle(el).transform);
+  assert.equal(await marquee.locator("h1").count(), 2);
+  assert.equal(await marquee.locator("h1").first().textContent(), unicodeTitle);
+  assert.equal(await marquee.evaluate((el) => getComputedStyle(el).overflowX), "hidden");
+  assert.equal(
+    await marquee.locator(".marqueeTrack").evaluate((el) => getComputedStyle(el).animationName),
+    "song-ticker",
+  );
+  const marqueeTransform = await marquee
+    .locator(".marqueeTrack")
+    .evaluate((el) => getComputedStyle(el).transform);
   await compactOverlay.waitForTimeout(350);
-  assert.notEqual(await marquee.locator('.marqueeTrack').evaluate(el => getComputedStyle(el).transform), marqueeTransform);
-  const timer = compactSurface.locator('.playbackTime');
-  const progress = compactSurface.locator('.playbackProgress');
+  assert.notEqual(
+    await marquee.locator(".marqueeTrack").evaluate((el) => getComputedStyle(el).transform),
+    marqueeTransform,
+  );
+  const timer = compactSurface.locator(".playbackTime");
+  const progress = compactSurface.locator(".playbackProgress");
   const timerBefore = await timer.textContent();
-  const progressBefore = Number.parseFloat(await progress.evaluate(el => el.style.width));
+  const progressBefore = Number.parseFloat(await progress.evaluate((el) => el.style.width));
   await compactOverlay.waitForTimeout(1300);
   assert.notEqual(await timer.textContent(), timerBefore);
-  assert.ok(Number.parseFloat(await progress.evaluate(el => el.style.width)) > progressBefore);
-  await progress.evaluate(el => { window.__ravelinkProgressNode = el; window.__ravelinkMarqueeNode = document.querySelector('.marqueeTrack'); window.__ravelinkMarqueeTime = window.__ravelinkMarqueeNode.getAnimations()[0].currentTime; });
-  await featureCall("song.playback.driver.v1", "acknowledge", { driverId: "ui-test", leaseId: playbackLease.leaseId, state: "progress", positionMs: 22000, durationMs: 285920 });
+  assert.ok(Number.parseFloat(await progress.evaluate((el) => el.style.width)) > progressBefore);
+  await progress.evaluate((el) => {
+    window.__ravelinkProgressNode = el;
+    window.__ravelinkMarqueeNode = document.querySelector(".marqueeTrack");
+    window.__ravelinkMarqueeTime = window.__ravelinkMarqueeNode.getAnimations()[0].currentTime;
+  });
+  await featureCall("song.playback.driver.v1", "acknowledge", {
+    driverId: "ui-test",
+    leaseId: playbackLease.leaseId,
+    state: "progress",
+    positionMs: 22000,
+    durationMs: 285920,
+  });
   await compactOverlay.waitForTimeout(2200);
-  assert.equal(await compactSurface.locator('.playbackProgress').evaluate(el => el === window.__ravelinkProgressNode), true);
-  assert.equal(await compactSurface.locator('.marqueeTrack').evaluate(el => el === window.__ravelinkMarqueeNode), true);
-  assert.equal(await compactSurface.locator('.marqueeTrack').evaluate(el => el.getAnimations()[0].currentTime > window.__ravelinkMarqueeTime), true);
+  assert.equal(
+    await compactSurface
+      .locator(".playbackProgress")
+      .evaluate((el) => el === window.__ravelinkProgressNode),
+    true,
+  );
+  assert.equal(
+    await compactSurface
+      .locator(".marqueeTrack")
+      .evaluate((el) => el === window.__ravelinkMarqueeNode),
+    true,
+  );
+  assert.equal(
+    await compactSurface
+      .locator(".marqueeTrack")
+      .evaluate((el) => el.getAnimations()[0].currentTime > window.__ravelinkMarqueeTime),
+    true,
+  );
   await compactOverlay.close();
   assert.equal(context.pages().length, originalPageCount);
-  await workspace.getByRole('button', { name: 'Overlay Designer', exact: true }).click();
-  await designer.locator('.task-navigation').getByRole('button',{name:'Content & layout',exact:true}).click();await designer.locator('.content-navigation').getByRole('button',{name:'Arrangement',exact:true}).click();
-  await designer.locator('#addSegment').click();
-  const draftKey = 'ravelink-ui-draft-v1:song-request:overlay-editor';
-  await page.waitForFunction(key => sessionStorage.getItem(key) !== null, draftKey);
-  await workspace.getByRole('button', { name: 'Player', exact: true }).click();
-  assert.equal(await embeddedPlayer.getAttribute('data-preserved'), 'yes');
+  await workspace.getByRole("button", { name: "Overlay Designer", exact: true }).click();
+  await designer
+    .locator(".task-navigation")
+    .getByRole("button", { name: "Content & layout", exact: true })
+    .click();
+  await designer
+    .locator(".content-navigation")
+    .getByRole("button", { name: "Arrangement", exact: true })
+    .click();
+  await designer.locator("#addSegment").click();
+  const draftKey = "ravelink-ui-draft-v1:song-request:overlay-editor";
+  await page.waitForFunction((key) => sessionStorage.getItem(key) !== null, draftKey);
+  await workspace.getByRole("button", { name: "Player", exact: true }).click();
+  assert.equal(await embeddedPlayer.getAttribute("data-preserved"), "yes");
   await page.setViewportSize({ width: 390, height: 844 });
-  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true);
-  await workspace.getByRole('button', { name: 'Overlay Designer', exact: true }).click();
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+    ),
+    true,
+  );
+  await workspace.getByRole("button", { name: "Overlay Designer", exact: true }).click();
   await page.waitForFunction(() => {
-    const frame = document.querySelector('.featurePageFrame:not([hidden])');
+    const frame = document.querySelector(".featurePageFrame:not([hidden])");
     return Number.parseInt(frame.style.height, 10) > 844;
   });
-  if (process.env.RAVELINK_CAPTURE_UI === '1') await page.screenshot({ path: path.join(__dirname, '..', 'runtime', 'logs', 'native-feature-mobile.png'), fullPage: true });
+  if (process.env.RAVELINK_CAPTURE_UI === "1")
+    await page.screenshot({
+      path: path.join(__dirname, "..", "runtime", "logs", "native-feature-mobile.png"),
+      fullPage: true,
+    });
   await page.locator("#moreNav > summary").click();
-  await page.locator('#featuresTab').click();
-  page.once('dialog', dialog => dialog.dismiss());
+  await page.locator("#featuresTab").click();
+  page.once("dialog", (dialog) => dialog.dismiss());
   await page.locator('[data-feature-toggle="song-request"]').click();
-  assert.equal(created.extension.registry.list().features[0].lifecycle, 'active');
-  await fetch(`${base}/api/features/song-request/disable`, { method: 'POST' });
-  await page.locator('[data-tab="feature:song-request"]').waitFor({ state: 'detached' });
+  assert.equal(created.extension.registry.list().features[0].lifecycle, "active");
+  await fetch(`${base}/api/features/song-request/disable`, { method: "POST" });
+  await page.locator('[data-tab="feature:song-request"]').waitFor({ state: "detached" });
   assert.equal(await page.locator('[data-panel="feature:song-request"]').count(), 0);
-  await fetch(`${base}/api/features/song-request/enable`, { method: 'POST' });
-  await page.locator('[data-tab="feature:song-request"]').waitFor({ state: 'attached' });
+  await fetch(`${base}/api/features/song-request/enable`, { method: "POST" });
+  await page.locator('[data-tab="feature:song-request"]').waitFor({ state: "attached" });
   await page.locator('[data-tab="feature:song-request"]').click();
-  await workspace.locator('iframe').waitFor();
-  await workspace.getByRole('button', { name: 'Overlay Designer', exact: true }).click();
-  await designer.locator('#status').filter({ hasText: 'Draft recovered' }).waitFor();
-  assert.equal(await designer.locator('#workspace .segment').count(), 2);
+  await workspace.locator("iframe").waitFor();
+  await workspace.getByRole("button", { name: "Overlay Designer", exact: true }).click();
+  await designer.locator("#status").filter({ hasText: "Draft recovered" }).waitFor();
+  assert.equal(await designer.locator("#workspace .segment").count(), 2);
   const activePid = created.extension.registry.list().features[0].pid;
   process.kill(activePid);
-  await page.locator('[data-tab="feature:song-request"]').waitFor({ state: 'detached' });
+  await page.locator('[data-tab="feature:song-request"]').waitFor({ state: "detached" });
   assert.equal(await page.locator('[data-panel="feature:song-request"]').count(), 0);
-  await fetch(`${base}/api/features/song-request/restart`, { method: 'POST' });
-  await page.locator('[data-tab="feature:song-request"]').waitFor({ state: 'attached' });
+  await fetch(`${base}/api/features/song-request/restart`, { method: "POST" });
+  await page.locator('[data-tab="feature:song-request"]').waitFor({ state: "attached" });
   await page.locator('[data-tab="feature:song-request"]').click();
-  await workspace.locator('iframe').waitFor();
-  await workspace.getByRole('button', { name: 'Overlay Designer', exact: true }).click();
-  await designer.locator('#status').filter({ hasText: 'Draft recovered' }).waitFor();
-  assert.equal(await designer.locator('#workspace .segment').count(), 2);
-  await designer.locator('#discard').click();
-  await designer.locator('#status').filter({ hasText: 'Unsaved changes undone' }).waitFor();
-  await page.waitForFunction(key => sessionStorage.getItem(key) === null, draftKey);
-  assert.equal(await designer.locator('#workspace .segment').count(), 1);
-  await designer.locator('.task-navigation').getByRole('button',{name:'Content & layout',exact:true}).click();await designer.locator('.content-navigation').getByRole('button',{name:'Arrangement',exact:true}).click();
-  await designer.locator('#addSegment').click();
-  await page.waitForFunction(key => sessionStorage.getItem(key) !== null, draftKey);
-  await designer.locator('#save').click();
-  await designer.locator('#status').filter({ hasText: 'Overlay saved' }).waitFor();
-  await page.waitForFunction(key => sessionStorage.getItem(key) === null, draftKey);
+  await workspace.locator("iframe").waitFor();
+  await workspace.getByRole("button", { name: "Overlay Designer", exact: true }).click();
+  await designer.locator("#status").filter({ hasText: "Draft recovered" }).waitFor();
+  assert.equal(await designer.locator("#workspace .segment").count(), 2);
+  await designer.locator("#discard").click();
+  await designer.locator("#status").filter({ hasText: "Unsaved changes undone" }).waitFor();
+  await page.waitForFunction((key) => sessionStorage.getItem(key) === null, draftKey);
+  assert.equal(await designer.locator("#workspace .segment").count(), 1);
+  await designer
+    .locator(".task-navigation")
+    .getByRole("button", { name: "Content & layout", exact: true })
+    .click();
+  await designer
+    .locator(".content-navigation")
+    .getByRole("button", { name: "Arrangement", exact: true })
+    .click();
+  await designer.locator("#addSegment").click();
+  await page.waitForFunction((key) => sessionStorage.getItem(key) !== null, draftKey);
+  await designer.locator("#save").click();
+  await designer.locator("#status").filter({ hasText: "Overlay saved" }).waitFor();
+  await page.waitForFunction((key) => sessionStorage.getItem(key) === null, draftKey);
   if (process.env.RAVELINK_CAPTURE_UI === "1") {
     const output = path.join(__dirname, "..", "runtime", "logs");
     fs.mkdirSync(output, { recursive: true });
     const mobile = await context.newPage();
     await mobile.setViewportSize({ width: 390, height: 844 });
-    await mobile.goto(`${base}/features-ui/song-request/player`, { waitUntil: "domcontentloaded" });
-    await mobile.screenshot({ path: path.join(output, "song-request-player-mobile.png"), fullPage: true });
+    await mobile.goto(`${base}/features-ui/song-request/player`, {
+      waitUntil: "domcontentloaded",
+    });
+    await mobile.screenshot({
+      path: path.join(output, "song-request-player-mobile.png"),
+      fullPage: true,
+    });
     await mobile.close();
     // Feature restart resets playback ownership; seed a fresh observation for this capture.
-    await featureCall('song.observer.admin.v1','control',{action:'select',source:'apple-music'});
-    await featureCall('song.playback.observe.v1','observe',{provider:'apple-music',sourceId:'capture-fixture',available:true,title:unicodeTitle,artists:['Artist'],status:'playing',positionMs:5000,durationMs:285920,observedAt:Date.now()});
+    await featureCall("song.observer.admin.v1", "control", {
+      action: "select",
+      source: "apple-music",
+    });
+    await featureCall("song.playback.observe.v1", "observe", {
+      provider: "apple-music",
+      sourceId: "capture-fixture",
+      available: true,
+      title: unicodeTitle,
+      artists: ["Artist"],
+      status: "playing",
+      positionMs: 5000,
+      durationMs: 285920,
+      observedAt: Date.now(),
+    });
     const overlay = await context.newPage();
     await overlay.setViewportSize({ width: 1280, height: 720 });
-    await overlay.goto(`${base}/features-ui/song-request/obs-overlay`, { waitUntil: "domcontentloaded" });
-    const overlayState = await overlay.locator('#surface').contentFrame().locator('body').evaluate(async () => {
-      try { return await call('song.playback.read.v1', 'status', null); }
-      catch (error) { return { error: error.message }; }
+    await overlay.goto(`${base}/features-ui/song-request/obs-overlay`, {
+      waitUntil: "domcontentloaded",
     });
+    const overlayState = await overlay
+      .locator("#surface")
+      .contentFrame()
+      .locator("body")
+      .evaluate(async () => {
+        try {
+          return await call("song.playback.read.v1", "status", null);
+        } catch (error) {
+          return { error: error.message };
+        }
+      });
     assert.ok(overlayState.primary, JSON.stringify(overlayState));
     await overlay.locator("#surface").contentFrame().locator("#stage:not(.hidden)").waitFor();
-    await overlay.screenshot({ path: path.join(output, "song-request-obs-overlay.png") });
+    await overlay.screenshot({
+      path: path.join(output, "song-request-obs-overlay.png"),
+    });
   }
   const manyViews = [];
   for (let i = 0; i < 8; i++) {
     const view = await context.newPage();
-    await view.goto(`${base}/features-ui/song-request/player`, { waitUntil: 'domcontentloaded' });
-    await view.locator('#surface').contentFrame().locator('#connection').filter({ hasText: /^CONNECTED$/ }).waitFor();
+    await view.goto(`${base}/features-ui/song-request/player`, {
+      waitUntil: "domcontentloaded",
+    });
+    await view
+      .locator("#surface")
+      .contentFrame()
+      .locator("#connection")
+      .filter({ hasText: /^CONNECTED$/ })
+      .waitFor();
     manyViews.push(view);
   }
-  assert.equal(streamConnections, 1, 'all HUD and standalone views share one upstream connection');
-  for (const view of manyViews) await view.locator('#surface').contentFrame().locator('#nowTitle').waitFor();
+  assert.equal(streamConnections, 1, "all HUD and standalone views share one upstream connection");
+  for (const view of manyViews)
+    await view.locator("#surface").contentFrame().locator("#nowTitle").waitFor();
   for (const view of manyViews) await view.close();
   assert.equal(streamConnections, 1);
   await context.close();
-  for (let i = 0; streamConnections && i < 50; i++) await new Promise(resolve => setTimeout(resolve, 20));
-  assert.equal(streamConnections, 0, 'closing the final client releases its upstream connection');
+  for (let i = 0; streamConnections && i < 50; i++)
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(streamConnections, 0, "closing the final client releases its upstream connection");
   const fallbackContext = await browser.newContext();
-  assert.equal(created.extension.registry.list().features[0].lifecycle, 'active', created.extension.registry.list().features[0].error);
-  await fallbackContext.addInitScript(() => { window.SharedWorker = undefined; });
-  await fallbackContext.route('https://www.youtube.com/**', route => route.abort());
+  assert.equal(
+    created.extension.registry.list().features[0].lifecycle,
+    "active",
+    created.extension.registry.list().features[0].error,
+  );
+  await fallbackContext.addInitScript(() => {
+    window.SharedWorker = undefined;
+  });
+  await fallbackContext.route("https://www.youtube.com/**", (route) => route.abort());
   const fallbackHud = await fallbackContext.newPage();
-  fallbackHud.on('pageerror', error => t.diagnostic(`Fallback page error: ${error.message}`));
+  fallbackHud.on("pageerror", (error) => t.diagnostic(`Fallback page error: ${error.message}`));
   await fallbackHud.goto(base);
   await fallbackHud.locator('[data-tab="feature:song-request"]').click();
   const fallbackWorkspace = fallbackHud.locator('[data-panel="feature:song-request"]');
-  await fallbackWorkspace.locator('iframe').contentFrame().locator('#surface').contentFrame().locator('#connection').filter({ hasText: /^CONNECTED$/ }).waitFor({ timeout: 5000 });
-  await fallbackWorkspace.getByRole('button', { name: 'Overlay Designer', exact: true }).click();
-  await fallbackWorkspace.locator('iframe:visible').contentFrame().locator('#surface').contentFrame().locator('.task-navigation').getByRole('button',{name:'Content & layout',exact:true}).click();await fallbackWorkspace.locator('iframe:visible').contentFrame().locator('#surface').contentFrame().locator('.content-navigation').getByRole('button',{name:'Arrangement',exact:true}).click();
-  await fallbackWorkspace.locator('iframe:visible').contentFrame().locator('#surface').contentFrame().locator('#workspace .segment').first().waitFor();
-  assert.equal(streamConnections, 1, 'workerless native subtabs share their HUD connection');
+  await fallbackWorkspace
+    .locator("iframe")
+    .contentFrame()
+    .locator("#surface")
+    .contentFrame()
+    .locator("#connection")
+    .filter({ hasText: /^CONNECTED$/ })
+    .waitFor({ timeout: 5000 });
+  await fallbackWorkspace.getByRole("button", { name: "Overlay Designer", exact: true }).click();
+  await fallbackWorkspace
+    .locator("iframe:visible")
+    .contentFrame()
+    .locator("#surface")
+    .contentFrame()
+    .locator(".task-navigation")
+    .getByRole("button", { name: "Content & layout", exact: true })
+    .click();
+  await fallbackWorkspace
+    .locator("iframe:visible")
+    .contentFrame()
+    .locator("#surface")
+    .contentFrame()
+    .locator(".content-navigation")
+    .getByRole("button", { name: "Arrangement", exact: true })
+    .click();
+  await fallbackWorkspace
+    .locator("iframe:visible")
+    .contentFrame()
+    .locator("#surface")
+    .contentFrame()
+    .locator("#workspace .segment")
+    .first()
+    .waitFor();
+  assert.equal(streamConnections, 1, "workerless native subtabs share their HUD connection");
   await fallbackContext.close();
-  for (let i = 0; streamConnections && i < 50; i++) await new Promise(resolve => setTimeout(resolve, 20));
+  for (let i = 0; streamConnections && i < 50; i++)
+    await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(streamConnections, 0);
 });

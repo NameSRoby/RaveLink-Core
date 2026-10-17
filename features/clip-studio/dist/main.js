@@ -1,3 +1,8 @@
+/**
+ * Main.
+ * Developer context and change constraints:
+ * docs/DEVELOPMENT.md#startup-and-shutdown
+ */
 let active = false;
 
 async function activate() {
@@ -11,7 +16,8 @@ async function handleRequest(request) {
       phase: "infrastructure",
       active,
       projects: 0,
-      message: "Clip Studio infrastructure is installed. Video analysis engines are planned for later package updates."
+      message:
+        "Clip Studio infrastructure is installed. Video analysis engines are planned for later package updates.",
     };
   }
   throw new Error("method_unavailable");

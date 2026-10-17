@@ -18,14 +18,19 @@ function round(value, digits = 2) {
 }
 
 function routeKey(req) {
-  const method = String(req.method || "GET").toUpperCase().slice(0, 8);
+  const method = String(req.method || "GET")
+    .toUpperCase()
+    .slice(0, 8);
   const template = typeof req.route?.path === "string" ? req.route.path : "static-or-unmatched";
   return `${method} ${template}`.slice(0, 120);
 }
 
 function routeOwner(req) {
   const requestPath = String(req.path || req.originalUrl || "");
-  return requestPath === "/mods" || requestPath.startsWith("/mods/") || requestPath.startsWith("/mods-ui/") || requestPath.startsWith("/api/mod-platform")
+  return requestPath === "/mods" ||
+    requestPath.startsWith("/mods/") ||
+    requestPath.startsWith("/mods-ui/") ||
+    requestPath.startsWith("/api/mod-platform")
     ? "mod-platform"
     : "core";
 }
@@ -75,7 +80,13 @@ module.exports = function createRuntimeMetricsService(options = {}) {
         if (finished) return;
         finished = true;
         inFlight = Math.max(0, inFlight - 1);
-        observe(routeKey(req), routeOwner(req), Math.max(0, now() - began), res.statusCode, res.getHeader?.("content-length"));
+        observe(
+          routeKey(req),
+          routeOwner(req),
+          Math.max(0, now() - began),
+          res.statusCode,
+          res.getHeader?.("content-length"),
+        );
       };
       res.once("finish", finish);
       res.once("close", finish);
@@ -89,11 +100,11 @@ module.exports = function createRuntimeMetricsService(options = {}) {
     const currentCpu = cpuUsage();
     const usage = {
       user: Math.max(0, Number(currentCpu.user || 0) - Number(previousCpu.user || 0)),
-      system: Math.max(0, Number(currentCpu.system || 0) - Number(previousCpu.system || 0))
+      system: Math.max(0, Number(currentCpu.system || 0) - Number(previousCpu.system || 0)),
     };
     previousCpu = currentCpu;
     previousCpuAt = at;
-    return round(((Number(usage.user || 0) + Number(usage.system || 0)) / 1000) / elapsedMs * 100);
+    return round(((Number(usage.user || 0) + Number(usage.system || 0)) / 1000 / elapsedMs) * 100);
   }
 
   function snapshot() {
@@ -113,7 +124,7 @@ module.exports = function createRuntimeMetricsService(options = {}) {
       currentSamples: row.samples.length,
       p50Ms: round(percentile(row.samples, 0.5)),
       p95Ms: round(percentile(row.samples, 0.95)),
-      peakMs: round(row.peakMs)
+      peakMs: round(row.peakMs),
     }));
     return {
       ok: true,
@@ -131,29 +142,33 @@ module.exports = function createRuntimeMetricsService(options = {}) {
         externalMiB: round(memory.external / 1048576),
         inFlightRequests: inFlight,
         peakInFlightRequests: peakInFlight,
-        childProcesses: Object.entries(activeResources).reduce((sum, [name, count]) => (
-          name.toLowerCase() === "processwrap" ? sum + Number(count || 0) : sum
-        ), 0),
+        childProcesses: Object.entries(activeResources).reduce(
+          (sum, [name, count]) =>
+            name.toLowerCase() === "processwrap" ? sum + Number(count || 0) : sum,
+          0,
+        ),
         activeResources,
-        ownedWork: ownedWork().slice(0, 128)
+        ownedWork: ownedWork().slice(0, 128),
       },
       eventLoop: {
         p50Ms: round(Number(histogram.percentile?.(50) || 0) / 1e6),
         p95Ms: round(Number(histogram.percentile?.(95) || 0) / 1e6),
-        maxMs: round(Number(histogram.max || 0) / 1e6)
+        maxMs: round(Number(histogram.max || 0) / 1e6),
       },
       instrumentation: {
         routeKeys: routes.size,
         retainedLatencySamples: routeRows.reduce((sum, row) => sum + row.currentSamples, 0),
         maximumRouteKeys: MAX_ROUTE_KEYS + 1,
         maximumSamplesPerRoute: MAX_ROUTE_SAMPLES,
-        recurringTimers: 0
+        recurringTimers: 0,
       },
-      routes: routeRows
+      routes: routeRows,
     };
   }
 
-  function shutdown() { histogram.disable?.(); }
+  function shutdown() {
+    histogram.disable?.();
+  }
 
   return Object.freeze({ requestMiddleware, shutdown, snapshot });
 };

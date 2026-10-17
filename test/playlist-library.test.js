@@ -1,9 +1,17 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { createPlaylistLibrary, MAX_TRACKS } = require("../features/song-request/dist/playlist-library");
+const {
+  createPlaylistLibrary,
+  MAX_TRACKS,
+} = require("../features/song-request/dist/playlist-library");
 
 function track(id, title = id) {
-  return { provider: "youtube", providerItemId: id, title, artists: ["Artist"] };
+  return {
+    provider: "youtube",
+    providerItemId: id,
+    title,
+    artists: ["Artist"],
+  };
 }
 
 test("playlist library keeps independent selectable collections", () => {
@@ -31,7 +39,11 @@ test("random selection chooses a non-empty user playlist before chat history", (
 
 test("playlist storage is paged and restores stable provider IDs", () => {
   const library = createPlaylistLibrary({ now: () => 1000 });
-  const collection = library.create({ name: "Imported", provider: "youtube", sourceId: "PL123456789" }).collection;
+  const collection = library.create({
+    name: "Imported",
+    provider: "youtube",
+    sourceId: "PL123456789",
+  }).collection;
   const rows = Array.from({ length: 45 }, (_, index) => track(String(index).padStart(11, "A")));
   library.replace(collection.id, rows);
   const stored = library.exportStorage();
@@ -40,23 +52,39 @@ test("playlist storage is paged and restores stable provider IDs", () => {
   const restored = createPlaylistLibrary({ now: () => 2000 });
   restored.restore(stored.index, pages);
   assert.equal(restored.status().page.total, 45);
-  assert.match(restored.active().tracks[0].candidate.sourceUrl, /^https:\/\/www\.youtube\.com\/watch\?v=/);
+  assert.match(
+    restored.active().tracks[0].candidate.sourceUrl,
+    /^https:\/\/www\.youtube\.com\/watch\?v=/,
+  );
 });
 
 test("playlist library rejects oversized imports without silently truncating", () => {
   const library = createPlaylistLibrary();
   const collection = library.create({ name: "Bounded" }).collection;
-  const rows = Array.from({ length: MAX_TRACKS + 10 }, (_, index) => track(index.toString(36).padStart(11, "0").slice(-11)));
+  const rows = Array.from({ length: MAX_TRACKS + 10 }, (_, index) =>
+    track(index.toString(36).padStart(11, "0").slice(-11)),
+  );
   rows.push(rows[0]);
-  assert.equal(library.replace(collection.id, rows).code, 'playlist_track_limit');
+  assert.equal(library.replace(collection.id, rows).code, "playlist_track_limit");
   assert.equal(library.status().page.total, 0);
 });
 
 test("playlist library rejects unknown provider identities", () => {
   const library = createPlaylistLibrary({ now: () => 1000 });
   const collection = library.create({ name: "YouTube only" }).collection;
-  const result = library.replace(collection.id, [{ provider: "other", providerItemId: "other:7", title: "Track", artists: ["Artist"] }], { provider: "other" });
-  assert.equal(result.code, 'playlist_track_invalid');
+  const result = library.replace(
+    collection.id,
+    [
+      {
+        provider: "other",
+        providerItemId: "other:7",
+        title: "Track",
+        artists: ["Artist"],
+      },
+    ],
+    { provider: "other" },
+  );
+  assert.equal(result.code, "playlist_track_invalid");
 });
 
 test("the required chat archive is protected and its history policy is explicit", () => {

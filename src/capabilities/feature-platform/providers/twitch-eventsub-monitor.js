@@ -1,3 +1,10 @@
+/**
+ * Twitch event connection ownership.
+ * Connection/reconnect state belongs to this monitor, while durable redemption
+ * deduplication belongs to the transaction layer. A replacement session must not
+ * leave the old socket dispatching a second copy of the same event. Stop hooks
+ * must close sockets and reconnect timers without scheduling another connection.
+ */
 const EVENTSUB_URL = "wss://eventsub.wss.twitch.tv/ws";
 const MAX_SEEN_MESSAGES = 512;
 const SEEN_MESSAGE_TTL_MS = 10 * 60 * 1000;
@@ -29,14 +36,28 @@ function createTwitchEventSubMonitor(options = {}) {
   let inFlight = 0;
   const seen = new Map();
   const revoked = new Map();
-  const counters = { connections: 0, reconnects: 0, notifications: 0, duplicates: 0, dropped: 0, handlerFailures: 0, redemptions: 0, chatMessages: 0 };
+  const counters = {
+    connections: 0,
+    reconnects: 0,
+    notifications: 0,
+    duplicates: 0,
+    dropped: 0,
+    handlerFailures: 0,
+    redemptions: 0,
+    chatMessages: 0,
+  };
 
-  function clearTimer() { if (timer) clearTimeout(timer); timer = null; }
+  function clearTimer() {
+    if (timer) clearTimeout(timer);
+    timer = null;
+  }
   function safeUrl(value) {
     try {
       const url = new URL(String(value || ""));
       return url.protocol === "wss:" && url.hostname === "eventsub.wss.twitch.tv" ? url.href : "";
-    } catch { return ""; }
+    } catch {
+      return "";
+    }
   }
   function remember(messageId) {
     const id = String(messageId || "").slice(0, 160);
@@ -59,106 +80,184 @@ function createTwitchEventSubMonitor(options = {}) {
       subscriptions: [...subscriptions],
       lastError,
       lastMessageAt,
-      counters: { ...counters }
+      counters: { ...counters },
     };
   }
   function scheduleWatchdog(myGeneration) {
     clearTimer();
-    timer = setTimeout(() => {
-      timer = null;
-      if (!desired || myGeneration !== generation) return;
-      if (now() - lastMessageAt > keepaliveTimeoutMs + 2500) {
-        lastError = "twitch_eventsub_keepalive_timeout";
-        try { socket?.close(); } catch {}
-      } else scheduleWatchdog(myGeneration);
-    }, Math.max(1000, keepaliveTimeoutMs));
+    timer = setTimeout(
+      () => {
+        timer = null;
+        if (!desired || myGeneration !== generation) return;
+        if (now() - lastMessageAt > keepaliveTimeoutMs + 2500) {
+          lastError = "twitch_eventsub_keepalive_timeout";
+          try {
+            socket?.close();
+          } catch {}
+        } else scheduleWatchdog(myGeneration);
+      },
+      Math.max(1000, keepaliveTimeoutMs),
+    );
     timer.unref?.();
   }
   function scheduleReconnect(myGeneration) {
     if (!desired || myGeneration !== generation || timer) return;
     lifecycle = "reconnecting";
-    const base = Math.min(30000, 1000 * (2 ** Math.min(5, reconnectAttempts++)));
+    const base = Math.min(30000, 1000 * 2 ** Math.min(5, reconnectAttempts++));
     const delay = Math.max(500, Math.round(base * (0.8 + random() * 0.4)));
-    timer = setTimeout(() => { timer = null; if (desired && myGeneration === generation) connect(EVENTSUB_URL, myGeneration); }, delay);
+    timer = setTimeout(() => {
+      timer = null;
+      if (desired && myGeneration === generation) connect(EVENTSUB_URL, myGeneration);
+    }, delay);
     timer.unref?.();
   }
   function revokeSubscription(row) {
     if (revoked.size >= 16) revoked.delete(revoked.keys().next().value);
     revoked.set(`${row.type}:${row.version}`, row);
-    subscriptions = subscriptions.filter(value => value !== row.type);
-    lifecycle = 'degraded'; lastError = 'twitch_eventsub_subscription_revoked';
-    try { options.onRevocation?.(row); } catch { stop(); }
-    if (['authorization_revoked', 'user_removed'].includes(row.reason)) stop();
+    subscriptions = subscriptions.filter((value) => value !== row.type);
+    lifecycle = "degraded";
+    lastError = "twitch_eventsub_subscription_revoked";
+    try {
+      options.onRevocation?.(row);
+    } catch {
+      stop();
+    }
+    if (["authorization_revoked", "user_removed"].includes(row.reason)) stop();
   }
   async function subscribeAll(id, myGeneration) {
     const credentials = getCredentials?.() || {};
-    const config = getSubscriptionConfig?.() || { redemptions: true, chat: true };
+    const config = getSubscriptionConfig?.() || {
+      redemptions: true,
+      chat: true,
+    };
     const definitions = [
       config.redemptions !== false
-        ? { type: "channel.channel_points_custom_reward_redemption.add", version: "1", condition: { broadcaster_user_id: credentials.userId } }
+        ? {
+            type: "channel.channel_points_custom_reward_redemption.add",
+            version: "1",
+            condition: { broadcaster_user_id: credentials.userId },
+          }
         : null,
       config.chat === true
-        ? { type: "channel.chat.message", version: "1", condition: { broadcaster_user_id: credentials.userId, user_id: credentials.userId } }
+        ? {
+            type: "channel.chat.message",
+            version: "1",
+            condition: {
+              broadcaster_user_id: credentials.userId,
+              user_id: credentials.userId,
+            },
+          }
         : null,
-      ...(Array.isArray(config.events) ? config.events : [])
+      ...(Array.isArray(config.events) ? config.events : []),
     ].filter(Boolean);
     const active = [];
     for (const definition of definitions) {
       if (!desired || myGeneration !== generation) return;
       if (revoked.has(`${definition.type}:${definition.version}`)) continue;
-      const result = await createSubscription?.({ ...definition, sessionId: id });
+      const result = await createSubscription?.({
+        ...definition,
+        sessionId: id,
+      });
       if (!desired || myGeneration !== generation) return;
       if (revoked.has(`${definition.type}:${definition.version}`)) continue;
-      if (!result?.ok && ([400, 401, 403, 404, 410].includes(result?.status) || result?.error === 'twitch_scope_missing')) {
-        revokeSubscription({ type: definition.type, version: definition.version, reason: result.status === 401 ? 'authorization_revoked' : 'unknown' });
+      if (
+        !result?.ok &&
+        ([400, 401, 403, 404, 410].includes(result?.status) ||
+          result?.error === "twitch_scope_missing")
+      ) {
+        revokeSubscription({
+          type: definition.type,
+          version: definition.version,
+          reason: result.status === 401 ? "authorization_revoked" : "unknown",
+        });
         if (!desired || myGeneration !== generation) return;
         continue;
       }
       if (!result?.ok) throw new Error(result?.error || "twitch_eventsub_subscription_failed");
       active.push(definition);
-      subscriptions = active.filter(row => !revoked.has(`${row.type}:${row.version}`)).map(row => row.type);
+      subscriptions = active
+        .filter((row) => !revoked.has(`${row.type}:${row.version}`))
+        .map((row) => row.type);
     }
-    subscriptions = active.filter(row => !revoked.has(`${row.type}:${row.version}`)).map(row => row.type);
+    subscriptions = active
+      .filter((row) => !revoked.has(`${row.type}:${row.version}`))
+      .map((row) => row.type);
     lifecycle = revoked.size ? "degraded" : "connected";
     reconnectAttempts = 0;
     lastError = revoked.size ? "twitch_eventsub_subscription_revoked" : "";
   }
   function dispatch(type, event, metadata) {
-    if (!desired || !subscriptions.includes(type)) { counters.dropped += 1; return; }
-    if (inFlight >= MAX_IN_FLIGHT) { counters.dropped += 1; return; }
+    if (!desired || !subscriptions.includes(type)) {
+      counters.dropped += 1;
+      return;
+    }
+    if (inFlight >= MAX_IN_FLIGHT) {
+      counters.dropped += 1;
+      return;
+    }
     inFlight += 1;
     counters.notifications += 1;
     if (type === "channel.channel_points_custom_reward_redemption.add") counters.redemptions += 1;
     if (type === "channel.chat.message") counters.chatMessages += 1;
-    const handler = type === "channel.channel_points_custom_reward_redemption.add" ? () => onRedemption(event)
-      : type === "channel.chat.message" ? () => onChat(event) : () => onEvent(type, event, metadata);
-    Promise.resolve(handler()).catch(error => {
-      counters.handlerFailures += 1;
-      lastError = String(error?.code || error?.message || "twitch_event_handler_failed").slice(0, 120);
-    }).finally(() => { inFlight -= 1; });
+    const handler =
+      type === "channel.channel_points_custom_reward_redemption.add"
+        ? () => onRedemption(event)
+        : type === "channel.chat.message"
+          ? () => onChat(event)
+          : () => onEvent(type, event, metadata);
+    Promise.resolve(handler())
+      .catch((error) => {
+        counters.handlerFailures += 1;
+        lastError = String(error?.code || error?.message || "twitch_event_handler_failed").slice(
+          0,
+          120,
+        );
+      })
+      .finally(() => {
+        inFlight -= 1;
+      });
   }
   function connect(rawUrl, myGeneration, replacement = false) {
     const url = safeUrl(rawUrl);
     if (!url || !desired || myGeneration !== generation) return;
-    if (typeof WebSocketImpl !== "function") { lifecycle = "unavailable"; lastError = "websocket_unavailable"; return; }
+    if (typeof WebSocketImpl !== "function") {
+      lifecycle = "unavailable";
+      lastError = "websocket_unavailable";
+      return;
+    }
     clearTimer();
     lifecycle = "connecting";
     if (!replacement) subscriptions = [];
     const candidate = new WebSocketImpl(url);
     if (replacement) pendingSocket = candidate;
     else socket = candidate;
-    candidate.onmessage = async message => {
-      if (myGeneration !== generation || (candidate !== socket && candidate !== pendingSocket)) return;
+    candidate.onmessage = async (message) => {
+      if (myGeneration !== generation || (candidate !== socket && candidate !== pendingSocket))
+        return;
       lastMessageAt = now();
       let payload;
-      try { payload = JSON.parse(String(message.data || "")); } catch { return; }
+      try {
+        payload = JSON.parse(String(message.data || ""));
+      } catch {
+        return;
+      }
       const metadata = payload?.metadata || {};
-      if (metadata.message_type !== "revocation") { try { onSessionActivity(); } catch {} }
-      if (remember(metadata.message_id)) { counters.duplicates += 1; return; }
+      if (metadata.message_type !== "revocation") {
+        try {
+          onSessionActivity();
+        } catch {}
+      }
+      if (remember(metadata.message_id)) {
+        counters.duplicates += 1;
+        return;
+      }
       if (metadata.message_type === "session_welcome") {
         const session = payload?.payload?.session || {};
         sessionId = String(session.id || "").slice(0, 160);
-        keepaliveTimeoutMs = Math.max(10000, Math.min(120000, Number(session.keepalive_timeout_seconds || 10) * 1000));
+        keepaliveTimeoutMs = Math.max(
+          10000,
+          Math.min(120000, Number(session.keepalive_timeout_seconds || 10) * 1000),
+        );
         counters.connections += 1;
         scheduleWatchdog(myGeneration);
         if (replacement) {
@@ -168,32 +267,63 @@ function createTwitchEventSubMonitor(options = {}) {
           lifecycle = revoked.size ? "degraded" : "connected";
           reconnectAttempts = 0;
           lastError = revoked.size ? "twitch_eventsub_subscription_revoked" : "";
-          try { previous?.close(); } catch {}
+          try {
+            previous?.close();
+          } catch {}
           return;
         }
-        try { await subscribeAll(sessionId, myGeneration); } catch (error) { if (!desired || myGeneration !== generation) return; lastError = String(error?.message || "twitch_eventsub_subscription_failed").slice(0, 120); try { candidate.close(); } catch {} }
+        try {
+          await subscribeAll(sessionId, myGeneration);
+        } catch (error) {
+          if (!desired || myGeneration !== generation) return;
+          lastError = String(error?.message || "twitch_eventsub_subscription_failed").slice(0, 120);
+          try {
+            candidate.close();
+          } catch {}
+        }
         return;
       }
       if (candidate !== socket) return;
-      if (metadata.message_type === "session_keepalive") { scheduleWatchdog(myGeneration); return; }
+      if (metadata.message_type === "session_keepalive") {
+        scheduleWatchdog(myGeneration);
+        return;
+      }
       if (metadata.message_type === "session_reconnect") {
         const reconnectUrl = safeUrl(payload?.payload?.session?.reconnect_url);
-        if (reconnectUrl && !pendingSocket) { counters.reconnects += 1; connect(reconnectUrl, myGeneration, true); }
+        if (reconnectUrl && !pendingSocket) {
+          counters.reconnects += 1;
+          connect(reconnectUrl, myGeneration, true);
+        }
         return;
       }
       if (metadata.message_type === "revocation") {
         const input = payload?.payload?.subscription || {};
-        const type = String(input.type || '').slice(0, 100), version = String(input.version || '');
+        const type = String(input.type || "").slice(0, 100),
+          version = String(input.version || "");
         if (!/^\d{1,3}$/.test(version)) return;
-        const row = { type, version, reason: ['authorization_revoked', 'user_removed', 'version_removed'].includes(input.status) ? input.status : 'unknown' };
+        const row = {
+          type,
+          version,
+          reason: ["authorization_revoked", "user_removed", "version_removed"].includes(
+            input.status,
+          )
+            ? input.status
+            : "unknown",
+        };
         revokeSubscription(row);
         return;
       }
-      if (metadata.message_type === "notification") dispatch(payload?.payload?.subscription?.type, payload?.payload?.event || {}, metadata);
+      if (metadata.message_type === "notification")
+        dispatch(payload?.payload?.subscription?.type, payload?.payload?.event || {}, metadata);
     };
-    candidate.onerror = () => { lastError = "twitch_eventsub_socket_error"; };
+    candidate.onerror = () => {
+      lastError = "twitch_eventsub_socket_error";
+    };
     candidate.onclose = () => {
-      if (candidate === pendingSocket) { pendingSocket = null; return; }
+      if (candidate === pendingSocket) {
+        pendingSocket = null;
+        return;
+      }
       if (candidate !== socket) return;
       socket = null;
       subscriptions = [];
@@ -219,8 +349,12 @@ function createTwitchEventSubMonitor(options = {}) {
     subscriptions = [];
     sessionId = "";
     lifecycle = "stopped";
-    try { current?.close(); } catch {}
-    try { pending?.close(); } catch {}
+    try {
+      current?.close();
+    } catch {}
+    try {
+      pending?.close();
+    } catch {}
     return snapshot();
   }
 
@@ -229,7 +363,13 @@ function createTwitchEventSubMonitor(options = {}) {
     return start();
   }
 
-  return Object.freeze({ restart, start, stop, clearRevocations: () => revoked.clear(), status: snapshot });
+  return Object.freeze({
+    restart,
+    start,
+    stop,
+    clearRevocations: () => revoked.clear(),
+    status: snapshot,
+  });
 }
 
 module.exports = createTwitchEventSubMonitor;

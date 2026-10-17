@@ -1,39 +1,70 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { chromium } = require('playwright');
-const installChoices = require('../public/core/visible-choices');
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { chromium } = require("playwright");
+const installChoices = require("../public/core/visible-choices");
 
-test('visible choices preserve controller events, keyboard access, restored values and searchable profile lists', async t => {
+test("visible choices preserve controller events, keyboard access, restored values and searchable profile lists", async (t) => {
   const browser = await chromium.launch({ headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-  const errors = []; page.on('pageerror', error => errors.push(error.message));
-  await page.setContent('<label>Player<select id="songPlayerProvider"><option value="youtube">YouTube</option><option value="tidal">TIDAL</option><option value="soundcloud">SoundCloud</option></select></label><fieldset id="settings"><label>Strategy<select id="lightingProfileStrategy"><option value="all">All</option><option value="some">Selected</option></select></label></fieldset><label>Saved profile<select id="lightingProfileSelect">' + Array.from({ length: 14 }, (_, i) => `<option value="${i}">Room ${i}</option>`).join('') + '</select></label><label>Country<select id="country"><option>Portugal</option><option>Spain</option></select></label>');
-  await page.evaluate(() => { window.changes = []; document.querySelector('#songPlayerProvider').onchange = event => window.changes.push(event.target.value); });
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.setContent(
+    '<label>Player<select id="songPlayerProvider"><option value="youtube">YouTube</option><option value="tidal">TIDAL</option><option value="soundcloud">SoundCloud</option></select></label><fieldset id="settings"><label>Strategy<select id="lightingProfileStrategy"><option value="all">All</option><option value="some">Selected</option></select></label></fieldset><label>Saved profile<select id="lightingProfileSelect">' +
+      Array.from({ length: 14 }, (_, i) => `<option value="${i}">Room ${i}</option>`).join("") +
+      '</select></label><label>Country<select id="country"><option>Portugal</option><option>Spain</option></select></label>',
+  );
+  await page.evaluate(() => {
+    window.changes = [];
+    document.querySelector("#songPlayerProvider").onchange = (event) =>
+      window.changes.push(event.target.value);
+  });
   await page.evaluate(installChoices);
   const player = page.locator('[data-choice-for="songPlayerProvider"]');
-  await player.getByRole('radio', { name: 'TIDAL', exact: true }).click();
-  await player.getByRole('radio', { name: 'TIDAL', exact: true }).press('ArrowRight');
-  assert.deepEqual(await page.evaluate(() => window.changes), ['tidal', 'soundcloud']);
-  assert.equal(await page.locator('#songPlayerProvider').inputValue(), 'soundcloud');
-  await page.locator('#songPlayerProvider').evaluate(node => { node.value = 'youtube'; });
-  assert.equal(await player.getByRole('radio', { name: 'YouTube', exact: true }).getAttribute('aria-checked'), 'true');
-  await page.locator('#settings').evaluate(node => { node.disabled = true; });
-  await page.waitForFunction(() => document.querySelector('[data-choice-for="lightingProfileStrategy"] button').disabled);
-  assert.equal(await page.locator('[data-choice-for="lightingProfileStrategy"] button:enabled').count(), 0);
+  await player.getByRole("radio", { name: "TIDAL", exact: true }).click();
+  await player.getByRole("radio", { name: "TIDAL", exact: true }).press("ArrowRight");
+  assert.deepEqual(await page.evaluate(() => window.changes), ["tidal", "soundcloud"]);
+  assert.equal(await page.locator("#songPlayerProvider").inputValue(), "soundcloud");
+  await page.locator("#songPlayerProvider").evaluate((node) => {
+    node.value = "youtube";
+  });
+  assert.equal(
+    await player.getByRole("radio", { name: "YouTube", exact: true }).getAttribute("aria-checked"),
+    "true",
+  );
+  await page.locator("#settings").evaluate((node) => {
+    node.disabled = true;
+  });
+  await page.waitForFunction(
+    () => document.querySelector('[data-choice-for="lightingProfileStrategy"] button').disabled,
+  );
+  assert.equal(
+    await page.locator('[data-choice-for="lightingProfileStrategy"] button:enabled').count(),
+    0,
+  );
   const profiles = page.locator('[data-choice-for="lightingProfileSelect"]');
-  assert.equal(await profiles.getByRole('radio').count(), 6);
-  await profiles.getByRole('button', { name: 'Next', exact: true }).click();
-  await profiles.getByRole('radio', { name: 'Room 8', exact: true }).click();
-  await profiles.getByRole('searchbox').fill('Room 13');
-  await profiles.getByRole('radio', { name: 'Room 13', exact: true }).click();
-  assert.equal(await page.locator('#lightingProfileSelect').inputValue(), '13');
-  await page.locator('#lightingProfileSelect').evaluate(node => { node.value = '2'; });
-  assert.match(await profiles.locator('.visibleChoiceStatus').textContent(), /Room 2/);
-  await page.evaluate(() => { const label = document.createElement('label'); label.innerHTML = 'CSV delimiter<select id="csvDelimiter"><option value="comma">Comma</option><option value="tab">Tab</option></select>'; document.body.append(label); });
-  await page.locator('[data-choice-for="csvDelimiter"]').getByRole('radio', { name: 'Tab', exact: true }).click();
-  assert.equal(await page.locator('#csvDelimiter').inputValue(), 'tab');
-  assert.equal(await page.locator('#country').isVisible(), true);
+  assert.equal(await profiles.getByRole("radio").count(), 6);
+  await profiles.getByRole("button", { name: "Next", exact: true }).click();
+  await profiles.getByRole("radio", { name: "Room 8", exact: true }).click();
+  await profiles.getByRole("searchbox").fill("Room 13");
+  await profiles.getByRole("radio", { name: "Room 13", exact: true }).click();
+  assert.equal(await page.locator("#lightingProfileSelect").inputValue(), "13");
+  await page.locator("#lightingProfileSelect").evaluate((node) => {
+    node.value = "2";
+  });
+  assert.match(await profiles.locator(".visibleChoiceStatus").textContent(), /Room 2/);
+  await page.evaluate(() => {
+    const label = document.createElement("label");
+    label.innerHTML =
+      'CSV delimiter<select id="csvDelimiter"><option value="comma">Comma</option><option value="tab">Tab</option></select>';
+    document.body.append(label);
+  });
+  await page
+    .locator('[data-choice-for="csvDelimiter"]')
+    .getByRole("radio", { name: "Tab", exact: true })
+    .click();
+  assert.equal(await page.locator("#csvDelimiter").inputValue(), "tab");
+  assert.equal(await page.locator("#country").isVisible(), true);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   assert.deepEqual(errors, []);
 });

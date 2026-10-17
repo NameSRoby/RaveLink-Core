@@ -10,19 +10,33 @@ function asString(value) {
 function runPowerShellJson(script = "", timeoutMs = 8_000, input = "") {
   const command = asString(script);
   if (!command) return { ok: false, error: "powershell_script_missing" };
-  const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", command], {
-    encoding: "utf8",
-    input: String(input || ""),
-    timeout: Math.min(30_000, Math.max(500, Number(timeoutMs) || 8_000)),
-    maxBuffer: 256 * 1024,
-    windowsHide: true
-  });
-  if (result.error) return { ok: false, error: asString(result.error?.message || result.error) };
+  const result = spawnSync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-Command", command],
+    {
+      encoding: "utf8",
+      input: String(input || ""),
+      timeout: Math.min(30_000, Math.max(500, Number(timeoutMs) || 8_000)),
+      maxBuffer: 256 * 1024,
+      windowsHide: true,
+    },
+  );
+  if (result.error)
+    return {
+      ok: false,
+      error: asString(result.error?.message || result.error),
+    };
   if (Number(result.status) !== 0) {
-    return { ok: false, error: asString(result.stderr || result.stdout || `powershell_exit_${result.status}`) };
+    return {
+      ok: false,
+      error: asString(result.stderr || result.stdout || `powershell_exit_${result.status}`),
+    };
   }
   try {
-    return { ok: true, data: JSON.parse(asString(result.stdout || "{}") || "{}") };
+    return {
+      ok: true,
+      data: JSON.parse(asString(result.stdout || "{}") || "{}"),
+    };
   } catch {
     return { ok: false, error: "powershell_json_parse_failed" };
   }
@@ -34,8 +48,11 @@ function protectTextMapWithWindowsDpapi(plainMap = {}) {
     .filter(([key, value]) => key && value);
   if (!entries.length) return { ok: true, encrypted: {} };
   if (process.platform !== "win32") return { ok: false, error: "windows_dpapi_unavailable" };
-  const jsonB64 = Buffer.from(JSON.stringify(Object.fromEntries(entries)), "utf8").toString("base64");
-  const result = runPowerShellJson(`
+  const jsonB64 = Buffer.from(JSON.stringify(Object.fromEntries(entries)), "utf8").toString(
+    "base64",
+  );
+  const result = runPowerShellJson(
+    `
 $ErrorActionPreference = 'Stop'
 $inputB64 = [Console]::In.ReadToEnd()
 $plainMap = ConvertFrom-Json -InputObject ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($inputB64)))
@@ -46,8 +63,15 @@ foreach ($prop in $plainMap.PSObject.Properties) {
   $encrypted[$prop.Name] = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($cipher))
 }
 @{ ok = $true; encrypted = $encrypted } | ConvertTo-Json -Compress
-`, 8_000, jsonB64);
-  if (!result.ok || !result.data?.encrypted) return { ok: false, error: asString(result.error || "dpapi_encrypt_failed") };
+`,
+    8_000,
+    jsonB64,
+  );
+  if (!result.ok || !result.data?.encrypted)
+    return {
+      ok: false,
+      error: asString(result.error || "dpapi_encrypt_failed"),
+    };
   return { ok: true, encrypted: result.data.encrypted };
 }
 
@@ -57,8 +81,11 @@ function unprotectTextMapWithWindowsDpapi(cipherMap = {}) {
     .filter(([key, value]) => key && value);
   if (!entries.length) return { ok: true, plain: {} };
   if (process.platform !== "win32") return { ok: false, error: "windows_dpapi_unavailable" };
-  const jsonB64 = Buffer.from(JSON.stringify(Object.fromEntries(entries)), "utf8").toString("base64");
-  const result = runPowerShellJson(`
+  const jsonB64 = Buffer.from(JSON.stringify(Object.fromEntries(entries)), "utf8").toString(
+    "base64",
+  );
+  const result = runPowerShellJson(
+    `
 $ErrorActionPreference = 'Stop'
 $inputB64 = [Console]::In.ReadToEnd()
 $cipherMap = ConvertFrom-Json -InputObject ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($inputB64)))
@@ -72,16 +99,31 @@ foreach ($prop in $cipherMap.PSObject.Properties) {
   $plain[$prop.Name] = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($text))
 }
 @{ ok = $true; plain = $plain } | ConvertTo-Json -Compress
-`, 8_000, jsonB64);
-  if (!result.ok || !result.data?.plain) return { ok: false, error: asString(result.error || "dpapi_decrypt_failed") };
+`,
+    8_000,
+    jsonB64,
+  );
+  if (!result.ok || !result.data?.plain)
+    return {
+      ok: false,
+      error: asString(result.error || "dpapi_decrypt_failed"),
+    };
   try {
     return {
       ok: true,
-      plain: Object.fromEntries(Object.entries(result.data.plain).map(([key, value]) => [key, Buffer.from(asString(value), "base64").toString("utf8")]))
+      plain: Object.fromEntries(
+        Object.entries(result.data.plain).map(([key, value]) => [
+          key,
+          Buffer.from(asString(value), "base64").toString("utf8"),
+        ]),
+      ),
     };
   } catch {
     return { ok: false, error: "dpapi_decrypt_decode_failed" };
   }
 }
 
-module.exports = { protectTextMapWithWindowsDpapi, unprotectTextMapWithWindowsDpapi };
+module.exports = {
+  protectTextMapWithWindowsDpapi,
+  unprotectTextMapWithWindowsDpapi,
+};

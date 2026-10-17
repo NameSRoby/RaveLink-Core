@@ -29,7 +29,10 @@ module.exports = function createTokenBucket(options = {}) {
     const requested = Math.min(capacity, Math.max(1, Number(cost) || 1));
     if (bucket.tokens < requested) {
       rejected += 1;
-      return { ok: false, retryAfterSeconds: Math.max(1, Math.ceil((requested - bucket.tokens) / refillPerSecond)) };
+      return {
+        ok: false,
+        retryAfterSeconds: Math.max(1, Math.ceil((requested - bucket.tokens) / refillPerSecond)),
+      };
     }
     bucket.tokens -= requested;
     accepted += 1;
@@ -37,7 +40,16 @@ module.exports = function createTokenBucket(options = {}) {
   }
 
   function getDiagnostics() {
-    return { ok: true, keys: buckets.size, maximumKeys, capacity, refillPerSecond, accepted, rejected, evictions };
+    return {
+      ok: true,
+      keys: buckets.size,
+      maximumKeys,
+      capacity,
+      refillPerSecond,
+      accepted,
+      rejected,
+      evictions,
+    };
   }
 
   return Object.freeze({ take, getDiagnostics });

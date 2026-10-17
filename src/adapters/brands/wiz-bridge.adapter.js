@@ -1,3 +1,4 @@
+const clampNumber = require("../../shared/validation/clamp-number");
 // [TITLE] Module: adapters/brands/wiz-bridge.adapter.js
 // [TITLE] Purpose: WiZ transport adapter boundary
 // [TITLE] Functionality Index:
@@ -13,18 +14,14 @@ module.exports = function createWizBridgeAdapter(options = {}) {
   const log = options.log || console;
   const dryRun = options.dryRun !== false;
   const now = typeof options.now === "function" ? options.now : Date.now;
-  const sendFixture = typeof options.sendFixture === "function"
-    ? options.sendFixture
-    : (() => {});
+  const sendFixture = typeof options.sendFixture === "function" ? options.sendFixture : () => {};
   const hasInjectedSendFixture = typeof options.sendFixture === "function";
-  const dgramRef = options.dgramRef && typeof options.dgramRef === "object"
-    ? options.dgramRef
-    : dgram;
-  const osRef = options.osRef && typeof options.osRef === "object"
-    ? options.osRef
-    : os;
+  const dgramRef =
+    options.dgramRef && typeof options.dgramRef === "object" ? options.dgramRef : dgram;
+  const osRef = options.osRef && typeof options.osRef === "object" ? options.osRef : os;
   const setTimeoutFn = typeof options.setTimeout === "function" ? options.setTimeout : setTimeout;
-  const clearTimeoutFn = typeof options.clearTimeout === "function" ? options.clearTimeout : clearTimeout;
+  const clearTimeoutFn =
+    typeof options.clearTimeout === "function" ? options.clearTimeout : clearTimeout;
   const defaultPort = clampNumber(options.port, 1, 65535, 38899);
   const defaultRepeats = clampNumber(options.sendRepeats, 1, 3, 2);
   const defaultRepeatDelayMs = clampNumber(options.repeatDelayMs, 8, 120, 16);
@@ -57,16 +54,10 @@ module.exports = function createWizBridgeAdapter(options = {}) {
       dimming: 100,
       r: 0,
       g: 0,
-      b: 0
+      b: 0,
     },
-    updatedAt: Number(now() || Date.now())
+    updatedAt: Number(now() || Date.now()),
   };
-
-  function clampNumber(value, min, max, fallback) {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) return Number(fallback);
-    return Math.min(Number(max), Math.max(Number(min), parsed));
-  }
 
   function toRoundedInt(value, min, max, fallback) {
     return Math.round(clampNumber(value, min, max, fallback));
@@ -75,14 +66,14 @@ module.exports = function createWizBridgeAdapter(options = {}) {
   function parseIpv4(value) {
     const text = String(value || "").trim();
     if (!/^(?:\d{1,3}\.){3}\d{1,3}$/.test(text)) return null;
-    const parts = text.split(".").map(part => Number(part));
-    if (parts.some(part => !Number.isInteger(part) || part < 0 || part > 255)) return null;
+    const parts = text.split(".").map((part) => Number(part));
+    if (parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return null;
     return parts;
   }
 
   function formatIpv4(parts = []) {
     if (!Array.isArray(parts) || parts.length !== 4) return "";
-    return parts.map(part => String(Math.max(0, Math.min(255, Number(part) || 0)))).join(".");
+    return parts.map((part) => String(Math.max(0, Math.min(255, Number(part) || 0)))).join(".");
   }
 
   function normalizeFixtureIp(target = {}) {
@@ -100,7 +91,7 @@ module.exports = function createWizBridgeAdapter(options = {}) {
       dimming: toRoundedInt(source.dimming, 10, 100, source.on === false ? 10 : 100),
       r: toRoundedInt(source.r, 0, 255, 0),
       g: toRoundedInt(source.g, 0, 255, 0),
-      b: toRoundedInt(source.b, 0, 255, 0)
+      b: toRoundedInt(source.b, 0, 255, 0),
     };
   }
 
@@ -124,7 +115,7 @@ module.exports = function createWizBridgeAdapter(options = {}) {
     }
     liveSocket = dgramRef.createSocket("udp4");
     if (liveSocket && typeof liveSocket.on === "function") {
-      liveSocket.on("error", err => {
+      liveSocket.on("error", (err) => {
         const message = String(err?.message || err || "wiz_socket_error");
         socketLastError = message;
         telemetry.lastError = message;
@@ -160,7 +151,7 @@ module.exports = function createWizBridgeAdapter(options = {}) {
     const source = rawState && typeof rawState === "object" ? rawState : {};
     const on = source.on !== false;
     const params = {
-      state: on
+      state: on,
     };
     if (Number.isFinite(Number(source.dimming))) {
       params.dimming = toRoundedInt(source.dimming, 10, 100, 100);
@@ -182,10 +173,13 @@ module.exports = function createWizBridgeAdapter(options = {}) {
       params.g = toRoundedInt(source.g, 0, 255, 0);
       params.b = toRoundedInt(source.b, 0, 255, 0);
     }
-    return Buffer.from(JSON.stringify({
-      method: "setPilot",
-      params
-    }), "utf8");
+    return Buffer.from(
+      JSON.stringify({
+        method: "setPilot",
+        params,
+      }),
+      "utf8",
+    );
   }
 
   function sendFixtureViaUdp(target = {}, state = {}) {
@@ -241,10 +235,12 @@ module.exports = function createWizBridgeAdapter(options = {}) {
   }
 
   function reconcileFixtures(fixtures = []) {
-    const retained = new Set((Array.isArray(fixtures) ? fixtures : [])
-      .filter(row => String(row?.brand || "").toLowerCase() === "wiz")
-      .map(normalizeFixtureIp)
-      .filter(Boolean));
+    const retained = new Set(
+      (Array.isArray(fixtures) ? fixtures : [])
+        .filter((row) => String(row?.brand || "").toLowerCase() === "wiz")
+        .map(normalizeFixtureIp)
+        .filter(Boolean),
+    );
     let removed = 0;
     for (const ip of [...latestSendSeqByIp.keys()]) {
       if (retained.has(ip)) continue;
@@ -260,8 +256,12 @@ module.exports = function createWizBridgeAdapter(options = {}) {
     const targets = new Set([...latestSendSeqByIp.keys(), ...repeatTimersByIp.keys()]);
     for (const ip of targets) clearRepeatTimersForIp(ip);
     latestSendSeqByIp.clear();
-    try { liveSocket?.close?.(); } catch {}
-    liveSocket = null; socketReady = false; socketReadyAt = 0;
+    try {
+      liveSocket?.close?.();
+    } catch {}
+    liveSocket = null;
+    socketReady = false;
+    socketReadyAt = 0;
     return { ok: true, removed: targets.size };
   }
 
@@ -279,29 +279,31 @@ module.exports = function createWizBridgeAdapter(options = {}) {
 
   function normalizeWizDeviceFromMessage(message = {}, host = "") {
     const source = message && typeof message === "object" && !Array.isArray(message) ? message : {};
-    const result = source.result && typeof source.result === "object" && !Array.isArray(source.result)
-      ? source.result
-      : source;
+    const result =
+      source.result && typeof source.result === "object" && !Array.isArray(source.result)
+        ? source.result
+        : source;
     const ip = String(host || "").trim();
     if (!ip || !parseIpv4(ip)) return null;
     const moduleName = String(result.moduleName || result.name || "").trim();
     const roomId = Number.isFinite(Number(result.roomId)) ? Number(result.roomId) : 0;
     const roomName = String(result.roomName || "").trim();
-    const mac = String(result.mac || result.macAddress || "").trim().toUpperCase();
+    const mac = String(result.mac || result.macAddress || "")
+      .trim()
+      .toUpperCase();
     return {
       ip,
       mac,
       moduleName,
       roomId,
-      roomName
+      roomName,
     };
   }
 
   function getBroadcastTargets() {
     const targets = new Set(["255.255.255.255"]);
-    const interfaces = typeof osRef.networkInterfaces === "function"
-      ? osRef.networkInterfaces() || {}
-      : {};
+    const interfaces =
+      typeof osRef.networkInterfaces === "function" ? osRef.networkInterfaces() || {} : {};
     for (const rows of Object.values(interfaces)) {
       if (!Array.isArray(rows)) continue;
       for (const row of rows) {
@@ -376,9 +378,9 @@ module.exports = function createWizBridgeAdapter(options = {}) {
         created: Boolean(liveSocket),
         ready: socketReady === true,
         readyAt: Number(socketReadyAt || 0),
-        lastError: String(socketLastError || "")
+        lastError: String(socketLastError || ""),
       },
-      updatedAt: Number(telemetry.updatedAt || 0)
+      updatedAt: Number(telemetry.updatedAt || 0),
     };
   }
 
@@ -388,13 +390,15 @@ module.exports = function createWizBridgeAdapter(options = {}) {
       return {
         ok: false,
         error: "wiz_discovery_transport_unavailable",
-        devices: []
+        devices: [],
       };
     }
 
     const timeoutMs = clampNumber(source.timeoutMs, 200, 10000, 1200);
     const port = clampNumber(source.port, 1, 65535, 38899);
-    const payloads = ["getSystemConfig", "getPilot"].map(method => Buffer.from(JSON.stringify({ method, params: {} }), "utf8"));
+    const payloads = ["getSystemConfig", "getPilot"].map((method) =>
+      Buffer.from(JSON.stringify({ method, params: {} }), "utf8"),
+    );
     const targets = getBroadcastTargets();
     const socket = dgramRef.createSocket("udp4");
     const byIp = new Map();
@@ -409,16 +413,18 @@ module.exports = function createWizBridgeAdapter(options = {}) {
       return result;
     }
 
-    return await new Promise(resolve => {
-      socket.on("error", error => {
+    return await new Promise((resolve) => {
+      socket.on("error", (error) => {
         const detail = String(error?.message || error || "wiz_discovery_socket_error");
         log.warn("[WIZ] discovery socket error:", detail);
-        resolve(finalize({
-          ok: false,
-          error: "wiz_discovery_failed",
-          detail,
-          devices: []
-        }));
+        resolve(
+          finalize({
+            ok: false,
+            error: "wiz_discovery_failed",
+            detail,
+            devices: [],
+          }),
+        );
       });
 
       socket.on("message", (buffer, remote) => {
@@ -434,12 +440,14 @@ module.exports = function createWizBridgeAdapter(options = {}) {
         try {
           socket.setBroadcast(true);
         } catch (error) {
-          resolve(finalize({
-            ok: false,
-            error: "wiz_discovery_failed",
-            detail: String(error?.message || error),
-            devices: []
-          }));
+          resolve(
+            finalize({
+              ok: false,
+              error: "wiz_discovery_failed",
+              detail: String(error?.message || error),
+              devices: [],
+            }),
+          );
           return;
         }
         for (const host of targets) {
@@ -450,12 +458,16 @@ module.exports = function createWizBridgeAdapter(options = {}) {
           }
         }
         const timer = setTimeoutFn(() => {
-          const devices = [...byIp.values()].sort((a, b) => String(a.ip || "").localeCompare(String(b.ip || "")));
-          resolve(finalize({
-            ok: true,
-            devices,
-            targetCount: targets.length
-          }));
+          const devices = [...byIp.values()].sort((a, b) =>
+            String(a.ip || "").localeCompare(String(b.ip || "")),
+          );
+          resolve(
+            finalize({
+              ok: true,
+              devices,
+              targetCount: targets.length,
+            }),
+          );
         }, timeoutMs);
         if (timer && typeof timer.unref === "function") {
           timer.unref();
@@ -467,17 +479,24 @@ module.exports = function createWizBridgeAdapter(options = {}) {
   async function probeDevice(target = {}, input = {}) {
     const ip = normalizeFixtureIp(target);
     if (!ip) return { ok: false, reachable: false, error: "invalid_wiz_target_ip" };
-    if (!dgramRef || typeof dgramRef.createSocket !== "function") return { ok: false, reachable: false, error: "wiz_probe_transport_unavailable" };
+    if (!dgramRef || typeof dgramRef.createSocket !== "function")
+      return {
+        ok: false,
+        reachable: false,
+        error: "wiz_probe_transport_unavailable",
+      };
     const timeoutMs = clampNumber(input.timeoutMs, 200, 5000, 1200);
     const socket = dgramRef.createSocket("udp4");
     let settled = false;
-    return await new Promise(resolve => {
+    return await new Promise((resolve) => {
       let timer = null;
-      const finish = result => {
+      const finish = (result) => {
         if (settled) return;
         settled = true;
         if (timer) clearTimeoutFn(timer);
-        try { socket.close(); } catch {}
+        try {
+          socket.close();
+        } catch {}
         resolve(result);
       };
       socket.on("error", () => finish({ ok: false, reachable: false, error: "wiz_probe_failed" }));
@@ -486,14 +505,32 @@ module.exports = function createWizBridgeAdapter(options = {}) {
         try {
           const message = JSON.parse(String(buffer || "").trim() || "{}");
           if (message?.method !== "getPilot" && !message?.result) return;
-          finish({ ok: true, reachable: true, state: normalizeTelemetryWizState(message.result || {}) });
+          finish({
+            ok: true,
+            reachable: true,
+            state: normalizeTelemetryWizState(message.result || {}),
+          });
         } catch {}
       });
       socket.bind(0, () => {
-        try { socket.send(Buffer.from(JSON.stringify({ method: "getPilot", params: {} })), defaultPort, ip); }
-        catch { return finish({ ok: false, reachable: false, error: "wiz_probe_failed" }); }
+        try {
+          socket.send(
+            Buffer.from(JSON.stringify({ method: "getPilot", params: {} })),
+            defaultPort,
+            ip,
+          );
+        } catch {
+          return finish({
+            ok: false,
+            reachable: false,
+            error: "wiz_probe_failed",
+          });
+        }
         if (settled) return;
-        timer = setTimeoutFn(() => finish({ ok: false, reachable: false, error: "wiz_probe_timeout" }), timeoutMs);
+        timer = setTimeoutFn(
+          () => finish({ ok: false, reachable: false, error: "wiz_probe_timeout" }),
+          timeoutMs,
+        );
         timer?.unref?.();
       });
     });
@@ -511,11 +548,11 @@ module.exports = function createWizBridgeAdapter(options = {}) {
           timerTargetEntries: repeatTimersByIp.size,
           maximumTargetEntries: MAX_WIZ_TARGETS,
           targetEvictions,
-          lifecycleEvictions
-        }
+          lifecycleEvictions,
+        },
       };
     },
     reconcileFixtures,
-    shutdown
+    shutdown,
   };
 };

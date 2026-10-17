@@ -1,3 +1,8 @@
+/**
+ * Mod process supervisor.
+ * Developer context and change constraints:
+ * docs/DEVELOPMENT.md#supervised-workers-contracts-and-packages
+ */
 const path = require("node:path");
 const createProcessSupervisor = require("../../supervised-runtime/host/process-supervisor");
 const { validateManifestV1 } = require("../contracts/mod-manifest-v1");
@@ -12,12 +17,14 @@ module.exports = function createModProcessSupervisor(options = {}) {
     statusIdentityField: "modId",
     configArgument: "--ravelink-mod-config=",
     apiMajor: 1,
-    validateManifest: manifest => validateManifestV1(manifest, { modApiMajor: 1 }),
-    buildPermissions: permissionOptions => buildModProcessPermissions({
-      ...permissionOptions,
-      additionalReadRoots: [path.join(__dirname, "..", "..", "supervised-runtime")]
-    }),
+    validateManifest: (manifest) => validateManifestV1(manifest, { modApiMajor: 1 }),
+    buildPermissions: (permissionOptions) =>
+      buildModProcessPermissions({
+        ...permissionOptions,
+        additionalReadRoots: [path.join(__dirname, "..", "..", "supervised-runtime")],
+      }),
     platformRoot: options.platformRoot || path.join(__dirname, ".."),
-    bootstrapPath: options.bootstrapPath || path.join(__dirname, "..", "runtime", "mod-worker-bootstrap.js")
+    bootstrapPath:
+      options.bootstrapPath || path.join(__dirname, "..", "runtime", "mod-worker-bootstrap.js"),
   });
 };

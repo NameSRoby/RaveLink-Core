@@ -6,10 +6,7 @@
       "methods": {
         "status": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {}
           },
@@ -96,23 +93,14 @@
               "authorizationRecovery": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "reauthorizationRequired",
-                  "reason",
-                  "revocations"
-                ],
+                "required": ["reauthorizationRequired", "reason", "revocations"],
                 "properties": {
                   "reauthorizationRequired": {
                     "type": "boolean"
                   },
                   "reason": {
                     "type": "string",
-                    "enum": [
-                      "",
-                      "authorization_revoked",
-                      "user_removed",
-                      "version_removed"
-                    ]
+                    "enum": ["", "authorization_revoked", "user_removed", "version_removed"]
                   },
                   "revocations": {
                     "type": "array",
@@ -120,11 +108,7 @@
                     "items": {
                       "type": "object",
                       "additionalProperties": false,
-                      "required": [
-                        "type",
-                        "version",
-                        "reason"
-                      ],
+                      "required": ["type", "version", "reason"],
                       "properties": {
                         "type": {
                           "type": "string",
@@ -160,9 +144,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "clientId"
-            ],
+            "required": ["clientId"],
             "properties": {
               "clientId": {
                 "type": "string",
@@ -254,23 +236,14 @@
               "authorizationRecovery": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "reauthorizationRequired",
-                  "reason",
-                  "revocations"
-                ],
+                "required": ["reauthorizationRequired", "reason", "revocations"],
                 "properties": {
                   "reauthorizationRequired": {
                     "type": "boolean"
                   },
                   "reason": {
                     "type": "string",
-                    "enum": [
-                      "",
-                      "authorization_revoked",
-                      "user_removed",
-                      "version_removed"
-                    ]
+                    "enum": ["", "authorization_revoked", "user_removed", "version_removed"]
                   },
                   "revocations": {
                     "type": "array",
@@ -278,11 +251,7 @@
                     "items": {
                       "type": "object",
                       "additionalProperties": false,
-                      "required": [
-                        "type",
-                        "version",
-                        "reason"
-                      ],
+                      "required": ["type", "version", "reason"],
                       "properties": {
                         "type": {
                           "type": "string",
@@ -311,10 +280,7 @@
         },
         "clear": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {}
           },
@@ -401,23 +367,14 @@
               "authorizationRecovery": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "reauthorizationRequired",
-                  "reason",
-                  "revocations"
-                ],
+                "required": ["reauthorizationRequired", "reason", "revocations"],
                 "properties": {
                   "reauthorizationRequired": {
                     "type": "boolean"
                   },
                   "reason": {
                     "type": "string",
-                    "enum": [
-                      "",
-                      "authorization_revoked",
-                      "user_removed",
-                      "version_removed"
-                    ]
+                    "enum": ["", "authorization_revoked", "user_removed", "version_removed"]
                   },
                   "revocations": {
                     "type": "array",
@@ -425,11 +382,7 @@
                     "items": {
                       "type": "object",
                       "additionalProperties": false,
-                      "required": [
-                        "type",
-                        "version",
-                        "reason"
-                      ],
+                      "required": ["type", "version", "reason"],
                       "properties": {
                         "type": {
                           "type": "string",
@@ -458,10 +411,7 @@
         },
         "begin": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {
               "scopes": {
@@ -566,23 +516,14 @@
               "authorizationRecovery": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "reauthorizationRequired",
-                  "reason",
-                  "revocations"
-                ],
+                "required": ["reauthorizationRequired", "reason", "revocations"],
                 "properties": {
                   "reauthorizationRequired": {
                     "type": "boolean"
                   },
                   "reason": {
                     "type": "string",
-                    "enum": [
-                      "",
-                      "authorization_revoked",
-                      "user_removed",
-                      "version_removed"
-                    ]
+                    "enum": ["", "authorization_revoked", "user_removed", "version_removed"]
                   },
                   "revocations": {
                     "type": "array",
@@ -590,11 +531,7 @@
                     "items": {
                       "type": "object",
                       "additionalProperties": false,
-                      "required": [
-                        "type",
-                        "version",
-                        "reason"
-                      ],
+                      "required": ["type", "version", "reason"],
                       "properties": {
                         "type": {
                           "type": "string",
@@ -623,10 +560,7 @@
         },
         "poll": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {}
           },
@@ -713,23 +647,14 @@
               "authorizationRecovery": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "reauthorizationRequired",
-                  "reason",
-                  "revocations"
-                ],
+                "required": ["reauthorizationRequired", "reason", "revocations"],
                 "properties": {
                   "reauthorizationRequired": {
                     "type": "boolean"
                   },
                   "reason": {
                     "type": "string",
-                    "enum": [
-                      "",
-                      "authorization_revoked",
-                      "user_removed",
-                      "version_removed"
-                    ]
+                    "enum": ["", "authorization_revoked", "user_removed", "version_removed"]
                   },
                   "revocations": {
                     "type": "array",
@@ -737,11 +662,7 @@
                     "items": {
                       "type": "object",
                       "additionalProperties": false,
-                      "required": [
-                        "type",
-                        "version",
-                        "reason"
-                      ],
+                      "required": ["type", "version", "reason"],
                       "properties": {
                         "type": {
                           "type": "string",
@@ -770,10 +691,7 @@
         },
         "disconnect": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {}
           },
@@ -860,23 +778,14 @@
               "authorizationRecovery": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "reauthorizationRequired",
-                  "reason",
-                  "revocations"
-                ],
+                "required": ["reauthorizationRequired", "reason", "revocations"],
                 "properties": {
                   "reauthorizationRequired": {
                     "type": "boolean"
                   },
                   "reason": {
                     "type": "string",
-                    "enum": [
-                      "",
-                      "authorization_revoked",
-                      "user_removed",
-                      "version_removed"
-                    ]
+                    "enum": ["", "authorization_revoked", "user_removed", "version_removed"]
                   },
                   "revocations": {
                     "type": "array",
@@ -884,11 +793,7 @@
                     "items": {
                       "type": "object",
                       "additionalProperties": false,
-                      "required": [
-                        "type",
-                        "version",
-                        "reason"
-                      ],
+                      "required": ["type", "version", "reason"],
                       "properties": {
                         "type": {
                           "type": "string",
@@ -924,16 +829,10 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "intakeMode",
-              "songRequestChatEnabled"
-            ],
+            "required": ["intakeMode", "songRequestChatEnabled"],
             "properties": {
               "intakeMode": {
-                "enum": [
-                  "native",
-                  "streamelements"
-                ]
+                "enum": ["native", "streamelements"]
               },
               "songRequestChatEnabled": {
                 "type": "boolean"
@@ -942,9 +841,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -961,9 +858,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "rewardId"
-            ],
+            "required": ["rewardId"],
             "properties": {
               "rewardId": {
                 "type": "string",
@@ -978,9 +873,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1020,18 +913,10 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "purpose",
-              "title",
-              "cost"
-            ],
+            "required": ["purpose", "title", "cost"],
             "properties": {
               "purpose": {
-                "enum": [
-                  "lights",
-                  "teach",
-                  "song_request", "add_to_playlist"
-                ]
+                "enum": ["lights", "teach", "song_request", "add_to_playlist"]
               },
               "title": {
                 "type": "string",
@@ -1057,9 +942,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1104,11 +987,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "redemptionId",
-              "rewardId",
-              "status"
-            ],
+            "required": ["redemptionId", "rewardId", "status"],
             "properties": {
               "redemptionId": {
                 "type": "string",
@@ -1125,10 +1004,7 @@
                 "maxLength": 80
               },
               "status": {
-                "enum": [
-                  "FULFILLED",
-                  "CANCELED"
-                ]
+                "enum": ["FULFILLED", "CANCELED"]
               },
               "reason": {
                 "type": "string",
@@ -1138,9 +1014,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1171,21 +1045,14 @@
         },
         "review": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {}
           },
           "response": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "ok",
-              "total",
-              "entries"
-            ],
+            "required": ["ok", "total", "entries"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1205,11 +1072,7 @@
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": [
-                    "broadcasterId",
-                    "rewardId",
-                    "redemptionId"
-                  ],
+                  "required": ["broadcasterId", "rewardId", "redemptionId"],
                   "properties": {
                     "broadcasterId": {
                       "type": "string",
@@ -1224,28 +1087,13 @@
                       "maxLength": 160
                     },
                     "phase": {
-                      "enum": [
-                        "executing",
-                        "decided",
-                        "sending",
-                        "review",
-                        "confirmed"
-                      ]
+                      "enum": ["executing", "decided", "sending", "review", "confirmed"]
                     },
                     "desiredStatus": {
-                      "enum": [
-                        "",
-                        "FULFILLED",
-                        "CANCELED"
-                      ]
+                      "enum": ["", "FULFILLED", "CANCELED"]
                     },
                     "observedStatus": {
-                      "enum": [
-                        "",
-                        "UNFULFILLED",
-                        "FULFILLED",
-                        "CANCELED"
-                      ]
+                      "enum": ["", "UNFULFILLED", "FULFILLED", "CANCELED"]
                     },
                     "error": {
                       "type": "string",
@@ -1265,11 +1113,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "broadcasterId",
-              "rewardId",
-              "redemptionId"
-            ],
+            "required": ["broadcasterId", "rewardId", "redemptionId"],
             "properties": {
               "broadcasterId": {
                 "type": "string",
@@ -1284,18 +1128,13 @@
                 "maxLength": 160
               },
               "status": {
-                "enum": [
-                  "FULFILLED",
-                  "CANCELED"
-                ]
+                "enum": ["FULFILLED", "CANCELED"]
               }
             }
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1333,9 +1172,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "message"
-            ],
+            "required": ["message"],
             "properties": {
               "message": {
                 "type": "string",
@@ -1354,9 +1191,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1399,10 +1234,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "events"
-            ],
+            "required": ["ok", "events"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1485,13 +1317,7 @@
                 "maxItems": 16,
                 "items": {
                   "type": "object",
-                  "required": [
-                    "id",
-                    "type",
-                    "label",
-                    "scope",
-                    "available"
-                  ],
+                  "required": ["id", "type", "label", "scope", "available"],
                   "additionalProperties": false,
                   "properties": {
                     "id": {

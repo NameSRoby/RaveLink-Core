@@ -1,3 +1,8 @@
+/**
+ * Resource limits v1.
+ * Developer context and change constraints:
+ * docs/DEVELOPMENT.md#supervised-workers-contracts-and-packages
+ */
 const RESOURCE_LIMITS = Object.freeze({
   idleCpuPercent: [0, 0.25, "number"],
   idleRssMiB: [8, 64, "integer"],
@@ -10,7 +15,7 @@ const RESOURCE_LIMITS = Object.freeze({
   externalInFlight: [0, 2, "integer"],
   storageBytes: [0, 8388608, "integer"],
   historyEntries: [0, 250, "integer"],
-  shutdownGraceMs: [100, 3000, "integer"]
+  shutdownGraceMs: [100, 3000, "integer"],
 });
 
 module.exports = { RESOURCE_LIMITS };

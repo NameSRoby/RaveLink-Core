@@ -56,10 +56,10 @@
   "integrity": {
     "algorithm": "sha256",
     "files": {
-      "THIRD_PARTY_NOTICES.md": "167b88313d7c1abe02e226ace0a1ca59ef963d378685c574b096f20569b502d2",
       "contracts/video-projects-v1.contracts.json": "300c1e824118792240836725beb123156a9816a28d281059b784854c6d4f84a4",
-      "dist/main.js": "3f8e3da276021793b228172534cb317f4311ea7630886045d45b8d11351d4cb9",
-      "ui/projects.html": "02bb97618370d4c8532944e897c98cbf2fc9e0af07cca1e0a851126b203b1d20"
+      "dist/main.js": "8253ae644fc03e5fce524bff75ac74a755614c561de69d1866a0f1dc1632f525",
+      "THIRD_PARTY_NOTICES.md": "167b88313d7c1abe02e226ace0a1ca59ef963d378685c574b096f20569b502d2",
+      "ui/projects.html": "bf60f7a7873ad014d74ab35fed090500f4a414b610740fb1ff8217933be7ca39"
     }
   }
 }

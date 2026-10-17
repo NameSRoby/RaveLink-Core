@@ -17,17 +17,20 @@ module.exports = function createEgressGovernor(options = {}) {
   const maximumConcurrent = Math.min(16, Math.max(1, Number(options.maximumConcurrent) || 4));
   const maximumQueued = Math.min(128, Math.max(0, Number(options.maximumQueued) || 32));
   const baselineBurstLimit = Math.min(32, Math.max(1, Number(options.baselineBurstLimit) || 8));
-  const configuredOwners = options.ownerLimits && typeof options.ownerLimits === "object"
-    ? options.ownerLimits
-    : {
-      "lighting.hue": 4,
-      "chat.streamelements": 2,
-      "mod.network": 2,
-      "provider.external": 2
-    };
+  const configuredOwners =
+    options.ownerLimits && typeof options.ownerLimits === "object"
+      ? options.ownerLimits
+      : {
+          "lighting.hue": 4,
+          "chat.streamelements": 2,
+          "mod.network": 2,
+          "provider.external": 2,
+        };
   const ownerLimits = new Map();
   for (const [rawOwner, rawLimit] of Object.entries(configuredOwners).slice(0, MAX_OWNERS)) {
-    const owner = String(rawOwner || "").trim().toLowerCase();
+    const owner = String(rawOwner || "")
+      .trim()
+      .toLowerCase();
     if (!OWNER_PATTERN.test(owner)) continue;
     ownerLimits.set(owner, Math.min(maximumConcurrent, Math.max(1, Number(rawLimit) || 1)));
   }
@@ -35,13 +38,18 @@ module.exports = function createEgressGovernor(options = {}) {
 
   const queue = [];
   const activeByOwner = new Map();
-  const countersByOwner = new Map([...ownerLimits.keys()].map(owner => [owner, {
-    accepted: 0,
-    completed: 0,
-    failed: 0,
-    rejected: 0,
-    expired: 0
-  }]));
+  const countersByOwner = new Map(
+    [...ownerLimits.keys()].map((owner) => [
+      owner,
+      {
+        accepted: 0,
+        completed: 0,
+        failed: 0,
+        rejected: 0,
+        expired: 0,
+      },
+    ]),
+  );
   let active = 0;
   let peakActive = 0;
   let baselineDispatches = 0;
@@ -53,8 +61,10 @@ module.exports = function createEgressGovernor(options = {}) {
   }
 
   function canRun(job) {
-    return active < maximumConcurrent
-      && Number(activeByOwner.get(job.owner) || 0) < Number(ownerLimits.get(job.owner) || 1);
+    return (
+      active < maximumConcurrent &&
+      Number(activeByOwner.get(job.owner) || 0) < Number(ownerLimits.get(job.owner) || 1)
+    );
   }
 
   function nextJobIndex() {
@@ -66,7 +76,8 @@ module.exports = function createEgressGovernor(options = {}) {
       if (job.priority === "baseline" && baseline < 0) baseline = index;
       if (job.priority === "optional" && optional < 0) optional = index;
     }
-    if (optional >= 0 && (baseline < 0 || baselineDispatches >= baselineBurstLimit)) return optional;
+    if (optional >= 0 && (baseline < 0 || baselineDispatches >= baselineBurstLimit))
+      return optional;
     return baseline >= 0 ? baseline : optional;
   }
 
@@ -88,13 +99,16 @@ module.exports = function createEgressGovernor(options = {}) {
       activeByOwner.set(job.owner, Number(activeByOwner.get(job.owner) || 0) + 1);
       const settlement = Promise.resolve()
         .then(job.operation)
-        .then(value => {
-          counters.completed += 1;
-          job.resolve(value);
-        }, error => {
-          counters.failed += 1;
-          job.reject(error);
-        })
+        .then(
+          (value) => {
+            counters.completed += 1;
+            job.resolve(value);
+          },
+          (error) => {
+            counters.failed += 1;
+            job.reject(error);
+          },
+        )
         .finally(() => {
           active = Math.max(0, active - 1);
           const remaining = Math.max(0, Number(activeByOwner.get(job.owner) || 1) - 1);
@@ -108,9 +122,12 @@ module.exports = function createEgressGovernor(options = {}) {
   }
 
   function run(spec = {}, operation) {
-    const owner = String(spec.owner || "").trim().toLowerCase();
+    const owner = String(spec.owner || "")
+      .trim()
+      .toLowerCase();
     if (!ownerLimits.has(owner)) return Promise.reject(admissionError("egress_owner_unknown"));
-    if (typeof operation !== "function") return Promise.reject(admissionError("egress_operation_invalid"));
+    if (typeof operation !== "function")
+      return Promise.reject(admissionError("egress_operation_invalid"));
     const counters = countersByOwner.get(owner);
     if (stopping) {
       counters.rejected += 1;
@@ -129,7 +146,7 @@ module.exports = function createEgressGovernor(options = {}) {
         deadlineAt: Number(now()) + timeoutMs,
         operation,
         resolve,
-        reject
+        reject,
       });
       drain();
     });
@@ -162,8 +179,8 @@ module.exports = function createEgressGovernor(options = {}) {
         owner,
         active: Number(activeByOwner.get(owner) || 0),
         maximumConcurrent: maximumOwnerConcurrent,
-        ...countersByOwner.get(owner)
-      }))
+        ...countersByOwner.get(owner),
+      })),
     };
   }
 

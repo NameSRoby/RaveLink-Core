@@ -6,10 +6,7 @@
       "methods": {
         "status": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {
               "offset": {
@@ -25,14 +22,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "selectedId",
-              "collections",
-              "tracks",
-              "page",
-              "limits"
-            ],
+            "required": ["ok", "selectedId", "collections", "tracks", "page", "limits"],
             "properties": {
               "ok": {
                 "const": true
@@ -56,10 +46,7 @@
                 "type": "object"
               },
               "import": {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": ["object", "null"]
               }
             }
           }
@@ -73,9 +60,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "action"
-            ],
+            "required": ["action"],
             "properties": {
               "action": {
                 "enum": [
@@ -116,12 +101,7 @@
                 "maxLength": 80
               },
               "provider": {
-                "enum": [
-                  "youtube",
-                  "soundcloud",
-                  "tidal",
-                  "spotify"
-                ]
+                "enum": ["youtube", "soundcloud", "tidal", "spotify"]
               },
               "confirmAbsent": {
                 "type": "boolean"
@@ -130,10 +110,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "code"
-            ],
+            "required": ["ok", "code"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -162,10 +139,7 @@
       "methods": {
         "status": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {
               "offset": {
@@ -200,22 +174,13 @@
                 "type": "boolean"
               },
               "provider": {
-                "enum": [
-                  "youtube",
-                  "soundcloud",
-                  "tidal",
-                  "spotify"
-                ]
+                "enum": ["youtube", "soundcloud", "tidal", "spotify"]
               }
             }
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "queue",
-              "counts"
-            ],
+            "required": ["ok", "queue", "counts"],
             "properties": {
               "ok": {
                 "const": true
@@ -239,11 +204,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "requestId",
-              "requesterId",
-              "query"
-            ],
+            "required": ["requestId", "requesterId", "query"],
             "properties": {
               "requestId": {
                 "type": "string",
@@ -260,11 +221,7 @@
                 "maxLength": 80
               },
               "requesterRole": {
-                "enum": [
-                  "viewer",
-                  "vip",
-                  "moderator"
-                ]
+                "enum": ["viewer", "vip", "moderator"]
               },
               "notifyChat": {
                 "type": "boolean"
@@ -292,10 +249,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "code"
-            ],
+            "required": ["ok", "code"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -311,9 +265,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "requesterId"
-            ],
+            "required": ["requesterId"],
             "properties": {
               "requesterId": {
                 "type": "string",
@@ -328,10 +280,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "code"
-            ],
+            "required": ["ok", "code"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -347,16 +296,10 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "action",
-              "requesterId"
-            ],
+            "required": ["action", "requesterId"],
             "properties": {
               "action": {
-                "enum": [
-                  "skip",
-                  "remove"
-                ]
+                "enum": ["skip", "remove"]
               },
               "requesterId": {
                 "type": "string",
@@ -378,10 +321,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "code"
-            ],
+            "required": ["ok", "code"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -402,9 +342,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "action"
-            ],
+            "required": ["action"],
             "properties": {
               "action": {
                 "enum": [
@@ -480,30 +418,20 @@
                 "maxLength": 160
               },
               "provider": {
-                "enum": [
-                  "youtube",
-                  "tidal",
-                  "soundcloud",
-                  "spotify"
-                ]
+                "enum": ["youtube", "tidal", "soundcloud", "spotify"]
               },
               "currentUid": {
                 "type": "string",
                 "maxLength": 160
               },
               "source": {
-                "enum": [
-                  "youtube"
-                ]
+                "enum": ["youtube"]
               }
             }
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "code"
-            ],
+            "required": ["ok", "code"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -543,9 +471,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "const": true
@@ -557,9 +483,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "entryId"
-            ],
+            "required": ["entryId"],
             "properties": {
               "entryId": {
                 "type": "string",
@@ -574,10 +498,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "code"
-            ],
+            "required": ["ok", "code"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -597,11 +518,7 @@
         "changed": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "reason",
-            "counts",
-            "paused"
-          ],
+          "required": ["reason", "counts", "paused"],
           "properties": {
             "reason": {
               "type": "string",
@@ -622,23 +539,13 @@
       "methods": {
         "status": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {}
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "revision",
-              "playbackSource",
-              "primary",
-              "managed",
-              "observed"
-            ],
+            "required": ["ok", "revision", "playbackSource", "primary", "managed", "observed"],
             "properties": {
               "ok": {
                 "const": true
@@ -648,25 +555,13 @@
                 "minimum": 0
               },
               "playbackSource": {
-                "enum": [
-                  "youtube",
-                  "tidal",
-                  "spotify",
-                  "apple-music",
-                  "soundcloud"
-                ]
+                "enum": ["youtube", "tidal", "spotify", "apple-music", "soundcloud"]
               },
               "primary": {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": ["object", "null"]
               },
               "managed": {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": ["object", "null"]
               },
               "observed": {
                 "type": "array",
@@ -684,10 +579,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "driverId",
-              "providers"
-            ],
+            "required": ["driverId", "providers"],
             "properties": {
               "driverId": {
                 "type": "string",
@@ -708,10 +600,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "code"
-            ],
+            "required": ["ok", "code"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -721,10 +610,7 @@
                 "maxLength": 40
               },
               "action": {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": ["object", "null"]
               },
               "revision": {
                 "type": "integer",
@@ -737,11 +623,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "driverId",
-              "leaseId",
-              "state"
-            ],
+            "required": ["driverId", "leaseId", "state"],
             "properties": {
               "driverId": {
                 "type": "string",
@@ -754,14 +636,7 @@
                 "maxLength": 80
               },
               "state": {
-                "enum": [
-                  "started",
-                  "progress",
-                  "ended",
-                  "failed",
-                  "skipped",
-                  "paused"
-                ]
+                "enum": ["started", "progress", "ended", "failed", "skipped", "paused"]
               },
               "positionMs": {
                 "type": "integer",
@@ -777,10 +652,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "code"
-            ],
+            "required": ["ok", "code"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -813,11 +685,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "provider",
-              "sourceId",
-              "available"
-            ],
+            "required": ["provider", "sourceId", "available"],
             "properties": {
               "provider": {
                 "type": "string",
@@ -849,11 +717,7 @@
                 "maxLength": 200
               },
               "status": {
-                "enum": [
-                  "playing",
-                  "paused",
-                  "stopped"
-                ]
+                "enum": ["playing", "paused", "stopped"]
               },
               "positionMs": {
                 "type": "integer",
@@ -877,10 +741,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "code"
-            ],
+            "required": ["ok", "code"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -904,11 +765,7 @@
         "changed": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "reason",
-            "revision",
-            "primary"
-          ],
+          "required": ["reason", "revision", "primary"],
           "properties": {
             "reason": {
               "type": "string",
@@ -919,10 +776,7 @@
               "minimum": 0
             },
             "primary": {
-              "type": [
-                "object",
-                "null"
-              ]
+              "type": ["object", "null"]
             }
           }
         }
@@ -933,21 +787,13 @@
       "methods": {
         "status": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {}
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "supported",
-              "lifecycle",
-              "playbackSource"
-            ],
+            "required": ["ok", "supported", "lifecycle", "playbackSource"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -960,22 +806,10 @@
                 "maxLength": 40
               },
               "playbackSource": {
-                "enum": [
-                  "youtube",
-                  "tidal",
-                  "spotify",
-                  "apple-music",
-                  "soundcloud"
-                ]
+                "enum": ["youtube", "tidal", "spotify", "apple-music", "soundcloud"]
               },
               "selectedProvider": {
-                "enum": [
-                  "youtube",
-                  "soundcloud",
-                  "tidal",
-                  "spotify",
-                  "apple-music"
-                ]
+                "enum": ["youtube", "soundcloud", "tidal", "spotify", "apple-music"]
               },
               "error": {
                 "type": "string",
@@ -1009,36 +843,19 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "action"
-            ],
+            "required": ["action"],
             "properties": {
               "action": {
-                "enum": [
-                  "start",
-                  "stop",
-                  "select"
-                ]
+                "enum": ["start", "stop", "select"]
               },
               "source": {
-                "enum": [
-                  "youtube",
-                  "tidal",
-                  "spotify",
-                  "apple-music",
-                  "soundcloud"
-                ]
+                "enum": ["youtube", "tidal", "spotify", "apple-music", "soundcloud"]
               }
             }
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "supported",
-              "lifecycle",
-              "playbackSource"
-            ],
+            "required": ["ok", "supported", "lifecycle", "playbackSource"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1051,22 +868,10 @@
                 "maxLength": 40
               },
               "playbackSource": {
-                "enum": [
-                  "youtube",
-                  "tidal",
-                  "spotify",
-                  "apple-music",
-                  "soundcloud"
-                ]
+                "enum": ["youtube", "tidal", "spotify", "apple-music", "soundcloud"]
               },
               "selectedProvider": {
-                "enum": [
-                  "youtube",
-                  "soundcloud",
-                  "tidal",
-                  "spotify",
-                  "apple-music"
-                ]
+                "enum": ["youtube", "soundcloud", "tidal", "spotify", "apple-music"]
               },
               "error": {
                 "type": "string",
@@ -1103,10 +908,7 @@
       "methods": {
         "status": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {}
           },
@@ -1198,14 +1000,7 @@
                 }
               }
             },
-            "required": [
-              "ok",
-              "revision",
-              "config",
-              "presets",
-              "profiles",
-              "activeProfileId"
-            ]
+            "required": ["ok", "revision", "config", "presets", "profiles", "activeProfileId"]
           }
         },
         "preset": {
@@ -1218,9 +1013,7 @@
                 "maxLength": 40
               }
             },
-            "required": [
-              "id"
-            ]
+            "required": ["id"]
           },
           "response": {
             "type": "object",
@@ -1248,9 +1041,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "config"
-            ],
+            "required": ["config"],
             "properties": {
               "config": {
                 "type": "object"
@@ -1349,11 +1140,7 @@
                 }
               }
             },
-            "required": [
-              "ok",
-              "revision",
-              "config"
-            ]
+            "required": ["ok", "revision", "config"]
           }
         },
         "profile": {
@@ -1363,11 +1150,7 @@
             "properties": {
               "action": {
                 "type": "string",
-                "enum": [
-                  "save",
-                  "load",
-                  "delete"
-                ]
+                "enum": ["save", "load", "delete"]
               },
               "id": {
                 "type": "string",
@@ -1385,9 +1168,7 @@
                 "minimum": 0
               }
             },
-            "required": [
-              "action"
-            ]
+            "required": ["action"]
           },
           "response": {
             "type": "object",
@@ -1477,11 +1258,7 @@
                 }
               }
             },
-            "required": [
-              "ok",
-              "revision",
-              "config"
-            ]
+            "required": ["ok", "revision", "config"]
           }
         }
       }
@@ -1492,9 +1269,7 @@
         "changed": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "revision"
-          ],
+          "required": ["revision"],
           "properties": {
             "revision": {
               "type": "integer",
@@ -1509,20 +1284,13 @@
       "methods": {
         "status": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {}
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "configured",
-              "policy"
-            ],
+            "required": ["ok", "configured", "policy"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1532,10 +1300,7 @@
               },
               "mode": {
                 "type": "string",
-                "enum": [
-                  "keyless",
-                  "official"
-                ]
+                "enum": ["keyless", "official"]
               },
               "officialConfigured": {
                 "type": "boolean"
@@ -1548,10 +1313,7 @@
                 "maxItems": 2,
                 "items": {
                   "type": "string",
-                  "enum": [
-                    "keyless",
-                    "official"
-                  ]
+                  "enum": ["keyless", "official"]
                 }
               },
               "keyless": {
@@ -1607,10 +1369,7 @@
               },
               "mode": {
                 "type": "string",
-                "enum": [
-                  "keyless",
-                  "official"
-                ]
+                "enum": ["keyless", "official"]
               },
               "policy": {
                 "type": "object"
@@ -1619,9 +1378,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1631,10 +1388,7 @@
               },
               "mode": {
                 "type": "string",
-                "enum": [
-                  "keyless",
-                  "official"
-                ]
+                "enum": ["keyless", "official"]
               },
               "error": {
                 "type": "string",
@@ -1648,19 +1402,13 @@
         },
         "clear": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {}
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok",
-              "configured"
-            ],
+            "required": ["ok", "configured"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1686,9 +1434,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1716,16 +1462,11 @@
                 "maxLength": 160
               }
             },
-            "required": [
-              "query",
-              "requestId"
-            ]
+            "required": ["query", "requestId"]
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1748,15 +1489,11 @@
                 "maxLength": 160
               }
             },
-            "required": [
-              "entryId"
-            ]
+            "required": ["entryId"]
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1781,9 +1518,7 @@
                 "type": "boolean"
               }
             },
-            "required": [
-              "ok"
-            ]
+            "required": ["ok"]
           }
         },
         "enable": {
@@ -1794,9 +1529,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1810,27 +1543,18 @@
             "additionalProperties": false,
             "properties": {
               "action": {
-                "enum": [
-                  "status",
-                  "install",
-                  "uninstall",
-                  "update"
-                ]
+                "enum": ["status", "install", "uninstall", "update"]
               },
               "coreUrl": {
                 "type": "string",
                 "maxLength": 100
               }
             },
-            "required": [
-              "action"
-            ]
+            "required": ["action"]
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1876,15 +1600,11 @@
                 "type": "boolean"
               }
             },
-            "required": [
-              "action"
-            ]
+            "required": ["action"]
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1908,21 +1628,14 @@
               },
               "decision": {
                 "type": "string",
-                "enum": [
-                  "not-in-tidal"
-                ]
+                "enum": ["not-in-tidal"]
               }
             },
-            "required": [
-              "entryId",
-              "decision"
-            ]
+            "required": ["entryId", "decision"]
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1946,9 +1659,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1960,9 +1671,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "percent"
-            ],
+            "required": ["percent"],
             "properties": {
               "percent": {
                 "type": "integer",
@@ -1973,9 +1682,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -1993,9 +1700,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "action"
-            ],
+            "required": ["action"],
             "properties": {
               "action": {
                 "enum": [
@@ -2075,11 +1780,7 @@
                 "maxLength": 6000
               },
               "delimiter": {
-                "enum": [
-                  ",",
-                  ";",
-                  "\t"
-                ]
+                "enum": [",", ";", "\t"]
               },
               "revision": {
                 "type": "number"
@@ -2135,14 +1836,7 @@
                 }
               },
               "groupBy": {
-                "enum": [
-                  "single",
-                  "size",
-                  "artist",
-                  "album",
-                  "genre",
-                  "playlist"
-                ]
+                "enum": ["single", "size", "artist", "album", "genre", "playlist"]
               },
               "splitSize": {
                 "type": "integer",
@@ -2155,12 +1849,7 @@
                 "maximum": 10000
               },
               "target": {
-                "enum": [
-                  "tidal",
-                  "youtube",
-                  "soundcloud",
-                  "spotify"
-                ]
+                "enum": ["tidal", "youtube", "soundcloud", "spotify"]
               },
               "report": {
                 "type": "boolean"
@@ -2171,24 +1860,13 @@
                 "maximum": 100
               },
               "review": {
-                "enum": [
-                  "all",
-                  "weakest",
-                  "needs_review",
-                  "unmatched"
-                ]
+                "enum": ["all", "weakest", "needs_review", "unmatched"]
               },
               "adaptive": {
                 "type": "boolean"
               },
               "sourceKind": {
-                "enum": [
-                  "csv",
-                  "soundcloud",
-                  "library",
-                  "spotify",
-                  "tidal"
-                ]
+                "enum": ["csv", "soundcloud", "library", "spotify", "tidal"]
               },
               "destinationId": {
                 "type": "string",
@@ -2201,9 +1879,7 @@
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": [
-                    "id"
-                  ],
+                  "required": ["id"],
                   "properties": {
                     "id": {
                       "type": "string",
@@ -2221,9 +1897,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2238,29 +1912,19 @@
       "methods": {
         "status": {
           "request": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": false,
             "properties": {}
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
               },
               "player": {
-                "enum": [
-                  "youtube",
-                  "tidal",
-                  "soundcloud",
-                  "spotify"
-                ]
+                "enum": ["youtube", "tidal", "soundcloud", "spotify"]
               }
             }
           }
@@ -2269,36 +1933,22 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "player"
-            ],
+            "required": ["player"],
             "properties": {
               "player": {
-                "enum": [
-                  "youtube",
-                  "tidal",
-                  "soundcloud",
-                  "spotify"
-                ]
+                "enum": ["youtube", "tidal", "soundcloud", "spotify"]
               }
             }
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
               },
               "player": {
-                "enum": [
-                  "youtube",
-                  "tidal",
-                  "soundcloud",
-                  "spotify"
-                ]
+                "enum": ["youtube", "tidal", "soundcloud", "spotify"]
               }
             }
           }
@@ -2353,9 +2003,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2408,9 +2056,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2463,9 +2109,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2518,9 +2162,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2573,9 +2215,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2628,9 +2268,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2642,10 +2280,7 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "query",
-              "requestId"
-            ],
+            "required": ["query", "requestId"],
             "properties": {
               "query": {
                 "type": "string",
@@ -2661,9 +2296,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2678,16 +2311,11 @@
       "methods": {
         "status": {
           "request": {
-            "type": [
-              "null",
-              "object"
-            ]
+            "type": ["null", "object"]
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2703,9 +2331,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2721,9 +2347,7 @@
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2747,16 +2371,11 @@
                 "maxLength": 100
               }
             },
-            "required": [
-              "query",
-              "requestId"
-            ]
+            "required": ["query", "requestId"]
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2798,15 +2417,11 @@
                 "maxLength": 120
               }
             },
-            "required": [
-              "action"
-            ]
+            "required": ["action"]
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2820,12 +2435,7 @@
             "additionalProperties": false,
             "properties": {
               "action": {
-                "enum": [
-                  "pause",
-                  "resume",
-                  "skip",
-                  "volume"
-                ]
+                "enum": ["pause", "resume", "skip", "volume"]
               },
               "currentUid": {
                 "type": "string",
@@ -2837,15 +2447,11 @@
                 "maximum": 100
               }
             },
-            "required": [
-              "action"
-            ]
+            "required": ["action"]
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2864,15 +2470,11 @@
                 "maxLength": 300
               }
             },
-            "required": [
-              "query"
-            ]
+            "required": ["query"]
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"
@@ -2891,26 +2493,18 @@
                 "maxLength": 100
               },
               "decision": {
-                "enum": [
-                  "adopt",
-                  "absent"
-                ]
+                "enum": ["adopt", "absent"]
               },
               "uid": {
                 "type": "string",
                 "maxLength": 200
               }
             },
-            "required": [
-              "entryId",
-              "decision"
-            ]
+            "required": ["entryId", "decision"]
           },
           "response": {
             "type": "object",
-            "required": [
-              "ok"
-            ],
+            "required": ["ok"],
             "properties": {
               "ok": {
                 "type": "boolean"

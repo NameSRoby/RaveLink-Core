@@ -2,47 +2,111 @@
 // [TITLE] Purpose: parse and route Twitch color commands to Hue, WiZ, and alpha Govee fixtures
 
 module.exports = function createColorCommandService(options = {}) {
-  const { twitchColorConfig, fixtureRegistry, directiveService, hueBridge, wizBridge, goveeBridge, twitchLightEffects, lightingLab } = options;
-  if (!twitchColorConfig || !fixtureRegistry || !directiveService?.parseTwitchColorDirective) throw new Error("createColorCommandService requires color config, fixtures, and directive service");
+  const {
+    twitchColorConfig,
+    fixtureRegistry,
+    directiveService,
+    hueBridge,
+    wizBridge,
+    goveeBridge,
+    twitchLightEffects,
+    lightingLab,
+  } = options;
+  if (!twitchColorConfig || !fixtureRegistry || !directiveService?.parseTwitchColorDirective)
+    throw new Error(
+      "createColorCommandService requires color config, fixtures, and directive service",
+    );
 
-  function listFixtures(brand = "", zone = "") { return fixtureRegistry.listTwitchBy(brand, zone); }
-  function fixtureById(id) { return listFixtures().find(row => String(row.id) === String(id)) || null; }
+  function listFixtures(brand = "", zone = "") {
+    return fixtureRegistry.listTwitchBy(brand, zone);
+  }
+  function fixtureById(id) {
+    return listFixtures().find((row) => String(row.id) === String(id)) || null;
+  }
   function normalizeDelivery(value, targetCount) {
     if (!value || typeof value !== "object") return { sent: targetCount, failed: 0 };
-    const sent = Number.isSafeInteger(value.sent) ? Math.max(0, Math.min(targetCount, value.sent)) : 0;
-    return { sent, failed: targetCount - sent, dryRun: value.dryRun === true, ...(value.command ? { command: structuredClone(value.command) } : {}) };
+    const sent = Number.isSafeInteger(value.sent)
+      ? Math.max(0, Math.min(targetCount, value.sent))
+      : 0;
+    return {
+      sent,
+      failed: targetCount - sent,
+      dryRun: value.dryRun === true,
+      ...(value.command ? { command: structuredClone(value.command) } : {}),
+    };
   }
   function autoTarget(config) {
     const fallback = twitchColorConfig.parseColorTarget(config.defaultTarget, "hue");
     if (config.autoDefaultTarget === false || fallback === "both") return fallback;
     const fixtures = listFixtures();
-    const available = new Set(fixtures.map(row => String(row.brand).toLowerCase()));
+    const available = new Set(fixtures.map((row) => String(row.brand).toLowerCase()));
     if (available.has(fallback)) return fallback;
-    return ["hue", "wiz", "govee"].find(brand => available.has(brand)) || fallback;
+    return ["hue", "wiz", "govee"].find((brand) => available.has(brand)) || fallback;
   }
   async function applyColorText(rawText, requestOptions = {}) {
     const direct = requestOptions.mode === "direct";
     if (!direct && twitchLightEffects?.resolve && twitchLightEffects?.handle) {
       const effectRoute = twitchLightEffects.resolve(rawText);
-      if (effectRoute.matched) return twitchLightEffects.handle(effectRoute.text, { fixtureIds: effectRoute.fixtureIds, prefix: effectRoute.prefix, preview: requestOptions.preview === true });
+      if (effectRoute.matched)
+        return twitchLightEffects.handle(effectRoute.text, {
+          fixtureIds: effectRoute.fixtureIds,
+          prefix: effectRoute.prefix,
+          preview: requestOptions.preview === true,
+        });
     }
-    const source = String(rawText || "").replace(/\s+/g, " ").trim();
+    const source = String(rawText || "")
+      .replace(/\s+/g, " ")
+      .trim();
     const allStatic = !direct && /^all(?:\s+|\s*[:=-]\s*)(.+)$/i.exec(source);
-    const route = !direct ? (allStatic
-      ? { ...(options.twitchLightRouting?.resolveAll?.() || { managed: true, error: "no_twitch_assignments_matched" }), prefix: "all", text: allStatic[1].trim() }
-      : lightingLab?.resolveChaseRoute?.(rawText) || options.twitchLightRouting?.resolve(rawText)) : null;
+    const route = !direct
+      ? allStatic
+        ? {
+            ...(options.twitchLightRouting?.resolveAll?.() || {
+              managed: true,
+              error: "no_twitch_assignments_matched",
+            }),
+            prefix: "all",
+            text: allStatic[1].trim(),
+          }
+        : lightingLab?.resolveChaseRoute?.(rawText) || options.twitchLightRouting?.resolve(rawText)
+      : null;
     if (route?.error) return { ok: false, error: route.error };
     const selection = route?.managed ? route.fixtureIds : requestOptions.fixtureIds;
-    if (selection !== undefined && !route?.managed && (!direct || !Array.isArray(selection) || !selection.length || selection.length > 64 || selection.some(id => typeof id !== "string" || !id || id.length > 256))) return { ok: false, error: "invalid_fixture_selection" };
+    if (
+      selection !== undefined &&
+      !route?.managed &&
+      (!direct ||
+        !Array.isArray(selection) ||
+        !selection.length ||
+        selection.length > 64 ||
+        selection.some((id) => typeof id !== "string" || !id || id.length > 256))
+    )
+      return { ok: false, error: "invalid_fixture_selection" };
     const selectedIds = selection === undefined ? null : new Set(selection);
     const deliveries = [];
-    const activeFixtures = (brand = "", zone = "") => direct
-      ? fixtureRegistry.listEngineBy(brand, zone).filter(row => !selectedIds || selectedIds.has(row.id))
-      : listFixtures(brand, zone).filter(row => (!selectedIds || selectedIds.has(row.id)) && !lightingLab?.isExcluded?.(row.id));
-    const activeFixtureById = id => activeFixtures().find(row => String(row.id) === String(id)) || null;
+    const activeFixtures = (brand = "", zone = "") =>
+      direct
+        ? fixtureRegistry
+            .listEngineBy(brand, zone)
+            .filter((row) => !selectedIds || selectedIds.has(row.id))
+        : listFixtures(brand, zone).filter(
+            (row) =>
+              (!selectedIds || selectedIds.has(row.id)) && !lightingLab?.isExcluded?.(row.id),
+          );
+    const activeFixtureById = (id) =>
+      activeFixtures().find((row) => String(row.id) === String(id)) || null;
     const config = twitchColorConfig.getSnapshot();
-    const prefixed = route?.managed ? { text: route.text, prefix: route.prefix, target: 'both', fixtureId: '' } : twitchColorConfig.splitPrefixedColorText(rawText, config.prefixes, config.fixturePrefixes);
-    const requestedFixtureId = String(requestOptions.fixtureId || (!requestOptions.targetExplicit ? prefixed.fixtureId : "") || "").trim();
+    const prefixed = route?.managed
+      ? {
+          text: route.text,
+          prefix: route.prefix,
+          target: "both",
+          fixtureId: "",
+        }
+      : twitchColorConfig.splitPrefixedColorText(rawText, config.prefixes, config.fixturePrefixes);
+    const requestedFixtureId = String(
+      requestOptions.fixtureId || (!requestOptions.targetExplicit ? prefixed.fixtureId : "") || "",
+    ).trim();
     const fixed = requestedFixtureId ? activeFixtureById(requestedFixtureId) : null;
     const fallback = direct ? "both" : autoTarget(config);
     const target = requestOptions.targetExplicit
@@ -50,64 +114,237 @@ module.exports = function createColorCommandService(options = {}) {
       : twitchColorConfig.parseColorTarget(fixed?.brand || prefixed.target || fallback, fallback);
     const text = String(prefixed.text || "").trim();
     if (!text) return { ok: false, target, error: "missing color text" };
-    if (requestedFixtureId && !fixed) return { ok: false, target: null, fixtureTargetId: requestedFixtureId, error: direct ? "fixture target not found or disabled" : "fixture prefix target not found or not twitch-enabled" };
+    if (requestedFixtureId && !fixed)
+      return {
+        ok: false,
+        target: null,
+        fixtureTargetId: requestedFixtureId,
+        error: direct
+          ? "fixture target not found or disabled"
+          : "fixture prefix target not found or not twitch-enabled",
+      };
     if (!direct && route?.chaseRoute && twitchLightEffects?.handle) {
-      const effect = await twitchLightEffects.handle(text, { fixtureIds: selection, prefix: route.prefix, preview: requestOptions.preview === true });
+      const effect = await twitchLightEffects.handle(text, {
+        fixtureIds: selection,
+        prefix: route.prefix,
+        preview: requestOptions.preview === true,
+      });
       if (effect.matched) return effect;
     }
     const directive = directiveService.parseTwitchColorDirective(text);
-    if (!directive.ok) return { ok: false, target, error: directive.error || "invalid color text", ...(directive.refundRecommended === true ? { refundRecommended: true } : {}) };
-    const result = { ok: true, target, usedPrefix: prefixed.prefix || null, fixtureTargetId: fixed?.id || null, hueZones: [], wizZones: [], goveeZones: [], hueTargets: 0, wizTargets: 0, goveeTargets: 0, hueDelivery: { sent: 0, failed: 0 }, wizDelivery: { sent: 0, failed: 0 }, goveeDelivery: { sent: 0, failed: 0, alpha: true }, directiveType: directive.type, colorMatch: directive.matchedName || "", fuzzy: directive.fuzzy || null };
-    Object.assign(result, { preview: requestOptions.preview === true, targets: [], modifiers: directive.modifiers || {}, hex: directive.hex || '', baseHex: directive.baseHex || '', brightnessPercent: directive.brightnessPercent, ruleIds: route?.ruleIds || [] });
+    if (!directive.ok)
+      return {
+        ok: false,
+        target,
+        error: directive.error || "invalid color text",
+        ...(directive.refundRecommended === true ? { refundRecommended: true } : {}),
+      };
+    const result = {
+      ok: true,
+      target,
+      usedPrefix: prefixed.prefix || null,
+      fixtureTargetId: fixed?.id || null,
+      hueZones: [],
+      wizZones: [],
+      goveeZones: [],
+      hueTargets: 0,
+      wizTargets: 0,
+      goveeTargets: 0,
+      hueDelivery: { sent: 0, failed: 0 },
+      wizDelivery: { sent: 0, failed: 0 },
+      goveeDelivery: { sent: 0, failed: 0, alpha: true },
+      directiveType: directive.type,
+      colorMatch: directive.matchedName || "",
+      fuzzy: directive.fuzzy || null,
+    };
+    Object.assign(result, {
+      preview: requestOptions.preview === true,
+      targets: [],
+      modifiers: directive.modifiers || {},
+      hex: directive.hex || "",
+      baseHex: directive.baseHex || "",
+      brightnessPercent: directive.brightnessPercent,
+      ruleIds: route?.ruleIds || [],
+    });
 
     if (target === "hue" || target === "both") {
-      result.hueZones = fixed ? [fixed.zone || "hue"] : fixtureRegistry.parseZoneList(route?.managed ? 'all' : requestOptions.hueZone || requestOptions.zone || (direct ? "all" : fixtureRegistry.resolveZone("TWITCH_HUE") || "hue"), direct ? "all" : "hue");
-      const targets = fixed ? (fixed.brand === "hue" ? [fixed] : []) : (() => { const rows = new Map(); for (const zone of result.hueZones) for (const fixture of activeFixtures("hue", zone)) rows.set(fixture.id, fixture); return [...rows.values()]; })();
+      result.hueZones = fixed
+        ? [fixed.zone || "hue"]
+        : fixtureRegistry.parseZoneList(
+            route?.managed
+              ? "all"
+              : requestOptions.hueZone ||
+                  requestOptions.zone ||
+                  (direct ? "all" : fixtureRegistry.resolveZone("TWITCH_HUE") || "hue"),
+            direct ? "all" : "hue",
+          );
+      const targets = fixed
+        ? fixed.brand === "hue"
+          ? [fixed]
+          : []
+        : (() => {
+            const rows = new Map();
+            for (const zone of result.hueZones)
+              for (const fixture of activeFixtures("hue", zone)) rows.set(fixture.id, fixture);
+            return [...rows.values()];
+          })();
       result.hueTargets = targets.length;
-      result.targets.push(...targets.map(row => row.id));
+      result.targets.push(...targets.map((row) => row.id));
       if (targets.length && !requestOptions.preview) {
         deliveries.push(async () => {
-          try { result.hueDelivery = typeof hueBridge?.sendState === "function" ? normalizeDelivery(await hueBridge.sendState(targets, directive.hueState), targets.length) : { sent: 0, failed: targets.length }; if (result.hueDelivery.sent === targets.length) for (const row of targets) lightingLab?.rememberState?.(row.id, "hue", directive.hueState); }
-          catch { result.hueDelivery = { sent: 0, failed: targets.length }; }
+          try {
+            result.hueDelivery =
+              typeof hueBridge?.sendState === "function"
+                ? normalizeDelivery(
+                    await hueBridge.sendState(targets, directive.hueState),
+                    targets.length,
+                  )
+                : { sent: 0, failed: targets.length };
+            if (result.hueDelivery.sent === targets.length)
+              for (const row of targets)
+                lightingLab?.rememberState?.(row.id, "hue", directive.hueState);
+          } catch {
+            result.hueDelivery = { sent: 0, failed: targets.length };
+          }
         });
       }
     }
     if (target === "wiz" || target === "both") {
-      result.wizZones = fixed ? [fixed.zone || "wiz"] : fixtureRegistry.parseZoneList(route?.managed ? 'all' : requestOptions.wizZone || requestOptions.zone || (direct ? "all" : fixtureRegistry.resolveZone("TWITCH_WIZ") || "wiz"), direct ? "all" : "wiz");
-      const targets = fixed ? (fixed.brand === "wiz" ? [fixed] : []) : (() => { const rows = new Map(); for (const zone of result.wizZones) for (const fixture of activeFixtures("wiz", zone)) rows.set(fixture.id, fixture); return [...rows.values()]; })();
+      result.wizZones = fixed
+        ? [fixed.zone || "wiz"]
+        : fixtureRegistry.parseZoneList(
+            route?.managed
+              ? "all"
+              : requestOptions.wizZone ||
+                  requestOptions.zone ||
+                  (direct ? "all" : fixtureRegistry.resolveZone("TWITCH_WIZ") || "wiz"),
+            direct ? "all" : "wiz",
+          );
+      const targets = fixed
+        ? fixed.brand === "wiz"
+          ? [fixed]
+          : []
+        : (() => {
+            const rows = new Map();
+            for (const zone of result.wizZones)
+              for (const fixture of activeFixtures("wiz", zone)) rows.set(fixture.id, fixture);
+            return [...rows.values()];
+          })();
       result.wizTargets = targets.length;
-      result.targets.push(...targets.map(row => row.id));
+      result.targets.push(...targets.map((row) => row.id));
       if (targets.length && !requestOptions.preview) {
         deliveries.push(async () => {
-          try { result.wizDelivery = typeof wizBridge?.sendState === "function" ? normalizeDelivery(await wizBridge.sendState(targets, directive.wizState), targets.length) : { sent: 0, failed: targets.length }; if (result.wizDelivery.sent === targets.length) for (const row of targets) lightingLab?.rememberState?.(row.id, "wiz", directive.wizState); }
-          catch { result.wizDelivery = { sent: 0, failed: targets.length }; }
+          try {
+            result.wizDelivery =
+              typeof wizBridge?.sendState === "function"
+                ? normalizeDelivery(
+                    await wizBridge.sendState(targets, directive.wizState),
+                    targets.length,
+                  )
+                : { sent: 0, failed: targets.length };
+            if (result.wizDelivery.sent === targets.length)
+              for (const row of targets)
+                lightingLab?.rememberState?.(row.id, "wiz", directive.wizState);
+          } catch {
+            result.wizDelivery = { sent: 0, failed: targets.length };
+          }
         });
       }
     }
     if (target === "govee" || target === "both") {
-      result.goveeZones = fixed ? [fixed.zone || "govee"] : fixtureRegistry.parseZoneList(route?.managed ? "all" : requestOptions.goveeZone || requestOptions.zone || (direct ? "all" : fixtureRegistry.resolveZone("TWITCH_GOVEE") || "govee"), direct ? "all" : "govee");
-      const targets = fixed ? (fixed.brand === "govee" ? [fixed] : []) : (() => { const rows = new Map(); for (const zone of result.goveeZones) for (const fixture of activeFixtures("govee", zone)) rows.set(fixture.id, fixture); return [...rows.values()]; })();
+      result.goveeZones = fixed
+        ? [fixed.zone || "govee"]
+        : fixtureRegistry.parseZoneList(
+            route?.managed
+              ? "all"
+              : requestOptions.goveeZone ||
+                  requestOptions.zone ||
+                  (direct ? "all" : fixtureRegistry.resolveZone("TWITCH_GOVEE") || "govee"),
+            direct ? "all" : "govee",
+          );
+      const targets = fixed
+        ? fixed.brand === "govee"
+          ? [fixed]
+          : []
+        : (() => {
+            const rows = new Map();
+            for (const zone of result.goveeZones)
+              for (const fixture of activeFixtures("govee", zone)) rows.set(fixture.id, fixture);
+            return [...rows.values()];
+          })();
       result.goveeTargets = targets.length;
-      result.targets.push(...targets.map(row => row.id));
-      if (targets.length && !requestOptions.preview) { deliveries.push(async () => {
-        try { result.goveeDelivery = { ...normalizeDelivery(await goveeBridge.sendState(targets, directive.wizState), targets.length), alpha: true }; if (result.goveeDelivery.sent === targets.length) for (const row of targets) lightingLab?.rememberState?.(row.id, "govee", directive.wizState); }
-        catch { result.goveeDelivery = { sent: 0, failed: targets.length, alpha: true }; }
-      }); }
+      result.targets.push(...targets.map((row) => row.id));
+      if (targets.length && !requestOptions.preview) {
+        deliveries.push(async () => {
+          try {
+            result.goveeDelivery = {
+              ...normalizeDelivery(
+                await goveeBridge.sendState(targets, directive.wizState),
+                targets.length,
+              ),
+              alpha: true,
+            };
+            if (result.goveeDelivery.sent === targets.length)
+              for (const row of targets)
+                lightingLab?.rememberState?.(row.id, "govee", directive.wizState);
+          } catch {
+            result.goveeDelivery = {
+              sent: 0,
+              failed: targets.length,
+              alpha: true,
+            };
+          }
+        });
+      }
     }
     if (!requestOptions.preview && result.targets.length) {
-      if (twitchLightEffects?.cancelForStaticTargets) twitchLightEffects.cancelForStaticTargets(result.targets);
+      if (twitchLightEffects?.cancelForStaticTargets)
+        twitchLightEffects.cancelForStaticTargets(result.targets);
       else twitchLightEffects?.cancelFixtureIds?.(result.targets);
     }
-    await Promise.all(deliveries.map(deliver => deliver()));
-    result.skippedTargets = selectedIds ? Math.max(0, selectedIds.size - result.hueTargets - result.wizTargets - result.goveeTargets) : 0;
-    if (result.hueTargets + result.wizTargets + result.goveeTargets === 0) return { ...result, ok: false, error: "no routed fixtures matched" };
-    if (requestOptions.preview) return { ...result, sent: 0, failed: 0, partial: result.skippedTargets > 0 };
-    result.sent = Number(result.hueDelivery.sent || 0) + Number(result.wizDelivery.sent || 0) + Number(result.goveeDelivery.sent || 0);
-    result.failed = Number(result.hueDelivery.failed || 0) + Number(result.wizDelivery.failed || 0) + Number(result.goveeDelivery.failed || 0) + result.skippedTargets;
+    await Promise.all(deliveries.map((deliver) => deliver()));
+    result.skippedTargets = selectedIds
+      ? Math.max(0, selectedIds.size - result.hueTargets - result.wizTargets - result.goveeTargets)
+      : 0;
+    if (result.hueTargets + result.wizTargets + result.goveeTargets === 0)
+      return { ...result, ok: false, error: "no routed fixtures matched" };
+    if (requestOptions.preview)
+      return {
+        ...result,
+        sent: 0,
+        failed: 0,
+        partial: result.skippedTargets > 0,
+      };
+    result.sent =
+      Number(result.hueDelivery.sent || 0) +
+      Number(result.wizDelivery.sent || 0) +
+      Number(result.goveeDelivery.sent || 0);
+    result.failed =
+      Number(result.hueDelivery.failed || 0) +
+      Number(result.wizDelivery.failed || 0) +
+      Number(result.goveeDelivery.failed || 0) +
+      result.skippedTargets;
     result.partial = result.sent > 0 && result.failed > 0;
-    const final = result.sent === 0 && result.failed > 0 ? { ...result, ok: false, error: "hardware_delivery_failed" } : result;
-    if (!direct || requestOptions.audit === true) lightingLab?.record?.({ source: direct ? "operator" : "twitch", command: rawText, ok: final.ok, targets: result.targets, sent: result.sent, failed: result.failed, detail: final.error || result.hex || result.directiveType });
+    const final =
+      result.sent === 0 && result.failed > 0
+        ? { ...result, ok: false, error: "hardware_delivery_failed" }
+        : result;
+    if (!direct || requestOptions.audit === true)
+      lightingLab?.record?.({
+        source: direct ? "operator" : "twitch",
+        command: rawText,
+        ok: final.ok,
+        targets: result.targets,
+        sent: result.sent,
+        failed: result.failed,
+        detail: final.error || result.hex || result.directiveType,
+      });
     return final;
   }
-  return Object.freeze({ listColorCommandFixtures: listFixtures, resolveTwitchFixtureById: fixtureById, resolveAutoDefaultColorTarget: autoTarget, applyColorText });
+  return Object.freeze({
+    listColorCommandFixtures: listFixtures,
+    resolveTwitchFixtureById: fixtureById,
+    resolveAutoDefaultColorTarget: autoTarget,
+    applyColorText,
+  });
 };

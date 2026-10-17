@@ -1,13 +1,25 @@
-const featureDraftScript = require('./feature-draft-script');
-const featurePresentation = require('./feature-presentation');
-const featureThemeScript = require('./feature-theme-script');
+/**
+ * Feature HTTP and sandbox policy.
+ * The parent shell brokers only the current page's declared capabilities; worker
+ * contracts and host authorization still apply behind it. feature-ui-relay.js is
+ * serialized browser code so it can be reviewed independently of the HTML template.
+ * Keep scriptJson escaping: an interpolated closing script tag must remain data.
+ */
+const featureUiRelay = require("./feature-ui-relay");
+const featureDraftScript = require("./feature-draft-script");
+const featurePresentation = require("./feature-presentation");
+const featureThemeScript = require("./feature-theme-script");
 const { isLocalOrSameHostRequest } = require("../../../app/runtime/request-security.middleware");
 
 const FEATURE_ID_RE = /^[a-z][a-z0-9-]{1,63}$/;
 const PAGE_ID_RE = /^[a-z][a-z0-9-]{1,39}$/;
 
 function htmlText(value) {
-  return String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    (character) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character],
+  );
 }
 
 function scriptJson(value) {
@@ -15,23 +27,35 @@ function scriptJson(value) {
 }
 
 function allowsExternalPopup(featureId, pageId) {
-  return featureId === "twitch-integration" && pageId === "connection"
-    || featureId === "song-request" && ["player", "server-playlist"].includes(pageId);
+  return (
+    (featureId === "twitch-integration" && pageId === "connection") ||
+    (featureId === "song-request" && ["player", "server-playlist"].includes(pageId))
+  );
 }
 
 function featurePageShell(featureId, page, pageIds) {
-  const config = scriptJson({ featureId, pageId: page.id, surface: page.surface, capabilities: page.capabilities, pageIds });
-  const popupSandbox = allowsExternalPopup(featureId, page.id) ? " allow-popups allow-popups-to-escape-sandbox" : "";
+  const config = scriptJson({
+    featureId,
+    pageId: page.id,
+    surface: page.surface,
+    capabilities: page.capabilities,
+    pageIds,
+  });
+  const popupSandbox = allowsExternalPopup(featureId, page.id)
+    ? " allow-popups allow-popups-to-escape-sandbox"
+    : "";
   const embedSandbox = page.embedHosts.length ? " allow-same-origin" : "";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlText(page.title)}</title><style>html,body,iframe{width:100%;height:100%;margin:0;border:0;background:${page.surface === "overlay" ? "transparent" : "#050507"}}iframe{display:block}body{overflow:hidden}</style></head><body><iframe id="surface" ${featureId === "song-request" && page.id === "player" ? 'allow="autoplay"' : ""} data-src="/features-content/${featureId}/${page.id}" sandbox="allow-scripts allow-presentation${featureId === "song-request" && page.id === "server-playlist" ? " allow-downloads" : ""}${embedSandbox}${popupSandbox}"  referrerpolicy="no-referrer" title="${htmlText(page.title)}"></iframe><script src="/action-feedback.js"></script><script src="/feature-events-client.js"></script><script>${featureDraftScript(featureId, page.id, page.surface)}${featureThemeScript(featureId, page.id)}const config=${config};const frame=document.getElementById("surface");const allowed=new Set(config.capabilities);const channel="ravelink-feature-ui-v1";let preview=null;frame.addEventListener("load",()=>{if(preview)frame.contentWindow.postMessage(preview,"*");const launch=new URL(location.href);if(config.featureId==="song-request"&&config.pageId==="player"&&launch.searchParams.get("startPlayback")==="1"){frame.contentWindow.postMessage({channel,type:"playlist-start",provider:launch.searchParams.get("provider")},"*");history.replaceState(null,"",location.pathname)}if(window.parent!==window)window.parent.postMessage({channel,type:"feature-ready"},location.origin)});window.addEventListener("message",async event=>{const message=event.data;if(message?.channel!==channel)return;if(event.source===window.parent&&window.parent!==window&&event.origin===location.origin&&message.type==="playlist-start"&&config.featureId==="song-request"&&config.pageId==="player"&&["youtube","soundcloud"].includes(message.provider)){frame.contentWindow.postMessage({channel,type:"playlist-start",provider:message.provider},"*");return}if(event.source===window.parent&&window.parent!==window&&event.origin===location.origin&&message.type==="presentation"){if(config.surface==="panel"){document.documentElement.style.background="transparent";document.body.style.background="transparent";frame.style.background="transparent";frame.contentWindow.postMessage(message,"*")}return}if(event.source===window.parent&&config.pageId==="obs-overlay"&&message.type==="preview"){preview={channel,type:"preview",config:message.config};frame.contentWindow.postMessage(preview,"*");return}if(event.source!==frame.contentWindow)return;if(message.type==="feature-height"){if(config.surface==="panel"&&message.contentHeight===true&&Number.isFinite(message.height)&&message.height>0){const height=Math.max(240,Math.min(16000,Math.ceil(message.height)));frame.style.height=height+"px";if(window.parent!==window)window.parent.postMessage({channel,type:"feature-height",height},location.origin);else{document.body.style.height="auto";document.body.style.overflow="auto"}}return}if(message.type==="open"&&config.pageIds.includes(message.pageId)){if(window.parent!==window){window.parent.postMessage({channel,type:"feature-open",pageId:message.pageId,...(config.featureId==="song-request"&&config.pageId==="server-playlist"&&message.pageId==="player"&&message.startPlayback===true&&["youtube","soundcloud"].includes(message.provider)?{startPlayback:true,provider:message.provider}:{})},location.origin);return}if(config.featureId==="song-request"&&config.pageId==="server-playlist"&&message.pageId==="player"&&message.startPlayback===true&&["youtube","soundcloud"].includes(message.provider)){location.assign("/features-ui/song-request/player?startPlayback=1&provider="+message.provider);return}window.open("/features-ui/"+config.featureId+"/"+message.pageId+(config.featureId==="song-request"&&config.pageId==="server-playlist"&&message.pageId==="player"&&message.startPlayback===true&&["youtube","soundcloud"].includes(message.provider)?"?startPlayback=1&provider="+message.provider:""),"ravelink-"+config.featureId+"-"+message.pageId,"noopener");return}if(message.type==="action-feedback"){if(["working","success","error"].includes(message.state)&&typeof message.message==="string")window.RaveLinkFeedback.show(message.message.slice(0,240),message.state);return}if(message.type!=="call"||!allowed.has(message.capability))return frame.contentWindow.postMessage({channel,id:message.id,type:"response",ok:false,error:"capability_denied"},"*");const longCall=message.capability==="song.soundcloud.player.v1"||message.capability==="song.spotify.player.v1"||message.capability==="song.queue.submit.v1"||message.capability==="song.catalog.admin.v1"||message.capability==="song.tidal.experimental.v1";const callTimeoutMs=message.capability==="song.player.preferences.v1"?12000:message.capability==="song.playlist.transfer.v1"?55000:message.capability==="song.queue.admin.v1"&&message.method==="moderate"?20000:message.capability==="twitch.redemptions.v1"&&message.method==="reconcile"?30000:message.capability==="song.tidal.experimental.v1"?30000:longCall?30000:2500;const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),callTimeoutMs+750);try{const response=await fetch("/api/features/"+config.featureId+"/call",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({capability:message.capability,method:message.method,payload:message.payload,timeoutMs:callTimeoutMs}),signal:controller.signal});const body=await response.json();const succeeded=response.ok&&body.ok===true;frame.contentWindow.postMessage({channel,id:message.id,type:"response",ok:succeeded,value:body.value,error:body.error?.message||body.error||("HTTP "+response.status)},"*");if(succeeded&&window.parent!==window)window.parent.postMessage({channel,type:"feature-call-complete",featureId:config.featureId,capability:message.capability,method:String(message.method||"")},location.origin)}catch(error){frame.contentWindow.postMessage({channel,id:message.id,type:"response",ok:false,error:String(error?.message||error).slice(0,160)},"*")}finally{clearTimeout(timeout)}});let unsubscribeEvents;function connectEvents(){if(unsubscribeEvents)return;unsubscribeEvents=window.ravelinkFeatureEvents.subscribe({featureId:config.featureId,capabilities:config.capabilities},message=>{if(message.type==="feature"&&allowed.has(message.value.capability))frame.contentWindow.postMessage({channel,type:"event",message:message.value},"*");if(message.type==="error")frame.contentWindow.postMessage({channel,type:"transport-error"},"*");if(message.type==="resync")frame.contentWindow.postMessage({channel,type:"resync"},"*")})}connectEvents();window.addEventListener("pagehide",()=>{unsubscribeEvents?.();unsubscribeEvents=null});window.addEventListener("pageshow",connectEvents);frame.src=frame.dataset.src;</script></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlText(page.title)}</title><style>html,body,iframe{width:100%;height:100%;margin:0;border:0;background:${page.surface === "overlay" ? "transparent" : "#050507"}}iframe{display:block}body{overflow:hidden}</style></head><body><iframe id="surface" ${featureId === "song-request" && page.id === "player" ? 'allow="autoplay"' : ""} data-src="/features-content/${featureId}/${page.id}" sandbox="allow-scripts allow-presentation${featureId === "song-request" && page.id === "server-playlist" ? " allow-downloads" : ""}${embedSandbox}${popupSandbox}"  referrerpolicy="no-referrer" title="${htmlText(page.title)}"></iframe><script src="/action-feedback.js"></script><script src="/feature-events-client.js"></script><script>${featureDraftScript(featureId, page.id, page.surface)}${featureThemeScript(featureId, page.id)}(${featureUiRelay.toString()})(${config});</script></body></html>`;
 }
 
 function requireLocalOperator(req, res, next) {
-  if (!isLocalOrSameHostRequest(req)) return res.status(403).json({ ok: false, error: "feature_operator_loopback_required" });
+  if (!isLocalOrSameHostRequest(req))
+    return res.status(403).json({ ok: false, error: "feature_operator_loopback_required" });
   const origin = String(req.headers?.origin || "").trim();
   if (origin) {
     try {
-      if (new URL(origin).host.toLowerCase() !== String(req.headers?.host || "").toLowerCase()) throw new Error("origin_mismatch");
+      if (new URL(origin).host.toLowerCase() !== String(req.headers?.host || "").toLowerCase())
+        throw new Error("origin_mismatch");
     } catch {
       return res.status(403).json({ ok: false, error: "feature_operator_same_origin_required" });
     }
@@ -42,143 +66,246 @@ function requireLocalOperator(req, res, next) {
 module.exports = function registerFeaturePlatformRoutes(app, options = {}) {
   const registry = options.registry;
   app.get("/api/features", requireLocalOperator, (req, res) => res.json(registry.list()));
-  app.get('/api/features-stream', requireLocalOperator, (req, res) => {
+  app.get("/api/features-stream", requireLocalOperator, (req, res) => {
     let unsubscribe;
     const send = (type, value) => {
-      if (type === 'close') { res.end(); return; }
+      if (type === "close") {
+        res.end();
+        return;
+      }
       if (!res.write(`event: ${type}\ndata: ${JSON.stringify(value)}\n\n`)) {
         unsubscribe?.();
         res.destroy();
       }
     };
     unsubscribe = registry.subscribeStream(send);
-    if (!unsubscribe) return res.status(503).json({ ok: false, error: 'feature_stream_limit' });
-    res.on('close', unsubscribe);
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('X-Accel-Buffering', 'no');
+    if (!unsubscribe) return res.status(503).json({ ok: false, error: "feature_stream_limit" });
+    res.on("close", unsubscribe);
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
-    send('lifecycle', registry.list());
+    send("lifecycle", registry.list());
   });
-  app.get('/api/features-lifecycle', requireLocalOperator, (req, res) => {
+  app.get("/api/features-lifecycle", requireLocalOperator, (req, res) => {
     let unsubscribe;
-    const send = snapshot => {
-      if (!snapshot) { res.end(); return; }
+    const send = (snapshot) => {
+      if (!snapshot) {
+        res.end();
+        return;
+      }
       if (!res.write(`event: lifecycle\ndata: ${JSON.stringify(snapshot)}\n\n`)) {
         unsubscribe?.();
         res.destroy();
       }
     };
     unsubscribe = registry.subscribeLifecycle(send);
-    if (!unsubscribe) return res.status(503).json({ ok: false, error: 'feature_listener_limit' });
-    res.on('close', unsubscribe);
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('X-Accel-Buffering', 'no');
+    if (!unsubscribe) return res.status(503).json({ ok: false, error: "feature_listener_limit" });
+    res.on("close", unsubscribe);
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
     send(registry.list());
   });
-  app.get("/api/features-available", requireLocalOperator, async (req, res) => res.json(await registry.listAvailable()));
+  app.get("/api/features-available", requireLocalOperator, async (req, res) =>
+    res.json(await registry.listAvailable()),
+  );
   app.post("/api/features/:featureId/install", requireLocalOperator, async (req, res) => {
     const featureId = String(req.params.featureId || "");
-    if (!FEATURE_ID_RE.test(featureId)) return res.status(400).json({ ok: false, error: "invalid_feature_id" });
+    if (!FEATURE_ID_RE.test(featureId))
+      return res.status(400).json({ ok: false, error: "invalid_feature_id" });
     const result = await registry.install(featureId);
-    return res.status(result.ok ? 201 : result.error === "feature_already_installed" ? 409 : 400).json(result);
+    return res
+      .status(result.ok ? 201 : result.error === "feature_already_installed" ? 409 : 400)
+      .json(result);
   });
   app.post("/api/features/:featureId/enable", requireLocalOperator, async (req, res) => {
     const featureId = String(req.params.featureId || "");
-    if (!FEATURE_ID_RE.test(featureId)) return res.status(400).json({ ok: false, error: "invalid_feature_id" });
+    if (!FEATURE_ID_RE.test(featureId))
+      return res.status(400).json({ ok: false, error: "invalid_feature_id" });
     const result = await registry.enable(featureId);
-    return res.status(result.ok === false ? 400 : result.lifecycle === "active" ? 200 : 409).json(result);
+    return res
+      .status(result.ok === false ? 400 : result.lifecycle === "active" ? 200 : 409)
+      .json(result);
   });
   app.post("/api/features/:featureId/disable", requireLocalOperator, async (req, res) => {
     const featureId = String(req.params.featureId || "");
-    if (!FEATURE_ID_RE.test(featureId)) return res.status(400).json({ ok: false, error: "invalid_feature_id" });
+    if (!FEATURE_ID_RE.test(featureId))
+      return res.status(400).json({ ok: false, error: "invalid_feature_id" });
     const result = await registry.disable(featureId);
     return res.status(result.ok === false ? 400 : 200).json(result);
   });
   app.post("/api/features/:featureId/restart", requireLocalOperator, async (req, res) => {
     const featureId = String(req.params.featureId || "");
-    if (!FEATURE_ID_RE.test(featureId)) return res.status(400).json({ ok: false, error: "invalid_feature_id" });
+    if (!FEATURE_ID_RE.test(featureId))
+      return res.status(400).json({ ok: false, error: "invalid_feature_id" });
     const result = await registry.restart(featureId);
-    return res.status(result.lifecycle === "active" ? 200 : result.error === "feature_not_found" ? 404 : 409).json(result);
+    return res
+      .status(
+        result.lifecycle === "active" ? 200 : result.error === "feature_not_found" ? 404 : 409,
+      )
+      .json(result);
   });
   app.post("/api/features/:featureId/update", requireLocalOperator, async (req, res) => {
     const featureId = String(req.params.featureId || "");
-    if (!FEATURE_ID_RE.test(featureId)) return res.status(400).json({ ok: false, error: "invalid_feature_id" });
+    if (!FEATURE_ID_RE.test(featureId))
+      return res.status(400).json({ ok: false, error: "invalid_feature_id" });
     const result = await registry.update(featureId);
-    return res.status(result.ok ? 200 : result.error === "feature_not_found" ? 404 : result.error === "feature_update_not_available" ? 409 : 400).json(result);
+    return res
+      .status(
+        result.ok
+          ? 200
+          : result.error === "feature_not_found"
+            ? 404
+            : result.error === "feature_update_not_available"
+              ? 409
+              : 400,
+      )
+      .json(result);
   });
   app.post("/api/features/:featureId/rollback", requireLocalOperator, async (req, res) => {
     const featureId = String(req.params.featureId || "");
-    if (!FEATURE_ID_RE.test(featureId)) return res.status(400).json({ ok: false, error: "invalid_feature_id" });
+    if (!FEATURE_ID_RE.test(featureId))
+      return res.status(400).json({ ok: false, error: "invalid_feature_id" });
     const result = await registry.rollback(featureId);
-    return res.status(result.ok ? 200 : result.error === "feature_not_found" || result.error === "feature_rollback_unavailable" ? 404 : 400).json(result);
+    return res
+      .status(
+        result.ok
+          ? 200
+          : result.error === "feature_not_found" || result.error === "feature_rollback_unavailable"
+            ? 404
+            : 400,
+      )
+      .json(result);
   });
   app.delete("/api/features/:featureId", requireLocalOperator, async (req, res) => {
     const featureId = String(req.params.featureId || "");
-    if (!FEATURE_ID_RE.test(featureId)) return res.status(400).json({ ok: false, error: "invalid_feature_id" });
-    const result = await registry.uninstall(featureId, { deleteData: req.query?.deleteData === "true" });
-    return res.status(result.ok ? 200 : result.error === "feature_not_found" ? 404 : 400).json(result);
+    if (!FEATURE_ID_RE.test(featureId))
+      return res.status(400).json({ ok: false, error: "invalid_feature_id" });
+    const result = await registry.uninstall(featureId, {
+      deleteData: req.query?.deleteData === "true",
+    });
+    return res
+      .status(result.ok ? 200 : result.error === "feature_not_found" ? 404 : 400)
+      .json(result);
   });
   app.get("/api/features/:featureId/events", requireLocalOperator, (req, res) => {
     const featureId = String(req.params.featureId || "");
-    if (!FEATURE_ID_RE.test(featureId)) return res.status(400).json({ ok: false, error: "invalid_feature_id" });
-    if (!registry.list().features.some(row => row.id === featureId)) return res.status(404).json({ ok: false, error: "feature_not_found" });
+    if (!FEATURE_ID_RE.test(featureId))
+      return res.status(400).json({ ok: false, error: "invalid_feature_id" });
+    if (!registry.list().features.some((row) => row.id === featureId))
+      return res.status(404).json({ ok: false, error: "feature_not_found" });
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Connection", "keep-alive");
     res.flushHeaders?.();
     res.write("event: ready\ndata: {}\n\n");
-    const unsubscribe = registry.subscribe(featureId, message => {
+    const unsubscribe = registry.subscribe(featureId, (message) => {
       res.write(`event: feature\ndata: ${JSON.stringify(message)}\n\n`);
     });
     const keepAlive = setInterval(() => res.write(": keepalive\n\n"), 25000);
     keepAlive.unref?.();
-    req.on("close", () => { clearInterval(keepAlive); unsubscribe(); });
+    req.on("close", () => {
+      clearInterval(keepAlive);
+      unsubscribe();
+    });
     return undefined;
   });
   app.post("/api/features/:featureId/call", requireLocalOperator, async (req, res) => {
     const featureId = String(req.params.featureId || "");
-    if (!FEATURE_ID_RE.test(featureId)) return res.status(400).json({ ok: false, error: "invalid_feature_id" });
-    const result = await registry.request(featureId, req.body?.capability, req.body?.method, req.body?.payload, { timeoutMs: req.body?.timeoutMs });
+    if (!FEATURE_ID_RE.test(featureId))
+      return res.status(400).json({ ok: false, error: "invalid_feature_id" });
+    const result = await registry.request(
+      featureId,
+      req.body?.capability,
+      req.body?.method,
+      req.body?.payload,
+      { timeoutMs: req.body?.timeoutMs },
+    );
     res.status(result.ok ? 200 : result.error?.retryable ? 503 : 400).json(result);
   });
   app.get("/features-ui/:featureId/:pageId", requireLocalOperator, async (req, res, next) => {
     try {
       const featureId = String(req.params.featureId || "");
       const pageId = String(req.params.pageId || "");
-      if (!FEATURE_ID_RE.test(featureId) || !PAGE_ID_RE.test(pageId)) return res.status(400).type("text/plain").send("invalid_feature_page");
+      if (!FEATURE_ID_RE.test(featureId) || !PAGE_ID_RE.test(pageId))
+        return res.status(400).type("text/plain").send("invalid_feature_page");
       const result = await registry.readUiContribution(featureId, pageId);
-      if (!result.ok) return res.status(result.error === "ui_contribution_not_found" || result.error === "feature_not_found" ? 404 : 403).type("text/plain").send(result.error);
-      const feature = registry.list().features.find(row => row.id === featureId);
-      res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self' 'unsafe-inline'; worker-src 'self'; style-src 'unsafe-inline'; frame-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'");
+      if (!result.ok)
+        return res
+          .status(
+            result.error === "ui_contribution_not_found" || result.error === "feature_not_found"
+              ? 404
+              : 403,
+          )
+          .type("text/plain")
+          .send(result.error);
+      const feature = registry.list().features.find((row) => row.id === featureId);
+      res.setHeader(
+        "Content-Security-Policy",
+        "default-src 'none'; script-src 'self' 'unsafe-inline'; worker-src 'self'; style-src 'unsafe-inline'; frame-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'",
+      );
       res.setHeader("Cache-Control", "no-store");
       res.setHeader("Referrer-Policy", "no-referrer");
-      return res.type("html").send(featurePageShell(featureId, result.page, (feature?.uiContributions || []).map(page => page.id)));
-    } catch (error) { return next(error); }
+      return res.type("html").send(
+        featurePageShell(
+          featureId,
+          result.page,
+          (feature?.uiContributions || []).map((page) => page.id),
+        ),
+      );
+    } catch (error) {
+      return next(error);
+    }
   });
   app.get("/features-content/:featureId/:pageId", requireLocalOperator, async (req, res, next) => {
     try {
       const featureId = String(req.params.featureId || "");
       const pageId = String(req.params.pageId || "");
-      if (!FEATURE_ID_RE.test(featureId) || !PAGE_ID_RE.test(pageId)) return res.status(400).type("text/plain").send("invalid_feature_page");
+      if (!FEATURE_ID_RE.test(featureId) || !PAGE_ID_RE.test(pageId))
+        return res.status(400).type("text/plain").send("invalid_feature_page");
       const result = await registry.readUiContribution(featureId, pageId);
-      if (!result.ok) return res.status(result.error === "ui_contribution_not_found" || result.error === "feature_not_found" ? 404 : 403).type("text/plain").send(result.error);
-      const external = result.page.embedHosts.map(host => `https://${host}`);
-      const images = result.page.imageHosts.map(host => `https://${host}`);
-      res.setHeader("Content-Security-Policy", [
-        "default-src 'none'", `script-src 'unsafe-inline' ${external.join(" ")}`.trim(), "style-src 'unsafe-inline'",
-        `frame-src ${external.length ? external.join(" ") : "'none'"}`, `img-src data: ${images.join(" ")}`.trim(), "connect-src 'none'",
-        "media-src 'none'", "object-src 'none'", "base-uri 'none'", "form-action 'none'", "frame-ancestors 'self'",
-        `sandbox allow-scripts allow-presentation${featureId === "song-request" && pageId === "server-playlist" ? " allow-downloads" : ""}${result.page.embedHosts.length ? " allow-same-origin" : ""}${allowsExternalPopup(featureId, pageId) ? " allow-popups allow-popups-to-escape-sandbox" : ""}`
-      ].join("; "));
+      if (!result.ok)
+        return res
+          .status(
+            result.error === "ui_contribution_not_found" || result.error === "feature_not_found"
+              ? 404
+              : 403,
+          )
+          .type("text/plain")
+          .send(result.error);
+      const external = result.page.embedHosts.map((host) => `https://${host}`);
+      const images = result.page.imageHosts.map((host) => `https://${host}`);
+      res.setHeader(
+        "Content-Security-Policy",
+        [
+          "default-src 'none'",
+          `script-src 'unsafe-inline' ${external.join(" ")}`.trim(),
+          "style-src 'unsafe-inline'",
+          `frame-src ${external.length ? external.join(" ") : "'none'"}`,
+          `img-src data: ${images.join(" ")}`.trim(),
+          "connect-src 'none'",
+          "media-src 'none'",
+          "object-src 'none'",
+          "base-uri 'none'",
+          "form-action 'none'",
+          "frame-ancestors 'self'",
+          `sandbox allow-scripts allow-presentation${featureId === "song-request" && pageId === "server-playlist" ? " allow-downloads" : ""}${result.page.embedHosts.length ? " allow-same-origin" : ""}${allowsExternalPopup(featureId, pageId) ? " allow-popups allow-popups-to-escape-sandbox" : ""}`,
+        ].join("; "),
+      );
       res.setHeader("Cache-Control", "no-store");
       // YouTube rejects IFrame API playback without client identification (error 153).
       // External feature players receive only the loopback origin, never a path or token.
       res.setHeader("Referrer-Policy", result.page.embedHosts.length ? "origin" : "no-referrer");
-      return res.type("html").send(result.page.surface === 'panel' ? featurePresentation(result.content) : result.content);
-    } catch (error) { return next(error); }
+      return res
+        .type("html")
+        .send(
+          result.page.surface === "panel" ? featurePresentation(result.content) : result.content,
+        );
+    } catch (error) {
+      return next(error);
+    }
   });
   return Object.freeze({ prefix: "/api/features" });
 };

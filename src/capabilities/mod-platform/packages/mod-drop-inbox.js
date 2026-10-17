@@ -43,17 +43,22 @@ module.exports = function createModDropInbox(options = {}) {
       license: row.manifest?.license || "",
       permissions: row.manifest ? { ...row.manifest.permissions } : null,
       resources: row.manifest ? { ...row.manifest.resources } : null,
-      fingerprint: row.approval?.fingerprint || ""
+      fingerprint: row.approval?.fingerprint || "",
     };
   }
 
   async function inspectEntry(entry) {
     const sourcePath = path.join(inboxRoot, entry.name);
-    const kind = entry.isDirectory() ? "directory" : (entry.isFile() && path.extname(entry.name).toLowerCase() === ".zip" ? "archive" : "");
+    const kind = entry.isDirectory()
+      ? "directory"
+      : entry.isFile() && path.extname(entry.name).toLowerCase() === ".zip"
+        ? "archive"
+        : "";
     if (!kind || entry.isSymbolicLink() || entry.name.startsWith(".")) return null;
-    const result = kind === "archive"
-      ? await packageManager.inspectArchive(sourcePath)
-      : await packageManager.inspectSource(sourcePath);
+    const result =
+      kind === "archive"
+        ? await packageManager.inspectArchive(sourcePath)
+        : await packageManager.inspectSource(sourcePath);
     return {
       candidateId: candidateId(entry.name),
       sourceName: entry.name,
@@ -62,7 +67,7 @@ module.exports = function createModDropInbox(options = {}) {
       valid: result.ok === true,
       error: result.ok === true ? "" : String(result.error || "package_invalid"),
       manifest: result.ok === true ? result.manifest : null,
-      approval: result.ok === true ? result.approval : null
+      approval: result.ok === true ? result.approval : null,
     };
   }
 
@@ -78,9 +83,14 @@ module.exports = function createModDropInbox(options = {}) {
         if (row) next.push(row);
       } catch (error) {
         next.push({
-          candidateId: candidateId(entry.name), sourceName: entry.name, kind: "unknown",
-          valid: false, error: String(error?.message || "package_inspection_failed").slice(0, 120),
-          manifest: null, approval: null, sourcePath: path.join(inboxRoot, entry.name)
+          candidateId: candidateId(entry.name),
+          sourceName: entry.name,
+          kind: "unknown",
+          valid: false,
+          error: String(error?.message || "package_inspection_failed").slice(0, 120),
+          manifest: null,
+          approval: null,
+          sourcePath: path.join(inboxRoot, entry.name),
         });
       }
     }
@@ -99,7 +109,9 @@ module.exports = function createModDropInbox(options = {}) {
     clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
-      scan().catch(error => log.warn?.(`[MOD INBOX] scan unavailable: ${error?.message || error}`));
+      scan().catch((error) =>
+        log.warn?.(`[MOD INBOX] scan unavailable: ${error?.message || error}`),
+      );
     }, SCAN_DEBOUNCE_MS);
     timer.unref?.();
   }
@@ -111,7 +123,9 @@ module.exports = function createModDropInbox(options = {}) {
       if (stopped || watcher) return list();
       try {
         watcher = fs.watch(inboxRoot, { recursive: process.platform === "win32" }, scheduleScan);
-        watcher.on("error", error => log.warn?.(`[MOD INBOX] watcher error: ${error?.message || error}`));
+        watcher.on("error", (error) =>
+          log.warn?.(`[MOD INBOX] watcher error: ${error?.message || error}`),
+        );
       } catch (error) {
         log.warn?.(`[MOD INBOX] watcher unavailable: ${error?.message || error}`);
       }
@@ -120,14 +134,21 @@ module.exports = function createModDropInbox(options = {}) {
     return startPromise;
   }
 
-  function ready() { return startPromise || start(); }
+  function ready() {
+    return startPromise || start();
+  }
 
   function list() {
-    return { ok: true, inbox: "mod", total: rows.length, candidates: rows.map(publicRow) };
+    return {
+      ok: true,
+      inbox: "mod",
+      total: rows.length,
+      candidates: rows.map(publicRow),
+    };
   }
 
   function resolve(id) {
-    return rows.find(row => row.candidateId === String(id || "")) || null;
+    return rows.find((row) => row.candidateId === String(id || "")) || null;
   }
 
   function subscribe(listener) {
@@ -144,7 +165,17 @@ module.exports = function createModDropInbox(options = {}) {
     await scanning.catch(() => {});
   }
 
-  return Object.freeze({ inboxRoot, list, ready, resolve, scan, scheduleScan, start, subscribe, shutdown });
+  return Object.freeze({
+    inboxRoot,
+    list,
+    ready,
+    resolve,
+    scan,
+    scheduleScan,
+    start,
+    subscribe,
+    shutdown,
+  });
 };
 
 module.exports.candidateId = candidateId;

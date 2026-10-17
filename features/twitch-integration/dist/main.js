@@ -1,10 +1,19 @@
+/**
+ * Main.
+ * Developer context and change constraints:
+ * docs/DEVELOPMENT.md#lighting-and-dynamic-effects
+ */
 let context;
 
-async function activate(nextContext) { context = nextContext; }
+async function activate(nextContext) {
+  context = nextContext;
+}
 
 async function host(method, payload, timeoutMs = 5000) {
   if (!context) throw new Error("feature_not_active");
-  return context.callCapability("twitch.host.v1", method, payload, { timeoutMs });
+  return context.callCapability("twitch.host.v1", method, payload, {
+    timeoutMs,
+  });
 }
 
 async function handleRequest(request) {
@@ -22,13 +31,15 @@ async function handleRequest(request) {
     "twitch.redemptions.v1/settle": ["settle", 6000],
     "twitch.redemptions.v1/review": ["review-transactions", 1500],
     "twitch.redemptions.v1/reconcile": ["reconcile-transaction", 29000],
-    "twitch.chat.send.v1/send": ["send-chat", 6000]
+    "twitch.chat.send.v1/send": ["send-chat", 6000],
   };
   const route = routes[`${request.capability}/${request.method}`];
   if (!route) throw new Error("method_unavailable");
   return host(route[0], request.payload, route[1]);
 }
 
-async function deactivate() { context = null; }
+async function deactivate() {
+  context = null;
+}
 
 module.exports = { activate, handleRequest, deactivate };

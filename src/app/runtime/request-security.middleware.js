@@ -12,7 +12,9 @@ const LOOPBACK_HOST_ALIASES = new Set(["127.0.0.1", "localhost", "::1"]);
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 function normalizeAddressToken(value = "") {
-  const raw = String(value || "").trim().toLowerCase();
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase();
   if (!raw) return "";
   if (raw.startsWith("::ffff:")) return raw.slice("::ffff:".length);
   if (raw.startsWith("[") && raw.endsWith("]")) return raw.slice(1, -1);
@@ -36,7 +38,8 @@ function splitHostPort(rawHostHeader = "") {
     if (!match) return { host: "", port: 0 };
     const host = normalizeAddressToken(match[1] || "");
     const parsedPort = Number(match[2] || 0);
-    const port = Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= 65535 ? parsedPort : 0;
+    const port =
+      Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= 65535 ? parsedPort : 0;
     return { host, port };
   }
   const parts = raw.split(":");
@@ -47,7 +50,7 @@ function splitHostPort(rawHostHeader = "") {
   if (Number.isInteger(maybePort) && maybePort > 0 && maybePort <= 65535) {
     return {
       host: normalizeAddressToken(parts.slice(0, -1).join(":")),
-      port: maybePort
+      port: maybePort,
     };
   }
   return { host: normalizeAddressToken(raw), port: 0 };
@@ -78,21 +81,23 @@ function isLocalOrSameHostRequest(req = {}) {
 
 function validateBrowserOrigin(req = {}, options = {}) {
   const allowRemoteWrite = options.allowRemoteWrite === true;
-  const allowedOrigins = new Set((options.allowedOrigins || []).map(value => String(value || "").trim()).filter(Boolean));
+  const allowedOrigins = new Set(
+    (options.allowedOrigins || []).map((value) => String(value || "").trim()).filter(Boolean),
+  );
   const origin = String(req?.headers?.origin || "").trim();
   const localRequest = isLocalOrSameHostRequest(req);
   if (!origin) {
     return {
       ok: localRequest || allowRemoteWrite,
       allowOrigin: "",
-      reason: localRequest || allowRemoteWrite ? "" : "remote request without origin blocked"
+      reason: localRequest || allowRemoteWrite ? "" : "remote request without origin blocked",
     };
   }
   if (origin === "null") {
     return {
       ok: localRequest || allowRemoteWrite,
       allowOrigin: localRequest || allowRemoteWrite ? "null" : "",
-      reason: "null origin blocked for non-local requests"
+      reason: "null origin blocked for non-local requests",
     };
   }
 
@@ -103,7 +108,7 @@ function validateBrowserOrigin(req = {}, options = {}) {
     return {
       ok: false,
       allowOrigin: "",
-      reason: "invalid origin header"
+      reason: "invalid origin header",
     };
   }
 
@@ -112,7 +117,7 @@ function validateBrowserOrigin(req = {}, options = {}) {
     return {
       ok: false,
       allowOrigin: "",
-      reason: "origin protocol not allowed"
+      reason: "origin protocol not allowed",
     };
   }
 
@@ -125,32 +130,32 @@ function validateBrowserOrigin(req = {}, options = {}) {
     originHost &&
     requestHost.host === originHost &&
     requestPort > 0 &&
-    requestPort === originPort
+    requestPort === originPort,
   );
   const loopbackAliasMatch = Boolean(
     isLoopbackAddressToken(requestHost.host) &&
     isLoopbackAddressToken(originHost) &&
     requestPort > 0 &&
-    requestPort === originPort
+    requestPort === originPort,
   );
   if (sameHost || loopbackAliasMatch) {
     return {
       ok: true,
       allowOrigin: origin,
-      reason: ""
+      reason: "",
     };
   }
   if ((localRequest && allowedOrigins.has(origin)) || allowRemoteWrite) {
     return {
       ok: true,
       allowOrigin: origin,
-      reason: ""
+      reason: "",
     };
   }
   return {
     ok: false,
     allowOrigin: "",
-    reason: "cross-origin request blocked"
+    reason: "cross-origin request blocked",
   };
 }
 
@@ -169,27 +174,35 @@ function installRequestSecurityMiddleware(app, options = {}) {
   const urlencodedParser = express.urlencoded({ extended: true });
   const port = Number(options.port || process.env.PORT || 5050);
   const allowWidgetCrossOrigin = options.allowWidgetCrossOrigin === true;
-  const isWidgetCrossOriginEnabled = typeof options.isWidgetCrossOriginEnabled === "function"
-    ? options.isWidgetCrossOriginEnabled
-    : () => allowWidgetCrossOrigin;
-  const widgetOrigins = Array.isArray(options.widgetOrigins) && options.widgetOrigins.length
-    ? options.widgetOrigins
-    : ["https://streamelements.com"];
+  const isWidgetCrossOriginEnabled =
+    typeof options.isWidgetCrossOriginEnabled === "function"
+      ? options.isWidgetCrossOriginEnabled
+      : () => allowWidgetCrossOrigin;
+  const widgetOrigins =
+    Array.isArray(options.widgetOrigins) && options.widgetOrigins.length
+      ? options.widgetOrigins
+      : ["https://streamelements.com"];
 
   app.use((req, res, next) => {
     const requestPath = String(req.path || "");
     const isModUiRequest = requestPath.startsWith("/mods-ui/");
     let widgetCrossOriginEnabled = false;
-    try { widgetCrossOriginEnabled = isWidgetCrossOriginEnabled() === true; } catch {}
+    try {
+      widgetCrossOriginEnabled = isWidgetCrossOriginEnabled() === true;
+    } catch {}
     const originValidation = validateBrowserOrigin(req, {
       allowRemoteWrite,
       port,
       allowedOrigins: /^\/api\/spotify\/bridge\/(hello|next|result)$/.test(requestPath)
-        ? ['https://xpui.app.spotify.com'] : widgetCrossOriginEnabled && requestPath === "/widget/events" ? widgetOrigins : []
+        ? ["https://xpui.app.spotify.com"]
+        : widgetCrossOriginEnabled && requestPath === "/widget/events"
+          ? widgetOrigins
+          : [],
     });
-    const privateNetworkRequested = String(
-      req?.headers?.["access-control-request-private-network"] || ""
-    ).trim().toLowerCase() === "true";
+    const privateNetworkRequested =
+      String(req?.headers?.["access-control-request-private-network"] || "")
+        .trim()
+        .toLowerCase() === "true";
     if (originValidation.allowOrigin) {
       res.setHeader("Access-Control-Allow-Origin", originValidation.allowOrigin);
       res.setHeader("Vary", "Origin");
@@ -202,7 +215,7 @@ function installRequestSecurityMiddleware(app, options = {}) {
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,PUT,PATCH,OPTIONS");
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "Content-Type, X-Requested-With, X-Ravelink-Mod-Key, X-Mod-Key, X-Api-Key, Authorization"
+      "Content-Type, X-Requested-With, X-Ravelink-Mod-Key, X-Mod-Key, X-Api-Key, Authorization",
     );
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
@@ -214,8 +227,8 @@ function installRequestSecurityMiddleware(app, options = {}) {
       res.setHeader(
         "Content-Security-Policy",
         "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; " +
-        "font-src 'self' data:; img-src 'self' data:; connect-src 'self'; frame-src 'self'; " +
-        "media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+          "font-src 'self' data:; img-src 'self' data:; connect-src 'self'; frame-src 'self'; " +
+          "media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
       );
     } else {
       res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
@@ -223,7 +236,7 @@ function installRequestSecurityMiddleware(app, options = {}) {
       res.setHeader(
         "Content-Security-Policy",
         "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+          "img-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
       );
     }
 
@@ -232,7 +245,7 @@ function installRequestSecurityMiddleware(app, options = {}) {
         res.status(403).json({
           ok: false,
           error: "untrusted_origin",
-          detail: originValidation.reason
+          detail: originValidation.reason,
         });
         return;
       }
@@ -241,14 +254,18 @@ function installRequestSecurityMiddleware(app, options = {}) {
     }
 
     if (
-      MUTATING_METHODS.has(String(req.method || "").trim().toUpperCase()) &&
+      MUTATING_METHODS.has(
+        String(req.method || "")
+          .trim()
+          .toUpperCase(),
+      ) &&
       !originValidation.ok &&
       !allowRemoteWrite
     ) {
       res.status(403).json({
         ok: false,
         error: "untrusted_origin",
-        detail: originValidation.reason
+        detail: originValidation.reason,
       });
       return;
     }
@@ -256,9 +273,10 @@ function installRequestSecurityMiddleware(app, options = {}) {
   });
 
   app.use((req, res, next) => {
-    const parser = enableLargeModImports && String(req.path || "") === "/mods/import"
-      ? jsonParserLarge
-      : jsonParserDefault;
+    const parser =
+      enableLargeModImports && String(req.path || "") === "/mods/import"
+        ? jsonParserLarge
+        : jsonParserDefault;
     parser(req, res, next);
   });
 
@@ -272,14 +290,18 @@ function installRequestSecurityMiddleware(app, options = {}) {
     if (err.type === "entity.too.large") {
       res.status(413).json({
         ok: false,
-        error: "payload too large"
+        error: "payload too large",
       });
       return;
     }
-    if (err instanceof SyntaxError && err.status === 400 && Object.prototype.hasOwnProperty.call(err, "body")) {
+    if (
+      err instanceof SyntaxError &&
+      err.status === 400 &&
+      Object.prototype.hasOwnProperty.call(err, "body")
+    ) {
       res.status(400).json({
         ok: false,
-        error: "invalid json payload"
+        error: "invalid json payload",
       });
       return;
     }
@@ -290,5 +312,5 @@ function installRequestSecurityMiddleware(app, options = {}) {
 module.exports = {
   installRequestSecurityMiddleware,
   validateBrowserOrigin,
-  isLocalOrSameHostRequest
+  isLocalOrSameHostRequest,
 };

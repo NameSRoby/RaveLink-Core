@@ -1,149 +1,1128 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RaveLink Now Playing</title><style>html{color-scheme:normal!important}html,body{margin:0;width:100%;height:100%;background:transparent!important;overflow:hidden}</style>
-<!-- SONG_OVERLAY_STYLE_START -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>RaveLink Now Playing</title>
+    <style>
+      html {
+        color-scheme: normal !important;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent !important;
+        overflow: hidden;
+      }
+    </style>
+    <!-- SONG_OVERLAY_STYLE_START -->
 <style>
-.song-overlay{position:absolute;display:flex;box-sizing:border-box;min-width:0;max-width:calc(100% - 24px);width:var(--owidth);max-height:calc(100% - 24px);gap:var(--ogap);color:var(--otext);font:calc(16px * var(--oscale))/1.25 var(--ofont);filter:drop-shadow(0 3px 5px rgba(0,0,0,var(--oshadow)));overflow:hidden}
-.song-overlay *{box-sizing:border-box}.song-overlay.hidden{display:none!important}.song-overlay.height-fixed{height:min(var(--oheight),calc(100% - 24px))}.song-overlay.column{flex-direction:column}.song-overlay.row{flex-direction:row;flex-wrap:wrap;align-items:stretch}.song-overlay.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start}.song-overlay.content-center{justify-content:center;align-content:center}.song-overlay.content-end{justify-content:flex-end;align-content:end}.song-overlay.content-center .segment.column{justify-content:center}.song-overlay.content-end .segment.column{justify-content:flex-end}
-.song-overlay.top-left{left:12px;top:12px}.song-overlay.top-center{left:50%;top:12px;transform:translateX(-50%)}.song-overlay.top-right{right:12px;top:12px}.song-overlay.bottom-left{left:12px;bottom:12px}.song-overlay.bottom-center{left:50%;bottom:12px;transform:translateX(-50%)}.song-overlay.bottom-right{right:12px;bottom:12px}
-.song-overlay:not(.separated){padding:var(--opad);background:var(--osurface);border-radius:var(--oradius);border:var(--oborder) solid var(--oborderColor)}.song-overlay:not(.separated).edge-left{border-left:var(--oedge) solid var(--oaccent)}.song-overlay:not(.separated).edge-top{border-top:var(--oedge) solid var(--oaccent)}.song-overlay:not(.separated).edge-bottom{border-bottom:var(--oedge) solid var(--oaccent)}.song-overlay:not(.separated).edge-right{border-right:var(--oedge) solid var(--oaccent)}
-.song-overlay .segment{min-width:0;max-width:100%;display:flex;gap:var(--obgap);padding:0;overflow:hidden;border:0;border-radius:0;background:none}.song-overlay .segment.column{flex-direction:column}.song-overlay .segment.row{flex-direction:row;flex-wrap:wrap;align-items:center}.song-overlay .segment.row.no-wrap{flex-wrap:nowrap}.song-overlay.row>.segment.wide{flex:1 1 180px}.song-overlay.row>.segment.compact{flex:0 1 auto;max-width:40%}.song-overlay.row>.segment.full{flex:1 1 100%}.song-overlay.grid>.segment.full,.song-overlay.grid>.segment:only-child{grid-column:1/-1}.song-overlay.column>.segment{flex:none}.song-overlay.separated .segment{padding:var(--opad);background:var(--osurface);border-radius:var(--oradius);border:var(--oborder) solid var(--oborderColor);border-left:var(--oedge) solid var(--oaccent)}
-.song-overlay .align-center{text-align:center}.song-overlay .align-right{text-align:right}.song-overlay .block{min-width:0;max-width:100%;flex-shrink:0}.song-overlay .segment.column>.block:not(.artwork){width:100%}.song-overlay .segment.row>.titleViewport,.song-overlay .segment.row>.artists,.song-overlay .segment.row>.album{flex:1 1 140px}.song-overlay .segment.row>.bar,.song-overlay .segment.row>.meta,.song-overlay .segment.row>.queue{flex:1 1 100%;width:100%}.song-overlay .segment.row.no-wrap>.bar,.song-overlay .segment.row.no-wrap>.meta{flex:1 1 100px;width:auto}
-.song-overlay .label{font-size:calc(11px * var(--oscale));font-weight:900;color:var(--oaccent)}.song-overlay h1{margin:0;font-size:calc(21px * var(--oscale));font-weight:800;line-height:1.15}.song-overlay p{margin:0;font-weight:600;color:var(--omuted)}.song-overlay .artists,.song-overlay .album,.song-overlay .provider,.song-overlay .queue{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.song-overlay .album{font-size:calc(12px * var(--oscale))}.song-overlay .meta{display:flex;justify-content:space-between;gap:12px;color:var(--omuted);font-size:calc(12px * var(--oscale));font-weight:800}.song-overlay .playbackTime{white-space:nowrap}.song-overlay .provider{font-size:calc(12px * var(--oscale));font-weight:900;color:var(--oaccent)}.song-overlay .bar{height:calc(4px * var(--oscale));min-height:2px;background:rgba(128,144,170,.28);border-radius:4px;overflow:hidden}.song-overlay .bar span{display:block;height:100%;background:var(--oaccent)}.song-overlay .queue{padding-top:5px;border-top:1px solid rgba(255,255,255,.18);font-size:calc(12px * var(--oscale));font-weight:700;color:var(--omuted)}.song-overlay .artwork{width:var(--oart);height:auto;aspect-ratio:1;flex:0 0 auto;overflow:hidden;border-radius:var(--oradius);background:linear-gradient(135deg,var(--oaccent),var(--omuted))}.song-overlay .artwork img{display:block;width:100%;height:100%;object-fit:cover}
-.song-overlay .titleViewport{display:block;width:100%;overflow:hidden}.song-overlay .marqueeTrack{display:flex;width:max-content;gap:var(--marquee-gap,32px)}.song-overlay .marqueeTrack h1{white-space:nowrap;flex:none}.song-overlay.title-ellipsis .marqueeTrack{width:100%}.song-overlay.title-ellipsis h1{overflow:hidden;text-overflow:ellipsis}.song-overlay.title-wrap .marqueeTrack{width:100%}.song-overlay.title-wrap h1{white-space:normal;overflow-wrap:anywhere}.song-overlay .titleViewport.scrolling .marqueeTrack{animation:song-ticker var(--marquee-duration) linear infinite;will-change:transform}.song-overlay.subtle{animation:song-arrive .25s ease-out}.song-overlay.slide .segment{animation:song-slide .3s ease-out}@keyframes song-ticker{to{transform:translateX(calc(-1 * var(--marquee-distance)))}}@keyframes song-arrive{from{opacity:0}to{opacity:1}}@keyframes song-slide{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+/**
+ * Overlay renderer.
+ * Developer context and change constraints:
+ * docs/DEVELOPMENT.md#song-requests-providers-and-playback
+ */
+.song-overlay {
+  position: absolute;
+  display: flex;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: calc(100% - 24px);
+  width: var(--owidth);
+  max-height: calc(100% - 24px);
+  gap: var(--ogap);
+  color: var(--otext);
+  font: calc(16px * var(--oscale))/1.25 var(--ofont);
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, var(--oshadow)));
+  overflow: hidden;
+}
+.song-overlay * {
+  box-sizing: border-box;
+}
+.song-overlay.hidden {
+  display: none !important;
+}
+.song-overlay.height-fixed {
+  height: min(var(--oheight), calc(100% - 24px));
+}
+.song-overlay.column {
+  flex-direction: column;
+}
+.song-overlay.row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+.song-overlay.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+}
+.song-overlay.content-center {
+  justify-content: center;
+  align-content: center;
+}
+.song-overlay.content-end {
+  justify-content: flex-end;
+  align-content: end;
+}
+.song-overlay.content-center .segment.column {
+  justify-content: center;
+}
+.song-overlay.content-end .segment.column {
+  justify-content: flex-end;
+}
+.song-overlay.top-left {
+  left: 12px;
+  top: 12px;
+}
+.song-overlay.top-center {
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+}
+.song-overlay.top-right {
+  right: 12px;
+  top: 12px;
+}
+.song-overlay.bottom-left {
+  left: 12px;
+  bottom: 12px;
+}
+.song-overlay.bottom-center {
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+}
+.song-overlay.bottom-right {
+  right: 12px;
+  bottom: 12px;
+}
+.song-overlay:not(.separated) {
+  padding: var(--opad);
+  background: var(--osurface);
+  border-radius: var(--oradius);
+  border: var(--oborder) solid var(--oborderColor);
+}
+.song-overlay:not(.separated).edge-left {
+  border-left: var(--oedge) solid var(--oaccent);
+}
+.song-overlay:not(.separated).edge-top {
+  border-top: var(--oedge) solid var(--oaccent);
+}
+.song-overlay:not(.separated).edge-bottom {
+  border-bottom: var(--oedge) solid var(--oaccent);
+}
+.song-overlay:not(.separated).edge-right {
+  border-right: var(--oedge) solid var(--oaccent);
+}
+.song-overlay .segment {
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  gap: var(--obgap);
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.song-overlay .segment.column {
+  flex-direction: column;
+}
+.song-overlay .segment.row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.song-overlay .segment.row.no-wrap {
+  flex-wrap: nowrap;
+}
+.song-overlay.row > .segment.wide {
+  flex: 1 1 180px;
+}
+.song-overlay.row > .segment.compact {
+  flex: 0 1 auto;
+  max-width: 40%;
+}
+.song-overlay.row > .segment.full {
+  flex: 1 1 100%;
+}
+.song-overlay.grid > .segment.full,
+.song-overlay.grid > .segment:only-child {
+  grid-column: 1/-1;
+}
+.song-overlay.column > .segment {
+  flex: none;
+}
+.song-overlay.separated .segment {
+  padding: var(--opad);
+  background: var(--osurface);
+  border-radius: var(--oradius);
+  border: var(--oborder) solid var(--oborderColor);
+  border-left: var(--oedge) solid var(--oaccent);
+}
+.song-overlay .align-center {
+  text-align: center;
+}
+.song-overlay .align-right {
+  text-align: right;
+}
+.song-overlay .block {
+  min-width: 0;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+.song-overlay .segment.column > .block:not(.artwork) {
+  width: 100%;
+}
+.song-overlay .segment.row > .titleViewport,
+.song-overlay .segment.row > .artists,
+.song-overlay .segment.row > .album {
+  flex: 1 1 140px;
+}
+.song-overlay .segment.row > .bar,
+.song-overlay .segment.row > .meta,
+.song-overlay .segment.row > .queue {
+  flex: 1 1 100%;
+  width: 100%;
+}
+.song-overlay .segment.row.no-wrap > .bar,
+.song-overlay .segment.row.no-wrap > .meta {
+  flex: 1 1 100px;
+  width: auto;
+}
+.song-overlay .label {
+  font-size: calc(11px * var(--oscale));
+  font-weight: 900;
+  color: var(--oaccent);
+}
+.song-overlay h1 {
+  margin: 0;
+  font-size: calc(21px * var(--oscale));
+  font-weight: 800;
+  line-height: 1.15;
+}
+.song-overlay p {
+  margin: 0;
+  font-weight: 600;
+  color: var(--omuted);
+}
+.song-overlay .artists,
+.song-overlay .album,
+.song-overlay .provider,
+.song-overlay .queue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.song-overlay .album {
+  font-size: calc(12px * var(--oscale));
+}
+.song-overlay .meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--omuted);
+  font-size: calc(12px * var(--oscale));
+  font-weight: 800;
+}
+.song-overlay .playbackTime {
+  white-space: nowrap;
+}
+.song-overlay .provider {
+  font-size: calc(12px * var(--oscale));
+  font-weight: 900;
+  color: var(--oaccent);
+}
+.song-overlay .bar {
+  height: calc(4px * var(--oscale));
+  min-height: 2px;
+  background: rgba(128, 144, 170, 0.28);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.song-overlay .bar span {
+  display: block;
+  height: 100%;
+  background: var(--oaccent);
+}
+.song-overlay .queue {
+  padding-top: 5px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: calc(12px * var(--oscale));
+  font-weight: 700;
+  color: var(--omuted);
+}
+.song-overlay .artwork {
+  width: var(--oart);
+  height: auto;
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: var(--oradius);
+  background: linear-gradient(135deg, var(--oaccent), var(--omuted));
+}
+.song-overlay .artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.song-overlay .titleViewport {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+.song-overlay .marqueeTrack {
+  display: flex;
+  width: max-content;
+  gap: var(--marquee-gap, 32px);
+}
+.song-overlay .marqueeTrack h1 {
+  white-space: nowrap;
+  flex: none;
+}
+.song-overlay.title-ellipsis .marqueeTrack {
+  width: 100%;
+}
+.song-overlay.title-ellipsis h1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.song-overlay.title-wrap .marqueeTrack {
+  width: 100%;
+}
+.song-overlay.title-wrap h1 {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.song-overlay .titleViewport.scrolling .marqueeTrack {
+  animation: song-ticker var(--marquee-duration) linear infinite;
+  will-change: transform;
+}
+.song-overlay.subtle {
+  animation: song-arrive 0.25s ease-out;
+}
+.song-overlay.slide .segment {
+  animation: song-slide 0.3s ease-out;
+}
+@keyframes song-ticker {
+  to {
+    transform: translateX(calc(-1 * var(--marquee-distance)));
+  }
+}
+@keyframes song-arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes song-slide {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-.song-overlay .segment.column.align-center>.artwork{align-self:center}.song-overlay .segment.column.align-right>.artwork{align-self:flex-end}
+.song-overlay .segment.column.align-center > .artwork {
+  align-self: center;
+}
+.song-overlay .segment.column.align-right > .artwork {
+  align-self: flex-end;
+}
 
-.song-overlay .align-center .titleViewport:not(.scrolling) .marqueeTrack{margin-inline:auto}.song-overlay .align-right .titleViewport:not(.scrolling) .marqueeTrack{margin-left:auto}
+.song-overlay .align-center .titleViewport:not(.scrolling) .marqueeTrack {
+  margin-inline: auto;
+}
+.song-overlay .align-right .titleViewport:not(.scrolling) .marqueeTrack {
+  margin-left: auto;
+}
 
-.song-overlay.title-wrap h1,.song-overlay.title-ellipsis h1{min-width:0;width:100%;flex:0 1 100%}
-.song-overlay.separated .segment{border-left-width:var(--oborder)}.song-overlay.separated.edge-left>.segment{border-left:var(--oedge) solid var(--oaccent)}.song-overlay.separated.edge-top>.segment{border-top:var(--oedge) solid var(--oaccent)}.song-overlay.separated.edge-right>.segment{border-right:var(--oedge) solid var(--oaccent)}.song-overlay.separated.edge-bottom>.segment{border-bottom:var(--oedge) solid var(--oaccent)}
+.song-overlay.title-wrap h1,
+.song-overlay.title-ellipsis h1 {
+  min-width: 0;
+  width: 100%;
+  flex: 0 1 100%;
+}
+.song-overlay.separated .segment {
+  border-left-width: var(--oborder);
+}
+.song-overlay.separated.edge-left > .segment {
+  border-left: var(--oedge) solid var(--oaccent);
+}
+.song-overlay.separated.edge-top > .segment {
+  border-top: var(--oedge) solid var(--oaccent);
+}
+.song-overlay.separated.edge-right > .segment {
+  border-right: var(--oedge) solid var(--oaccent);
+}
+.song-overlay.separated.edge-bottom > .segment {
+  border-bottom: var(--oedge) solid var(--oaccent);
+}
 
-.song-overlay.skin-glass:not(.separated){background:linear-gradient(135deg,color-mix(in srgb,var(--oaccent) 16%,var(--osurface)),var(--osurface));box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.06)}
-.song-overlay.skin-glass .artwork{border-radius:calc(var(--oradius) * .6);box-shadow:0 5px 16px #0005}.song-overlay.skin-glass .label{letter-spacing:.15em;font-size:10px}.song-overlay.skin-glass .bar{height:3px}.song-overlay.skin-glass .meta{font-weight:500}
-.song-overlay.skin-neon:not(.separated),.song-overlay.skin-neon.separated>.segment{box-shadow:inset 0 0 0 1px var(--oaccent),inset 0 0 24px color-mix(in srgb,var(--oaccent) 10%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--oaccent) 10%,var(--osurface)),var(--osurface))}.song-overlay.skin-neon .label,.song-overlay.skin-neon .provider{letter-spacing:.18em}.song-overlay.skin-neon .bar{box-shadow:0 0 8px var(--oaccent)}
-.song-overlay.skin-broadcast:not(.separated){background:linear-gradient(90deg,color-mix(in srgb,var(--oaccent) 25%,var(--osurface)),var(--osurface));border-bottom:6px solid var(--oaccent)}.song-overlay.skin-broadcast .label{background:var(--oaccent);color:var(--otext);padding:5px 12px;width:max-content!important;align-self:center;letter-spacing:.2em}.song-overlay.skin-broadcast h1{font-size:calc(28px * var(--oscale));text-transform:uppercase}.song-overlay.skin-broadcast .bar{height:2px}
-.song-overlay.skin-vinyl .artwork{border-radius:50%;border:10px solid #08090d;box-shadow:0 0 0 1px #ffffff24,0 8px 22px #0008;background:repeating-radial-gradient(circle,#0000 0 3px,#0005 4px 5px),linear-gradient(135deg,var(--oaccent),var(--omuted))}.song-overlay.skin-vinyl .artwork:after{content:"";position:absolute;inset:43%;border-radius:50%;background:#08090d;border:4px solid var(--oaccent)}.song-overlay .artwork{position:relative}.song-overlay.skin-vinyl .label{letter-spacing:.22em}.song-overlay.skin-vinyl .meta{font-size:10px;letter-spacing:.06em}
-.song-overlay.skin-editorial.separated>.segment{background:var(--osurface);border-top:2px solid var(--oaccent)}.song-overlay.skin-editorial .label{letter-spacing:.22em;font-size:10px}.song-overlay.skin-editorial h1{font-size:calc(25px * var(--oscale));font-weight:500}.song-overlay.skin-editorial .queue{border-top:0;padding-top:0;font-weight:400;letter-spacing:.04em}.song-overlay.skin-editorial .meta{font-weight:400}
-.song-overlay.skin-minimal .label{letter-spacing:.25em;font-weight:500}.song-overlay.skin-minimal h1{font-weight:500}.song-overlay.skin-minimal .bar{height:2px}.song-overlay.skin-minimal .artists{font-size:12px;letter-spacing:.04em}
-.song-overlay .artwork:not(:has(img)):before{content:"";position:absolute;inset:18%;border:1px solid #ffffff80;border-radius:50%;background:radial-gradient(circle,#ffffff90 0 5%,transparent 6% 35%,#ffffff50 36% 37%,transparent 38%);transform:rotate(-20deg)}
-.song-overlay.skin-duo.separated>.segment{border:1px solid #ffffff18;background:var(--osurface);justify-content:center;min-height:0}
-.song-overlay.skin-duo .label,.song-overlay.skin-duo .provider{letter-spacing:.12em;font-size:10px;font-weight:600}
-.song-overlay.skin-duo .meta{font-size:11px;font-weight:500;color:var(--otext);margin:0}
-.song-overlay.skin-duo .bar{height:3px}
-.song-overlay:not(.skin-classic):not(.skin-broadcast) .label,.song-overlay:not(.skin-classic) .provider{color:color-mix(in srgb,var(--oaccent) 65%,white)}
+.song-overlay.skin-glass:not(.separated) {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--oaccent) 16%, var(--osurface)),
+    var(--osurface)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+.song-overlay.skin-glass .artwork {
+  border-radius: calc(var(--oradius) * 0.6);
+  box-shadow: 0 5px 16px #0005;
+}
+.song-overlay.skin-glass .label {
+  letter-spacing: 0.15em;
+  font-size: 10px;
+}
+.song-overlay.skin-glass .bar {
+  height: 3px;
+}
+.song-overlay.skin-glass .meta {
+  font-weight: 500;
+}
+.song-overlay.skin-neon:not(.separated),
+.song-overlay.skin-neon.separated > .segment {
+  box-shadow:
+    inset 0 0 0 1px var(--oaccent),
+    inset 0 0 24px color-mix(in srgb, var(--oaccent) 10%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--oaccent) 10%, var(--osurface)),
+    var(--osurface)
+  );
+}
+.song-overlay.skin-neon .label,
+.song-overlay.skin-neon .provider {
+  letter-spacing: 0.18em;
+}
+.song-overlay.skin-neon .bar {
+  box-shadow: 0 0 8px var(--oaccent);
+}
+.song-overlay.skin-broadcast:not(.separated) {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--oaccent) 25%, var(--osurface)),
+    var(--osurface)
+  );
+  border-bottom: 6px solid var(--oaccent);
+}
+.song-overlay.skin-broadcast .label {
+  background: var(--oaccent);
+  color: var(--otext);
+  padding: 5px 12px;
+  width: max-content !important;
+  align-self: center;
+  letter-spacing: 0.2em;
+}
+.song-overlay.skin-broadcast h1 {
+  font-size: calc(28px * var(--oscale));
+  text-transform: uppercase;
+}
+.song-overlay.skin-broadcast .bar {
+  height: 2px;
+}
+.song-overlay.skin-vinyl .artwork {
+  border-radius: 50%;
+  border: 10px solid #08090d;
+  box-shadow:
+    0 0 0 1px #ffffff24,
+    0 8px 22px #0008;
+  background:
+    repeating-radial-gradient(circle, #0000 0 3px, #0005 4px 5px),
+    linear-gradient(135deg, var(--oaccent), var(--omuted));
+}
+.song-overlay.skin-vinyl .artwork:after {
+  content: "";
+  position: absolute;
+  inset: 43%;
+  border-radius: 50%;
+  background: #08090d;
+  border: 4px solid var(--oaccent);
+}
+.song-overlay .artwork {
+  position: relative;
+}
+.song-overlay.skin-vinyl .label {
+  letter-spacing: 0.22em;
+}
+.song-overlay.skin-vinyl .meta {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+.song-overlay.skin-editorial.separated > .segment {
+  background: var(--osurface);
+  border-top: 2px solid var(--oaccent);
+}
+.song-overlay.skin-editorial .label {
+  letter-spacing: 0.22em;
+  font-size: 10px;
+}
+.song-overlay.skin-editorial h1 {
+  font-size: calc(25px * var(--oscale));
+  font-weight: 500;
+}
+.song-overlay.skin-editorial .queue {
+  border-top: 0;
+  padding-top: 0;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+.song-overlay.skin-editorial .meta {
+  font-weight: 400;
+}
+.song-overlay.skin-minimal .label {
+  letter-spacing: 0.25em;
+  font-weight: 500;
+}
+.song-overlay.skin-minimal h1 {
+  font-weight: 500;
+}
+.song-overlay.skin-minimal .bar {
+  height: 2px;
+}
+.song-overlay.skin-minimal .artists {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.song-overlay .artwork:not(:has(img)):before {
+  content: "";
+  position: absolute;
+  inset: 18%;
+  border: 1px solid #ffffff80;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    #ffffff90 0 5%,
+    transparent 6% 35%,
+    #ffffff50 36% 37%,
+    transparent 38%
+  );
+  transform: rotate(-20deg);
+}
+.song-overlay.skin-duo.separated > .segment {
+  border: 1px solid #ffffff18;
+  background: var(--osurface);
+  justify-content: center;
+  min-height: 0;
+}
+.song-overlay.skin-duo .label,
+.song-overlay.skin-duo .provider {
+  letter-spacing: 0.12em;
+  font-size: 10px;
+  font-weight: 600;
+}
+.song-overlay.skin-duo .meta {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--otext);
+  margin: 0;
+}
+.song-overlay.skin-duo .bar {
+  height: 3px;
+}
+.song-overlay:not(.skin-classic):not(.skin-broadcast) .label,
+.song-overlay:not(.skin-classic) .provider {
+  color: color-mix(in srgb, var(--oaccent) 65%, white);
+}
 
-.song-overlay{transition:opacity .2s ease,visibility 0s}.song-overlay.behavior-hidden{opacity:0!important;visibility:hidden;transition:opacity .2s ease,visibility 0s .2s;pointer-events:none}.song-overlay.skin-duo.grid{grid-template-columns:minmax(0,1fr) 100px}.song-overlay.skin-duo .playbackTime{font-size:11px}.song-overlay.skin-duo h1{font-size:calc(18px * var(--oscale))}.song-overlay.skin-duo .artists{font-size:calc(12px * var(--oscale))}@media(prefers-reduced-motion:reduce){.song-overlay,.song-overlay *{animation:none!important;transition:none!important}}
-.song-overlay.canvas-layout{display:block!important;height:var(--oheight);max-height:none;padding:0!important}
-.song-overlay.canvas-layout>.segment.positioned{position:absolute;display:block;max-width:none;min-height:0;margin:0;padding:0;overflow:hidden}
-.song-overlay.canvas-layout .block.positioned{position:absolute;max-width:none;margin:0;min-height:0;aspect-ratio:auto;flex:none}
+.song-overlay {
+  transition:
+    opacity 0.2s ease,
+    visibility 0s;
+}
+.song-overlay.behavior-hidden {
+  opacity: 0 !important;
+  visibility: hidden;
+  transition:
+    opacity 0.2s ease,
+    visibility 0s 0.2s;
+  pointer-events: none;
+}
+.song-overlay.skin-duo.grid {
+  grid-template-columns: minmax(0, 1fr) 100px;
+}
+.song-overlay.skin-duo .playbackTime {
+  font-size: 11px;
+}
+.song-overlay.skin-duo h1 {
+  font-size: calc(18px * var(--oscale));
+}
+.song-overlay.skin-duo .artists {
+  font-size: calc(12px * var(--oscale));
+}
+@media (prefers-reduced-motion: reduce) {
+  .song-overlay,
+  .song-overlay * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+.song-overlay.canvas-layout {
+  display: block !important;
+  height: var(--oheight);
+  max-height: none;
+  padding: 0 !important;
+}
+.song-overlay.canvas-layout > .segment.positioned {
+  position: absolute;
+  display: block;
+  max-width: none;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.song-overlay.canvas-layout .block.positioned {
+  position: absolute;
+  max-width: none;
+  margin: 0;
+  min-height: 0;
+  aspect-ratio: auto;
+  flex: none;
+}
 
-.song-overlay.canvas-layout>.shape-rectangle{border-radius:0!important}
-.song-overlay.canvas-layout>.shape-rounded{border-radius:var(--oradius,16px)}
-.song-overlay.canvas-layout>.shape-ellipse{border-radius:50%!important}
+.song-overlay.canvas-layout > .shape-rectangle {
+  border-radius: 0 !important;
+}
+.song-overlay.canvas-layout > .shape-rounded {
+  border-radius: var(--oradius, 16px);
+}
+.song-overlay.canvas-layout > .shape-ellipse {
+  border-radius: 50% !important;
+}
 
-.song-overlay .titleViewport[data-text-align=center]:not(.scrolling) .marqueeTrack{margin-inline:auto}
-.song-overlay .titleViewport[data-text-align=right]:not(.scrolling) .marqueeTrack{margin-left:auto}
+.song-overlay .titleViewport[data-text-align="center"]:not(.scrolling) .marqueeTrack {
+  margin-inline: auto;
+}
+.song-overlay .titleViewport[data-text-align="right"]:not(.scrolling) .marqueeTrack {
+  margin-left: auto;
+}
 /* Scroll is an explicit content setting, independent of entrance effects. */
-@media(prefers-reduced-motion:reduce){.song-overlay.title-scroll .titleViewport.scrolling .marqueeTrack{animation:song-ticker var(--marquee-duration) linear infinite!important}}
+@media (prefers-reduced-motion: reduce) {
+  .song-overlay.title-scroll .titleViewport.scrolling .marqueeTrack {
+    animation: song-ticker var(--marquee-duration) linear infinite !important;
+  }
+}
 </style>
-<!-- SONG_OVERLAY_STYLE_END --></head><body><main id="stage" class="stage hidden"></main><!-- SONG_OVERLAY_SCRIPT_START -->
+<!-- SONG_OVERLAY_STYLE_END -->
+  </head>
+  <body>
+    <main id="stage" class="stage hidden"></main>
+    <!-- SONG_OVERLAY_SCRIPT_START -->
 <script>
+/**
+ * Shared designer and OBS rendering engine.
+ * DOM replacement is separate from clock/progress updates. Retain marquee identity
+ * across unchanged metadata so playback ticks do not restart scrolling. Measure text
+ * overflow after layout and wait for fonts where needed. Visibility timers are per
+ * stage; one preview must not hide or reset another rendered overlay.
+ */
 // One renderer is embedded into both the designer and the OBS page at build time.
-(function(root){
-  const visibility=new WeakMap();
-  const resizeObservers=new WeakMap();
-  const providerColors={youtube:'#ff6978',tidal:'#c3d6f2',soundcloud:'#ff9655',spotify:'#6ed9aa','apple-music':'#fa819c'};
-  function trackVisibility(stage,config,current){
-    const item=current.candidate||current,key=JSON.stringify([item.provider,item.providerItemId,item.title,item.artists]),old=visibility.get(stage);
-    const pausedSince=current.status==='paused'?(old?.key===key&&old.status==='paused'?old.pausedSince:Date.now()):0;
-    visibility.set(stage,{key,status:current.status,pausedSince,config});
+(function (root) {
+  const visibility = new WeakMap();
+  const resizeObservers = new WeakMap();
+  const providerColors = {
+    youtube: "#ff6978",
+    tidal: "#c3d6f2",
+    soundcloud: "#ff9655",
+    spotify: "#6ed9aa",
+    "apple-music": "#fa819c",
+  };
+  function trackVisibility(stage, config, current) {
+    const item = current.candidate || current,
+      key = JSON.stringify([item.provider, item.providerItemId, item.title, item.artists]),
+      old = visibility.get(stage);
+    const pausedSince =
+      current.status === "paused"
+        ? old?.key === key && old.status === "paused"
+          ? old.pausedSince
+          : Date.now()
+        : 0;
+    visibility.set(stage, { key, status: current.status, pausedSince, config });
   }
-  function updateVisibility(stage){
-    const state=visibility.get(stage);if(!state)return;
-    const c=state.config,preview=stage.id==='preview'&&stage.dataset.testVisibility!=='true';
-    const hidden=!preview&&(c.hidePaused&&state.status==='paused'&&Date.now()-state.pausedSince>=(c.pauseHideSeconds||5)*1000||c.hideStopped&&state.status==='stopped'||c.hideLoading&&state.status==='loading');
-    stage.classList.toggle('behavior-hidden',Boolean(hidden));stage.setAttribute('aria-hidden',String(Boolean(hidden)));
+  function updateVisibility(stage) {
+    const state = visibility.get(stage);
+    if (!state) return;
+    const c = state.config,
+      preview = stage.id === "preview" && stage.dataset.testVisibility !== "true";
+    const hidden =
+      !preview &&
+      ((c.hidePaused &&
+        state.status === "paused" &&
+        Date.now() - state.pausedSince >= (c.pauseHideSeconds || 5) * 1000) ||
+        (c.hideStopped && state.status === "stopped") ||
+        (c.hideLoading && state.status === "loading"));
+    stage.classList.toggle("behavior-hidden", Boolean(hidden));
+    stage.setAttribute("aria-hidden", String(Boolean(hidden)));
   }
-  const sizes={small:10,medium:14,large:19,display:27},artSizes={small:52,medium:80,large:110,display:150};
-  const fonts={system:'"Segoe UI","Yu Gothic UI",Meiryo,"Microsoft YaHei UI","Malgun Gothic",Arial,sans-serif',serif:'Georgia,"Yu Mincho",serif',mono:'Consolas,"MS Gothic",monospace',cjk:'"Yu Gothic UI",Meiryo,"Microsoft YaHei UI",sans-serif'};
-  const node=(tag,cls,text)=>{const n=document.createElement(tag);n.className=cls||'';if(text!==undefined)n.textContent=String(text);return n};
-  const rgba=(hex,opacity)=>'rgba('+[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)).join(',')+','+opacity/100+')';
-  const clock=ms=>{const s=Math.max(0,Math.floor(ms/1000));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
-  function clockData(n,current){n.dataset.playbackClock='';n.dataset.position=String(current.positionMs||0);n.dataset.duration=String(current.durationMs||0);n.dataset.observed=String(current.observedAt||Date.now());n.dataset.status=current.status||'';return n}
-  function update(stage){updateVisibility(stage);stage.querySelectorAll('[data-playback-clock]').forEach(n=>{const d=n.dataset,duration=Number(d.duration),base=Number(d.position),position=Math.min(duration||Infinity,base+(d.status==='playing'?Math.max(0,Date.now()-Number(d.observed)):0));if(n.classList.contains('playbackTime'))n.textContent=duration?(visibility.get(stage)?.config.remainingTime?'-'+clock(Math.ceil(Math.max(0,duration-position)/1000)*1000):clock(position))+' / '+clock(duration):'';else n.style.width=duration?Math.min(100,Math.max(0,position/duration*100))+'%':'0%'})}
-  function block(raw,item,current,next,config){let n;const kind=raw.kind;
-    if(kind==='label')n=node('div','label','NOW PLAYING');
-    else if(kind==='title'){n=node('div','titleViewport title');const track=node('div','marqueeTrack');track.append(node('h1','',item.title||'Untitled'));n.append(track)}
-    else if(kind==='artists')n=node('p','artists muted',(item.artists||[]).join(', '));
-    else if(kind==='album'){if(!item.album)return null;n=node('p','album muted',item.album)}
-    else if(kind==='artwork'){n=node('div','artwork');if(item.artworkUrl){const img=node('img');img.src=item.artworkUrl;img.alt='';img.referrerPolicy='no-referrer';n.append(img)}}
-    else if(kind==='provider')n=node('div','provider',String(item.provider||current.provider||current.source||'').toUpperCase());
-    else if(kind==='meta'||kind==='time'){n=node('div','meta');if(kind==='meta')n.append(node('span','',String(item.provider||current.provider||current.source||'').toUpperCase()));n.append(clockData(node('span','playbackTime'),current))}
-    else if(kind==='progress'){n=node('div','bar progress');n.append(clockData(node('span','playbackProgress'),current))}
-    else if(kind==='queue'){if(!next.length)return null;n=node('div','queue','NEXT  //  '+next.slice(0,raw.count||3).join('  /  '))}
-    else return null;
-    n.classList.add('block','pv');n.dataset.blockId=raw.id;
-    if(config.layoutMode==='canvas'&&raw.frame)place(n,raw.frame);
-    const s=raw.style||{},target=kind==='title'?n.querySelector('h1'):n;
-    if(s.align){n.style.textAlign=s.align;if(kind==='title')n.dataset.textAlign=s.align;}
-    if(sizes[s.size]){if(kind==='artwork')n.style.setProperty('--oart',artSizes[s.size]*config.scale/100+'px');else if(kind==='progress')n.style.height=({small:2,medium:4,large:7,display:10})[s.size]+'px';else target.style.fontSize=sizes[s.size]*config.scale/100+'px'}
-    if(fonts[s.font])target.style.fontFamily=fonts[s.font];if(s.color){target.style.color=s.color;if(kind==='progress')n.firstElementChild.style.background=s.color}if(s.bold)target.style.fontWeight='800';if(s.italic)target.style.fontStyle='italic';if(s.uppercase)target.style.textTransform='uppercase';
+  const sizes = { small: 10, medium: 14, large: 19, display: 27 },
+    artSizes = { small: 52, medium: 80, large: 110, display: 150 };
+  const fonts = {
+    system:
+      '"Segoe UI","Yu Gothic UI",Meiryo,"Microsoft YaHei UI","Malgun Gothic",Arial,sans-serif',
+    serif: 'Georgia,"Yu Mincho",serif',
+    mono: 'Consolas,"MS Gothic",monospace',
+    cjk: '"Yu Gothic UI",Meiryo,"Microsoft YaHei UI",sans-serif',
+  };
+  const node = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    n.className = cls || "";
+    if (text !== undefined) n.textContent = String(text);
+    return n;
+  };
+  const rgba = (hex, opacity) =>
+    "rgba(" +
+    [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(",") +
+    "," +
+    opacity / 100 +
+    ")";
+  const clock = (ms) => {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  };
+  function clockData(n, current) {
+    n.dataset.playbackClock = "";
+    n.dataset.position = String(current.positionMs || 0);
+    n.dataset.duration = String(current.durationMs || 0);
+    n.dataset.observed = String(current.observedAt || Date.now());
+    n.dataset.status = current.status || "";
     return n;
   }
-  function marquee(stage){
-    if(!stage.classList.contains('title-scroll'))return;
-    stage.querySelectorAll('.titleViewport').forEach(view=>{
-      const track=view.firstElementChild,title=track?.firstElementChild,width=Math.ceil(title?.scrollWidth||0),available=view.clientWidth;
-      if(!available||!width)return;
-      const measurement=available+':'+width;if(view.dataset.marqueeReady===measurement)return;
-      view.dataset.marqueeReady=measurement;view.classList.remove('scrolling');track.querySelectorAll('[aria-hidden]').forEach(n=>n.remove());
-      if(width<=available+1)return;
-      const gap=Math.max(28,available*.12),distance=width+gap,copy=title.cloneNode(true);copy.setAttribute('aria-hidden','true');track.append(copy);
-      view.style.setProperty('--marquee-gap',gap+'px');view.style.setProperty('--marquee-distance',distance+'px');view.style.setProperty('--marquee-duration',Math.max(8,distance/32)+'s');view.classList.add('scrolling');
+  function update(stage) {
+    updateVisibility(stage);
+    stage.querySelectorAll("[data-playback-clock]").forEach((n) => {
+      const d = n.dataset,
+        duration = Number(d.duration),
+        base = Number(d.position),
+        position = Math.min(
+          duration || Infinity,
+          base + (d.status === "playing" ? Math.max(0, Date.now() - Number(d.observed)) : 0),
+        );
+      if (n.classList.contains("playbackTime"))
+        n.textContent = duration
+          ? (visibility.get(stage)?.config.remainingTime
+              ? "-" + clock(Math.ceil(Math.max(0, duration - position) / 1000) * 1000)
+              : clock(position)) +
+            " / " +
+            clock(duration)
+          : "";
+      else
+        n.style.width = duration
+          ? Math.min(100, Math.max(0, (position / duration) * 100)) + "%"
+          : "0%";
     });
   }
-  function place(n,f){n.classList.add('positioned');Object.assign(n.style,{left:f.x+'px',top:f.y+'px',width:f.width+'px',height:f.height+'px'});}
-  function render(stage,config,current,rows=[],theme={},options={}){
-    const c={...config};if(c.followAppColors!==false){for(const [key,source] of Object.entries({accent:'accent',surface:'surface',text:'text',muted:'muted'}))if(/^#[0-9a-f]{6}$/i.test(theme[source]||''))c[key]=theme[source]}
-    const provider=(current.candidate||current).provider;if(c.providerColors&&providerColors[provider])c.accent=providerColors[provider];
-    trackVisibility(stage,c,current);
-    const vars={owidth:c.width+'px',oheight:c.height+'px',oscale:c.scale/100,ogap:c.gap+'px',obgap:c.blockGap+'px',opad:c.padding+'px',oradius:c.radius+'px',oedge:c.accentWidth+'px',oshadow:c.shadow/100,oaccent:c.accent,osurface:rgba(c.surface,c.opacity),otext:c.text,omuted:c.muted,ofont:fonts[c.font]||fonts.system,oart:(c.artworkSize||110)*c.scale/100+'px',oborder:(c.borderWidth||0)+'px',oborderColor:c.borderColor||c.accent};
-    for(const [key,value]of Object.entries(vars))stage.style.setProperty('--'+key,value);
-    const idClass=stage.id==='preview'?'preview':'stage';stage.className=idClass+' song-overlay skin-'+(c.skin||'classic')+' '+c.flow+' '+c.anchor+' content-'+c.contentAlign+' edge-'+(c.accentPosition||'left')+' title-'+(c.titleMode||'scroll')+(c.separated?' separated':'')+(c.autoHeight?'':' height-fixed');
-    stage.classList.toggle('canvas-layout',c.layoutMode==='canvas');
-    const item=current.candidate||current,next=rows.filter(r=>r.id!==current.entryId).map(r=>r.candidate?.title||r.query);
-    stage.replaceChildren(...c.segments.filter(s=>s.enabled).map(s=>{const n=node('section','segment preview-segment '+s.direction+' '+s.size+' align-'+s.align+(s.wrap===false?' no-wrap':''));n.dataset.segmentId=s.id;n.append(...s.blocks.map(b=>block(b,item,current,next,c)).filter(Boolean));const style=s.style||{};if(style.surface||style.opacity!==null&&style.opacity!==undefined)n.style.background=rgba(style.surface||c.surface,style.opacity??c.opacity);if(style.accent)n.style.borderLeftColor=style.accent;for(const [key,prop]of Object.entries({padding:'padding',radius:'borderRadius',accentWidth:'borderLeftWidth'}))if(style[key]!==null&&style[key]!==undefined)n.style[prop]=style[key]+'px';if(style.accentWidth)n.style.borderLeftStyle='solid';return n}).filter(n=>n.childElementCount||c.layoutMode==='canvas'));
-    if(c.layoutMode==='canvas'){
+  function block(raw, item, current, next, config) {
+    let n;
+    const kind = raw.kind;
+    if (kind === "label") n = node("div", "label", "NOW PLAYING");
+    else if (kind === "title") {
+      n = node("div", "titleViewport title");
+      const track = node("div", "marqueeTrack");
+      track.append(node("h1", "", item.title || "Untitled"));
+      n.append(track);
+    } else if (kind === "artists") n = node("p", "artists muted", (item.artists || []).join(", "));
+    else if (kind === "album") {
+      if (!item.album) return null;
+      n = node("p", "album muted", item.album);
+    } else if (kind === "artwork") {
+      n = node("div", "artwork");
+      if (item.artworkUrl) {
+        const img = node("img");
+        img.src = item.artworkUrl;
+        img.alt = "";
+        img.referrerPolicy = "no-referrer";
+        n.append(img);
+      }
+    } else if (kind === "provider")
+      n = node(
+        "div",
+        "provider",
+        String(item.provider || current.provider || current.source || "").toUpperCase(),
+      );
+    else if (kind === "meta" || kind === "time") {
+      n = node("div", "meta");
+      if (kind === "meta")
+        n.append(
+          node(
+            "span",
+            "",
+            String(item.provider || current.provider || current.source || "").toUpperCase(),
+          ),
+        );
+      n.append(clockData(node("span", "playbackTime"), current));
+    } else if (kind === "progress") {
+      n = node("div", "bar progress");
+      n.append(clockData(node("span", "playbackProgress"), current));
+    } else if (kind === "queue") {
+      if (!next.length) return null;
+      n = node("div", "queue", "NEXT  //  " + next.slice(0, raw.count || 3).join("  /  "));
+    } else return null;
+    n.classList.add("block", "pv");
+    n.dataset.blockId = raw.id;
+    if (config.layoutMode === "canvas" && raw.frame) place(n, raw.frame);
+    const s = raw.style || {},
+      target = kind === "title" ? n.querySelector("h1") : n;
+    if (s.align) {
+      n.style.textAlign = s.align;
+      if (kind === "title") n.dataset.textAlign = s.align;
+    }
+    if (sizes[s.size]) {
+      if (kind === "artwork")
+        n.style.setProperty("--oart", (artSizes[s.size] * config.scale) / 100 + "px");
+      else if (kind === "progress")
+        n.style.height = { small: 2, medium: 4, large: 7, display: 10 }[s.size] + "px";
+      else target.style.fontSize = (sizes[s.size] * config.scale) / 100 + "px";
+    }
+    if (fonts[s.font]) target.style.fontFamily = fonts[s.font];
+    if (s.color) {
+      target.style.color = s.color;
+      if (kind === "progress") n.firstElementChild.style.background = s.color;
+    }
+    if (s.bold) target.style.fontWeight = "800";
+    if (s.italic) target.style.fontStyle = "italic";
+    if (s.uppercase) target.style.textTransform = "uppercase";
+    return n;
+  }
+  function marquee(stage) {
+    if (!stage.classList.contains("title-scroll")) return;
+    stage.querySelectorAll(".titleViewport").forEach((view) => {
+      const track = view.firstElementChild,
+        title = track?.firstElementChild,
+        width = Math.ceil(title?.scrollWidth || 0),
+        available = view.clientWidth;
+      if (!available || !width) return;
+      const measurement = available + ":" + width;
+      if (view.dataset.marqueeReady === measurement) return;
+      view.dataset.marqueeReady = measurement;
+      view.classList.remove("scrolling");
+      track.querySelectorAll("[aria-hidden]").forEach((n) => n.remove());
+      if (width <= available + 1) return;
+      const gap = Math.max(28, available * 0.12),
+        distance = width + gap,
+        copy = title.cloneNode(true);
+      copy.setAttribute("aria-hidden", "true");
+      track.append(copy);
+      view.style.setProperty("--marquee-gap", gap + "px");
+      view.style.setProperty("--marquee-distance", distance + "px");
+      view.style.setProperty("--marquee-duration", Math.max(8, distance / 32) + "s");
+      view.classList.add("scrolling");
+    });
+  }
+  function place(n, f) {
+    n.classList.add("positioned");
+    Object.assign(n.style, {
+      left: f.x + "px",
+      top: f.y + "px",
+      width: f.width + "px",
+      height: f.height + "px",
+    });
+  }
+  function render(stage, config, current, rows = [], theme = {}, options = {}) {
+    const c = { ...config };
+    if (c.followAppColors !== false) {
+      for (const [key, source] of Object.entries({
+        accent: "accent",
+        surface: "surface",
+        text: "text",
+        muted: "muted",
+      }))
+        if (/^#[0-9a-f]{6}$/i.test(theme[source] || "")) c[key] = theme[source];
+    }
+    const provider = (current.candidate || current).provider;
+    if (c.providerColors && providerColors[provider]) c.accent = providerColors[provider];
+    trackVisibility(stage, c, current);
+    const vars = {
+      owidth: c.width + "px",
+      oheight: c.height + "px",
+      oscale: c.scale / 100,
+      ogap: c.gap + "px",
+      obgap: c.blockGap + "px",
+      opad: c.padding + "px",
+      oradius: c.radius + "px",
+      oedge: c.accentWidth + "px",
+      oshadow: c.shadow / 100,
+      oaccent: c.accent,
+      osurface: rgba(c.surface, c.opacity),
+      otext: c.text,
+      omuted: c.muted,
+      ofont: fonts[c.font] || fonts.system,
+      oart: ((c.artworkSize || 110) * c.scale) / 100 + "px",
+      oborder: (c.borderWidth || 0) + "px",
+      oborderColor: c.borderColor || c.accent,
+    };
+    for (const [key, value] of Object.entries(vars)) stage.style.setProperty("--" + key, value);
+    const idClass = stage.id === "preview" ? "preview" : "stage";
+    stage.className =
+      idClass +
+      " song-overlay skin-" +
+      (c.skin || "classic") +
+      " " +
+      c.flow +
+      " " +
+      c.anchor +
+      " content-" +
+      c.contentAlign +
+      " edge-" +
+      (c.accentPosition || "left") +
+      " title-" +
+      (c.titleMode || "scroll") +
+      (c.separated ? " separated" : "") +
+      (c.autoHeight ? "" : " height-fixed");
+    stage.classList.toggle("canvas-layout", c.layoutMode === "canvas");
+    const item = current.candidate || current,
+      next = rows.filter((r) => r.id !== current.entryId).map((r) => r.candidate?.title || r.query);
+    stage.replaceChildren(
+      ...c.segments
+        .filter((s) => s.enabled)
+        .map((s) => {
+          const n = node(
+            "section",
+            "segment preview-segment " +
+              s.direction +
+              " " +
+              s.size +
+              " align-" +
+              s.align +
+              (s.wrap === false ? " no-wrap" : ""),
+          );
+          n.dataset.segmentId = s.id;
+          n.append(...s.blocks.map((b) => block(b, item, current, next, c)).filter(Boolean));
+          const style = s.style || {};
+          if (style.surface || (style.opacity !== null && style.opacity !== undefined))
+            n.style.background = rgba(style.surface || c.surface, style.opacity ?? c.opacity);
+          if (style.accent) n.style.borderLeftColor = style.accent;
+          for (const [key, prop] of Object.entries({
+            padding: "padding",
+            radius: "borderRadius",
+            accentWidth: "borderLeftWidth",
+          }))
+            if (style[key] !== null && style[key] !== undefined) n.style[prop] = style[key] + "px";
+          if (style.accentWidth) n.style.borderLeftStyle = "solid";
+          return n;
+        })
+        .filter((n) => n.childElementCount || c.layoutMode === "canvas"),
+    );
+    if (c.layoutMode === "canvas") {
       // Empty shapes are useful surfaces and must also be visible in OBS.
-      for(const s of c.segments.filter(s=>s.enabled)){
-        let n=[...stage.children].find(n=>n.dataset.segmentId===s.id);
-        if(!n){n=node('section','segment preview-segment');n.dataset.segmentId=s.id;stage.append(n);}
-        if(s.frame)place(n,s.frame);
-        n.classList.add('shape-'+(s.shape||'rectangle'));
-        if(s.style?.surface||!s.blocks.length)n.style.background=rgba(s.style?.surface||c.surface,s.style?.opacity??c.opacity);
+      for (const s of c.segments.filter((s) => s.enabled)) {
+        let n = [...stage.children].find((n) => n.dataset.segmentId === s.id);
+        if (!n) {
+          n = node("section", "segment preview-segment");
+          n.dataset.segmentId = s.id;
+          stage.append(n);
+        }
+        if (s.frame) place(n, s.frame);
+        n.classList.add("shape-" + (s.shape || "rectangle"));
+        if (s.style?.surface || !s.blocks.length)
+          n.style.background = rgba(s.style?.surface || c.surface, s.style?.opacity ?? c.opacity);
       }
       // Restore layer order even when some surfaces contain no information.
-      for(const s of c.segments){const n=[...stage.children].find(n=>n.dataset.segmentId===s.id);if(n)stage.append(n);}
+      for (const s of c.segments) {
+        const n = [...stage.children].find((n) => n.dataset.segmentId === s.id);
+        if (n) stage.append(n);
+      }
     }
     resizeObservers.get(stage)?.disconnect();
-    const observer=new ResizeObserver(()=>marquee(stage));resizeObservers.set(stage,observer);
-    stage.querySelectorAll('.titleViewport').forEach(n=>observer.observe(n));
-    document.fonts?.ready.then(()=>marquee(stage));
-    if(options.animate&&c.motion!=='off')stage.classList.add(c.motion);stage.classList.toggle('hidden',!stage.childElementCount);update(stage);requestAnimationFrame(()=>requestAnimationFrame(()=>marquee(stage)));
+    const observer = new ResizeObserver(() => marquee(stage));
+    resizeObservers.set(stage, observer);
+    stage.querySelectorAll(".titleViewport").forEach((n) => observer.observe(n));
+    document.fonts?.ready.then(() => marquee(stage));
+    if (options.animate && c.motion !== "off") stage.classList.add(c.motion);
+    stage.classList.toggle("hidden", !stage.childElementCount);
+    update(stage);
+    requestAnimationFrame(() => requestAnimationFrame(() => marquee(stage)));
   }
-  root.SongOverlayRenderer={render,update,marquee,clockData,observe:trackVisibility,reset:stage=>visibility.delete(stage)};
+  root.SongOverlayRenderer = {
+    render,
+    update,
+    marquee,
+    clockData,
+    observe: trackVisibility,
+    reset: (stage) => visibility.delete(stage),
+  };
 })(window);
 </script>
 <!-- SONG_OVERLAY_SCRIPT_END -->
-<script>
-const CHANNEL='ravelink-feature-ui-v1',pendingCalls=new Map();let sequence=0,lastConfig=null,lastPlayback=null,lastRows=[],previewConfig=null,appTheme={},refreshing=false,pending=false,lastIdentity='',lastRenderedConfig='',lastRenderedRows='';
-const $=id=>document.getElementById(id);
-function call(capability,method,payload=null){const id='ui-'+(++sequence);return new Promise((resolve,reject)=>{pendingCalls.set(id,{resolve,reject});parent.postMessage({channel:CHANNEL,type:'call',id,capability,method,payload},'*')})}
-function mediaKey(p){const item=p?.candidate||p||{};return JSON.stringify([item.provider,item.providerItemId,item.title,item.artists,item.album,item.artworkUrl])}
-function renderIfChanged(config,current,rows,force=false){SongOverlayRenderer.observe($('stage'),config,current);const key=JSON.stringify(config),rk=JSON.stringify(rows.map(r=>[r.id,r.candidate?.title,r.query])),identity=mediaKey(current);if(force||key!==lastRenderedConfig||rk!==lastRenderedRows||identity!==lastIdentity){SongOverlayRenderer.render($('stage'),config,current,rows,appTheme,{animate:identity!==lastIdentity});lastRenderedConfig=key;lastRenderedRows=rk;lastIdentity=identity}else{$('stage').querySelectorAll('[data-playback-clock]').forEach(n=>SongOverlayRenderer.clockData(n,current));SongOverlayRenderer.update($('stage'))}}
-function clearPlayback(){SongOverlayRenderer.reset($('stage'));lastPlayback=null;lastIdentity='';lastRenderedConfig='';$('stage').replaceChildren();$('stage').classList.add('hidden')}
-addEventListener('message',event=>{if(event.source!==parent||event.data?.channel!==CHANNEL)return;const m=event.data;if(m.type==='theme'){appTheme=m.theme||{};if(lastPlayback)renderIfChanged(previewConfig||lastConfig,lastPlayback,lastRows,true);return}if(m.type==='preview'&&m.config){previewConfig=m.config;if(lastPlayback)renderIfChanged(previewConfig,lastPlayback,lastRows,true);return}if(['event','resync','transport-error'].includes(m.type)){void refresh();return}const task=pendingCalls.get(m.id);if(!task)return;pendingCalls.delete(m.id);m.ok?task.resolve(m.value):task.reject(new Error(m.error||'unavailable'))});
-async function refresh(){if(refreshing){pending=true;return}refreshing=true;try{const [p,q,o]=await Promise.all([call('song.playback.read.v1','status'),call('song.queue.read.v1','status',{limit:6}),call('song.overlay.read.v1','status')]);lastConfig=o.config;lastRows=q.queue;if(!p.primary){clearPlayback();return}lastPlayback=p.primary;renderIfChanged(previewConfig||lastConfig,lastPlayback,lastRows)}catch{if(!lastPlayback)clearPlayback()}finally{refreshing=false;if(pending){pending=false;void refresh()}}}
-async function pollPlayback(){if(refreshing)return;try{const p=await call('song.playback.read.v1','status');if(!p.primary){clearPlayback();return}lastPlayback=p.primary;if(lastConfig)renderIfChanged(previewConfig||lastConfig,lastPlayback,lastRows)}catch{}}
-addEventListener('resize',()=>{if(lastPlayback)renderIfChanged(previewConfig||lastConfig,lastPlayback,lastRows,true)});
-void refresh();setInterval(()=>SongOverlayRenderer.update($('stage')),500);setInterval(pollPlayback,2000);setInterval(refresh,15000);
-</script></body></html>
+    <script>
+      const CHANNEL = "ravelink-feature-ui-v1",
+        pendingCalls = new Map();
+      let sequence = 0,
+        lastConfig = null,
+        lastPlayback = null,
+        lastRows = [],
+        previewConfig = null,
+        appTheme = {},
+        refreshing = false,
+        pending = false,
+        lastIdentity = "",
+        lastRenderedConfig = "",
+        lastRenderedRows = "";
+      const $ = (id) => document.getElementById(id);
+      function call(capability, method, payload = null) {
+        const id = "ui-" + ++sequence;
+        return new Promise((resolve, reject) => {
+          pendingCalls.set(id, { resolve, reject });
+          parent.postMessage(
+            { channel: CHANNEL, type: "call", id, capability, method, payload },
+            "*",
+          );
+        });
+      }
+      function mediaKey(p) {
+        const item = p?.candidate || p || {};
+        return JSON.stringify([
+          item.provider,
+          item.providerItemId,
+          item.title,
+          item.artists,
+          item.album,
+          item.artworkUrl,
+        ]);
+      }
+      function renderIfChanged(config, current, rows, force = false) {
+        SongOverlayRenderer.observe($("stage"), config, current);
+        const key = JSON.stringify(config),
+          rk = JSON.stringify(
+            rows.map((r) => [r.id, r.candidate?.title, r.query]),
+          ),
+          identity = mediaKey(current);
+        if (
+          force ||
+          key !== lastRenderedConfig ||
+          rk !== lastRenderedRows ||
+          identity !== lastIdentity
+        ) {
+          SongOverlayRenderer.render(
+            $("stage"),
+            config,
+            current,
+            rows,
+            appTheme,
+            { animate: identity !== lastIdentity },
+          );
+          lastRenderedConfig = key;
+          lastRenderedRows = rk;
+          lastIdentity = identity;
+        } else {
+          $("stage")
+            .querySelectorAll("[data-playback-clock]")
+            .forEach((n) => SongOverlayRenderer.clockData(n, current));
+          SongOverlayRenderer.update($("stage"));
+        }
+      }
+      function clearPlayback() {
+        SongOverlayRenderer.reset($("stage"));
+        lastPlayback = null;
+        lastIdentity = "";
+        lastRenderedConfig = "";
+        $("stage").replaceChildren();
+        $("stage").classList.add("hidden");
+      }
+      addEventListener("message", (event) => {
+        if (event.source !== parent || event.data?.channel !== CHANNEL) return;
+        const m = event.data;
+        if (m.type === "theme") {
+          appTheme = m.theme || {};
+          if (lastPlayback)
+            renderIfChanged(
+              previewConfig || lastConfig,
+              lastPlayback,
+              lastRows,
+              true,
+            );
+          return;
+        }
+        if (m.type === "preview" && m.config) {
+          previewConfig = m.config;
+          if (lastPlayback)
+            renderIfChanged(previewConfig, lastPlayback, lastRows, true);
+          return;
+        }
+        if (["event", "resync", "transport-error"].includes(m.type)) {
+          void refresh();
+          return;
+        }
+        const task = pendingCalls.get(m.id);
+        if (!task) return;
+        pendingCalls.delete(m.id);
+        m.ok
+          ? task.resolve(m.value)
+          : task.reject(new Error(m.error || "unavailable"));
+      });
+      async function refresh() {
+        if (refreshing) {
+          pending = true;
+          return;
+        }
+        refreshing = true;
+        try {
+          const [p, q, o] = await Promise.all([
+            call("song.playback.read.v1", "status"),
+            call("song.queue.read.v1", "status", { limit: 6 }),
+            call("song.overlay.read.v1", "status"),
+          ]);
+          lastConfig = o.config;
+          lastRows = q.queue;
+          if (!p.primary) {
+            clearPlayback();
+            return;
+          }
+          lastPlayback = p.primary;
+          renderIfChanged(previewConfig || lastConfig, lastPlayback, lastRows);
+        } catch {
+          if (!lastPlayback) clearPlayback();
+        } finally {
+          refreshing = false;
+          if (pending) {
+            pending = false;
+            void refresh();
+          }
+        }
+      }
+      async function pollPlayback() {
+        if (refreshing) return;
+        try {
+          const p = await call("song.playback.read.v1", "status");
+          if (!p.primary) {
+            clearPlayback();
+            return;
+          }
+          lastPlayback = p.primary;
+          if (lastConfig)
+            renderIfChanged(
+              previewConfig || lastConfig,
+              lastPlayback,
+              lastRows,
+            );
+        } catch {}
+      }
+      addEventListener("resize", () => {
+        if (lastPlayback)
+          renderIfChanged(
+            previewConfig || lastConfig,
+            lastPlayback,
+            lastRows,
+            true,
+          );
+      });
+      void refresh();
+      setInterval(() => SongOverlayRenderer.update($("stage")), 500);
+      setInterval(pollPlayback, 2000);
+      setInterval(refresh, 15000);
+    </script>
+  </body>
+</html>

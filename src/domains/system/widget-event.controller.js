@@ -7,16 +7,33 @@ const MAX_DEDUPE_ENTRIES = 1024;
 
 function createSystemWidgetEventController(deps = {}) {
   const {
-    colorApply = async () => ({ status: 503, body: { ok: false, error: "color_apply_unavailable" } }),
-    teachColor = async () => ({ status: 503, body: { ok: false, error: "teach_color_unavailable" } }),
-    previewTaughtColor = async () => ({ ok: false, scheduled: false, reason: "teach_preview_unavailable" }),
+    colorApply = async () => ({
+      status: 503,
+      body: { ok: false, error: "color_apply_unavailable" },
+    }),
+    teachColor = async () => ({
+      status: 503,
+      body: { ok: false, error: "teach_color_unavailable" },
+    }),
+    previewTaughtColor = async () => ({
+      ok: false,
+      scheduled: false,
+      reason: "teach_preview_unavailable",
+    }),
     sendChat = async () => ({ ok: false, error: "twitch_chat_unavailable" }),
-    getTeachSettings = () => ({ preview: true, chatSuccess: false, chatFailure: false }),
-    submitSongRequest = async () => ({ ok: false, error: "song_request_unavailable" }),
+    getTeachSettings = () => ({
+      preview: true,
+      chatSuccess: false,
+      chatFailure: false,
+    }),
+    submitSongRequest = async () => ({
+      ok: false,
+      error: "song_request_unavailable",
+    }),
     settleRedemption = null,
     now = () => Date.now(),
     dedupeStore = new Map(),
-    getTwitchIntakeMode = () => "streamelements"
+    getTwitchIntakeMode = () => "streamelements",
   } = deps;
   const counters = {
     received: 0,
@@ -36,7 +53,7 @@ function createSystemWidgetEventController(deps = {}) {
     settlementSucceeded: 0,
     settlementFailed: 0,
     settlementUnavailable: 0,
-    transportRejected: 0
+    transportRejected: 0,
   };
   let inFlight = 0;
   let peakInFlight = 0;
@@ -54,7 +71,9 @@ function createSystemWidgetEventController(deps = {}) {
   }
 
   function getByPath(source, path) {
-    const parts = String(path || "").split(".").filter(Boolean);
+    const parts = String(path || "")
+      .split(".")
+      .filter(Boolean);
     let cur = source;
     for (const part of parts) {
       if (!cur || typeof cur !== "object") return undefined;
@@ -82,30 +101,33 @@ function createSystemWidgetEventController(deps = {}) {
     if (candidate === configured) return true;
     const compactCandidate = normalizeRewardKey(candidate);
     const compactConfigured = normalizeRewardKey(configured);
-    if (compactCandidate && compactConfigured && compactCandidate === compactConfigured) return true;
+    if (compactCandidate && compactConfigured && compactCandidate === compactConfigured)
+      return true;
     const idLike = /^[a-f0-9-]{16,}$/i.test(configured);
     if (idLike) return false;
     if (compactCandidate.length < 5 || compactConfigured.length < 5) return false;
     const distance = levenshteinDistance(compactCandidate, compactConfigured);
     const longest = Math.max(compactCandidate.length, compactConfigured.length);
-    const similarity = longest > 0 ? (1 - (distance / longest)) : 0;
+    const similarity = longest > 0 ? 1 - distance / longest : 0;
     return distance <= 2 && similarity >= 0.78;
   }
 
   function normalizeWidgetConfig(payload = {}) {
-    const source = payload.widgetConfig && typeof payload.widgetConfig === "object"
-      ? payload.widgetConfig
-      : payload;
+    const source =
+      payload.widgetConfig && typeof payload.widgetConfig === "object"
+        ? payload.widgetConfig
+        : payload;
     return {
       colorRewardId: asString(source.colorRewardId),
       teachRewardId: asString(source.teachRewardId),
       songRewardId: asString(source.songRewardId),
-      playlistRewardId: asString(source.playlistRewardId)
+      playlistRewardId: asString(source.playlistRewardId),
     };
   }
 
   function unwrapEventEnvelope(payload = {}) {
-    if (payload.eventEnvelope && typeof payload.eventEnvelope === "object") return payload.eventEnvelope;
+    if (payload.eventEnvelope && typeof payload.eventEnvelope === "object")
+      return payload.eventEnvelope;
     if (payload.envelope && typeof payload.envelope === "object") return payload.envelope;
     return payload;
   }
@@ -114,8 +136,14 @@ function createSystemWidgetEventController(deps = {}) {
     const root = safeObject(eventEnvelope);
     const detail = safeObject(root.detail);
     const event = safeObject(detail.event || root.event);
-    const eventData = safeObject(event.data || detail.eventData || detail.data || root.eventData || root.data);
-    const redemption = safeObject(event.redemption || eventData.redemption || (Object.keys(eventData).length ? eventData : event));
+    const eventData = safeObject(
+      event.data || detail.eventData || detail.data || root.eventData || root.data,
+    );
+    const redemption = safeObject(
+      event.redemption ||
+        eventData.redemption ||
+        (Object.keys(eventData).length ? eventData : event),
+    );
     const reward = safeObject(redemption.reward || eventData.reward || event.reward || {});
     const source = { root, detail, event, eventData, redemption, reward };
 
@@ -138,7 +166,7 @@ function createSystemWidgetEventController(deps = {}) {
         "event.reward.id",
         "event.rewardId",
         "root.reward.id",
-        "root.reward.rewardId"
+        "root.reward.rewardId",
       ]),
       redemptionId: pickFirstString(source, [
         "event.item.id",
@@ -156,7 +184,7 @@ function createSystemWidgetEventController(deps = {}) {
         "eventData.tags.id",
         "event.tags.id",
         "root.reward.redemptionId",
-        "root.reward.redemption_id"
+        "root.reward.redemption_id",
       ]),
       broadcasterId: pickFirstString(source, [
         "eventData.broadcaster_user_id",
@@ -173,7 +201,7 @@ function createSystemWidgetEventController(deps = {}) {
         "event.tags.room-id",
         "root.channel.broadcasterId",
         "root.channel.id",
-        "root.broadcasterId"
+        "root.broadcasterId",
       ]),
       userInput: pickFirstString(source, [
         "event.item.user_input",
@@ -212,7 +240,7 @@ function createSystemWidgetEventController(deps = {}) {
         "event.value",
         "root.reward.input",
         "root.reward.userInput",
-        "root.reward.text"
+        "root.reward.text",
       ]),
       userName: pickFirstString(source, [
         "eventData.redemption.user_name",
@@ -231,7 +259,7 @@ function createSystemWidgetEventController(deps = {}) {
         "event.nick",
         "root.user.display",
         "root.user.login",
-        "root.user.name"
+        "root.user.name",
       ]),
       userId: pickFirstString(source, [
         "eventData.redemption.user_id",
@@ -242,13 +270,13 @@ function createSystemWidgetEventController(deps = {}) {
         "event.userId",
         "eventData.tags.user-id",
         "event.tags.user-id",
-        "root.user.id"
+        "root.user.id",
       ]),
       userRole: pickFirstString(source, [
         "event.requester_role",
         "event.requesterRole",
         "eventData.requester_role",
-        "eventData.requesterRole"
+        "eventData.requesterRole",
       ]),
       rewardName: pickFirstString(source, [
         "reward.title",
@@ -262,9 +290,9 @@ function createSystemWidgetEventController(deps = {}) {
         "event.tags.custom-reward-title",
         "event.tags.customRewardTitle",
         "root.reward.name",
-        "root.reward.title"
+        "root.reward.title",
       ]),
-      listener: normalizeToken(detail.listener || event.listener || root.listener)
+      listener: normalizeToken(detail.listener || event.listener || root.listener),
     };
   }
 
@@ -274,7 +302,8 @@ function createSystemWidgetEventController(deps = {}) {
     if (rewardId && redemptionId) return `rw:${rewardId}:${redemptionId}`;
     const userName = normalizeToken(meta.userName || "");
     const userInput = normalizeToken(meta.userInput || "");
-    if (rewardId && userName && userInput) return `rw:${rewardId}:user:${userName}:text:${userInput}`;
+    if (rewardId && userName && userInput)
+      return `rw:${rewardId}:user:${userName}:text:${userInput}`;
     return "";
   }
 
@@ -300,11 +329,20 @@ function createSystemWidgetEventController(deps = {}) {
   function resolveRewardAction(meta, config) {
     const rewardCandidates = [meta.rewardId, meta.rewardName].map(asString).filter(Boolean);
     if (!rewardCandidates.length) return "";
-    const matchAny = configured => rewardCandidates.some(candidate => rewardTokensMatch(candidate, configured));
+    const matchAny = (configured) =>
+      rewardCandidates.some((candidate) => rewardTokensMatch(candidate, configured));
     if (matchAny(config.colorRewardId)) return "color";
     if (matchAny(config.teachRewardId)) return "teach";
-    if (config.playlistRewardId && normalizeToken(meta.rewardId) === normalizeToken(config.playlistRewardId)) return "add_to_playlist";
-    if (config.songRewardId && normalizeToken(meta.rewardId) === normalizeToken(config.songRewardId)) return "song_request";
+    if (
+      config.playlistRewardId &&
+      normalizeToken(meta.rewardId) === normalizeToken(config.playlistRewardId)
+    )
+      return "add_to_playlist";
+    if (
+      config.songRewardId &&
+      normalizeToken(meta.rewardId) === normalizeToken(config.songRewardId)
+    )
+      return "song_request";
     return "";
   }
 
@@ -314,12 +352,29 @@ function createSystemWidgetEventController(deps = {}) {
 
   function resultOk(result) {
     const body = resultBody(result);
-    return result && result.ok !== false && Number(result.status || 200) >= 200 && Number(result.status || 200) < 300 && body.ok !== false;
+    return (
+      result &&
+      result.ok !== false &&
+      Number(result.status || 200) >= 200 &&
+      Number(result.status || 200) < 300 &&
+      body.ok !== false
+    );
   }
 
   function resolveBridgeFailureMessage(result) {
     const body = resultBody(result);
-    return asString(body.detail || body.error || body.reason || body.message || result?.error?.code || result?.error || result?.text || "request failed") || "request failed";
+    return (
+      asString(
+        body.detail ||
+          body.error ||
+          body.reason ||
+          body.message ||
+          result?.error?.code ||
+          result?.error ||
+          result?.text ||
+          "request failed",
+      ) || "request failed"
+    );
   }
 
   function teachChatMessage(meta, body, succeeded) {
@@ -336,17 +391,33 @@ function createSystemWidgetEventController(deps = {}) {
       invalid_format: `${mention}use a name followed by a six-digit hex value, for example: ocean glow #12ABEF.`,
       invalid_name: `${mention}that color name is not valid.`,
       invalid_hex: `${mention}use a six-digit hex value such as #12ABEF.`,
-      custom_color_limit_reached: `${mention}the custom color library is full.`
+      custom_color_limit_reached: `${mention}the custom color library is full.`,
     };
     return messages[body.reason] || `${mention}that color could not be taught.`;
   }
 
   async function executeReward(meta, config, action, transport) {
-    if (action === "color") return await colorApply({ text: meta.userInput, userInput: meta.userInput });
-    if (action === "teach") return await teachColor({ text: meta.userInput, userInput: meta.userInput });
+    if (action === "color")
+      return await colorApply({
+        text: meta.userInput,
+        userInput: meta.userInput,
+      });
+    if (action === "teach")
+      return await teachColor({
+        text: meta.userInput,
+        userInput: meta.userInput,
+      });
     const videoId = youtubeVideoId(meta.userInput);
     const requesterId = asString(meta.userId || meta.userName);
-    if (!meta.redemptionId || !requesterId) return { status: 400, body: { ok: false, error: "redemption_identity_incomplete", refundRecommended: true } };
+    if (!meta.redemptionId || !requesterId)
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          error: "redemption_identity_incomplete",
+          refundRecommended: true,
+        },
+      };
     return submitSongRequest({
       ...(action === "add_to_playlist" ? { addToPlaylist: true } : {}),
       requestId: meta.redemptionId,
@@ -355,13 +426,29 @@ function createSystemWidgetEventController(deps = {}) {
       requesterRole: ["vip", "moderator"].includes(meta.userRole) ? meta.userRole : "viewer",
       notifyChat: transport === "native",
       query: meta.userInput,
-      ...(videoId ? { candidate: { provider: "youtube", providerItemId: videoId, title: meta.userInput, artists: [], durationMs: 0 } } : {})
+      ...(videoId
+        ? {
+            candidate: {
+              provider: "youtube",
+              providerItemId: videoId,
+              title: meta.userInput,
+              artists: [],
+              durationMs: 0,
+            },
+          }
+        : {}),
     });
   }
 
   async function settle(meta, desiredStatus, reason, transport) {
     if (transport !== "native") {
-      return { attempted: false, ok: true, status: "NOT_APPLICABLE", desiredStatus, reason: "transport_conveyor_only" };
+      return {
+        attempted: false,
+        ok: true,
+        status: "NOT_APPLICABLE",
+        desiredStatus,
+        reason: "transport_conveyor_only",
+      };
     }
     const identityComplete = Boolean(meta.redemptionId && meta.rewardId);
     if (typeof settleRedemption !== "function" || !identityComplete) {
@@ -371,7 +458,9 @@ function createSystemWidgetEventController(deps = {}) {
         ok: false,
         status: "UNSETTLED",
         desiredStatus,
-        reason: identityComplete ? "twitch_settlement_unavailable" : "redemption_identity_incomplete"
+        reason: identityComplete
+          ? "twitch_settlement_unavailable"
+          : "redemption_identity_incomplete",
       };
     }
     counters.settlementAttempted += 1;
@@ -381,17 +470,37 @@ function createSystemWidgetEventController(deps = {}) {
         rewardId: meta.rewardId,
         broadcasterId: meta.broadcasterId,
         status: desiredStatus,
-        reason: asString(reason || (desiredStatus === "FULFILLED" ? "action_succeeded" : "action_failed")).slice(0, 80)
+        reason: asString(
+          reason || (desiredStatus === "FULFILLED" ? "action_succeeded" : "action_failed"),
+        ).slice(0, 80),
       });
       if (result?.ok === true && result.status === desiredStatus) {
         counters.settlementSucceeded += 1;
-        return { attempted: true, ok: true, status: desiredStatus, desiredStatus, refunded: result.refunded === true };
+        return {
+          attempted: true,
+          ok: true,
+          status: desiredStatus,
+          desiredStatus,
+          refunded: result.refunded === true,
+        };
       }
       counters.settlementFailed += 1;
-      return { attempted: true, ok: false, status: "UNSETTLED", desiredStatus, reason: asString(result?.error || "twitch_settlement_failed").slice(0, 80) };
+      return {
+        attempted: true,
+        ok: false,
+        status: "UNSETTLED",
+        desiredStatus,
+        reason: asString(result?.error || "twitch_settlement_failed").slice(0, 80),
+      };
     } catch (error) {
       counters.settlementFailed += 1;
-      return { attempted: true, ok: false, status: "UNSETTLED", desiredStatus, reason: asString(error?.code || error?.message || "twitch_settlement_failed").slice(0, 80) };
+      return {
+        attempted: true,
+        ok: false,
+        status: "UNSETTLED",
+        desiredStatus,
+        reason: asString(error?.code || error?.message || "twitch_settlement_failed").slice(0, 80),
+      };
     }
   }
 
@@ -402,7 +511,13 @@ function createSystemWidgetEventController(deps = {}) {
       counters.transportRejected += 1;
       return {
         status: 200,
-        body: { ok: true, handled: false, reason: "intake_transport_disabled", activeTransport, actions: [] }
+        body: {
+          ok: true,
+          handled: false,
+          reason: "intake_transport_disabled",
+          activeTransport,
+          actions: [],
+        },
       };
     }
     const config = normalizeWidgetConfig(payload);
@@ -414,14 +529,19 @@ function createSystemWidgetEventController(deps = {}) {
       counters.irrelevant += 1;
       return {
         status: 200,
-        body: { ok: true, handled: false, reason: "reward_not_configured", actions: [] }
+        body: {
+          ok: true,
+          handled: false,
+          reason: "reward_not_configured",
+          actions: [],
+        },
       };
     }
     if (wasRewardSeenRecently(meta, 12000)) {
       counters.duplicates += 1;
       return {
         status: 200,
-        body: { ok: true, handled: true, duplicate: true, action, actions: [] }
+        body: { ok: true, handled: true, duplicate: true, action, actions: [] },
       };
     }
 
@@ -434,17 +554,50 @@ function createSystemWidgetEventController(deps = {}) {
     counters[action] += 1;
     if (!bridgeOk) counters.failed += 1;
     const desiredStatus = bridgeOk ? "FULFILLED" : "CANCELED";
-    const settlement = await settle(meta, desiredStatus, partialDelivery ? "lighting_delivery_partial" : bridgeOk ? "action_succeeded" : resolveBridgeFailureMessage(bridgeResult), transport);
-    let teachPreview = null, chatDelivery = null;
+    const settlement = await settle(
+      meta,
+      desiredStatus,
+      partialDelivery
+        ? "lighting_delivery_partial"
+        : bridgeOk
+          ? "action_succeeded"
+          : resolveBridgeFailureMessage(bridgeResult),
+      transport,
+    );
+    let teachPreview = null,
+      chatDelivery = null;
     if (action === "teach") {
-      const settings = { preview: true, chatSuccess: false, chatFailure: false, ...(getTeachSettings() || {}) };
+      const settings = {
+        preview: true,
+        chatSuccess: false,
+        chatFailure: false,
+        ...(getTeachSettings() || {}),
+      };
       if (bridgeOk && body.changed === true && settings.preview === true) {
-        try { teachPreview = await previewTaughtColor(body.hex); }
-        catch (error) { teachPreview = { ok: false, scheduled: false, reason: asString(error?.message || "teach_preview_failed").slice(0, 80) }; }
+        try {
+          teachPreview = await previewTaughtColor(body.hex);
+        } catch (error) {
+          teachPreview = {
+            ok: false,
+            scheduled: false,
+            reason: asString(error?.message || "teach_preview_failed").slice(0, 80),
+          };
+        }
       }
-      if ((bridgeOk && settings.chatSuccess === true) || (!bridgeOk && settings.chatFailure === true)) {
-        try { chatDelivery = await sendChat({ message: teachChatMessage(meta, body, bridgeOk) }); }
-        catch (error) { chatDelivery = { ok: false, error: asString(error?.message || "twitch_chat_send_failed").slice(0, 80) }; }
+      if (
+        (bridgeOk && settings.chatSuccess === true) ||
+        (!bridgeOk && settings.chatFailure === true)
+      ) {
+        try {
+          chatDelivery = await sendChat({
+            message: teachChatMessage(meta, body, bridgeOk),
+          });
+        } catch (error) {
+          chatDelivery = {
+            ok: false,
+            error: asString(error?.message || "twitch_chat_send_failed").slice(0, 80),
+          };
+        }
       }
     }
 
@@ -459,12 +612,15 @@ function createSystemWidgetEventController(deps = {}) {
         desiredStatus,
         settlement,
         degraded: !settlement.ok || partialDelivery,
-        degradedCapabilities: [...(!settlement.ok ? ["twitch.redemptions.v1"] : []), ...(partialDelivery ? ["lighting"] : [])],
+        degradedCapabilities: [
+          ...(!settlement.ok ? ["twitch.redemptions.v1"] : []),
+          ...(partialDelivery ? ["lighting"] : []),
+        ],
         result: body,
         ...(teachPreview ? { teachPreview } : {}),
         ...(chatDelivery ? { chatDelivery } : {}),
-        actions: []
-      }
+        actions: [],
+      },
     };
   }
 
@@ -487,7 +643,7 @@ function createSystemWidgetEventController(deps = {}) {
       peakInFlight,
       dedupeEntries: dedupeStore.size,
       maximumDedupeEntries: MAX_DEDUPE_ENTRIES,
-      counters: { ...counters }
+      counters: { ...counters },
     };
   }
 
@@ -502,11 +658,11 @@ function createSystemWidgetEventController(deps = {}) {
     recordRejected,
     parseRedemptionEnvelope,
     normalizeWidgetConfig,
-    resolveRewardAction
+    resolveRewardAction,
   };
 }
 
 module.exports = {
   createSystemWidgetEventController,
-  MAX_DEDUPE_ENTRIES
+  MAX_DEDUPE_ENTRIES,
 };

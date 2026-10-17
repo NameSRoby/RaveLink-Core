@@ -23,6 +23,9 @@ function normalizeLookupToken(value) {
 }
 
 function levenshteinDistance(aRaw, bRaw) {
+  // Dynamic programming retains only the previous/current row, using the shorter
+  // token as row width. Input bounds cap quadratic CPU work; row reuse keeps
+  // memory linear. Scoring/tie-break policy is separate from this exact distance.
   let a = String(aRaw || "").slice(0, MAX_FUZZY_TOKEN_LENGTH);
   let b = String(bRaw || "").slice(0, MAX_FUZZY_TOKEN_LENGTH);
   if (!a) return b.length;
@@ -34,11 +37,7 @@ function levenshteinDistance(aRaw, bRaw) {
     current[0] = i;
     for (let j = 1; j <= b.length; j += 1) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      current[j] = Math.min(
-        previous[j] + 1,
-        current[j - 1] + 1,
-        previous[j - 1] + cost
-      );
+      current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost);
     }
     [previous, current] = [current, previous];
   }
@@ -81,9 +80,22 @@ function findBestFuzzyMatch(query, candidates = [], options = {}) {
     const candidateToken = normalizeLookupToken(value);
     if (!candidateToken) continue;
     let distance = levenshteinDistance(queryToken, candidateToken);
-    if (options.allowTranspositions === true && distance === 2 && queryToken.length >= 4 && queryToken.length === candidateToken.length) {
-      const mismatch = [...queryToken].map((character, index) => character === candidateToken[index] ? -1 : index).filter(index => index >= 0);
-      if (mismatch.length === 2 && mismatch[1] === mismatch[0] + 1 && queryToken[mismatch[0]] === candidateToken[mismatch[1]] && queryToken[mismatch[1]] === candidateToken[mismatch[0]]) distance = 1;
+    if (
+      options.allowTranspositions === true &&
+      distance === 2 &&
+      queryToken.length >= 4 &&
+      queryToken.length === candidateToken.length
+    ) {
+      const mismatch = [...queryToken]
+        .map((character, index) => (character === candidateToken[index] ? -1 : index))
+        .filter((index) => index >= 0);
+      if (
+        mismatch.length === 2 &&
+        mismatch[1] === mismatch[0] + 1 &&
+        queryToken[mismatch[0]] === candidateToken[mismatch[1]] &&
+        queryToken[mismatch[1]] === candidateToken[mismatch[0]]
+      )
+        distance = 1;
     }
     const ratio = distance / Math.max(queryToken.length, candidateToken.length, 1);
     const lengthGap = Math.abs(candidateToken.length - queryToken.length);
@@ -96,13 +108,17 @@ function findBestFuzzyMatch(query, candidates = [], options = {}) {
 
     const score = scoreCandidate(queryToken, candidateToken, distance);
     if (score < minScore) continue;
-    if (!best || score > best.score || (score === best.score && candidateToken.length < best.token.length)) {
+    if (
+      !best ||
+      score > best.score ||
+      (score === best.score && candidateToken.length < best.token.length)
+    ) {
       best = {
         value,
         token: candidateToken,
         score,
         distance,
-        distanceRatio: Number(ratio.toFixed(3))
+        distanceRatio: Number(ratio.toFixed(3)),
       };
     }
   }
@@ -112,7 +128,7 @@ function findBestFuzzyMatch(query, candidates = [], options = {}) {
     value: best.value,
     score: best.score,
     distance: best.distance,
-    distanceRatio: best.distanceRatio
+    distanceRatio: best.distanceRatio,
   };
 }
 
@@ -121,5 +137,5 @@ module.exports = {
   normalizeLanguageText,
   normalizeLookupToken,
   levenshteinDistance,
-  findBestFuzzyMatch
+  findBestFuzzyMatch,
 };

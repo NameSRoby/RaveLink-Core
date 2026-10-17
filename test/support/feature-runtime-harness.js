@@ -5,9 +5,18 @@ function createFeatureRuntimeHarness(feature, options = {}) {
   let active = false;
 
   async function callCapability(capability, method, payload, callOptions = {}) {
-    calls.push({ capability, method, payload, providerId: String(callOptions.providerId || "") });
+    calls.push({
+      capability,
+      method,
+      payload,
+      providerId: String(callOptions.providerId || ""),
+    });
     const provider = providers.get(`${capability}/${method}`);
-    if (!provider) throw Object.assign(new Error("provider_unavailable"), { code: "provider_unavailable", retryable: true });
+    if (!provider)
+      throw Object.assign(new Error("provider_unavailable"), {
+        code: "provider_unavailable",
+        retryable: true,
+      });
     return await provider(payload, callOptions);
   }
 
@@ -18,13 +27,25 @@ function createFeatureRuntimeHarness(feature, options = {}) {
 
   async function start() {
     if (active) return;
-    await feature.activate(Object.freeze({ featureId: options.featureId || "song-request", callCapability, publishEvent }));
+    await feature.activate(
+      Object.freeze({
+        featureId: options.featureId || "song-request",
+        callCapability,
+        publishEvent,
+      }),
+    );
     active = true;
   }
 
   async function request(capability, method, payload, signal = new AbortController().signal) {
     if (!active) throw new Error("feature_not_active");
-    return await feature.handleRequest({ capability, method, payload, signal, deadlineAt: Date.now() + 5000 });
+    return await feature.handleRequest({
+      capability,
+      method,
+      payload,
+      signal,
+      deadlineAt: Date.now() + 5000,
+    });
   }
 
   async function stop() {

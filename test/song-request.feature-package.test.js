@@ -3,8 +3,12 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { validateFeatureManifestV1 } = require("../src/capabilities/feature-platform/contracts/feature-manifest-v1");
-const { verifyFeaturePackageDirectory } = require("../src/capabilities/feature-platform/packages/feature-package-integrity");
+const {
+  validateFeatureManifestV1,
+} = require("../src/capabilities/feature-platform/contracts/feature-manifest-v1");
+const {
+  verifyFeaturePackageDirectory,
+} = require("../src/capabilities/feature-platform/packages/feature-package-integrity");
 
 const root = path.join(__dirname, "..", "features", "song-request");
 
@@ -14,26 +18,59 @@ test("Song Request is a verified first-party feature package, not a mod", async 
   assert.equal(verified.manifest.publisher, "ravelink");
   assert.equal(verified.manifest.permissions.network.length, 0);
   assert.deepEqual(verified.manifest.provides, [
-    "song.playlist.read.v1", "song.playlist.admin.v1",
-    "song.queue.read.v1", "song.queue.submit.v1", "song.queue.admin.v1", "song.queue.events.v1",
-    "song.playback.read.v1", "song.playback.driver.v1", "song.playback.observe.v1", "song.playback.events.v1", "song.observer.admin.v1",
-    "song.overlay.read.v1", "song.overlay.admin.v1", "song.overlay.events.v1",
-    "song.catalog.read.v1", "song.catalog.admin.v1", "song.tidal.experimental.v1", "song.playlist.transfer.v1", "song.player.preferences.v1", "song.soundcloud.player.v1", "song.spotify.player.v1"
+    "song.playlist.read.v1",
+    "song.playlist.admin.v1",
+    "song.queue.read.v1",
+    "song.queue.submit.v1",
+    "song.queue.admin.v1",
+    "song.queue.events.v1",
+    "song.playback.read.v1",
+    "song.playback.driver.v1",
+    "song.playback.observe.v1",
+    "song.playback.events.v1",
+    "song.observer.admin.v1",
+    "song.overlay.read.v1",
+    "song.overlay.admin.v1",
+    "song.overlay.events.v1",
+    "song.catalog.read.v1",
+    "song.catalog.admin.v1",
+    "song.tidal.experimental.v1",
+    "song.playlist.transfer.v1",
+    "song.player.preferences.v1",
+    "song.soundcloud.player.v1",
+    "song.spotify.player.v1",
   ]);
-  assert.deepEqual(verified.manifest.contributes.pages.map(page => [page.id, page.surface]), [["player", "panel"], ["request-queue", "panel"], ["server-playlist", "panel"], ["now-playing", "panel"], ["obs-overlay", "overlay"], ["overlay-editor", "panel"]]);
+  assert.deepEqual(
+    verified.manifest.contributes.pages.map((page) => [page.id, page.surface]),
+    [
+      ["player", "panel"],
+      ["request-queue", "panel"],
+      ["server-playlist", "panel"],
+      ["now-playing", "panel"],
+      ["obs-overlay", "overlay"],
+      ["overlay-editor", "panel"],
+    ],
+  );
   assert.equal(fs.existsSync(path.join(root, "ravelink.mod.json")), false);
 });
 
 test("feature manifest rejects non-RaveLink publishers and capability overlap", () => {
   const input = JSON.parse(fs.readFileSync(path.join(root, "ravelink.feature.json"), "utf8"));
   assert.equal(validateFeatureManifestV1({ ...input, publisher: "someone-else" }).ok, false);
-  assert.equal(validateFeatureManifestV1({ ...input, consumes: ["song.queue.read.v1?"], provides: ["song.queue.read.v1"] }).ok, false);
+  assert.equal(
+    validateFeatureManifestV1({
+      ...input,
+      consumes: ["song.queue.read.v1?"],
+      provides: ["song.queue.read.v1"],
+    }).ok,
+    false,
+  );
   const missingPageHash = JSON.parse(JSON.stringify(input));
   delete missingPageHash.integrity.files["ui/player.html"];
   assert.equal(validateFeatureManifestV1(missingPageHash).ok, false);
 });
 
-test("feature package rejects payload tampering and undeclared files", async t => {
+test("feature package rejects payload tampering and undeclared files", async (t) => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-feature-"));
   t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
   fs.cpSync(root, temp, { recursive: true });
@@ -56,7 +93,7 @@ test("player exposes only embedded YouTube playback and useful playback errors",
   const html = fs.readFileSync(path.join(root, "ui", "player.html"), "utf8");
   assert.doesNotMatch(html, /requestProvider|externalPlayerPanel/i);
   assert.match(html, /www\.youtube\.com\/iframe_api/);
-  assert.match(html, /code===153/);
+  assert.match(html, /code\s*===\s*153/);
 });
 
 test("overlay refreshes playback clocks without rebuilding the marquee", () => {
@@ -72,16 +109,28 @@ test("Now Playing Sources can switch Windows media providers repeatedly", () => 
   assert.match(html, /value="tidal"/);
   assert.match(html, /value="spotify"/);
   assert.match(html, /value="apple-music"/);
-  assert.match(html, /for\(const button of document\.querySelectorAll\("button"\)\)button\.disabled=false/);
-  assert.doesNotMatch(html, /postMessage\([^\n]+,"\*"\)/);
+  assert.match(
+    html,
+    /for\s*\(const button of document\.querySelectorAll\("button"\)\)\s*button\.disabled\s*=\s*false/,
+  );
+  assert.doesNotMatch(html, /postMessage\([\s\S]*?,\s*"\*"\s*\)/);
 });
 
 test("Song Request keeps multilingual titles intact through queue state", () => {
   const { createSongQueue } = require("../features/song-request/dist/domain");
   const queue = createSongQueue();
   const title = "美波 - カワキヲアメク / Пример / مثال";
-  const result = queue.submit({ requestId: "unicode-title", requesterId: "viewer", query: title,
-    candidate: { provider: "youtube", providerItemId: "M7lc1UVf-VE", title, artists: ["美波"] } });
+  const result = queue.submit({
+    requestId: "unicode-title",
+    requesterId: "viewer",
+    query: title,
+    candidate: {
+      provider: "youtube",
+      providerItemId: "M7lc1UVf-VE",
+      title,
+      artists: ["美波"],
+    },
+  });
   assert.equal(result.ok, true);
   assert.equal(queue.status().queue[0].candidate.title, title);
 });

@@ -7,7 +7,12 @@ const MAX_DEPTH = 16;
 const MAX_NODES = 2048;
 const FORBIDDEN_KEYS = new Set(["__proto__", "prototype", "constructor"]);
 const V2_KEYS = new Set(["contract", "source", "eventEnvelope", "widgetConfig", "target"]);
-const V2_CONFIG_KEYS = new Set(["colorRewardId", "teachRewardId", "songRewardId", "playlistRewardId"]);
+const V2_CONFIG_KEYS = new Set([
+  "colorRewardId",
+  "teachRewardId",
+  "songRewardId",
+  "playlistRewardId",
+]);
 const TARGET_RE = /^[a-z0-9][a-z0-9.-]{0,63}$/;
 const DISPOSITIONS = Object.freeze({
   HANDLED: "handled",
@@ -15,7 +20,7 @@ const DISPOSITIONS = Object.freeze({
   DUPLICATE: "duplicate",
   DEGRADED: "degraded",
   REJECTED: "rejected",
-  RATE_LIMITED: "rate_limited"
+  RATE_LIMITED: "rate_limited",
 });
 
 function inspectTree(value) {
@@ -40,32 +45,53 @@ function validateWidgetEventRequest(payload = {}) {
     return { ok: false, error: "widget_event_object_required" };
   }
   const contract = String(payload.contract || "").trim();
-  if (contract && contract !== CONTRACT) return { ok: false, error: "widget_event_contract_unsupported" };
+  if (contract && contract !== CONTRACT)
+    return { ok: false, error: "widget_event_contract_unsupported" };
   if (contract) {
-    if (Object.keys(payload).some(key => !V2_KEYS.has(key))) return { ok: false, error: "widget_event_unknown_field" };
+    if (Object.keys(payload).some((key) => !V2_KEYS.has(key)))
+      return { ok: false, error: "widget_event_unknown_field" };
     const widgetConfig = payload.widgetConfig;
-    if (widgetConfig !== undefined && (!widgetConfig || typeof widgetConfig !== "object" || Array.isArray(widgetConfig))) {
+    if (
+      widgetConfig !== undefined &&
+      (!widgetConfig || typeof widgetConfig !== "object" || Array.isArray(widgetConfig))
+    ) {
       return { ok: false, error: "widget_event_config_invalid" };
     }
-    if (widgetConfig && Object.keys(widgetConfig).some(key => !V2_CONFIG_KEYS.has(key))) {
+    if (widgetConfig && Object.keys(widgetConfig).some((key) => !V2_CONFIG_KEYS.has(key))) {
       return { ok: false, error: "widget_event_config_unknown_field" };
     }
     for (const key of V2_CONFIG_KEYS) {
-      if (widgetConfig?.[key] !== undefined && (typeof widgetConfig[key] !== "string" || widgetConfig[key].length > 512)) {
+      if (
+        widgetConfig?.[key] !== undefined &&
+        (typeof widgetConfig[key] !== "string" || widgetConfig[key].length > 512)
+      ) {
         return { ok: false, error: "widget_event_config_value_invalid" };
       }
     }
-    if (payload.target !== undefined && (typeof payload.target !== "string" || !TARGET_RE.test(payload.target))) {
+    if (
+      payload.target !== undefined &&
+      (typeof payload.target !== "string" || !TARGET_RE.test(payload.target))
+    ) {
       return { ok: false, error: "widget_event_target_invalid" };
     }
   }
-  const source = String(payload.source || "streamelements").trim().toLowerCase();
+  const source = String(payload.source || "streamelements")
+    .trim()
+    .toLowerCase();
   if (source !== "streamelements") return { ok: false, error: "widget_event_source_unsupported" };
-  if (!payload.eventEnvelope || typeof payload.eventEnvelope !== "object" || Array.isArray(payload.eventEnvelope)) {
+  if (
+    !payload.eventEnvelope ||
+    typeof payload.eventEnvelope !== "object" ||
+    Array.isArray(payload.eventEnvelope)
+  ) {
     return { ok: false, error: "widget_event_envelope_required" };
   }
   let bytes = 0;
-  try { bytes = Buffer.byteLength(JSON.stringify(payload), "utf8"); } catch { return { ok: false, error: "widget_event_not_serializable" }; }
+  try {
+    bytes = Buffer.byteLength(JSON.stringify(payload), "utf8");
+  } catch {
+    return { ok: false, error: "widget_event_not_serializable" };
+  }
   if (bytes > MAX_BYTES) return { ok: false, error: "widget_event_too_large" };
   const tree = inspectTree(payload);
   if (!tree.ok) return tree;
@@ -74,7 +100,7 @@ function validateWidgetEventRequest(payload = {}) {
     value: { ...payload, contract: CONTRACT, source: "streamelements" },
     legacy: !contract,
     bytes,
-    nodes: tree.nodes
+    nodes: tree.nodes,
   };
 }
 
@@ -83,8 +109,17 @@ function withDisposition(body = {}) {
   let disposition = DISPOSITIONS.HANDLED;
   if (source.duplicate === true) disposition = DISPOSITIONS.DUPLICATE;
   else if (source.handled === false) disposition = DISPOSITIONS.IRRELEVANT;
-  else if (source.ok === false || source.status === "CANCELED" || source.degraded === true) disposition = DISPOSITIONS.DEGRADED;
+  else if (source.ok === false || source.status === "CANCELED" || source.degraded === true)
+    disposition = DISPOSITIONS.DEGRADED;
   return { ...source, contract: CONTRACT, disposition };
 }
 
-module.exports = { CONTRACT, DISPOSITIONS, MAX_BYTES, MAX_DEPTH, MAX_NODES, validateWidgetEventRequest, withDisposition };
+module.exports = {
+  CONTRACT,
+  DISPOSITIONS,
+  MAX_BYTES,
+  MAX_DEPTH,
+  MAX_NODES,
+  validateWidgetEventRequest,
+  withDisposition,
+};

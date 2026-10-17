@@ -14,30 +14,42 @@ module.exports = function createModPlatformExtension(options = {}) {
     const runtimeRoot = path.resolve(options.runtimeRoot || path.join(context.runtimeDir, "mods"));
     const modsRoot = path.resolve(options.modsRoot || path.join(runtimeRoot, "installed"));
     const inboxRoot = path.resolve(options.inboxRoot || path.join(rootDir, "mod"));
-    const approvalStore = createModApprovalStore({ storePath: path.join(runtimeRoot, "approvals.json") });
+    const approvalStore = createModApprovalStore({
+      storePath: path.join(runtimeRoot, "approvals.json"),
+    });
     const registry = createModHostRegistry({
       modsRoot,
       runtimeRoot,
       approvalStore,
       maxActiveMods: options.maxActiveMods,
       egressGovernor: context.egressGovernor,
-      resourceMonitorOptions: options.resourceMonitorOptions
+      resourceMonitorOptions: options.resourceMonitorOptions,
     });
     const packageManager = createModPackageManager({
       modsRoot,
       runtimeRoot,
       approvalStore,
-      isModActive: modId => registry.list().mods.some(row => row.id === modId && row.enabled)
+      isModActive: (modId) => registry.list().mods.some((row) => row.id === modId && row.enabled),
     });
-    const inbox = createModDropInbox({ inboxRoot, packageManager, log: options.log || console });
+    const inbox = createModDropInbox({
+      inboxRoot,
+      packageManager,
+      log: options.log || console,
+    });
     registry.discover();
-    inbox.start().catch(error => (options.log || console).warn?.(`[MOD INBOX] startup unavailable: ${error?.message || error}`));
+    inbox
+      .start()
+      .catch((error) =>
+        (options.log || console).warn?.(
+          `[MOD INBOX] startup unavailable: ${error?.message || error}`,
+        ),
+      );
     const routes = registerModPlatformRoutes(context.app, {
       express: context.express,
       registry,
       packageManager,
       inbox,
-      uploadRoot: path.join(runtimeRoot, "uploads")
+      uploadRoot: path.join(runtimeRoot, "uploads"),
     });
     return Object.freeze({
       owner: "mod-platform",
@@ -48,7 +60,7 @@ module.exports = function createModPlatformExtension(options = {}) {
       async shutdown() {
         await inbox.shutdown();
         return registry.shutdown();
-      }
+      },
     });
   };
 };

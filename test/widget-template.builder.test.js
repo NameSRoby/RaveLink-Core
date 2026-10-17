@@ -2,7 +2,10 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const vm = require("node:vm");
 
-const { normalizeWidgetPayload, generateWidgetTemplate } = require("../src/domains/system/widget-template.builder");
+const {
+  normalizeWidgetPayload,
+  generateWidgetTemplate,
+} = require("../src/domains/system/widget-template.builder");
 const documentedMessage = require("./fixtures/streamelements/message.documented.json");
 const documentedFollower = require("./fixtures/streamelements/follower-latest.documented.json");
 
@@ -18,7 +21,11 @@ function loadWidget(payload, fetchImpl) {
     console: { warn() {} },
     fetch: fetchImpl,
     setTimeout,
-    window: { addEventListener(name, handler) { listeners.set(name, handler); } }
+    window: {
+      addEventListener(name, handler) {
+        listeners.set(name, handler);
+      },
+    },
   };
   vm.runInNewContext(result.script, context, { timeout: 1000 });
   return { result, runtime: context.window.RaveLinkWidgetRuntime, listeners };
@@ -28,30 +35,38 @@ function redemption(id = "event-1", rewardId = "reward-color") {
   return {
     detail: {
       listener: "redemption-latest",
-      event: { redemption: { id, reward: { id: rewardId }, user_input: "red" } }
-    }
+      event: {
+        redemption: { id, reward: { id: rewardId }, user_input: "red" },
+      },
+    },
   };
 }
 
 test("normalization keeps only bounded event-forwarding configuration", () => {
-  assert.deepEqual(normalizeWidgetPayload({
-    baseUrl: "http://127.0.0.1:5050/",
-    colorRewardId: " color ",
-    twitchUserAccessToken: "must-not-survive",
-    streamElementsBotJwt: "must-not-survive"
-  }), {
-    colorRewardId: "color",
-    teachRewardId: "",
-    songRewardId: "", playlistRewardId: "",
-    baseUrl: "http://127.0.0.1:5050",
-    widgetIntakeToken: ""
-  });
+  assert.deepEqual(
+    normalizeWidgetPayload({
+      baseUrl: "http://127.0.0.1:5050/",
+      colorRewardId: " color ",
+      twitchUserAccessToken: "must-not-survive",
+      streamElementsBotJwt: "must-not-survive",
+    }),
+    {
+      colorRewardId: "color",
+      teachRewardId: "",
+      songRewardId: "",
+      playlistRewardId: "",
+      baseUrl: "http://127.0.0.1:5050",
+      widgetIntakeToken: "",
+    },
+  );
 });
 
 test("normalization bounds the base URL before removing trailing slashes", () => {
   assert.equal(
-    normalizeWidgetPayload({ baseUrl: `http://127.0.0.1:5050${"/".repeat(10000)}` }).baseUrl,
-    "http://127.0.0.1:5050"
+    normalizeWidgetPayload({
+      baseUrl: `http://127.0.0.1:5050${"/".repeat(10000)}`,
+    }).baseUrl,
+    "http://127.0.0.1:5050",
   );
 });
 
@@ -59,24 +74,41 @@ test("generated widget contains no OAuth, bot, or direct light policy", () => {
   const result = generateWidgetTemplate({
     twitchUserAccessToken: "oauth-secret",
     streamElementsBotJwt: "bot-secret",
-    streamElementsBotChannelId: "channel-secret"
+    streamElementsBotChannelId: "channel-secret",
   });
-  for (const forbidden of ["oauth-secret", "bot-secret", "channel-secret", "api.streamelements.com", "api.twitch.tv", "id.twitch.tv", "helix", "/color", "/teach", "/rave/"]) {
+  for (const forbidden of [
+    "oauth-secret",
+    "bot-secret",
+    "channel-secret",
+    "api.streamelements.com",
+    "api.twitch.tv",
+    "id.twitch.tv",
+    "helix",
+    "/color",
+    "/teach",
+    "/rave/",
+  ]) {
     assert.equal(result.script.includes(forbidden), false, `widget contains ${forbidden}`);
   }
-  assert.deepEqual(result.warnings.map(row => row.code), ["widget_credentials_ignored", "widget_intake_token_missing"]);
+  assert.deepEqual(
+    result.warnings.map((row) => row.code),
+    ["widget_credentials_ignored", "widget_intake_token_missing"],
+  );
 });
 
 test("widget forwards a configured redemption with its scoped intake token", async () => {
   const calls = [];
-  const { runtime, listeners } = loadWidget({
-    baseUrl: "http://127.0.0.1:5050",
-    colorRewardId: "reward-color",
-    widgetIntakeToken: "intake-token"
-  }, async (url, options) => {
-    calls.push({ url, options });
-    return { ok: true, status: 200 };
-  });
+  const { runtime, listeners } = loadWidget(
+    {
+      baseUrl: "http://127.0.0.1:5050",
+      colorRewardId: "reward-color",
+      widgetIntakeToken: "intake-token",
+    },
+    async (url, options) => {
+      calls.push({ url, options });
+      return { ok: true, status: 200 };
+    },
+  );
   assert.equal(typeof listeners.get("onEventReceived"), "function");
   await runtime.forward(redemption());
   assert.equal(calls.length, 1);
@@ -92,8 +124,10 @@ test("widget reports an authenticated deployment heartbeat without forwarding lo
     calls.push(JSON.parse(options.body));
     return { ok: true, status: 200 };
   });
-  listeners.get("onWidgetLoad")({ detail: { channel: { apiToken: "must-not-forward" } } });
-  await new Promise(resolve => setImmediate(resolve));
+  listeners.get("onWidgetLoad")({
+    detail: { channel: { apiToken: "must-not-forward" } },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls.length, 1);
   assert.equal(calls[0].eventEnvelope.detail.listener, "ravelink-widget-ready");
   assert.equal(JSON.stringify(calls[0]).includes("must-not-forward"), false);
@@ -105,7 +139,9 @@ test("widget ignores unrelated events and duplicate redemption IDs", async () =>
     calls.push(true);
     return { ok: true, status: 200 };
   });
-  await runtime.forward({ detail: { listener: "message", event: { text: "hello" } } });
+  await runtime.forward({
+    detail: { listener: "message", event: { text: "hello" } },
+  });
   await runtime.forward(redemption("other", "other-reward"));
   await runtime.forward(redemption("same"));
   await runtime.forward(redemption("same"));
@@ -114,7 +150,7 @@ test("widget ignores unrelated events and duplicate redemption IDs", async () =>
 
 test("widget ignores documented StreamElements message and latest-event envelopes", async () => {
   const calls = [];
-  const { runtime } = loadWidget({ colorRewardId: "reward-color" }, async url => {
+  const { runtime } = loadWidget({ colorRewardId: "reward-color" }, async (url) => {
     calls.push(url);
     return { ok: true, status: 200 };
   });
@@ -127,7 +163,9 @@ test("widget ignores documented StreamElements message and latest-event envelope
 
 test("widget bounds forwarding to one in-flight request", async () => {
   let release;
-  const pending = new Promise(resolve => { release = resolve; });
+  const pending = new Promise((resolve) => {
+    release = resolve;
+  });
   const calls = [];
   const { runtime } = loadWidget({ colorRewardId: "reward-color" }, async () => {
     calls.push(true);
@@ -161,14 +199,25 @@ test("widget aborts a hung forward and accepts the next redemption", async () =>
 });
 
 test("widget transport treats every HTTP failure as terminal without a weaker fallback", async () => {
-  for (const [status, outcome] of [[401, "authentication_rejected"], [403, "authentication_rejected"], [404, "contract_unavailable"], [429, "rate_limited"], [503, "server_unavailable"]]) {
+  for (const [status, outcome] of [
+    [401, "authentication_rejected"],
+    [403, "authentication_rejected"],
+    [404, "contract_unavailable"],
+    [429, "rate_limited"],
+    [503, "server_unavailable"],
+  ]) {
     const calls = [];
-    const { runtime } = loadWidget({ colorRewardId: "reward-color" }, async url => {
+    const { runtime } = loadWidget({ colorRewardId: "reward-color" }, async (url) => {
       calls.push(url);
       return { ok: false, status };
     });
     const result = await runtime.forward(redemption(`status-${status}`));
-    assert.deepEqual(JSON.parse(JSON.stringify(result)), { ok: false, status, outcome, terminal: true });
+    assert.deepEqual(JSON.parse(JSON.stringify(result)), {
+      ok: false,
+      status,
+      outcome,
+      terminal: true,
+    });
     assert.deepEqual(calls, ["http://127.0.0.1:5050/widget/events"]);
   }
 
@@ -181,7 +230,7 @@ test("widget transport treats every HTTP failure as terminal without a weaker fa
     ok: false,
     status: 0,
     outcome: "server_unavailable",
-    terminal: true
+    terminal: true,
   });
   assert.equal(calls, 1);
 });

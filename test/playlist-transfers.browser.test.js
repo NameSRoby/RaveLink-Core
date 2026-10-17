@@ -1,205 +1,619 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { chromium } = require('playwright');
-const createCoreServer = require('../src/app/core/create-core-server');
-const createExtension = require('../src/app/optional/create-feature-platform-extension');
-const json = (value, init = {}) => new Response(JSON.stringify(value), { ...init, headers: { 'content-type': 'application/json' } });
-
-test('playlist Transfers UI imports/exports CSV and completes a reviewed TIDAL account transfer without touching playback', async t => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ravelink-transfer-browser-'));
-  fs.cpSync(path.join(__dirname, '../features/song-request'), path.join(root, 'installed/song-request'), { recursive: true });
-  const apiCalls = [], spotifyWritten = [];
-  const spotifyTrack = {provider:'spotify',providerItemId:'B'.repeat(22),title:'Track, one',artists:['Artist'],album:'Album',durationMs:180000};
-  const spotifyPlaylist = async input => {
-    if(input.action === 'list')return {ok:true,playlists:[{id:'spotify:playlist:'+'A'.repeat(22),name:'Spotify account list'},{id:'spotify:playlist:'+'E'.repeat(22),name:'Second Spotify list'}],cursor:''};
-    if(input.action === 'create')return {ok:true,id:'spotify:playlist:'+'C'.repeat(22)};
-    if(input.action === 'append'){spotifyWritten.push(...input.ids);return {ok:true};}
-    const tracks = input.id.replace(/^spotify:playlist:/,'') === 'C'.repeat(22) ? spotifyWritten.map(()=>spotifyTrack) : Array(2).fill(spotifyTrack);
-    return {ok:true,name:'Spotify source',total:tracks.length,tracks,cursor:''};
-  };
-  const writes = [], ids = [], artist = { type: 'artists', id: 'a', attributes: { name: 'Artist' } };
-  const song = { type: 'tracks', id: '123', attributes: { title: 'Track, one', duration: 'PT3M', isrc: 'USAAA2600001' }, relationships: { artists: { data: [{ type: 'artists', id: 'a' }] } } };
-  const fetchImpl = async (url, init) => {
-    const parsed = new URL(url); apiCalls.push(parsed.pathname);
-    if (parsed.hostname === 'auth.tidal.com') return new Response(JSON.stringify({ access_token: 'fixture-access', refresh_token: 'fixture-refresh', expires_in: 3600, token_type: 'Bearer', scope: init.body.get('scope') }));
-    assert.equal(parsed.hostname, 'openapi.tidal.com');
-    if (parsed.pathname === '/v2/tracks/123') return json({ data: song, included: [artist] });
-    if (init.method === 'POST') {
-      const body = JSON.parse(init.body); writes.push({ path: parsed.pathname, body, key: init.headers['Idempotency-Key'] });
-      if (parsed.pathname === '/v2/playlists') { assert.equal(body.data.attributes.accessType, 'UNLISTED'); return json({ data: { type: 'playlists', id: 'created-playlist' } }, { status: 201 }); }
-      assert.equal(parsed.pathname, '/v2/playlists/created-playlist/relationships/items'); assert.equal(body.meta.onDuplicates, 'ADD'); ids.push(...body.data.map(row => row.id)); return new Response(null, { status: 204 });
-    }
-    if (parsed.pathname === '/v2/playlists/created-playlist/relationships/items') return json({ data: ids.map(id => ({ id, type: 'tracks' })), included: [song, artist] });
-    if (parsed.pathname === '/v2/playlists/public-source/relationships/items') return json({ data: [{ id: '123', type: 'tracks' }], included: [song, artist] });
-    throw new Error('Unexpected endpoint ' + parsed.pathname);
-  };
-  const created = createCoreServer({ rootDir: path.join(__dirname, '..'), runtimeDir: path.join(root, 'runtime'), dryRun: true, capabilities: { features: true }, extend: createExtension({ featuresRoot: path.join(root, 'installed'), runtimeRoot: path.join(root, 'feature-runtime'), allowUnsafeRuntime: true, tidalCatalogFetch: fetchImpl, providers: { 'spotify.desktop.host.v1/playlist': spotifyPlaylist, 'spotify.desktop.host.v1/resolve': async()=>({ok:true,candidate:spotifyTrack}), ...Object.fromEntries(['youtube', 'soundcloud'].map(provider => [provider + '.catalog.host.v1/resolve', async () => ({ ok: true, candidate: { provider, providerItemId: provider === 'youtube' ? 'abcdefghijk' : '789', title: 'Track, one', artists: ['Artist'], durationMs: 180000 } })])) } }) });
-  await created.extension.startup;
-  const server = await new Promise(resolve => { const listener = created.app.listen(0, '127.0.0.1', () => resolve(listener)); });
-  const browser = await chromium.launch({ headless: true }), context = await browser.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
-  t.after(async () => { await browser.close(); await created.extension.shutdown(); await created.services.lifecycle.stopAll(); await new Promise(resolve => server.close(resolve)); fs.rmSync(root, { recursive: true, force: true }); });
-  const base = 'http://127.0.0.1:' + server.address().port, page = await context.newPage(), errors = [];
-  page.on('pageerror', error => errors.push(error.message));
-  const queue = () => created.extension.registry.request('song-request', 'song.queue.read.v1', 'status', { limit: 1 });
-  const before = await queue();
-  for (let i=0;i<7;i++) await created.extension.registry.request('song-request','song.playlist.admin.v1','mutate',{action:'create',name:'Browse list '+i});
-  await page.goto(base + '/features-ui/song-request/server-playlist');
-  const surface = page.locator('#surface').contentFrame();
-  await surface.locator('#collectionsBrowser .playlistBrowserRows button').first().waitFor({ state: 'attached' });
-  assert.equal(await surface.locator('#collections').isHidden(), true);
-  assert.equal(await surface.locator('#collectionsBrowser .playlistBrowserRows button').count(), 6);
-  await surface.locator('#collectionsBrowser input').fill('Browse list 6');
-  assert.equal(await surface.locator('#collectionsBrowser .playlistBrowserRows button').count(), 1);
-  await surface.locator('#collectionsBrowser input').fill('');
-  await page.screenshot({path:path.join(__dirname,'../runtime/library-browser.png'),fullPage:true});
-  await surface.getByRole('button', { name: 'Transfers', exact: true }).click();
-  await page.screenshot({path:path.join(__dirname,'../runtime/transfer-source.png'),fullPage:true});
-  await surface.locator('#transferSourceChoices button[data-provider=csv]').click();
-  assert.equal(await surface.locator('#transferStep2').isHidden(), true);
-  await surface.locator('#transferFile').setInputFiles({ name: 'Songs.csv', mimeType: 'text/csv', buffer: Buffer.from('title,artists,source_provider,source_id\r\n"Track, one",Artist,tidal,123\r\n"Track, one",Artist,tidal,123') });
-  await surface.getByRole('button', { name: 'Read file', exact: true }).click();
-  await surface.locator('#columnMapping').waitFor({ state: 'attached' });
-  await surface.getByRole('button', { name: 'Preview import', exact: true }).click();
-  await surface.locator('#transferProgress').filter({ hasText: '2 valid' }).waitFor({ state: 'attached' });
-  assert.equal(await surface.locator('#transferRows tr').count(), 2);
-  assert.equal(await surface.locator('#transferStep2').isVisible(), true);
-  await page.screenshot({path:path.join(__dirname,'../runtime/transfer-destination.png'),fullPage:true});
-  await surface.locator('#transferBackToSource').click();
-  await surface.locator('#transfersTab').click();assert.equal(await surface.locator('#transferStep1').isVisible(),true,'refresh keeps the chosen step');
-  await surface.locator('#transferContinueSource').click();
-  await surface.locator('#transferTargetChoices button[data-provider=library]').click();
-  await surface.getByRole('button', { name: 'Save as new local playlist', exact: true }).click();
-  await surface.locator('#transferProgress').filter({ hasText: 'complete' }).waitFor({ state: 'attached' });
-  await surface.getByRole('button', { name: 'Library', exact: true }).click();
-  assert.equal(await surface.locator('#collections option:checked').innerText(), 'Chat Requests (0)');
-  await surface.getByRole('button', { name: 'Transfers', exact: true }).click();
-  await surface.locator('#transferStartNew').click();
-  await surface.locator('#transferSourceChoices button[data-provider=library]').click();
-  await surface.locator('#transferCollectionBrowser input').fill('Songs');
-  await surface.locator('#transferCollectionBrowser').getByRole('button', { name: 'Songs (2)', exact: true }).click();
-  await surface.getByRole('button', { name: 'Review playlist', exact: true }).click();
-  await surface.locator('#transferTargetChoices button[data-provider=csv]').click();
-  const downloadPromise = page.waitForEvent('download');
-  await surface.getByRole('button', { name: 'Export CSV', exact: true }).click();
-  const download = await downloadPromise, contents = fs.readFileSync(await download.path(), 'utf8');
-  await surface.getByText('Saved CSV exports', { exact: true }).click();
-  assert.equal(await surface.locator('#exportFiles li').count(), 1);
-  const exportFolder = await surface.locator('#exportsFolder').innerText();
-  assert.equal(fs.readFileSync(path.join(exportFolder, download.suggestedFilename()), 'utf8'), contents);
-  assert.equal((contents.match(/"tidal","123"/g) || []).length, 2);
-  await context.route('https://login.tidal.com/authorize?**', async route => {
-    const url = new URL(route.request().url()), scopes = url.searchParams.get('scope').split(' ');
-    assert.ok(scopes.includes('playlists.read') && scopes.includes('playlists.write') && scopes.includes('collection.write'));
-    assert.equal(scopes.some(scope => ['r_usr', 'w_usr'].includes(scope)), false);
-    assert.equal(url.searchParams.has('client_secret'), false);
-    const callback = new URL(url.searchParams.get('redirect_uri')); callback.searchParams.set('code', 'fixture-code'); callback.searchParams.set('state', url.searchParams.get('state'));
-    await route.fulfill({ status: 302, headers: { location: callback.href }, body: '' });
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { chromium } = require("playwright");
+const createCoreServer = require("../src/app/core/create-core-server");
+const createExtension = require("../src/app/optional/create-feature-platform-extension");
+const json = (value, init = {}) =>
+  new Response(JSON.stringify(value), {
+    ...init,
+    headers: { "content-type": "application/json" },
   });
-  await surface.locator('#transferTargetChoices button[data-provider=tidal]').click();
-  await surface.locator('#transferAccountSetup').evaluate(node => { node.open = true; });
-  const popupPromise = context.waitForEvent('page', { timeout: 8000 }).catch(async () => { throw new Error('No OAuth popup; notice: ' + await surface.locator('#transferNotice').textContent() + '; errors: ' + JSON.stringify(errors) + '; feature: ' + JSON.stringify(created.extension.registry.list().features.map(row => row.error))); });
-  await surface.getByRole('button', { name: 'Sign in with TIDAL', exact: true }).click();
-  const popup = await popupPromise; await popup.waitForURL(base + '/auth/tidal/result?result=connected', { timeout: 5000 }).catch(async () => { throw new Error('OAuth popup: '+popup.url()+'; notice:'+await surface.locator('#transferNotice').innerText()+'; errors:'+JSON.stringify(errors)); }); await popup.close();
-  await surface.getByRole('button', { name: 'Check connection', exact: true }).click();
-  await surface.locator('#transferAccount').filter({ hasText: 'Using your connected TIDAL account' }).waitFor({ state: 'attached' });
-  assert.equal(await surface.locator('#transferAccountSetup').isHidden(), true);
-  assert.equal(await surface.locator('#connectPlaylistAccount').isHidden(), true);
-  await surface.getByRole('button', { name: 'Find TIDAL matches', exact: true }).click();
-  await surface.locator('#transferProgress').filter({ hasText: 'review · 2 rows · 2 valid · 2 TIDAL selections' }).waitFor({ state: 'attached', timeout: 10000 }).catch(async()=>{throw new Error('Matching: '+await surface.locator('#transferProgress').innerText()+'; notice:'+await surface.locator('#transferNotice').innerText()+'; calls:'+JSON.stringify(apiCalls)+'; errors:'+JSON.stringify(errors)+'; feature:'+created.extension.registry.list().features[0].error)});
+
+test("playlist Transfers UI imports/exports CSV and completes a reviewed TIDAL account transfer without touching playback", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-transfer-browser-"));
+  fs.cpSync(
+    path.join(__dirname, "../features/song-request"),
+    path.join(root, "installed/song-request"),
+    { recursive: true },
+  );
+  const apiCalls = [],
+    spotifyWritten = [];
+  const spotifyTrack = {
+    provider: "spotify",
+    providerItemId: "B".repeat(22),
+    title: "Track, one",
+    artists: ["Artist"],
+    album: "Album",
+    durationMs: 180000,
+  };
+  const spotifyPlaylist = async (input) => {
+    if (input.action === "list")
+      return {
+        ok: true,
+        playlists: [
+          {
+            id: "spotify:playlist:" + "A".repeat(22),
+            name: "Spotify account list",
+          },
+          {
+            id: "spotify:playlist:" + "E".repeat(22),
+            name: "Second Spotify list",
+          },
+        ],
+        cursor: "",
+      };
+    if (input.action === "create") return { ok: true, id: "spotify:playlist:" + "C".repeat(22) };
+    if (input.action === "append") {
+      spotifyWritten.push(...input.ids);
+      return { ok: true };
+    }
+    const tracks =
+      input.id.replace(/^spotify:playlist:/, "") === "C".repeat(22)
+        ? spotifyWritten.map(() => spotifyTrack)
+        : Array(2).fill(spotifyTrack);
+    return {
+      ok: true,
+      name: "Spotify source",
+      total: tracks.length,
+      tracks,
+      cursor: "",
+    };
+  };
+  const writes = [],
+    ids = [],
+    artist = { type: "artists", id: "a", attributes: { name: "Artist" } };
+  const song = {
+    type: "tracks",
+    id: "123",
+    attributes: { title: "Track, one", duration: "PT3M", isrc: "USAAA2600001" },
+    relationships: { artists: { data: [{ type: "artists", id: "a" }] } },
+  };
+  const fetchImpl = async (url, init) => {
+    const parsed = new URL(url);
+    apiCalls.push(parsed.pathname);
+    if (parsed.hostname === "auth.tidal.com")
+      return new Response(
+        JSON.stringify({
+          access_token: "fixture-access",
+          refresh_token: "fixture-refresh",
+          expires_in: 3600,
+          token_type: "Bearer",
+          scope: init.body.get("scope"),
+        }),
+      );
+    assert.equal(parsed.hostname, "openapi.tidal.com");
+    if (parsed.pathname === "/v2/tracks/123") return json({ data: song, included: [artist] });
+    if (init.method === "POST") {
+      const body = JSON.parse(init.body);
+      writes.push({
+        path: parsed.pathname,
+        body,
+        key: init.headers["Idempotency-Key"],
+      });
+      if (parsed.pathname === "/v2/playlists") {
+        assert.equal(body.data.attributes.accessType, "UNLISTED");
+        return json({ data: { type: "playlists", id: "created-playlist" } }, { status: 201 });
+      }
+      assert.equal(parsed.pathname, "/v2/playlists/created-playlist/relationships/items");
+      assert.equal(body.meta.onDuplicates, "ADD");
+      ids.push(...body.data.map((row) => row.id));
+      return new Response(null, { status: 204 });
+    }
+    if (parsed.pathname === "/v2/playlists/created-playlist/relationships/items")
+      return json({
+        data: ids.map((id) => ({ id, type: "tracks" })),
+        included: [song, artist],
+      });
+    if (parsed.pathname === "/v2/playlists/public-source/relationships/items")
+      return json({
+        data: [{ id: "123", type: "tracks" }],
+        included: [song, artist],
+      });
+    throw new Error("Unexpected endpoint " + parsed.pathname);
+  };
+  const created = createCoreServer({
+    rootDir: path.join(__dirname, ".."),
+    runtimeDir: path.join(root, "runtime"),
+    dryRun: true,
+    capabilities: { features: true },
+    extend: createExtension({
+      featuresRoot: path.join(root, "installed"),
+      runtimeRoot: path.join(root, "feature-runtime"),
+      allowUnsafeRuntime: true,
+      tidalCatalogFetch: fetchImpl,
+      providers: {
+        "spotify.desktop.host.v1/playlist": spotifyPlaylist,
+        "spotify.desktop.host.v1/resolve": async () => ({
+          ok: true,
+          candidate: spotifyTrack,
+        }),
+        ...Object.fromEntries(
+          ["youtube", "soundcloud"].map((provider) => [
+            provider + ".catalog.host.v1/resolve",
+            async () => ({
+              ok: true,
+              candidate: {
+                provider,
+                providerItemId: provider === "youtube" ? "abcdefghijk" : "789",
+                title: "Track, one",
+                artists: ["Artist"],
+                durationMs: 180000,
+              },
+            }),
+          ]),
+        ),
+      },
+    }),
+  });
+  await created.extension.startup;
+  const server = await new Promise((resolve) => {
+    const listener = created.app.listen(0, "127.0.0.1", () => resolve(listener));
+  });
+  const browser = await chromium.launch({ headless: true }),
+    context = await browser.newContext({
+      viewport: { width: 1280, height: 900 },
+      acceptDownloads: true,
+    });
+  t.after(async () => {
+    await browser.close();
+    await created.extension.shutdown();
+    await created.services.lifecycle.stopAll();
+    await new Promise((resolve) => server.close(resolve));
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const base = "http://127.0.0.1:" + server.address().port,
+    page = await context.newPage(),
+    errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const queue = () =>
+    created.extension.registry.request("song-request", "song.queue.read.v1", "status", {
+      limit: 1,
+    });
+  const before = await queue();
+  for (let i = 0; i < 7; i++)
+    await created.extension.registry.request("song-request", "song.playlist.admin.v1", "mutate", {
+      action: "create",
+      name: "Browse list " + i,
+    });
+  await page.goto(base + "/features-ui/song-request/server-playlist");
+  const surface = page.locator("#surface").contentFrame();
+  await surface
+    .locator("#collectionsBrowser .playlistBrowserRows button")
+    .first()
+    .waitFor({ state: "attached" });
+  assert.equal(await surface.locator("#collections").isHidden(), true);
+  assert.equal(await surface.locator("#collectionsBrowser .playlistBrowserRows button").count(), 6);
+  await surface.locator("#collectionsBrowser input").fill("Browse list 6");
+  assert.equal(await surface.locator("#collectionsBrowser .playlistBrowserRows button").count(), 1);
+  await surface.locator("#collectionsBrowser input").fill("");
+  await page.screenshot({
+    path: path.join(__dirname, "../runtime/library-browser.png"),
+    fullPage: true,
+  });
+  await surface.getByRole("button", { name: "Transfers", exact: true }).click();
+  await page.screenshot({
+    path: path.join(__dirname, "../runtime/transfer-source.png"),
+    fullPage: true,
+  });
+  await surface.locator("#transferSourceChoices button[data-provider=csv]").click();
+  assert.equal(await surface.locator("#transferStep2").isHidden(), true);
+  await surface.locator("#transferFile").setInputFiles({
+    name: "Songs.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      'title,artists,source_provider,source_id\r\n"Track, one",Artist,tidal,123\r\n"Track, one",Artist,tidal,123',
+    ),
+  });
+  await surface.getByRole("button", { name: "Read file", exact: true }).click();
+  await surface.locator("#columnMapping").waitFor({ state: "attached" });
+  await surface.getByRole("button", { name: "Preview import", exact: true }).click();
+  await surface
+    .locator("#transferProgress")
+    .filter({ hasText: "2 valid" })
+    .waitFor({ state: "attached" });
+  assert.equal(await surface.locator("#transferRows tr").count(), 2);
+  assert.equal(await surface.locator("#transferStep2").isVisible(), true);
+  await page.screenshot({
+    path: path.join(__dirname, "../runtime/transfer-destination.png"),
+    fullPage: true,
+  });
+  await surface.locator("#transferBackToSource").click();
+  await surface.locator("#transfersTab").click();
+  assert.equal(
+    await surface.locator("#transferStep1").isVisible(),
+    true,
+    "refresh keeps the chosen step",
+  );
+  await surface.locator("#transferContinueSource").click();
+  await surface.locator("#transferTargetChoices button[data-provider=library]").click();
+  await surface.getByRole("button", { name: "Save as new local playlist", exact: true }).click();
+  await surface
+    .locator("#transferProgress")
+    .filter({ hasText: "complete" })
+    .waitFor({ state: "attached" });
+  await surface.getByRole("button", { name: "Library", exact: true }).click();
+  assert.equal(
+    await surface.locator("#collections option:checked").innerText(),
+    "Chat Requests (0)",
+  );
+  await surface.getByRole("button", { name: "Transfers", exact: true }).click();
+  await surface.locator("#transferStartNew").click();
+  await surface.locator("#transferSourceChoices button[data-provider=library]").click();
+  await surface.locator("#transferCollectionBrowser input").fill("Songs");
+  await surface
+    .locator("#transferCollectionBrowser")
+    .getByRole("button", { name: "Songs (2)", exact: true })
+    .click();
+  await surface.getByRole("button", { name: "Review playlist", exact: true }).click();
+  await surface.locator("#transferTargetChoices button[data-provider=csv]").click();
+  const downloadPromise = page.waitForEvent("download");
+  await surface.getByRole("button", { name: "Export CSV", exact: true }).click();
+  const download = await downloadPromise,
+    contents = fs.readFileSync(await download.path(), "utf8");
+  await surface.getByText("Saved CSV exports", { exact: true }).click();
+  assert.equal(await surface.locator("#exportFiles li").count(), 1);
+  const exportFolder = await surface.locator("#exportsFolder").innerText();
+  assert.equal(
+    fs.readFileSync(path.join(exportFolder, download.suggestedFilename()), "utf8"),
+    contents,
+  );
+  assert.equal((contents.match(/"tidal","123"/g) || []).length, 2);
+  await context.route("https://login.tidal.com/authorize?**", async (route) => {
+    const url = new URL(route.request().url()),
+      scopes = url.searchParams.get("scope").split(" ");
+    assert.ok(
+      scopes.includes("playlists.read") &&
+        scopes.includes("playlists.write") &&
+        scopes.includes("collection.write"),
+    );
+    assert.equal(
+      scopes.some((scope) => ["r_usr", "w_usr"].includes(scope)),
+      false,
+    );
+    assert.equal(url.searchParams.has("client_secret"), false);
+    const callback = new URL(url.searchParams.get("redirect_uri"));
+    callback.searchParams.set("code", "fixture-code");
+    callback.searchParams.set("state", url.searchParams.get("state"));
+    await route.fulfill({
+      status: 302,
+      headers: { location: callback.href },
+      body: "",
+    });
+  });
+  await surface.locator("#transferTargetChoices button[data-provider=tidal]").click();
+  await surface.locator("#transferAccountSetup").evaluate((node) => {
+    node.open = true;
+  });
+  const popupPromise = context.waitForEvent("page", { timeout: 8000 }).catch(async () => {
+    throw new Error(
+      "No OAuth popup; notice: " +
+        (await surface.locator("#transferNotice").textContent()) +
+        "; errors: " +
+        JSON.stringify(errors) +
+        "; feature: " +
+        JSON.stringify(created.extension.registry.list().features.map((row) => row.error)),
+    );
+  });
+  await surface.getByRole("button", { name: "Sign in with TIDAL", exact: true }).click();
+  const popup = await popupPromise;
+  await popup
+    .waitForURL(base + "/auth/tidal/result?result=connected", { timeout: 5000 })
+    .catch(async () => {
+      throw new Error(
+        "OAuth popup: " +
+          popup.url() +
+          "; notice:" +
+          (await surface.locator("#transferNotice").innerText()) +
+          "; errors:" +
+          JSON.stringify(errors),
+      );
+    });
+  await popup.close();
+  await surface.getByRole("button", { name: "Check connection", exact: true }).click();
+  await surface
+    .locator("#transferAccount")
+    .filter({ hasText: "Using your connected TIDAL account" })
+    .waitFor({ state: "attached" });
+  assert.equal(await surface.locator("#transferAccountSetup").isHidden(), true);
+  assert.equal(await surface.locator("#connectPlaylistAccount").isHidden(), true);
+  await surface.getByRole("button", { name: "Find TIDAL matches", exact: true }).click();
+  await surface
+    .locator("#transferProgress")
+    .filter({ hasText: "review · 2 rows · 2 valid · 2 TIDAL selections" })
+    .waitFor({ state: "attached", timeout: 10000 })
+    .catch(async () => {
+      throw new Error(
+        "Matching: " +
+          (await surface.locator("#transferProgress").innerText()) +
+          "; notice:" +
+          (await surface.locator("#transferNotice").innerText()) +
+          "; calls:" +
+          JSON.stringify(apiCalls) +
+          "; errors:" +
+          JSON.stringify(errors) +
+          "; feature:" +
+          created.extension.registry.list().features[0].error,
+      );
+    });
   assert.equal(writes.length, 0);
-  assert.equal(await surface.locator('#transferStep3').isVisible(), true);
-  assert.equal(await surface.locator('.matchConfidence').count(), 2);
-  assert.ok(await surface.locator('#transferRoute svg').count() >= 2);
+  assert.equal(await surface.locator("#transferStep3").isVisible(), true);
+  assert.equal(await surface.locator(".matchConfidence").count(), 2);
+  assert.ok((await surface.locator("#transferRoute svg").count()) >= 2);
   await surface.locator('#transferSteps [data-step="2"]').click();
-  await surface.locator('#transferTargetChoices button[data-provider=youtube]').click();
+  await surface.locator("#transferTargetChoices button[data-provider=youtube]").click();
   assert.equal(await surface.locator('#transferSteps [data-step="3"]').isDisabled(), true);
-  await surface.locator('#transferTargetChoices button[data-provider=tidal]').click();
+  await surface.locator("#transferTargetChoices button[data-provider=tidal]").click();
   await surface.locator('#transferSteps [data-step="3"]').click();
-  await surface.getByText('Organize destination playlists', { exact: true }).click();
-  assert.equal(await surface.locator('#splitSizeLabel').isHidden(), true);
+  await surface.getByText("Organize destination playlists", { exact: true }).click();
+  assert.equal(await surface.locator("#splitSizeLabel").isHidden(), true);
   await surface.locator('[data-choice-for="transferGrouping"] [data-choice-value="size"]').click();
-  assert.equal(await surface.locator('#splitSizeLabel').isVisible(), true);
-  await surface.locator('[data-choice-for="transferGrouping"] [data-choice-value="single"]').click();
-  await surface.getByRole('button', { name: 'Preview destination playlists', exact: true }).click();
-  await surface.locator('#destinationPlan').filter({ hasText: '2 songs' }).waitFor({ state: 'attached' });
+  assert.equal(await surface.locator("#splitSizeLabel").isVisible(), true);
+  await surface
+    .locator('[data-choice-for="transferGrouping"] [data-choice-value="single"]')
+    .click();
+  await surface.getByRole("button", { name: "Preview destination playlists", exact: true }).click();
+  await surface
+    .locator("#destinationPlan")
+    .filter({ hasText: "2 songs" })
+    .waitFor({ state: "attached" });
   await page.setViewportSize({ width: 390, height: 844 });
-  assert.equal(await surface.locator('body').evaluate(node => node.scrollWidth <= document.documentElement.clientWidth + 1), true);
+  assert.equal(
+    await surface
+      .locator("body")
+      .evaluate((node) => node.scrollWidth <= document.documentElement.clientWidth + 1),
+    true,
+  );
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.screenshot({ path: path.join(__dirname, '../runtime/playlist-transfer-review.png'), fullPage: true });
-  const reviewedValues=await surface.locator('#transferRows select').evaluateAll(nodes=>nodes.map(node=>node.value));
-  await surface.locator('#transferBackToDestination').click();await surface.locator('#transferTargetChoices button[data-provider=spotify]').click();
-  assert.equal(await surface.locator('#transferDestinationHint').isVisible(),true);
-  await surface.locator('#transferTargetChoices button[data-provider=tidal]').click();await surface.getByRole('button',{name:'Return to TIDAL matches',exact:true}).click();
-  assert.deepEqual(await surface.locator('#transferRows select').evaluateAll(nodes=>nodes.map(node=>node.value)),reviewedValues);
-  await surface.getByRole('button', { name: 'Create unlisted TIDAL playlist', exact: true }).click();
-  await surface.locator('#transferProgress').filter({ hasText: 'destination verified' }).waitFor({ state: 'attached', timeout: 15000 });
-  assert.deepEqual(ids, ['123', '123']); assert.equal(writes.length, 2); assert.ok(writes.every(row => row.key));
-  for (const target of ['youtube', 'soundcloud', 'spotify']) {
-    await surface.locator('#transferStartNew').click();
-    await surface.getByRole('button', { name: 'Review playlist', exact: true }).click();
-    await surface.locator('#transferTargetChoices button[data-provider='+target+']').click();
-    await surface.locator('#matchTidal').click();
-    await surface.locator('#transferProgress').filter({ hasText: new RegExp('^review.*' + ({youtube:'YouTube',soundcloud:'SoundCloud',spotify:'Spotify'})[target] + ' selections') }).waitFor({ state: 'attached', timeout: 10000 }).catch(async()=>{throw Error('Target '+target+': '+await surface.locator('#transferProgress').textContent()+'; '+await surface.locator('#transferNotice').textContent()+'; '+JSON.stringify(errors));});
-    for (let index = 0; index < 2; index++) { await surface.locator('#transferRows select').nth(index).selectOption('0'); await surface.locator('#transferProgress').filter({ hasText: (index + 1) + ' ' + ({youtube:'YouTube',soundcloud:'SoundCloud',spotify:'Spotify'})[target] + ' selections' }).waitFor({ state: 'attached' }); }
-    if(target === 'spotify') {
-      assert.equal(await surface.locator('#saveMatched').isHidden(),true);
-      await surface.getByRole('button',{name:'Create Spotify playlist',exact:true}).click();
-      await surface.locator('#transferProgress').filter({hasText:'destination verified'}).waitFor({state:'attached',timeout:15000});
-      assert.deepEqual(spotifyWritten,['B'.repeat(22),'B'.repeat(22)]);
-      assert.equal(await surface.locator('#completedDestinations a').getAttribute('href'),'https://open.spotify.com/playlist/'+'C'.repeat(22));
-      await surface.locator('#transferAgain').click();await surface.locator('#transferStep2').waitFor();assert.equal(await surface.locator('#matchTidal').isEnabled(),true);
+  await page.screenshot({
+    path: path.join(__dirname, "../runtime/playlist-transfer-review.png"),
+    fullPage: true,
+  });
+  const reviewedValues = await surface
+    .locator("#transferRows select")
+    .evaluateAll((nodes) => nodes.map((node) => node.value));
+  await surface.locator("#transferBackToDestination").click();
+  await surface.locator("#transferTargetChoices button[data-provider=spotify]").click();
+  assert.equal(await surface.locator("#transferDestinationHint").isVisible(), true);
+  await surface.locator("#transferTargetChoices button[data-provider=tidal]").click();
+  await surface.getByRole("button", { name: "Return to TIDAL matches", exact: true }).click();
+  assert.deepEqual(
+    await surface
+      .locator("#transferRows select")
+      .evaluateAll((nodes) => nodes.map((node) => node.value)),
+    reviewedValues,
+  );
+  await surface
+    .getByRole("button", {
+      name: "Create unlisted TIDAL playlist",
+      exact: true,
+    })
+    .click();
+  await surface
+    .locator("#transferProgress")
+    .filter({ hasText: "destination verified" })
+    .waitFor({ state: "attached", timeout: 15000 });
+  assert.deepEqual(ids, ["123", "123"]);
+  assert.equal(writes.length, 2);
+  assert.ok(writes.every((row) => row.key));
+  for (const target of ["youtube", "soundcloud", "spotify"]) {
+    await surface.locator("#transferStartNew").click();
+    await surface.getByRole("button", { name: "Review playlist", exact: true }).click();
+    await surface.locator("#transferTargetChoices button[data-provider=" + target + "]").click();
+    await surface.locator("#matchTidal").click();
+    await surface
+      .locator("#transferProgress")
+      .filter({
+        hasText: new RegExp(
+          "^review.*" +
+            {
+              youtube: "YouTube",
+              soundcloud: "SoundCloud",
+              spotify: "Spotify",
+            }[target] +
+            " selections",
+        ),
+      })
+      .waitFor({ state: "attached", timeout: 10000 })
+      .catch(async () => {
+        throw Error(
+          "Target " +
+            target +
+            ": " +
+            (await surface.locator("#transferProgress").textContent()) +
+            "; " +
+            (await surface.locator("#transferNotice").textContent()) +
+            "; " +
+            JSON.stringify(errors),
+        );
+      });
+    for (let index = 0; index < 2; index++) {
+      await surface.locator("#transferRows select").nth(index).selectOption("0");
+      await surface
+        .locator("#transferProgress")
+        .filter({
+          hasText:
+            index +
+            1 +
+            " " +
+            {
+              youtube: "YouTube",
+              soundcloud: "SoundCloud",
+              spotify: "Spotify",
+            }[target] +
+            " selections",
+        })
+        .waitFor({ state: "attached" });
+    }
+    if (target === "spotify") {
+      assert.equal(await surface.locator("#saveMatched").isHidden(), true);
+      await surface.getByRole("button", { name: "Create Spotify playlist", exact: true }).click();
+      await surface
+        .locator("#transferProgress")
+        .filter({ hasText: "destination verified" })
+        .waitFor({ state: "attached", timeout: 15000 });
+      assert.deepEqual(spotifyWritten, ["B".repeat(22), "B".repeat(22)]);
+      assert.equal(
+        await surface.locator("#completedDestinations a").getAttribute("href"),
+        "https://open.spotify.com/playlist/" + "C".repeat(22),
+      );
+      await surface.locator("#transferAgain").click();
+      await surface.locator("#transferStep2").waitFor();
+      assert.equal(await surface.locator("#matchTidal").isEnabled(), true);
       continue;
     }
-    await surface.locator('#saveMatched').click({ timeout: 3000 }).catch(async () => { throw new Error('Local save: ' + await surface.locator('#transferProgress').innerText() + '; notice: ' + await surface.locator('#transferNotice').innerText() + '; rows: ' + await surface.locator('#transferRows').innerText() + '; errors: ' + JSON.stringify(errors)); });
-    await surface.locator('#transferProgress').filter({ hasText: 'complete' }).waitFor({ state: 'attached' });
-    await surface.locator('#completedDestinations').filter({ hasText: '2 tracks saved in Library' }).waitFor({ state: 'attached' });
+    await surface
+      .locator("#saveMatched")
+      .click({ timeout: 3000 })
+      .catch(async () => {
+        throw new Error(
+          "Local save: " +
+            (await surface.locator("#transferProgress").innerText()) +
+            "; notice: " +
+            (await surface.locator("#transferNotice").innerText()) +
+            "; rows: " +
+            (await surface.locator("#transferRows").innerText()) +
+            "; errors: " +
+            JSON.stringify(errors),
+        );
+      });
+    await surface
+      .locator("#transferProgress")
+      .filter({ hasText: "complete" })
+      .waitFor({ state: "attached" });
+    await surface
+      .locator("#completedDestinations")
+      .filter({ hasText: "2 tracks saved in Library" })
+      .waitFor({ state: "attached" });
   }
-  await surface.getByRole('button', { name: 'Library', exact: true }).click();
-  assert.match(await surface.locator('#importUrl').getAttribute('placeholder'), /YouTube, SoundCloud, TIDAL or Spotify/);
-  await context.route('https://w.soundcloud.com/player/api.js', route => route.fulfill({ contentType: 'application/javascript', body: `window.SC={Widget:Object.assign(function(){return {pause(){},unbind(){},bind(name,fn){if(name==='ready')setTimeout(fn,10)},getSounds(fn){fn([{id:987,title:'Public song',duration:180000,policy:'ALLOW',permalink_url:'https://soundcloud.com/artist/song',user:{username:'Artist'}}])}}},{Events:{READY:'ready',ERROR:'error',PLAY:'play'}})};` }));
-  await context.route('https://w.soundcloud.com/player/?**', route => route.fulfill({ contentType: 'text/html', body: '<p>Public playlist preview</p>' }));
-  assert.equal(await surface.locator('#libraryView #importUrl').count(),0);
-  await surface.getByRole('button',{name:'Transfers',exact:true}).click();await surface.locator('#transferSteps button[data-step="1"]').click();
-  await surface.locator('#transferSourceChoices button[data-provider=url]').click();
-  await surface.locator('#importUrl').fill('https://soundcloud.com/artist/sets/source');
-  await surface.locator('#importName').fill('Public SC import'); await surface.locator('#import').click();
-  await surface.locator('#transferProgress').filter({hasText:/^review.*1 valid/}).waitFor({state:'attached'});
-  const library = await created.extension.registry.request('song-request', 'song.playlist.read.v1', 'status', { limit: 1 });
-  assert.equal(library.value.collections.some(row => row.name === 'Public SC import'),false,'loading a URL does not save a Library playlist before the user chooses');
-  await surface.locator('#transferSteps button[data-step="1"]').click();await surface.locator('#transferSourceChoices button[data-provider=url]').click();
-  await surface.locator('#importUrl').fill('https://tidal.com/browse/playlist/public-source');
-  await surface.locator('#importName').fill('TIDAL link import'); await surface.locator('#import').click();
-  await surface.locator('#transferSummary').filter({hasText:'TIDAL link import'}).waitFor();
-  await surface.locator('#transferProgress').filter({ hasText: /^review.*1 valid/ }).waitFor({ state: 'attached', timeout: 10000 });
-  assert.equal(await surface.locator('#transferSource').inputValue(), 'url');
-  assert.equal(await surface.locator('#transferStep2').isVisible(), true);
-  assert.match(await surface.locator('#transferRoute').innerText(), /TIDAL/);
-  await surface.locator('#transferSteps button[data-step="1"]').click();await surface.locator('#transferSourceChoices button[data-provider=spotify]').click();
-  assert.equal(await surface.locator('#spotifyPlaylistBrowser').isVisible(),false);
-  assert.equal(await surface.locator('#transferName').isVisible(),false);
-  assert.equal(await surface.locator('#readSpotify').isVisible(),false);
-  await surface.locator('#listSpotify').click();await surface.locator('#spotifySourceStatus').filter({hasText:'2 playlists loaded'}).waitFor();assert.equal(await surface.locator('#spotifyPlaylistBrowser').isVisible(),true);assert.equal(await surface.locator('#transferName').isVisible(),true);await surface.locator('#spotifyPlaylistBrowser .playlistBrowserRows button').first().click();await surface.locator('#readSpotify').click();
-  await surface.locator('#transferRoute .providerBadge[data-provider=spotify]').waitFor();await surface.locator('#transferProgress').filter({hasText:/^review.*2 valid/}).waitFor({state:'attached'});
-  await surface.locator('#transferBackToSource').click();await surface.locator('#spotifyPlaylistSelectAll').click();await surface.locator('#readSpotify').click();
-  await surface.locator('#transferProgress').filter({hasText:/^review.*4 valid/}).waitFor({state:'attached',timeout:15000});
-  await surface.locator('#csvExports').evaluate(node=>{node.open=false;});
-  await page.screenshot({path:path.join(__dirname,'../runtime/transfer-batch-destination.png'),fullPage:true});
-  await surface.locator('[data-choice-for=transferBatchMode] [data-choice-value=single]').click();
-  await surface.locator('#transferMergedName').fill('Combined listening');
-  await surface.locator('#transferTargetChoices button[data-provider=library]').click();await surface.locator('#saveLocal').click();
-  await surface.locator('#completedDestinations').filter({hasText:'4 tracks saved in Library'}).waitFor({state:'attached'});
-  await surface.locator('#transferSteps button[data-step="1"]').click();await surface.locator('#transferSourceChoices button[data-provider=url]').click();
-  await surface.locator('#importUrl').fill('https://open.spotify.com/playlist/'+'A'.repeat(22));await surface.locator('#importName').fill('Spotify URL source');await surface.locator('#import').click();
-  await surface.locator('#transferSummary').filter({hasText:'Spotify URL source'}).waitFor();await surface.locator('#transferProgress').filter({hasText:/^review.*2 valid/}).waitFor({state:'attached'});
-  assert.equal(await surface.locator('#transferStep2').isVisible(),true);await surface.locator('#transferTargetChoices button[data-provider=library]').click();await surface.locator('#saveLocal').click();
-  await surface.locator('#transferProgress').filter({hasText:'complete'}).waitFor({state:'attached'});assert.equal(await surface.locator('#transferMeter').isHidden(),true);
-  assert.ok((await surface.locator('#transferActivity').boundingBox()).height<180,'completed result is compact');
-  await surface.locator('#transferDismiss').click();await surface.locator('#transferActivity').waitFor({state:'hidden'});assert.equal(await surface.locator('#transferStep1').isVisible(),true);assert.equal(await surface.locator('#transferNotice').textContent(),'');
-  await page.reload();await surface.locator('#transfersTab').click();await surface.locator('#transferActivity').waitFor({state:'hidden'});
-  await page.screenshot({path:path.join(__dirname,'../runtime/transfer-spotify-sources.png'),fullPage:true});
-  const after = await queue(); assert.deepEqual(after.value.playlist, before.value.playlist); assert.deepEqual(after.value.queue, before.value.queue);
-  assert.equal(created.extension.registry.list().features[0].error, ''); assert.deepEqual(errors, []);
+  await surface.getByRole("button", { name: "Library", exact: true }).click();
+  assert.match(
+    await surface.locator("#importUrl").getAttribute("placeholder"),
+    /YouTube, SoundCloud, TIDAL or Spotify/,
+  );
+  await context.route("https://w.soundcloud.com/player/api.js", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body: `window.SC={Widget:Object.assign(function(){return {pause(){},unbind(){},bind(name,fn){if(name==='ready')setTimeout(fn,10)},getSounds(fn){fn([{id:987,title:'Public song',duration:180000,policy:'ALLOW',permalink_url:'https://soundcloud.com/artist/song',user:{username:'Artist'}}])}}},{Events:{READY:'ready',ERROR:'error',PLAY:'play'}})};`,
+    }),
+  );
+  await context.route("https://w.soundcloud.com/player/?**", (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: "<p>Public playlist preview</p>",
+    }),
+  );
+  assert.equal(await surface.locator("#libraryView #importUrl").count(), 0);
+  await surface.getByRole("button", { name: "Transfers", exact: true }).click();
+  await surface.locator('#transferSteps button[data-step="1"]').click();
+  await surface.locator("#transferSourceChoices button[data-provider=url]").click();
+  await surface.locator("#importUrl").fill("https://soundcloud.com/artist/sets/source");
+  await surface.locator("#importName").fill("Public SC import");
+  await surface.locator("#import").click();
+  await surface
+    .locator("#transferProgress")
+    .filter({ hasText: /^review.*1 valid/ })
+    .waitFor({ state: "attached" });
+  const library = await created.extension.registry.request(
+    "song-request",
+    "song.playlist.read.v1",
+    "status",
+    { limit: 1 },
+  );
+  assert.equal(
+    library.value.collections.some((row) => row.name === "Public SC import"),
+    false,
+    "loading a URL does not save a Library playlist before the user chooses",
+  );
+  await surface.locator('#transferSteps button[data-step="1"]').click();
+  await surface.locator("#transferSourceChoices button[data-provider=url]").click();
+  await surface.locator("#importUrl").fill("https://tidal.com/browse/playlist/public-source");
+  await surface.locator("#importName").fill("TIDAL link import");
+  await surface.locator("#import").click();
+  await surface.locator("#transferSummary").filter({ hasText: "TIDAL link import" }).waitFor();
+  await surface
+    .locator("#transferProgress")
+    .filter({ hasText: /^review.*1 valid/ })
+    .waitFor({ state: "attached", timeout: 10000 });
+  assert.equal(await surface.locator("#transferSource").inputValue(), "url");
+  assert.equal(await surface.locator("#transferStep2").isVisible(), true);
+  assert.match(await surface.locator("#transferRoute").innerText(), /TIDAL/);
+  await surface.locator('#transferSteps button[data-step="1"]').click();
+  await surface.locator("#transferSourceChoices button[data-provider=spotify]").click();
+  assert.equal(await surface.locator("#spotifyPlaylistBrowser").isVisible(), false);
+  assert.equal(await surface.locator("#transferName").isVisible(), false);
+  assert.equal(await surface.locator("#readSpotify").isVisible(), false);
+  await surface.locator("#listSpotify").click();
+  await surface.locator("#spotifySourceStatus").filter({ hasText: "2 playlists loaded" }).waitFor();
+  assert.equal(await surface.locator("#spotifyPlaylistBrowser").isVisible(), true);
+  assert.equal(await surface.locator("#transferName").isVisible(), true);
+  await surface.locator("#spotifyPlaylistBrowser .playlistBrowserRows button").first().click();
+  await surface.locator("#readSpotify").click();
+  await surface.locator("#transferRoute .providerBadge[data-provider=spotify]").waitFor();
+  await surface
+    .locator("#transferProgress")
+    .filter({ hasText: /^review.*2 valid/ })
+    .waitFor({ state: "attached" });
+  await surface.locator("#transferBackToSource").click();
+  await surface.locator("#spotifyPlaylistSelectAll").click();
+  await surface.locator("#readSpotify").click();
+  await surface
+    .locator("#transferProgress")
+    .filter({ hasText: /^review.*4 valid/ })
+    .waitFor({ state: "attached", timeout: 15000 });
+  await surface.locator("#csvExports").evaluate((node) => {
+    node.open = false;
+  });
+  await page.screenshot({
+    path: path.join(__dirname, "../runtime/transfer-batch-destination.png"),
+    fullPage: true,
+  });
+  await surface.locator("[data-choice-for=transferBatchMode] [data-choice-value=single]").click();
+  await surface.locator("#transferMergedName").fill("Combined listening");
+  await surface.locator("#transferTargetChoices button[data-provider=library]").click();
+  await surface.locator("#saveLocal").click();
+  await surface
+    .locator("#completedDestinations")
+    .filter({ hasText: "4 tracks saved in Library" })
+    .waitFor({ state: "attached" });
+  await surface.locator('#transferSteps button[data-step="1"]').click();
+  await surface.locator("#transferSourceChoices button[data-provider=url]").click();
+  await surface.locator("#importUrl").fill("https://open.spotify.com/playlist/" + "A".repeat(22));
+  await surface.locator("#importName").fill("Spotify URL source");
+  await surface.locator("#import").click();
+  await surface.locator("#transferSummary").filter({ hasText: "Spotify URL source" }).waitFor();
+  await surface
+    .locator("#transferProgress")
+    .filter({ hasText: /^review.*2 valid/ })
+    .waitFor({ state: "attached" });
+  assert.equal(await surface.locator("#transferStep2").isVisible(), true);
+  await surface.locator("#transferTargetChoices button[data-provider=library]").click();
+  await surface.locator("#saveLocal").click();
+  await surface
+    .locator("#transferProgress")
+    .filter({ hasText: "complete" })
+    .waitFor({ state: "attached" });
+  assert.equal(await surface.locator("#transferMeter").isHidden(), true);
+  assert.ok(
+    (await surface.locator("#transferActivity").boundingBox()).height < 180,
+    "completed result is compact",
+  );
+  await surface.locator("#transferDismiss").click();
+  await surface.locator("#transferActivity").waitFor({ state: "hidden" });
+  assert.equal(await surface.locator("#transferStep1").isVisible(), true);
+  assert.equal(await surface.locator("#transferNotice").textContent(), "");
+  await page.reload();
+  await surface.locator("#transfersTab").click();
+  await surface.locator("#transferActivity").waitFor({ state: "hidden" });
+  await page.screenshot({
+    path: path.join(__dirname, "../runtime/transfer-spotify-sources.png"),
+    fullPage: true,
+  });
+  const after = await queue();
+  assert.deepEqual(after.value.playlist, before.value.playlist);
+  assert.deepEqual(after.value.queue, before.value.queue);
+  assert.equal(created.extension.registry.list().features[0].error, "");
+  assert.deepEqual(errors, []);
 });

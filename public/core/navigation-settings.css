@@ -1,1 +1,56 @@
-.navigationHidden{display:none!important}#navigationSettings{width:min(590px,94vw);max-height:90vh;overflow:auto;background:var(--panel,#0b0f19);color:var(--text);border:1px solid var(--edge);border-radius:12px;padding:24px}#navigationSettings::backdrop{background:#000a}#navigationSettings h2{margin-top:0}#navigationSettings p{color:var(--muted);line-height:1.6;font-size:13px}#navigationChoices{display:grid;gap:8px}#navigationChoices label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;padding:8px 0;border-bottom:1px solid var(--edge)}#navigationChoices select{width:145px;min-width:0}#navigationSettings .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}#customizeTabs{margin-top:16px;width:100%}
+/**
+ * Navigation settings.
+ * Developer context and change constraints:
+ * docs/DEVELOPMENT.md#request-security-and-the-feature-ui-relay
+ */
+.navigationHidden {
+  display: none !important;
+}
+#navigationSettings {
+  width: min(590px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--panel, #0b0f19);
+  color: var(--text);
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  padding: 24px;
+}
+#navigationSettings::backdrop {
+  background: #000a;
+}
+#navigationSettings h2 {
+  margin-top: 0;
+}
+#navigationSettings p {
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 13px;
+}
+#navigationChoices {
+  display: grid;
+  gap: 8px;
+}
+#navigationChoices label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--edge);
+}
+#navigationChoices select {
+  width: 145px;
+  min-width: 0;
+}
+#navigationSettings .actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+#customizeTabs {
+  margin-top: 16px;
+  width: 100%;
+}
