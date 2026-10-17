@@ -136,10 +136,7 @@ test("SoundCloud player imports public playlists, confirms PLAY, preserves FIFO,
   // and inspect one DOM snapshot so a repaint cannot turn boundingBox into null.
   await firstRequest.waitFor({ state: "visible" });
   const rowHeight = await firstRequest.evaluate((row) => row.getBoundingClientRect().height);
-  assert.ok(
-    rowHeight > 0 && rowHeight < 110,
-    "closed moderation must not stretch queue rows",
-  );
+  assert.ok(rowHeight > 0 && rowHeight < 110, "closed moderation must not stretch queue rows");
   assert.equal(
     await firstRequest.locator("details").count(),
     0,
