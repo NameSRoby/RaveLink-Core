@@ -39,6 +39,7 @@ test("Song Request is a verified first-party feature package, not a mod", async 
     "song.player.preferences.v1",
     "song.soundcloud.player.v1",
     "song.spotify.player.v1",
+    "song.chat.commands.v1",
   ]);
   assert.deepEqual(
     verified.manifest.contributes.pages.map((page) => [page.id, page.surface]),

@@ -356,3 +356,94 @@ test("a rejected native volume change does not save a misleading local volume", 
     "spotify_companion_unavailable",
   );
 });
+
+test("moderator and broadcaster skips pass the real broker without a cooldown between different songs", async () => {
+  const fs = require("node:fs"),
+    os = require("node:os"),
+    path = require("node:path");
+  const createRegistry = require("../src/capabilities/feature-platform/host/feature-host-registry");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-chat-skip-"));
+  fs.cpSync(
+    path.join(__dirname, "../features/song-request"),
+    path.join(root, "installed/song-request"),
+    { recursive: true },
+  );
+  const registry = createRegistry({
+    featuresRoot: path.join(root, "installed"),
+    runtimeRoot: path.join(root, "runtime"),
+    allowUnsafeRuntime: true,
+  });
+  const request = (capability, method, payload) =>
+    registry.request("song-request", capability, method, payload);
+  try {
+    assert.equal((await registry.startInstalled())[0].lifecycle, "active");
+    const moderate = (p) => request("song.queue.admin.v1", "moderate", p);
+    for (const [id, title] of [
+      ["aaaaaaaaaaa", "First"],
+      ["bbbbbbbbbbb", "Second"],
+      ["ccccccccccc", "Third"],
+      ["ddddddddddd", "Remove this"],
+    ]) {
+      const result = await request("song.queue.submit.v1", "submit", {
+        requestId: id,
+        requesterId: "alice",
+        query: title,
+        candidate: { provider: "youtube", providerItemId: id, title, artists: [], durationMs: 0 },
+      });
+      assert.equal(result.value?.ok, true, JSON.stringify(result));
+    }
+    const router = createRouter({
+      now: () => 1000,
+      moderateSongRequest: moderate,
+      selfManageSongRequest: (p) => request("song.queue.submit.v1", "self", p),
+    });
+    const chat = (text, user = "mod") => ({
+      message_id: crypto.randomUUID(),
+      chatter_user_id: user,
+      chatter_user_name: user,
+      broadcaster_user_id: "owner",
+      badges: user === "mod" ? [{ set_id: "moderator" }] : [],
+      message: { text },
+    });
+    assert.equal(
+      (await router.handle(chat("!remove Remove this"))).accepted,
+      true,
+      "named removal must omit an undefined numeric position",
+    );
+    await moderate({ action: "playback_start" });
+    const pull = () =>
+      request("song.playback.driver.v1", "pull", { driverId: "fixture", providers: ["youtube"] });
+    assert.ok((await pull()).value.action);
+    assert.equal(
+      (await router.handle(chat("!skip", "other-viewer"))).accepted,
+      false,
+      "ownership stays enforced",
+    );
+    const first = chat("!skip");
+    assert.equal(
+      (await router.handle(first)).accepted,
+      true,
+      "moderator skip reaches the supervised worker",
+    );
+    assert.ok((await pull()).value.action);
+    assert.equal(
+      (await router.handle(first)).code,
+      "command_duplicate",
+      "a Twitch replay cannot skip the next song",
+    );
+    assert.equal(
+      (await router.handle(chat("!skip", "owner"))).accepted,
+      true,
+      "a distinct broadcaster skip needs no clock advance",
+    );
+    assert.ok((await pull()).value.action);
+    assert.equal(
+      (await router.handle(chat("!skip", "alice"))).accepted,
+      true,
+      "the requester can skip their own current song immediately",
+    );
+  } finally {
+    await registry.shutdown();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

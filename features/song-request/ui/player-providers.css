@@ -592,3 +592,31 @@ main {
     justify-content: flex-start;
   }
 }
+
+#chatCommandSettings fieldset {
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 0;
+}
+#chatCommandSettings th,
+#chatCommandSettings td {
+  text-align: left;
+  padding: 8px;
+  min-width: 110px;
+}
+#chatCommandSettings input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+#chatCommandSettings select {
+  min-width: 130px;
+  width: auto;
+}
+#chatCommandSettings [data-status] {
+  font-size: 13px;
+  color: var(--muted);
+}

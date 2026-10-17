@@ -168,11 +168,13 @@ module.exports = function createTwitchChatCommandRouter(options = {}) {
 
   async function selfOrModerator(command, profile, argument, event, canManageOthers) {
     const position = /^\d{1,3}$/.test(argument) ? Number(argument) : undefined;
+    // The broker validates this object before JSON serialization. An absent
+    // position must be omitted: an explicit undefined fails the integer schema.
     const result = canManageOthers
       ? resultValue(
           await moderateSongRequest({
             action: command,
-            position,
+            ...(position !== undefined ? { position } : {}),
             ...(argument && position === undefined ? { query: argument } : {}),
             requesterName: profile.displayName,
             notifyChat: true,

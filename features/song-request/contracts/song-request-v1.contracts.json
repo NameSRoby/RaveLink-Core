@@ -2521,6 +2521,46 @@
           }
         }
       }
+    },
+    {
+      "capability": "song.chat.commands.v1",
+      "methods": {
+        "status": {
+          "request": {
+            "type": "null"
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok"],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "configure": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["commandPermissions"],
+            "properties": {
+              "commandPermissions": {
+                "type": "object"
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok"],
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

@@ -3,7 +3,7 @@
   "id": "twitch-integration",
   "name": "Twitch Integration",
   "description": "Optional Twitch Device Code authorization, redemption settlement, EventSub foundation, and chat transport.",
-  "version": "0.12.3",
+  "version": "0.12.4",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
@@ -78,7 +78,7 @@
     "files": {
       "contracts/twitch-integration-v1.contracts.json": "b6306357dfce677e2588c6d36b4aa0939227f669d951adb02d6e6ac1e185331b",
       "dist/main.js": "0a404c12adb4b996b81badef92db31837f39864adf18c12e2d65bdd4e208a94a",
-      "ui/connection.html": "ab0a414bbf4dd695021238637c8c39afa09dcca23bd11eab0aefb43e8c5fcc10"
+      "ui/connection.html": "ef4a2bccba93260802bd3675b2862d4e7ac0c4f2adebce5a7bec6d5a495d6df3"
     }
   }
 }

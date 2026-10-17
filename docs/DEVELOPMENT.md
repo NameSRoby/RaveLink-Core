@@ -292,6 +292,12 @@ only after checking its runtime registrations, manifests, builders, and tests.
 
 ## Chat command permissions and player controls
 
+The operator edits the shared policy under Song Request > Player > Moderation.
+The song.chat.commands.v1 capability forwards only status/configure to the narrow
+twitch.commands.host.v1 provider; replies contain only connection readiness and
+the normalized command matrix. They never expose credentials or change reward
+intake settings. The Twitch feature panel points to this editor.
+
 Twitch badges and broadcaster identity establish command roles. The encrypted
 monitor configuration stores a fixed command/role matrix; normalization drops
 unknown keys and preserves explicit false grants. Broadcasters retain access.

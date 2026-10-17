@@ -863,3 +863,121 @@ test("local player waits for a user start, then plays and permits re-request aft
   });
   assert.equal(await surface.locator("#notice").textContent(), "entry_not_found");
 });
+
+test("Moderation edits shared command permissions and scope through the supervised host", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-command-settings-"));
+  fs.cpSync(
+    path.join(__dirname, "../features/song-request"),
+    path.join(root, "installed/song-request"),
+    { recursive: true },
+  );
+  const options = {
+    rootDir: path.join(__dirname, ".."),
+    runtimeDir: path.join(root, "runtime"),
+    dryRun: true,
+    capabilities: { features: true },
+    extend: createFeaturePlatformExtension({
+      featuresRoot: path.join(root, "installed"),
+      runtimeRoot: path.join(root, "runtime/features"),
+      allowUnsafeRuntime: true,
+    }),
+  };
+  let created, server;
+  const browser = await chromium.launch({ headless: true });
+  const start = async () => {
+    created = createCoreServer(options);
+    await created.extension.startup;
+    server = await new Promise((resolve) => {
+      const s = created.app.listen(0, "127.0.0.1", () => resolve(s));
+    });
+    return "http://127.0.0.1:" + server.address().port;
+  };
+  const stop = async () => {
+    await created.extension.shutdown();
+    await created.services.lifecycle.stopAll();
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  };
+  t.after(async () => {
+    await browser.close();
+    await stop();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  let base = await start();
+  const page = await browser.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.route("https://www.youtube.com/**", (route) => route.abort());
+  const open = async () => {
+    await page.goto(base + "/features-ui/song-request/player");
+    const frame = page.frameLocator("#surface");
+    await frame.getByRole("tab", { name: "Moderation", exact: true }).click();
+    await frame
+      .locator("#chatCommandSettings [data-status]")
+      .filter({ hasText: "Saved permissions loaded" })
+      .waitFor();
+    return frame;
+  };
+  let frame = await open();
+  assert.equal(
+    await frame.getByLabel("!volume 0-100: Moderators", { exact: true }).isChecked(),
+    true,
+  );
+  assert.equal(await frame.getByLabel("!volume 0-100: VIPs", { exact: true }).isChecked(), false);
+  assert.equal(await frame.getByLabel("!skip: Viewers", { exact: true }).inputValue(), "own");
+  assert.equal(
+    await frame.getByLabel("!remove [song]: Moderators", { exact: true }).inputValue(),
+    "any",
+  );
+  await frame.getByLabel("!volume 0-100: VIPs", { exact: true }).check();
+  await frame.getByLabel("!skip: Viewers", { exact: true }).selectOption("any");
+  await frame.getByLabel("!remove [song]: Viewers", { exact: true }).selectOption("disabled");
+  await frame.getByRole("tab", { name: "Setup", exact: true }).click();
+  await frame.getByRole("tab", { name: "Moderation", exact: true }).click();
+  assert.equal(
+    await frame.getByLabel("!skip: Viewers", { exact: true }).inputValue(),
+    "any",
+    "workspace switches preserve unsaved scope",
+  );
+  await frame.getByRole("button", { name: "Save command permissions", exact: true }).click();
+  await frame
+    .locator("#chatCommandSettings [data-status]")
+    .filter({ hasText: "Command permissions saved" })
+    .waitFor();
+  const read = () =>
+    created.extension.registry.request("song-request", "song.chat.commands.v1", "status", null);
+  const policy = (await read()).value;
+  assert.deepEqual(Object.keys(policy).sort(), ["commandPermissions", "connected", "ok"]);
+  assert.equal(policy.commandPermissions.volume.vip, true);
+  assert.equal(policy.commandPermissions.skipAny.viewer, true);
+  assert.equal(policy.commandPermissions.remove.viewer, false);
+  assert.equal(policy.commandPermissions.removeAny.viewer, false);
+  const router =
+    require("../src/capabilities/feature-platform/providers/twitch-chat-command-router")({
+      moderateSongRequest: async () => ({ ok: true }),
+    });
+  const chat = (text, role) => ({
+    message_id: require("node:crypto").randomUUID(),
+    chatter_user_id: role,
+    broadcaster_user_id: "owner",
+    badges: [{ set_id: role }],
+    message: { text },
+  });
+  assert.equal((await router.handle(chat("!volume 50", "vip"), policy)).accepted, true);
+  assert.equal((await router.handle(chat("!skip", "viewer"), policy)).accepted, true);
+  assert.equal((await router.handle(chat("!remove Song", "viewer"), policy)).accepted, false);
+  await stop();
+  base = await start();
+  frame = await open();
+  assert.equal(
+    await frame.getByLabel("!volume 0-100: VIPs", { exact: true }).isChecked(),
+    true,
+    "saved grants survive a host restart",
+  );
+  assert.equal(await frame.getByLabel("!skip: Viewers", { exact: true }).inputValue(), "any");
+  assert.equal(
+    await frame.getByLabel("!remove [song]: Viewers", { exact: true }).inputValue(),
+    "disabled",
+  );
+  assert.deepEqual(errors, []);
+});

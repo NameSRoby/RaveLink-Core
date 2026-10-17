@@ -382,7 +382,7 @@
           </div>
         </div>
         <div class="actions">
-          <button id="saveMonitor">SAVE INTAKE & COMMAND PERMISSIONS</button
+          <button id="saveMonitor">SAVE INTAKE</button
           ><span id="monitorState" class="badge">STOPPED</span>
         </div>
         <div id="monitorNotice" role="status">
@@ -647,56 +647,14 @@
                 ? `REQUESTER ROLES // RETRY PENDING (${roles.lastError})`
                 : `REQUESTER ROLES // ${Number(roles.moderators || 0)} MODERATORS // ${Number(roles.vips || 0)} VIPS`;
       }
-      const commandNames = {
-        request: "!sr / !songrequest",
-        volume: "!volume 0–100",
-        pause: "!pause playback",
-        resume: "!resume playback",
-        skip: "!skip own song",
-        remove: "!remove [song] — own songs",
-        skipAny: "Skip anyone's song",
-        removeAny: "Remove anyone's song",
-        ban: "!ban requester",
-        unban: "!unban requester",
-        timeout: "!timeout requester",
-        untimeout: "!untimeout requester",
-        bansong: "!bansong",
-        unbansong: "!unbansong",
-      };
-      let commandPermissionsDirty = false;
-      const permissions = document.createElement("section");
-      permissions.innerHTML =
-        '<h3>Chat command permissions</h3><p>Applies to every music provider. The broadcaster always has access. Viewers and VIPs can remove or skip only their own requests by default. Allowing them to change other people’s songs is not recommended. Song requests still follow the intake mode above.</p><div style="overflow-x:auto"><table><thead><tr><th>Command</th><th>Moderators</th><th>VIPs</th><th>Viewers</th></tr></thead><tbody id="commandPermissions"></tbody></table></div>';
-      $("saveMonitor").closest(".actions").before(permissions);
-      for (const [command, name] of Object.entries(commandNames)) {
-        const row = document.createElement("tr");
-        const label = document.createElement("th");
-        label.scope = "row";
-        label.textContent = name;
-        row.append(label);
-        for (const role of ["moderator", "vip", "viewer"]) {
-          const cell = document.createElement("td"),
-            input = document.createElement("input");
-          input.type = "checkbox";
-          input.dataset.command = command;
-          input.dataset.role = role;
-          input.setAttribute("aria-label", name + " — " + role);
-          input.onchange = () => {
-            commandPermissionsDirty = true;
-          };
-          if (command.endsWith("Any") && role !== "moderator")
-            input.title = "Affects other users’ requests — not recommended";
-          cell.append(input);
-          row.append(cell);
-        }
-        $("commandPermissions").append(row);
-      }
-      function commandPermissionsValue() {
-        const value = {};
-        for (const input of $("commandPermissions").querySelectorAll("input"))
-          (value[input.dataset.command] ||= {})[input.dataset.role] = input.checked;
-        return value;
-      }
+      $("saveMonitor")
+        .closest(".actions")
+        .before(
+          Object.assign(document.createElement("p"), {
+            textContent:
+              "Song command permissions are under Song Request > Player > Moderation > Chat commands & permissions.",
+          }),
+        );
       function render(value) {
         last = value || {};
         const reconnectRequired = last.authorizationRecovery?.reauthorizationRequired === true,
@@ -734,19 +692,6 @@
         $("intakeMode").value = intakeMode;
         $("songRequestMode").value =
           config.songRequestChatEnabled === true ? "chat" : "channel_points";
-        if (!commandPermissionsDirty)
-          for (const input of $("commandPermissions").querySelectorAll("input"))
-            input.checked =
-              config.commandPermissions?.[input.dataset.command]?.[input.dataset.role] ??
-              (input.dataset.role === "moderator" ||
-                ["request", "skip", "remove"].includes(input.dataset.command));
-        const eventSub = last.eventSub || {};
-        $("monitorState").textContent =
-          intakeMode === "native"
-            ? String(eventSub.lifecycle || "stopped").toUpperCase()
-            : "WIDGET MODE";
-        $("monitorState").className =
-          `badge ${eventSub.connected || intakeMode === "streamelements" ? "good" : ""}`;
         unavailable("saveMonitor", false, "");
         unavailable(
           "songRequestMode",
@@ -1005,7 +950,6 @@
             await call("twitch.monitor.admin.v1", "configure", {
               intakeMode: $("intakeMode").value,
               songRequestChatEnabled: $("songRequestMode").value === "chat",
-              commandPermissions: commandPermissionsValue(),
             }),
           );
           message(

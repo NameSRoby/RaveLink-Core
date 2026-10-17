@@ -128,6 +128,7 @@
   setupPage.id = "songSetupPage";
   const moderationPage = document.createElement("section");
   moderationPage.id = "songModerationPage";
+  const commandPermissions = installChatCommandPermissions(moderationPage);
   document.querySelector("main").append(workspace);
   workspace.append(setupPage, moderationPage);
   setupPage.append(panel, $("catalogSettings"));
@@ -214,6 +215,7 @@
     workspace.hidden = view === "player";
     setupPage.hidden = view !== "setup";
     moderationPage.hidden = view !== "moderation";
+    if (view === "moderation") void commandPermissions.refresh();
     document.body.classList.toggle("song-settings-view", view !== "player");
     for (const button of tabs.querySelectorAll("button")) {
       const active = button.dataset.view === view;

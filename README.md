@@ -6,14 +6,17 @@ RaveLink Core is a local Windows app for streamer lighting, music requests and o
 
 ## 0.7.1c patch notes
 
+This replacement build adds the Moderation command editor and fixes silently rejected skips. If you already installed 0.7.1c, reinstall the current download, update the optional features under Packages, and restart Core.
+
 - Fixed Twitch chat controls reaching the selected YouTube, SoundCloud, Spotify or TIDAL player. Volume respects the configured output range; chat pause/resume controls playback separately from request intake.
-- Added Moderator, VIP and Viewer command permissions under **Twitch Integration > Event intake**. Moderators can manage all requests by default; viewers and VIPs can skip their own playing request or remove their own pending request with **!remove song title**. Separate anyone's-song permissions remain off for viewers and VIPs by default. Ambiguous titles and stale request IDs cannot silently target a different song.
+- Added Moderator, VIP and Viewer command permissions under **Song Request > Player > Moderation > Chat commands & permissions**. Moderators can manage all requests by default; viewers and VIPs can skip their own playing request or remove their own pending request with **!remove song title**. Separate anyone's-song permissions remain off for viewers and VIPs by default. Ambiguous titles and stale request IDs cannot silently target a different song.
+- Fixed silently rejected moderator/broadcaster skips and named removals. Distinct skips on successive songs have no artificial cooldown; duplicate event protection and ownership checks remain in place.
 - Kept authorized native chat controls available when StreamElements handles reward intake. Repeated Twitch control events do not execute twice.
 - Improved Overlay Designer selection, segment resizing, snapping, measurements, size and aspect-ratio locks, and proportional content scaling. Compact Countdown includes artwork, song, artist, progress and remaining time; refreshed presets improve text and progress visibility.
 - Added overlay accent choices for the server theme, a custom color, provider or artwork, with glass/fade treatments and independent long-artist scrolling.
 - Included Spotify companion heartbeat recovery and clearer transfer-pause recovery from the maintenance updates since 0.7.1b.
 
-**Updating:** install 0.7.1c or stop Core and extract the portable update into the installation folder, preserving local data. Update **Song Request to 0.44.11** and **Twitch Integration to 0.12.3** under **Packages**, then restart Core and reload the dashboard and OBS browser sources. For updated Spotify desktop controls, prepare the companion in **Player > Spotify > Setup**, fully quit Spotify, then choose **Open Spotify with RaveLink**. Existing accounts, playlists and overlay profiles are preserved. The original 0.7.1 updater needs a manual upgrade to recognize letter-suffixed releases.
+**Updating:** install 0.7.1c or stop Core and extract the portable update into the installation folder, preserving local data. Update **Song Request to 0.44.12** and **Twitch Integration to 0.12.4** under **Packages**, then restart Core and reload the dashboard and OBS browser sources. For updated Spotify desktop controls, prepare the companion in **Player > Spotify > Setup**, fully quit Spotify, then choose **Open Spotify with RaveLink**. Existing accounts, playlists and overlay profiles are preserved. The original 0.7.1 updater needs a manual upgrade to recognize letter-suffixed releases.
 
 ## 0.7.1b patch notes
 

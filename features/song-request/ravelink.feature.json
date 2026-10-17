@@ -3,7 +3,7 @@
   "id": "song-request",
   "name": "Song Request",
   "description": "Song requests, portable playlists and reviewed cross-service transfers with moderation and OBS overlays.",
-  "version": "0.44.11",
+  "version": "0.44.12",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
@@ -22,7 +22,8 @@
     "tidal.playlists.host.v1?",
     "soundcloud.catalog.host.v1?",
     "playlist.exports.host.v1?",
-    "spotify.desktop.host.v1?"
+    "spotify.desktop.host.v1?",
+    "twitch.commands.host.v1?"
   ],
   "provides": [
     "song.playlist.read.v1",
@@ -45,7 +46,8 @@
     "song.playlist.transfer.v1",
     "song.player.preferences.v1",
     "song.soundcloud.player.v1",
-    "song.spotify.player.v1"
+    "song.spotify.player.v1",
+    "song.chat.commands.v1"
   ],
   "contracts": [
     "contracts/song-request-v1.contracts.json"
@@ -100,7 +102,8 @@
           "song.tidal.experimental.v1",
           "song.player.preferences.v1",
           "song.soundcloud.player.v1",
-          "song.spotify.player.v1"
+          "song.spotify.player.v1",
+          "song.chat.commands.v1"
         ]
       },
       {
@@ -196,7 +199,7 @@
   "integrity": {
     "algorithm": "sha256",
     "files": {
-      "contracts/song-request-v1.contracts.json": "0530745a930bce464d7950478fd4a4304b652a9e04906a6a69ff705b91b5080f",
+      "contracts/song-request-v1.contracts.json": "90b53f4e8c1afc04204aae721fc93b6666e5210b4b87743c9b99499fedc8706c",
       "dist/catalog-policy.js": "123754a7652d229b1a80dee02b99b7bd51facf6c50e689bb44a151a9cea62f7d",
       "dist/chat-player-commands.js": "2d20a0d5705ff86e1067bea9b6460768f6a1d24c35190086be1a13f4b5f28646",
       "dist/chat-responses.js": "3c85996eee51341a1b71216f3fea4bf432b355e9939f635322a5ece527cbb5b3",
@@ -205,7 +208,7 @@
       "dist/desktop-queue-position.js": "8bfe8246f3ca761c9681216d43f6605b2d0865b63ca383f9f768a2c82e919120",
       "dist/domain.js": "351510f95f5460d091981ba9b54e8a4a9752078d0c780dccc961c74ea6189ba8",
       "dist/experimental-tidal.js": "8260ca3b6c130ffc4c0c187ce55916afecb7a94d516f3e4eb21a0ad6471abdd3",
-      "dist/main.js": "ffa9d187508415120c216fd5c236690ba0883421f2176d99a1894a16a3db647b",
+      "dist/main.js": "c1948d39473fde61346944ec18f1c55091bed1bbd63903cc41411112b0d17c5e",
       "dist/normalized-values.js": "ea0016e315405538767512fc8d49b1819025d13f58bc7a6f99bc69370c26c661",
       "dist/overlay-config.js": "243a9d123c1e9a98fc9d3a05aa05d43afb8cfac6812242b21bc28151258b0108",
       "dist/overlay-presets.js": "573608a6509ec12a6b0735162eb5962052383867bb2d64722761019d06e811a6",
@@ -259,19 +262,20 @@
       "ui/overlay-renderer.js": "b3ea42ca2a1ec8b39d5184248138169d666a126c8594899f1fd1063223a52418",
       "ui/player-branding.css": "0c25cdeb13227f73e4f153c514c91c01b1410fd2adcf53d56f18aad418b8d8b8",
       "ui/player-branding.js": "f08f4248d70ec096197b772833e9b954df0c9b0fa2d130834dadee7ad2b01279",
+      "ui/player-chat-commands.js": "a65822078ee6d97bd7d5ab8c1a231289dd1016ac61218afc5cc305aed689fd0c",
       "ui/player-moderation.js": "47142518743c1828dd0c2f0026a4ed9bdad3f559bf85b361ba76c03d82f8b313",
       "ui/player-now-playing.css": "81bae672d22a35d063472f7e110cb0987f6ef9e581264965ad83b72b89fd614b",
       "ui/player-now-playing.js": "44bc5d41877ac30ef2f54a676122a94c66e02ec68b49da1b83213f224f6bb7eb",
       "ui/player-provider-errors.js": "6b8834ef7947dc38ef5b28afc7d49f97530881d0c704fa75df82a49871b3869d",
       "ui/player-provider-notices.js": "26fc3638a298edf465aa169079f655f10f35edf0c281c2fe7699aa5de564f67a",
-      "ui/player-providers.css": "c8b08dd6add4cfdf56297a30fd18069f540d06c399ae692d72637d64982e0df3",
-      "ui/player-providers.js": "94e862050d840562e424413b4083dc34e853f5e145d2e22466894b664e5cd1af",
+      "ui/player-providers.css": "0719d8152363849c726659669125b489a5f34bd358a5e6a43fd4d3a33f4283ed",
+      "ui/player-providers.js": "c5aa8d68275155e2872abd233c9d3b335a07cc4e07d612276f0af0b61ec2af13",
       "ui/player-soundcloud.js": "0e8d24944b92d9fce255edcb1a0ac44b6e7aeea261be806a5a85e56ed66f3338",
       "ui/player-spotify-account.js": "2f357cfbed5154e4ba816d77ae33085ae47fd93bec72d572ae8d4c6349c3c3be",
       "ui/player-spotify.js": "53f5c9533cef1be63f614878147a3184fdaef982bb49d87e3ef1fdce622c1087",
       "ui/player-tidal-queue.js": "42b463304d3554979ab60c67f4a25d94fe47947a18de7aa79e32d78294713cfc",
       "ui/player-volume.js": "f443fd9d7e1f9bac5d37441f2e4e6a6116d9b45b2cb76cd43f909673078f1ca1",
-      "ui/player.html": "ea3014ecf548da8ce2af048d2ed266f659e61e2e3b6cbf99b8564663d9831db0",
+      "ui/player.html": "61106ac3e608eac819b2551697dbe659493e12d4e1912a995bfeec64f8ad0465",
       "ui/playlist-browser.js": "a58188d1320e8c2a0159ed1c219787e7a1cabba1743351c23a52e8f8fc77eb46",
       "ui/playlist-community.js": "dc38406ad33d18650388ea7e6658773f642f4f1095d9e235febcea8e1972a0e8",
       "ui/playlist-link-imports.js": "ab0a38d99af7c597f310bd2eb263004627df81ec27fa8bb5ea4262e6f28aee58",

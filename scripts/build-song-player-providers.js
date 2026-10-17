@@ -13,6 +13,7 @@ const scripts = [
   "player-provider-notices.js",
   "player-tidal-queue.js",
   "player-moderation.js",
+  "player-chat-commands.js",
   "player-soundcloud.js",
   "player-now-playing.js",
   "player-volume.js",

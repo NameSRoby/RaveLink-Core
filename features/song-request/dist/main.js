@@ -353,6 +353,26 @@ async function handleRequest(request) {
   return result;
 }
 async function handleOperation(request) {
+  // Permissions live in the Twitch host, independent of the selected player or
+  // Twitch feature UI. Expose only the policy, never connection credentials.
+  if (
+    request.capability === "song.chat.commands.v1" &&
+    ["status", "configure"].includes(request.method)
+  ) {
+    try {
+      return await context.callCapability(
+        "twitch.commands.host.v1",
+        request.method,
+        request.payload,
+        { timeoutMs: 5000 },
+      );
+    } catch {
+      return {
+        ok: false,
+        error: "Chat command settings are unavailable. Update and restart Core.",
+      };
+    }
+  }
   const chatCommand = await require("./chat-player-commands")({
     queue,
     preferences: playerPreferences,

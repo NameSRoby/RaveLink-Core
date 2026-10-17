@@ -192,31 +192,17 @@ test("Twitch Client ID administration is write-only and gated by HUD Developer M
     await contribution.locator("#managedRewardSection").evaluate((el) => !el.hidden),
     true,
   );
-  assert.equal(
-    await contribution.locator('[data-command="volume"][data-role="moderator"]').isChecked(),
-    true,
+  assert.equal(await contribution.locator("#commandPermissions").count(), 0);
+  assert.match(
+    await contribution.locator("body").textContent(),
+    /Song Request > Player > Moderation/,
   );
-  assert.equal(
-    await contribution.locator('[data-command="volume"][data-role="vip"]').isChecked(),
-    false,
-  );
-  assert.equal(
-    await contribution.locator('[data-command="remove"][data-role="viewer"]').isChecked(),
-    true,
-  );
-  assert.equal(
-    await contribution.locator('[data-command="removeAny"][data-role="viewer"]').isChecked(),
-    false,
-  );
-  await contribution.locator('[data-command="volume"][data-role="vip"]').check();
   await contribution.locator("#saveMonitor").click();
   await contribution
     .locator("#monitorNotice")
     .filter({ hasText: "SERVER INTAKE ACTIVE" })
     .waitFor();
   assert.equal(monitorConfig.intakeMode, "native");
-  assert.equal(monitorConfig.commandPermissions.volume.vip, true);
-  assert.equal(monitorConfig.commandPermissions.removeAny.viewer, false);
   await contribution
     .locator(".task-navigation")
     .getByRole("button", { name: "Rewards", exact: true })

@@ -261,6 +261,24 @@ function createFeaturePlatformExtension(options = {}) {
         "twitch.host.v1/status": () => twitchProvider().ensureStatus(),
         "twitch.host.v1/configure": (payload) => twitchProvider().configure(payload),
         "twitch.host.v1/configure-monitor": (payload) => twitchProvider().configureMonitor(payload),
+        "twitch.commands.host.v1/status": () => {
+          const state = twitchProvider().status();
+          return {
+            ok: true,
+            connected: state.connected,
+            commandPermissions: state.monitorConfig.commandPermissions,
+          };
+        },
+        "twitch.commands.host.v1/configure": async (payload) => {
+          const state = await twitchProvider().configureMonitor({
+            commandPermissions: payload.commandPermissions,
+          });
+          return {
+            ok: true,
+            connected: state.connected,
+            commandPermissions: state.monitorConfig.commandPermissions,
+          };
+        },
         "twitch.host.v1/clear-client-id": () => twitchProvider().clearClientId(),
         "twitch.host.v1/begin": (payload) => twitchProvider().begin(payload),
         "twitch.host.v1/poll": () => twitchProvider().poll(),
