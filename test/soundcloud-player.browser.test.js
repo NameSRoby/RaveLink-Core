@@ -132,8 +132,12 @@ test("SoundCloud player imports public playlists, confirms PLAY, preserves FIFO,
     await surface.locator("#requestNotice").filter({ hasText: "Queued SC track" }).waitFor();
   }
   const firstRequest = surface.locator("#queue tr").first();
+  // The queued notice precedes the asynchronous queue render. Wait for the row
+  // and inspect one DOM snapshot so a repaint cannot turn boundingBox into null.
+  await firstRequest.waitFor({ state: "visible" });
+  const rowHeight = await firstRequest.evaluate((row) => row.getBoundingClientRect().height);
   assert.ok(
-    (await firstRequest.boundingBox()).height < 110,
+    rowHeight > 0 && rowHeight < 110,
     "closed moderation must not stretch queue rows",
   );
   assert.equal(

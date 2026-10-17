@@ -90,7 +90,10 @@ test("Library starts SoundCloud cold/warm and standalone YouTube without a secon
     '[data-feature-page="song-request"][data-page-id="server-playlist"]',
   );
   await directLibrary.waitFor({ state: "attached" });
-  await directLibrary.evaluate((button) => button.click());
+  // Enter the package manager before using its contribution button, as a user
+  // does. Clicking a hidden manager row bypasses browser readiness/actionability.
+  await page.locator('[data-tab="features"]').evaluate((button) => button.click());
+  await directLibrary.click();
   assert.equal(
     await page.locator('iframe[title="Song Request: Player"]').count(),
     0,
