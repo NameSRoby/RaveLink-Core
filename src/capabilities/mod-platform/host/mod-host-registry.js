@@ -23,12 +23,16 @@ const MAX_DISCOVERED_DIRECTORIES = 256;
 function safeReadManifest(filePath) {
   try {
     const stat = fs.lstatSync(filePath);
-    if (!stat.isFile() || stat.isSymbolicLink()) return { ok: false, error: "manifest_not_regular_file" };
+    if (!stat.isFile() || stat.isSymbolicLink())
+      return { ok: false, error: "manifest_not_regular_file" };
     if (stat.size > MAX_MANIFEST_BYTES) return { ok: false, error: "manifest_too_large" };
     const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
     return { ok: true, value: parsed };
   } catch (error) {
-    return { ok: false, error: error instanceof SyntaxError ? "manifest_invalid_json" : "manifest_read_failed" };
+    return {
+      ok: false,
+      error: error instanceof SyntaxError ? "manifest_invalid_json" : "manifest_read_failed",
+    };
   }
 }
 
@@ -38,42 +42,70 @@ module.exports = function createModHostRegistry(options = {}) {
   const maxActiveMods = Number.isInteger(requestedMax)
     ? Math.min(16, Math.max(1, requestedMax))
     : 4;
-  const supervisorFactory = typeof options.supervisorFactory === "function"
-    ? options.supervisorFactory
-    : createModProcessSupervisor;
-  const supervisorOptions = options.supervisorOptions && typeof options.supervisorOptions === "object"
-    ? options.supervisorOptions
-    : {};
-  const runtimeRoot = path.resolve(String(options.runtimeRoot || path.join(process.cwd(), "runtime", "mods")));
-  const approvalStore = options.approvalStore || createModApprovalStore({
-    storePath: path.join(runtimeRoot, "approvals.json"),
-    now: options.now
-  });
+  const supervisorFactory =
+    typeof options.supervisorFactory === "function"
+      ? options.supervisorFactory
+      : createModProcessSupervisor;
+  const supervisorOptions =
+    options.supervisorOptions && typeof options.supervisorOptions === "object"
+      ? options.supervisorOptions
+      : {};
+  const runtimeRoot = path.resolve(
+    String(options.runtimeRoot || path.join(process.cwd(), "runtime", "mods")),
+  );
+  const approvalStore =
+    options.approvalStore ||
+    createModApprovalStore({
+      storePath: path.join(runtimeRoot, "approvals.json"),
+      now: options.now,
+    });
   const broker = options.broker || createModCapabilityBroker(options.brokerOptions);
-  const activationAdmission = typeof options.activationAdmission === "function"
-    ? options.activationAdmission
-    : async row => {
-      const verified = await verifyPackageDirectory(row.rootPath, { limits: options.packageLimits });
-      if (!verified.ok) return { ok: false, error: "package_integrity_invalid", detail: verified.error };
-      const approval = await approvalStore.getStatus(verified.manifest);
-      if (!approval.approved) return { ok: false, error: "permission_approval_required", approval };
-      return { ok: true, manifest: verified.manifest, approval };
-    };
+  const activationAdmission =
+    typeof options.activationAdmission === "function"
+      ? options.activationAdmission
+      : async (row) => {
+          const verified = await verifyPackageDirectory(row.rootPath, {
+            limits: options.packageLimits,
+          });
+          if (!verified.ok)
+            return {
+              ok: false,
+              error: "package_integrity_invalid",
+              detail: verified.error,
+            };
+          const approval = await approvalStore.getStatus(verified.manifest);
+          if (!approval.approved)
+            return {
+              ok: false,
+              error: "permission_approval_required",
+              approval,
+            };
+          return { ok: true, manifest: verified.manifest, approval };
+        };
   const catalog = new Map();
   const supervisors = new Map();
-  const resourceMonitor = options.resourceMonitor || createModResourceMonitor({
-    ...options.resourceMonitorOptions,
-    isIdle: modId => Number(typeof options.now === "function" ? options.now() : Date.now()) - broker.getLastActivity(modId) >= 60000,
-    onViolation: async modId => { await disable(modId); }
-  });
-  const builtinServices = options.builtinServices || createModBuiltinServices({
-    broker,
-    dataRoot: path.join(runtimeRoot, "data"),
-    getManifest: modId => catalog.get(modId)?.manifest || null,
-    networkTransport: options.networkTransport,
-    egressGovernor: options.egressGovernor,
-    now: options.now
-  });
+  const resourceMonitor =
+    options.resourceMonitor ||
+    createModResourceMonitor({
+      ...options.resourceMonitorOptions,
+      isIdle: (modId) =>
+        Number(typeof options.now === "function" ? options.now() : Date.now()) -
+          broker.getLastActivity(modId) >=
+        60000,
+      onViolation: async (modId) => {
+        await disable(modId);
+      },
+    });
+  const builtinServices =
+    options.builtinServices ||
+    createModBuiltinServices({
+      broker,
+      dataRoot: path.join(runtimeRoot, "data"),
+      getManifest: (modId) => catalog.get(modId)?.manifest || null,
+      networkTransport: options.networkTransport,
+      egressGovernor: options.egressGovernor,
+      now: options.now,
+    });
   let discoveryErrors = [];
   let discoveredAt = 0;
 
@@ -94,10 +126,14 @@ module.exports = function createModHostRegistry(options = {}) {
       resources: row.valid ? { ...row.manifest.resources } : null,
       provides: row.valid ? [...row.manifest.provides] : [],
       consumes: row.valid ? [...row.manifest.consumes] : [],
-      uiContributions: row.valid && row.manifest.permissions.ui
-        ? row.manifest.contributes.panels.map(panel => ({ id: panel.id, title: panel.title }))
-        : [],
-      resource: resourceMonitor.getStatus(row.id).mods[0] || null
+      uiContributions:
+        row.valid && row.manifest.permissions.ui
+          ? row.manifest.contributes.panels.map((panel) => ({
+              id: panel.id,
+              title: panel.title,
+            }))
+          : [],
+      resource: resourceMonitor.getStatus(row.id).mods[0] || null,
     };
   }
 
@@ -107,25 +143,42 @@ module.exports = function createModHostRegistry(options = {}) {
       ok: true,
       hostEnabled: true,
       total: mods.length,
-      active: mods.filter(row => row.enabled).length,
+      active: mods.filter((row) => row.enabled).length,
       maxActiveMods,
       discoveredAt,
-      discoveryErrors: discoveryErrors.map(error => ({ ...error })),
-      mods
+      discoveryErrors: discoveryErrors.map((error) => ({ ...error })),
+      mods,
     };
   }
 
   function refreshBrokerCatalog() {
-    broker.replaceModProviders([...catalog.values()].filter(row => row.valid).map(row => ({
-      manifest: row.manifest,
-      getStatus: () => supervisors.get(row.id)?.getStatus?.() || { lifecycle: "installed-disabled", ok: true },
-      request: (capability, method, payload, requestOptions) => {
-        const supervisor = supervisors.get(row.id);
-        if (!supervisor) return Promise.resolve({ ok: false, error: { code: "mod_unavailable", message: "Mod is not active", retryable: true } });
-        return supervisor.request(capability, method, payload, requestOptions);
-      },
-      event: (capability, eventName, payload) => supervisors.get(row.id)?.sendEvent?.(capability, eventName, payload) || false
-    })));
+    broker.replaceModProviders(
+      [...catalog.values()]
+        .filter((row) => row.valid)
+        .map((row) => ({
+          manifest: row.manifest,
+          getStatus: () =>
+            supervisors.get(row.id)?.getStatus?.() || {
+              lifecycle: "installed-disabled",
+              ok: true,
+            },
+          request: (capability, method, payload, requestOptions) => {
+            const supervisor = supervisors.get(row.id);
+            if (!supervisor)
+              return Promise.resolve({
+                ok: false,
+                error: {
+                  code: "mod_unavailable",
+                  message: "Mod is not active",
+                  retryable: true,
+                },
+              });
+            return supervisor.request(capability, method, payload, requestOptions);
+          },
+          event: (capability, eventName, payload) =>
+            supervisors.get(row.id)?.sendEvent?.(capability, eventName, payload) || false,
+        })),
+    );
   }
 
   function discover() {
@@ -135,13 +188,20 @@ module.exports = function createModHostRegistry(options = {}) {
     discoveredAt = Date.now();
     if (!fs.existsSync(modsRoot)) return list();
     let rootStat;
-    try { rootStat = fs.lstatSync(modsRoot); } catch { return list(); }
+    try {
+      rootStat = fs.lstatSync(modsRoot);
+    } catch {
+      return list();
+    }
     if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
       discoveryErrors.push({ code: "mods_root_invalid" });
       return list();
     }
-    const directories = fs.readdirSync(modsRoot, { withFileTypes: true })
-      .filter(entry => entry.isDirectory() && !entry.isSymbolicLink() && !entry.name.startsWith("."))
+    const directories = fs
+      .readdirSync(modsRoot, { withFileTypes: true })
+      .filter(
+        (entry) => entry.isDirectory() && !entry.isSymbolicLink() && !entry.name.startsWith("."),
+      )
       .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, MAX_DISCOVERED_DIRECTORIES);
     for (const directory of directories) {
@@ -154,35 +214,47 @@ module.exports = function createModHostRegistry(options = {}) {
         continue;
       }
       const validation = validateManifestV1(read.value);
-      const fallbackId = `invalid.${directory.name.toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 31) || "mod"}`;
+      const fallbackId = `invalid.${
+        directory.name
+          .toLowerCase()
+          .replace(/[^a-z0-9-]/g, "-")
+          .slice(0, 31) || "mod"
+      }`;
       const id = validation.value?.id || String(read.value?.id || fallbackId).slice(0, 64);
       if (catalog.has(id)) {
-        discoveryErrors.push({ directory: directory.name, code: "duplicate_mod_id", modId: id });
+        discoveryErrors.push({
+          directory: directory.name,
+          code: "duplicate_mod_id",
+          modId: id,
+        });
         continue;
       }
-      catalog.set(id, validation.ok
-        ? {
-          id,
-          name: validation.value.name,
-          version: validation.value.version,
-          publisher: validation.value.publisher,
-          license: validation.value.license,
-          valid: true,
-          error: "",
-          manifest: validation.value,
-          rootPath
-        }
-        : {
-          id,
-          name: String(read.value?.name || id).slice(0, 80),
-          version: String(read.value?.version || "").slice(0, 64),
-          publisher: String(read.value?.publisher || "").slice(0, 64),
-          license: String(read.value?.license || "").slice(0, 80),
-          valid: false,
-          error: validation.errors[0]?.code || "manifest_invalid",
-          manifest: null,
-          rootPath
-        });
+      catalog.set(
+        id,
+        validation.ok
+          ? {
+              id,
+              name: validation.value.name,
+              version: validation.value.version,
+              publisher: validation.value.publisher,
+              license: validation.value.license,
+              valid: true,
+              error: "",
+              manifest: validation.value,
+              rootPath,
+            }
+          : {
+              id,
+              name: String(read.value?.name || id).slice(0, 80),
+              version: String(read.value?.version || "").slice(0, 64),
+              publisher: String(read.value?.publisher || "").slice(0, 64),
+              license: String(read.value?.license || "").slice(0, 80),
+              valid: false,
+              error: validation.errors[0]?.code || "manifest_invalid",
+              manifest: null,
+              rootPath,
+            },
+      );
     }
     refreshBrokerCatalog();
     return list();
@@ -191,7 +263,8 @@ module.exports = function createModHostRegistry(options = {}) {
   function activeSupervisorCount() {
     let count = 0;
     for (const supervisor of supervisors.values()) {
-      if (["enabling", "active", "draining"].includes(supervisor.getStatus()?.lifecycle)) count += 1;
+      if (["enabling", "active", "draining"].includes(supervisor.getStatus()?.lifecycle))
+        count += 1;
     }
     return count;
   }
@@ -205,30 +278,51 @@ module.exports = function createModHostRegistry(options = {}) {
     const current = supervisor?.getStatus?.();
     if (["enabling", "active", "draining"].includes(current?.lifecycle)) return current;
     if (current?.lifecycle === "quarantined") return current;
-    if (activeSupervisorCount() >= maxActiveMods) return { ok: false, error: "active_mod_limit", modId: id, maxActiveMods };
-    const providerRows = (row.manifest.consumes || []).flatMap(capability => broker.providerRows(capability.replace(/\?$/, "")));
+    if (activeSupervisorCount() >= maxActiveMods)
+      return { ok: false, error: "active_mod_limit", modId: id, maxActiveMods };
+    const providerRows = (row.manifest.consumes || []).flatMap((capability) =>
+      broker.providerRows(capability.replace(/\?$/, "")),
+    );
     const negotiation = negotiateManifestCapabilities(row.manifest, providerRows);
-    if (!negotiation.ok) return { ok: false, error: "dependencies_unavailable", modId: id, negotiation };
+    if (!negotiation.ok)
+      return {
+        ok: false,
+        error: "dependencies_unavailable",
+        modId: id,
+        negotiation,
+      };
     const admission = await activationAdmission(row);
-    if (!admission?.ok) return { ok: false, modId: id, error: admission?.error || "activation_admission_failed", detail: admission?.detail || "", approval: admission?.approval || null };
+    if (!admission?.ok)
+      return {
+        ok: false,
+        modId: id,
+        error: admission?.error || "activation_admission_failed",
+        detail: admission?.detail || "",
+        approval: admission?.approval || null,
+      };
     if (!supervisor) {
       supervisor = supervisorFactory({
         ...supervisorOptions,
         ...activationOptions,
         manifest: admission.manifest || row.manifest,
         modRoot: row.rootPath,
-        onBrokerRequest: (capability, method, payload, requestOptions) => broker.callFromMod(
-          admission.manifest || row.manifest, capability, method, payload, requestOptions
-        ),
-        onBrokerEvent: (capability, eventName, payload) => broker.publishFromMod(
-          admission.manifest || row.manifest, capability, eventName, payload
-        ),
-        onExit: () => resourceMonitor.unregister(id)
+        onBrokerRequest: (capability, method, payload, requestOptions) =>
+          broker.callFromMod(
+            admission.manifest || row.manifest,
+            capability,
+            method,
+            payload,
+            requestOptions,
+          ),
+        onBrokerEvent: (capability, eventName, payload) =>
+          broker.publishFromMod(admission.manifest || row.manifest, capability, eventName, payload),
+        onExit: () => resourceMonitor.unregister(id),
       });
       supervisors.set(id, supervisor);
     }
     const started = await supervisor.start();
-    if (started?.lifecycle === "active" && started.pid > 0) resourceMonitor.register(id, started.pid, admission.manifest || row.manifest);
+    if (started?.lifecycle === "active" && started.pid > 0)
+      resourceMonitor.register(id, started.pid, admission.manifest || row.manifest);
     return started;
   }
 
@@ -244,23 +338,47 @@ module.exports = function createModHostRegistry(options = {}) {
 
   function request(modId, capability, method, payload, requestOptions) {
     const supervisor = supervisors.get(String(modId || ""));
-    if (!supervisor) return Promise.resolve({ ok: false, error: { code: "mod_unavailable", message: "Mod is not active", retryable: true } });
+    if (!supervisor)
+      return Promise.resolve({
+        ok: false,
+        error: {
+          code: "mod_unavailable",
+          message: "Mod is not active",
+          retryable: true,
+        },
+      });
     return supervisor.request(capability, method, payload, requestOptions);
   }
 
   async function readUiContribution(modId, panelId) {
     const row = catalog.get(String(modId || ""));
     if (!row || !row.valid) return { ok: false, error: "mod_not_found" };
-    const panel = row.manifest.contributes.panels.find(item => item.id === String(panelId || ""));
-    if (!row.manifest.permissions.ui || !panel) return { ok: false, error: "ui_contribution_not_found" };
-    const verified = await verifyPackageDirectory(row.rootPath, { limits: options.packageLimits });
-    if (!verified.ok) return { ok: false, error: "package_integrity_invalid", detail: verified.error };
+    const panel = row.manifest.contributes.panels.find((item) => item.id === String(panelId || ""));
+    if (!row.manifest.permissions.ui || !panel)
+      return { ok: false, error: "ui_contribution_not_found" };
+    const verified = await verifyPackageDirectory(row.rootPath, {
+      limits: options.packageLimits,
+    });
+    if (!verified.ok)
+      return {
+        ok: false,
+        error: "package_integrity_invalid",
+        detail: verified.error,
+      };
     const approval = await approvalStore.getStatus(verified.manifest);
     if (!approval.approved) return { ok: false, error: "permission_approval_required" };
-    const file = verified.files.find(item => item.path === panel.entry);
+    const file = verified.files.find((item) => item.path === panel.entry);
     if (!file || file.bytes > 262144) return { ok: false, error: "ui_contribution_size_limit" };
-    const content = await fs.promises.readFile(path.join(row.rootPath, ...panel.entry.split("/")), "utf8");
-    return { ok: true, modId: row.id, panel: { id: panel.id, title: panel.title }, content };
+    const content = await fs.promises.readFile(
+      path.join(row.rootPath, ...panel.entry.split("/")),
+      "utf8",
+    );
+    return {
+      ok: true,
+      modId: row.id,
+      panel: { id: panel.id, title: panel.title },
+      content,
+    };
   }
 
   function registerCapabilityContract(descriptor) {
@@ -282,15 +400,26 @@ module.exports = function createModHostRegistry(options = {}) {
   }
 
   async function shutdown() {
-    await Promise.allSettled([...supervisors.values()].map(supervisor => supervisor.stop()));
+    await Promise.allSettled([...supervisors.values()].map((supervisor) => supervisor.stop()));
     resourceMonitor.shutdown();
     return list();
   }
 
   return Object.freeze({
-    disable, discover, enable, getBrokerStatus: broker.getStatus, getResourceStatus: resourceMonitor.getStatus,
-    list, readUiContribution, registerCapabilityContract, registerSecretHandle: builtinServices.registerSecretHandle,
-    publishCapabilityEvent, registerHostCapability, request, requestCapability, shutdown
+    disable,
+    discover,
+    enable,
+    getBrokerStatus: broker.getStatus,
+    getResourceStatus: resourceMonitor.getStatus,
+    list,
+    readUiContribution,
+    registerCapabilityContract,
+    registerSecretHandle: builtinServices.registerSecretHandle,
+    publishCapabilityEvent,
+    registerHostCapability,
+    request,
+    requestCapability,
+    shutdown,
   });
 };
 

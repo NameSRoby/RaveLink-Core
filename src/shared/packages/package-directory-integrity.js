@@ -1,3 +1,10 @@
+/**
+ * Exact package inventory verification.
+ * Scan with lstat so links cannot impersonate payload files, reject case-colliding
+ * paths before Windows extraction, and impose depth/file/byte ceilings before hashing.
+ * Inventory equality is separate from hash equality: a package with undeclared or
+ * missing files is invalid even when every file that was hashed matches.
+ */
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -7,14 +14,20 @@ const DEFAULT_LIMITS = Object.freeze({
   maxPackageBytes: 32 * 1024 * 1024,
   maxFileBytes: 8 * 1024 * 1024,
   maxDepth: 16,
-  maxManifestBytes: 65536
+  maxManifestBytes: 65536,
 });
 
 function isSafePackagePath(value) {
-  if (typeof value !== "string" || !value || value.includes("\\") || value.includes("\0")) return false;
+  if (typeof value !== "string" || !value || value.includes("\\") || value.includes("\0"))
+    return false;
   if (value.startsWith("/") || /^[A-Za-z]:/.test(value)) return false;
   const normalized = path.posix.normalize(value);
-  return normalized === value && normalized !== "." && !normalized.startsWith("../") && !normalized.includes("/../");
+  return (
+    normalized === value &&
+    normalized !== "." &&
+    !normalized.startsWith("../") &&
+    !normalized.includes("/../")
+  );
 }
 
 function boundedLimits(overrides = {}) {
@@ -31,7 +44,7 @@ async function hashFileSha256(filePath) {
     const hash = crypto.createHash("sha256");
     const stream = fs.createReadStream(filePath);
     stream.on("error", reject);
-    stream.on("data", chunk => hash.update(chunk));
+    stream.on("data", (chunk) => hash.update(chunk));
     stream.on("end", () => resolve(hash.digest("hex")));
   });
 }
@@ -40,15 +53,22 @@ async function scanPackageDirectory(rootPath, limitOverrides = {}) {
   const limits = boundedLimits(limitOverrides);
   const root = path.resolve(String(rootPath || ""));
   let rootStat;
-  try { rootStat = await fs.promises.lstat(root); } catch { return { ok: false, error: "package_root_missing" }; }
-  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) return { ok: false, error: "package_root_invalid" };
+  try {
+    rootStat = await fs.promises.lstat(root);
+  } catch {
+    return { ok: false, error: "package_root_missing" };
+  }
+  if (!rootStat.isDirectory() || rootStat.isSymbolicLink())
+    return { ok: false, error: "package_root_invalid" };
   const files = [];
   const caseKeys = new Set();
   let totalBytes = 0;
 
   async function walk(directory, depth) {
     if (depth > limits.maxDepth) throw new Error("package_depth_limit");
-    const entries = await fs.promises.readdir(directory, { withFileTypes: true });
+    const entries = await fs.promises.readdir(directory, {
+      withFileTypes: true,
+    });
     entries.sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of entries) {
       const absolute = path.join(directory, entry.name);
@@ -56,7 +76,10 @@ async function scanPackageDirectory(rootPath, limitOverrides = {}) {
       if (!isSafePackagePath(relative)) throw new Error("package_unsafe_path");
       const stat = await fs.promises.lstat(absolute);
       if (stat.isSymbolicLink()) throw new Error("package_link_not_allowed");
-      if (stat.isDirectory()) { await walk(absolute, depth + 1); continue; }
+      if (stat.isDirectory()) {
+        await walk(absolute, depth + 1);
+        continue;
+      }
       if (!stat.isFile()) throw new Error("package_special_file_not_allowed");
       const caseKey = relative.toLowerCase();
       if (caseKeys.has(caseKey)) throw new Error("package_case_collision");
@@ -69,26 +92,47 @@ async function scanPackageDirectory(rootPath, limitOverrides = {}) {
     }
   }
 
-  try { await walk(root, 0); } catch (error) { return { ok: false, error: String(error?.message || error) }; }
+  try {
+    await walk(root, 0);
+  } catch (error) {
+    return { ok: false, error: String(error?.message || error) };
+  }
   return { ok: true, root, files, totalBytes, limits };
 }
 
 async function verifyIntegrityInventory(scanned, manifestName, integrity) {
-  const payload = scanned.files.filter(row => row.path !== manifestName);
+  const payload = scanned.files.filter((row) => row.path !== manifestName);
   const declared = integrity?.files && typeof integrity.files === "object" ? integrity.files : {};
   const declaredPaths = Object.keys(declared).sort();
-  const actualPaths = payload.map(row => row.path).sort();
-  const undeclared = actualPaths.filter(file => !Object.prototype.hasOwnProperty.call(declared, file));
-  const missing = declaredPaths.filter(file => !actualPaths.includes(file));
+  const actualPaths = payload.map((row) => row.path).sort();
+  // Both inventories can contain thousands of files. Index membership once so
+  // a complete mismatch stays linear instead of repeatedly scanning actualPaths.
+  const actualPathSet = new Set(actualPaths);
+  const undeclared = actualPaths.filter(
+    (file) => !Object.prototype.hasOwnProperty.call(declared, file),
+  );
+  const missing = declaredPaths.filter((file) => !actualPathSet.has(file));
   if (undeclared.length || missing.length) {
-    return { ok: false, error: "integrity_inventory_mismatch", undeclared: undeclared.slice(0, 20), missing: missing.slice(0, 20) };
+    return {
+      ok: false,
+      error: "integrity_inventory_mismatch",
+      undeclared: undeclared.slice(0, 20),
+      missing: missing.slice(0, 20),
+    };
   }
   for (const row of payload) {
-    if (await hashFileSha256(row.absolute) !== declared[row.path]) {
+    if ((await hashFileSha256(row.absolute)) !== declared[row.path]) {
       return { ok: false, error: "integrity_hash_mismatch", file: row.path };
     }
   }
   return { ok: true };
 }
 
-module.exports = { DEFAULT_LIMITS, boundedLimits, hashFileSha256, isSafePackagePath, scanPackageDirectory, verifyIntegrityInventory };
+module.exports = {
+  DEFAULT_LIMITS,
+  boundedLimits,
+  hashFileSha256,
+  isSafePackagePath,
+  scanPackageDirectory,
+  verifyIntegrityInventory,
+};

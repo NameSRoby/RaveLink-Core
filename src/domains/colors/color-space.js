@@ -12,7 +12,9 @@ function clampInt(value, min, max, fallback) {
 }
 
 function normalizeHex(hex) {
-  const raw = String(hex || "").trim().toLowerCase();
+  const raw = String(hex || "")
+    .trim()
+    .toLowerCase();
   if (!/^#?[0-9a-f]{6}$/.test(raw)) return "";
   return raw.startsWith("#") ? raw : `#${raw}`;
 }
@@ -23,7 +25,7 @@ function hexToRgb(hex) {
   return {
     r: parseInt(safe.slice(1, 3), 16),
     g: parseInt(safe.slice(3, 5), 16),
-    b: parseInt(safe.slice(5, 7), 16)
+    b: parseInt(safe.slice(5, 7), 16),
   };
 }
 
@@ -69,23 +71,35 @@ function hsvToRgb255(hRaw, sRaw, vRaw) {
   let b1 = 0;
 
   if (h < 60) {
-    r1 = c; g1 = x; b1 = 0;
+    r1 = c;
+    g1 = x;
+    b1 = 0;
   } else if (h < 120) {
-    r1 = x; g1 = c; b1 = 0;
+    r1 = x;
+    g1 = c;
+    b1 = 0;
   } else if (h < 180) {
-    r1 = 0; g1 = c; b1 = x;
+    r1 = 0;
+    g1 = c;
+    b1 = x;
   } else if (h < 240) {
-    r1 = 0; g1 = x; b1 = c;
+    r1 = 0;
+    g1 = x;
+    b1 = c;
   } else if (h < 300) {
-    r1 = x; g1 = 0; b1 = c;
+    r1 = x;
+    g1 = 0;
+    b1 = c;
   } else {
-    r1 = c; g1 = 0; b1 = x;
+    r1 = c;
+    g1 = 0;
+    b1 = x;
   }
 
   return {
     r: clampInt((r1 + m) * 255, 0, 255, 0),
     g: clampInt((g1 + m) * 255, 0, 255, 0),
-    b: clampInt((b1 + m) * 255, 0, 255, 0)
+    b: clampInt((b1 + m) * 255, 0, 255, 0),
   };
 }
 
@@ -97,7 +111,7 @@ function createHueStateFromRgb(rgb = {}, options = {}) {
     on: true,
     xy: [x, y],
     bri: brightness,
-    transitiontime
+    transitiontime,
   };
 }
 
@@ -108,7 +122,7 @@ function createHueStateWhite(options = {}) {
     on: true,
     ct: 366,
     bri: brightness,
-    transitiontime
+    transitiontime,
   };
 }
 
@@ -119,7 +133,7 @@ function createWizStateFromRgb(rgb = {}, options = {}) {
     r: clampInt(rgb.r, 0, 255, 0),
     g: clampInt(rgb.g, 0, 255, 0),
     b: clampInt(rgb.b, 0, 255, 0),
-    dimming
+    dimming,
   };
 }
 
@@ -130,7 +144,7 @@ function createWizStateWhite(options = {}) {
     r: 255,
     g: 255,
     b: 255,
-    dimming
+    dimming,
   };
 }
 
@@ -143,5 +157,5 @@ module.exports = {
   createHueStateFromRgb,
   createHueStateWhite,
   createWizStateFromRgb,
-  createWizStateWhite
+  createWizStateWhite,
 };

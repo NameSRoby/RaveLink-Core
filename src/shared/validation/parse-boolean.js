@@ -19,5 +19,5 @@ function parseBoolean(value, fallback = false) {
 }
 
 module.exports = {
-  parseBoolean
+  parseBoolean,
 };

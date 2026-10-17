@@ -69,7 +69,7 @@ Frequent choices such as player, transfer grouping and overlay layout appear as 
 
 **Overlay Designer → Behavior** offers optional pause hiding (five seconds by default), stopped/loading hiding, provider-colored accents and remaining-time display. Test pause/resume in the preview, then save to apply. Classic, Album Card and Minimal remain available alongside compact Split Panels and other small presets.
 
-**Clip Studio (Alpha)** is package infrastructure; video analysis, suggestions and export are not active. **Community mods** are optional supervised third-party code; enable them only if you intend to review and run community packages.
+**Community mods** are optional supervised third-party code; enable them only if you intend to review and run community packages.
 
 **TTS, Alerts / TTS and Lighting Automation have been removed in 0.7.0.** No speech runtime or voice asset is shipped.
 
@@ -107,6 +107,17 @@ For StreamElements widget mode, create the reward in Twitch and paste its ID int
 
 Spotify Premium setup requires a developer app whose owner has Premium and whose development allowlist includes the user. It uses OAuth PKCE without a client secret. Official-only queue entries cannot be removed individually; the desktop companion supplies that control for its own entries. Live Premium and native community-playlist validation remains limited.
 
+## Developer documentation
+
+See the [developer guide](docs/DEVELOPMENT.md) for source ownership, runtime flows,
+state and security boundaries, playlist-write recovery, and build/test commands.
+The [repository health review](docs/REPOSITORY_HEALTH.md) records maintenance
+findings and regression coverage. Run `npm run verify:health` before submitting
+source changes; edit readable fragments and rebuild their checked-in payloads.
+
 ## License
 
 Apache-2.0. Third-party code and provider marks retain their licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The [product direction and JavaFX preparation](docs/PRODUCT_DIRECTION.md) explains
+retained workflows, shelved programs and the native-client delivery order.

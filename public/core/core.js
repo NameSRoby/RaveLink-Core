@@ -1,4 +1,9 @@
-const byId = id => document.getElementById(id);
+/**
+ * Core.
+ * Developer context and change constraints:
+ * docs/DEVELOPMENT.md#request-security-and-the-feature-ui-relay
+ */
+const byId = (id) => document.getElementById(id);
 let fixtures = [];
 let fixtureConnectivity = new Map();
 let fixtureTestState = new Map();
@@ -7,28 +12,45 @@ let twitchProgramUi;
 let widgetSecurityStatus = {};
 let songRequestAvailable = false;
 let coreUpdateStatus = null;
-window.RaveLinkCoreUi = { request: (...args) => request(...args), fixtures: () => fixtures.slice(), showResult: (...args) => showResult(...args) };
+window.RaveLinkCoreUi = {
+  request: (...args) => request(...args),
+  fixtures: () => fixtures.slice(),
+  showResult: (...args) => showResult(...args),
+};
 async function request(path, options = {}) {
-  const headers = { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(options.headers || {}) };
+  const headers = {
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...(options.headers || {}),
+  };
   const response = await fetch(path, { ...options, headers });
   const body = await response.json().catch(() => ({ ok: false, error: `HTTP ${response.status}` }));
   if (!response.ok || body.ok === false) throw new Error(body.error || `HTTP ${response.status}`);
   return body;
 }
-const sensitiveDisplayKey = /(?:authorization|cookie|credential|password|secret|token|jwt|username|clientkey)/i;
+const sensitiveDisplayKey =
+  /(?:authorization|cookie|credential|password|secret|token|jwt|username|clientkey)/i;
 const networkDisplayKey = /(?:ip|host|url|bridgeid|deviceid)$/i;
 function redactDisplayString(value) {
   return String(value ?? "")
-    .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, address => `${address.split(".").slice(0, 2).join(".")}.x.x`)
+    .replace(
+      /\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
+      (address) => `${address.split(".").slice(0, 2).join(".")}.x.x`,
+    )
     .replace(/\beyJ[A-Za-z0-9_-]{12,}(?:\.[A-Za-z0-9_-]{8,}){1,2}\b/g, "[REDACTED TOKEN]")
-    .replace(/\b[a-fA-F0-9]{24,}\b/g, value => `${value.slice(0, 4)}...[REDACTED]`);
+    .replace(/\b[a-fA-F0-9]{24,}\b/g, (value) => `${value.slice(0, 4)}...[REDACTED]`);
 }
 function safeDisplayValue(value, key = "", depth = 0) {
   if (sensitiveDisplayKey.test(key) && !/(?:configured|present)$/i.test(key)) return "[REDACTED]";
   if (networkDisplayKey.test(key)) return value ? redactDisplayString(value) : value;
   if (depth >= 5) return "[TRUNCATED]";
-  if (Array.isArray(value)) return value.slice(0, 20).map(item => safeDisplayValue(item, key, depth + 1));
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).slice(0, 40).map(([childKey, child]) => [childKey, safeDisplayValue(child, childKey, depth + 1)]));
+  if (Array.isArray(value))
+    return value.slice(0, 20).map((item) => safeDisplayValue(item, key, depth + 1));
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value)
+        .slice(0, 40)
+        .map(([childKey, child]) => [childKey, safeDisplayValue(child, childKey, depth + 1)]),
+    );
   return typeof value === "string" ? redactDisplayString(value) : value;
 }
 function showResult(id, value, failed = false) {
@@ -39,14 +61,19 @@ function showResult(id, value, failed = false) {
   previousDetails?.remove();
   if (typeof safe === "string") output.textContent = safe;
   else {
-    const count = Array.isArray(safe?.installed) ? safe.installed.length : Array.isArray(safe?.fixtures) ? safe.fixtures.length : null;
-    output.textContent = failed || safe?.ok === false
-      ? "ACTION FAILED"
-      : count !== null
-        ? `${count} FIXTURE${count === 1 ? "" : "S"} SAVED`
-        : safe?.operation
-          ? `${String(safe.operation).replaceAll("_", " ").toUpperCase()} COMPLETE`
-          : "ACTION COMPLETED";
+    const count = Array.isArray(safe?.installed)
+      ? safe.installed.length
+      : Array.isArray(safe?.fixtures)
+        ? safe.fixtures.length
+        : null;
+    output.textContent =
+      failed || safe?.ok === false
+        ? "ACTION FAILED"
+        : count !== null
+          ? `${count} FIXTURE${count === 1 ? "" : "S"} SAVED`
+          : safe?.operation
+            ? `${String(safe.operation).replaceAll("_", " ").toUpperCase()} COMPLETE`
+            : "ACTION COMPLETED";
     const details = document.createElement("pre");
     details.id = `${id}DeveloperDetails`;
     details.className = "result developerDetails";
@@ -78,21 +105,34 @@ function setStatus(id, text, tone = "") {
   element.className = `statusLine${tone ? ` ${tone}` : ""}`;
 }
 function configuredLightFixtures() {
-  return fixtures.filter(row => {
+  return fixtures.filter((row) => {
     const connectivity = fixtureConnectivity.get(row.id);
     return row.enabled !== false && connectivity?.configured === true;
   });
 }
 function applyLightingReadiness() {
   const ready = configuredLightFixtures();
-  const directReason = "Pair a Hue bridge or add a discovered WiZ or Govee fixture before controlling lights.";
-  const twitchReady = ready.some(row => row.twitchEnabled === true);
-  const twitchReason = "Add and enable at least one Twitch-controlled fixture before programming channel-point routing.";
-  for (const element of [byId("lightTarget"), byId("colorText"), byId("colorPicker"), byId("brightness"), byId("applyColor"), ...document.querySelectorAll("[data-color]")]) {
+  const directReason =
+    "Pair a Hue bridge or add a discovered WiZ or Govee fixture before controlling lights.";
+  const twitchReady = ready.some((row) => row.twitchEnabled === true);
+  const twitchReason =
+    "Add and enable at least one Twitch-controlled fixture before programming channel-point routing.";
+  for (const element of [
+    byId("lightTarget"),
+    byId("colorText"),
+    byId("colorPicker"),
+    byId("brightness"),
+    byId("applyColor"),
+    ...document.querySelectorAll("[data-color]"),
+  ]) {
     setUnavailable(element, ready.length === 0, directReason);
   }
   setUnavailable(byId("twitchProgramControls"), !twitchReady, twitchReason);
-  setStatus("lightStatus", ready.length ? "READY" : "FIXTURE SETUP REQUIRED", ready.length ? "ok" : "warn");
+  setStatus(
+    "lightStatus",
+    ready.length ? "READY" : "FIXTURE SETUP REQUIRED",
+    ready.length ? "ok" : "warn",
+  );
   byId("lightStatus").title = ready.length ? "" : directReason;
   updateWidgetReadiness();
 }
@@ -104,13 +144,19 @@ function showDiscoveryResult(result) {
   output.style.color = "#c9d8ff";
   output.replaceChildren();
   const heading = document.createElement("strong");
-  const kindLabel = result.kind === "hue" ? "Hue bridge" : result.kind === "govee" ? "Govee device (alpha)" : "WiZ device";
+  const kindLabel =
+    result.kind === "hue"
+      ? "Hue bridge"
+      : result.kind === "govee"
+        ? "Govee device (alpha)"
+        : "WiZ device";
   heading.textContent = `${Number(result.count || 0)} ${kindLabel}${result.count === 1 ? "" : "s"} found`;
   output.append(heading);
   const targets = result.targets || [];
   if (result.kind === "hue" && targets.length === 0) {
     const empty = document.createElement("p");
-    empty.textContent = "NO HUE BRIDGE FOUND // CHECK THAT THE BRIDGE IS POWERED AND ON THIS NETWORK";
+    empty.textContent =
+      "NO HUE BRIDGE FOUND // CHECK THAT THE BRIDGE IS POWERED AND ON THIS NETWORK";
     output.append(empty);
     return;
   }
@@ -121,7 +167,14 @@ function showDiscoveryResult(result) {
   for (const target of targets) {
     const row = document.createElement("div");
     row.className = "discoveryRow";
-    Object.assign(row.style, { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "8px 0", borderTop: "1px solid var(--edge)" });
+    Object.assign(row.style, {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "12px",
+      padding: "8px 0",
+      borderTop: "1px solid var(--edge)",
+    });
     const label = document.createElement("span");
     label.textContent = `${target.label}  ${maskedAddress(target.addressHint)}`;
     const use = document.createElement("button");
@@ -134,14 +187,23 @@ function showDiscoveryResult(result) {
           use.textContent = "SELECTING";
           await selectDiscoveredHue(target);
         } else {
-          const endpoint = result.kind === "govee" ? "/govee/onboarding/commit" : "/wiz/onboarding/commit";
-          const saved = await request(endpoint, { method: "POST", body: JSON.stringify({ selectionToken: target.selectionToken, zone: byId("fixtureZone").value }) });
+          const endpoint =
+            result.kind === "govee" ? "/govee/onboarding/commit" : "/wiz/onboarding/commit";
+          const saved = await request(endpoint, {
+            method: "POST",
+            body: JSON.stringify({
+              selectionToken: target.selectionToken,
+              zone: byId("fixtureZone").value,
+            }),
+          });
           label.textContent = `${target.label} added`;
           use.remove();
           await loadFixtures();
           showResult("fixtureActionResult", saved);
         }
-      } catch (error) { showResult("fixtureActionResult", error.message, true); }
+      } catch (error) {
+        showResult("fixtureActionResult", error.message, true);
+      }
     };
     if (result.kind === "hue") row.append(label, use);
     else {
@@ -155,11 +217,20 @@ function showDiscoveryResult(result) {
     addAll.textContent = "ADD ALL";
     addAll.onclick = async () => {
       try {
-        const endpoint = result.kind === "govee" ? "/govee/onboarding/commit" : "/wiz/onboarding/commit";
-        const saved = await request(endpoint, { method: "POST", body: JSON.stringify({ selectionTokens: targets.map(row => row.selectionToken), zone: byId("fixtureZone").value }) });
+        const endpoint =
+          result.kind === "govee" ? "/govee/onboarding/commit" : "/wiz/onboarding/commit";
+        const saved = await request(endpoint, {
+          method: "POST",
+          body: JSON.stringify({
+            selectionTokens: targets.map((row) => row.selectionToken),
+            zone: byId("fixtureZone").value,
+          }),
+        });
         await loadFixtures();
         showResult("fixtureActionResult", saved);
-      } catch (error) { showResult("fixtureActionResult", error.message, true); }
+      } catch (error) {
+        showResult("fixtureActionResult", error.message, true);
+      }
     };
     output.append(addAll);
   }
@@ -167,7 +238,10 @@ function showDiscoveryResult(result) {
 
 async function selectDiscoveredHue(target) {
   try {
-    const selected = await request("/hardware/discovery/select", { method: "POST", body: JSON.stringify({ selectionToken: target.selectionToken }) });
+    const selected = await request("/hardware/discovery/select", {
+      method: "POST",
+      body: JSON.stringify({ selectionToken: target.selectionToken }),
+    });
     byId("fixtureBrand").value = "hue";
     syncFixtureBrandUi();
     byId("fixtureBridgeIp").value = selected.address || "";
@@ -176,29 +250,41 @@ async function selectDiscoveredHue(target) {
     const heading = document.createElement("strong");
     heading.textContent = "HUE BRIDGE SELECTED";
     const next = document.createElement("p");
-    next.textContent = "NEXT: PRESS THE PHYSICAL BUTTON ON THE HUE BRIDGE, THEN SELECT 2 // PAIR SELECTED BRIDGE";
+    next.textContent =
+      "NEXT: PRESS THE PHYSICAL BUTTON ON THE HUE BRIDGE, THEN SELECT 2 // PAIR SELECTED BRIDGE";
     output.replaceChildren(heading, next);
-  } catch (error) { showResult("fixtureActionResult", error.message, true); }
+  } catch (error) {
+    showResult("fixtureActionResult", error.message, true);
+  }
 }
 
 async function connectHuePair(prepared) {
-  const output = byId('fixtureActionResult');
+  const output = byId("fixtureActionResult");
   output.hidden = false;
-  const status = document.createElement('p');
-  status.textContent = 'CONNECTING TO HUE BRIDGE';
+  const status = document.createElement("p");
+  status.textContent = "CONNECTING TO HUE BRIDGE";
   output.replaceChildren(status);
-  const response = await fetch('/hue/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pairingToken: prepared.pairingToken }) });
+  const response = await fetch("/hue/pair", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pairingToken: prepared.pairingToken }),
+  });
   const result = await response.json();
   if (response.ok && result.ok) return showHueSetup(result);
-  status.textContent = result.error === 'link_button_timeout'
-    ? 'LINK BUTTON NOT DETECTED // PRESS THE PHYSICAL BUTTON, THEN SELECT 2 // PAIR SELECTED BRIDGE AGAIN'
-    : result.paired
-      ? 'BRIDGE PAIRED, BUT LIGHT INVENTORY IS UNAVAILABLE // SELECT PAIR AGAIN TO RETRY'
-      : redactDisplayString(result.error || 'HUE CONNECTION FAILED');
+  status.textContent =
+    result.error === "link_button_timeout"
+      ? "LINK BUTTON NOT DETECTED // PRESS THE PHYSICAL BUTTON, THEN SELECT 2 // PAIR SELECTED BRIDGE AGAIN"
+      : result.paired
+        ? "BRIDGE PAIRED, BUT LIGHT INVENTORY IS UNAVAILABLE // SELECT PAIR AGAIN TO RETRY"
+        : redactDisplayString(result.error || "HUE CONNECTION FAILED");
 }
 
 function syncHuePairButton() {
-  setUnavailable(byId("pairHueManual"), !byId("fixtureBridgeIp").value.trim(), "Discover a Hue bridge or enter its address first.");
+  setUnavailable(
+    byId("pairHueManual"),
+    !byId("fixtureBridgeIp").value.trim(),
+    "Discover a Hue bridge or enter its address first.",
+  );
 }
 
 function showHueSetup(result) {
@@ -223,9 +309,9 @@ function showHueSetup(result) {
   }
   const actions = document.createElement("div");
   actions.className = "discoveryActions";
-  const area = document.createElement('select');
-  area.setAttribute('aria-label', 'Entertainment area');
-  area.add(new Option('STANDARD LIGHT CONTROL', ''));
+  const area = document.createElement("select");
+  area.setAttribute("aria-label", "Entertainment area");
+  area.add(new Option("STANDARD LIGHT CONTROL", ""));
   for (const item of result.entertainmentAreas || []) area.add(new Option(item.name, item.id));
   const setupOptions = document.createElement("div");
   setupOptions.className = "hueSetupOptions";
@@ -243,15 +329,29 @@ function showHueSetup(result) {
   twitch.checked = byId("fixtureTwitch").checked;
   twitchLabel.append(twitch, document.createTextNode(" TWITCH CONTROL"));
   setupOptions.append(zoneLabel, twitchLabel);
-  const saveStatus = document.createElement('p');
-  saveStatus.setAttribute('role', 'status');
-  const install = async mode => {
-    const lightIds = [...list.querySelectorAll('input[type="checkbox"]:checked')].map(input => Number(input.value));
+  const saveStatus = document.createElement("p");
+  saveStatus.setAttribute("role", "status");
+  const install = async (mode) => {
+    const lightIds = [...list.querySelectorAll('input[type="checkbox"]:checked')].map((input) =>
+      Number(input.value),
+    );
     try {
-      const saved = await request("/hue/onboarding/commit", { method: "POST", body: JSON.stringify({ setupToken: result.setupToken, mode, lightIds, entertainmentAreaId: area.value, zone: zone.value, twitchEnabled: twitch.checked }) });
+      const saved = await request("/hue/onboarding/commit", {
+        method: "POST",
+        body: JSON.stringify({
+          setupToken: result.setupToken,
+          mode,
+          lightIds,
+          entertainmentAreaId: area.value,
+          zone: zone.value,
+          twitchEnabled: twitch.checked,
+        }),
+      });
       await loadFixtures();
       showResult("fixtureActionResult", saved);
-    } catch (error) { saveStatus.textContent = redactDisplayString(error.message); }
+    } catch (error) {
+      saveStatus.textContent = redactDisplayString(error.message);
+    }
   };
   const selected = document.createElement("button");
   selected.type = "button";
@@ -266,26 +366,76 @@ function showHueSetup(result) {
 }
 
 function escapeHtml(value) {
-  const entities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-  return String(value ?? "").replace(/[&<>"']/g, character => entities[character]);
+  const entities = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  };
+  return String(value ?? "").replace(/[&<>"']/g, (character) => entities[character]);
 }
 
-document.querySelectorAll("[data-tab]").forEach(button => button.addEventListener("click", () => {
-  document.querySelectorAll("[data-tab]").forEach(item => item.classList.toggle("active", item === button));
-  document.querySelectorAll("[data-panel]").forEach(panel => { panel.hidden = panel.dataset.panel !== button.dataset.tab; });
-}));
+document.querySelectorAll("[data-tab]").forEach((button) =>
+  button.addEventListener("click", () => {
+    document
+      .querySelectorAll("[data-tab]")
+      .forEach((item) => item.classList.toggle("active", item === button));
+    document.querySelectorAll("[data-panel]").forEach((panel) => {
+      panel.hidden = panel.dataset.panel !== button.dataset.tab;
+    });
+  }),
+);
 
 const themes = {
-  midnight: { accent: "#8b001f", bg: "#050507", surface: "#121a2f", text: "#eaeaea", glow: 65 },
-  ember: { accent: "#d94118", bg: "#090606", surface: "#24120e", text: "#fff1e8", glow: 58 },
-  ocean: { accent: "#007ea8", bg: "#03080b", surface: "#0a2028", text: "#e8fbff", glow: 58 },
-  matrix: { accent: "#14a64a", bg: "#020704", surface: "#092013", text: "#e9ffef", glow: 48 },
-  aurora: { accent: "#9b287b", bg: "#07050a", surface: "#201229", text: "#f9edff", glow: 62 },
-  solar: { accent: "#d99a00", bg: "#090805", surface: "#27200b", text: "#fff9df", glow: 44 }
+  midnight: {
+    accent: "#8b001f",
+    bg: "#050507",
+    surface: "#121a2f",
+    text: "#eaeaea",
+    glow: 65,
+  },
+  ember: {
+    accent: "#d94118",
+    bg: "#090606",
+    surface: "#24120e",
+    text: "#fff1e8",
+    glow: 58,
+  },
+  ocean: {
+    accent: "#007ea8",
+    bg: "#03080b",
+    surface: "#0a2028",
+    text: "#e8fbff",
+    glow: 58,
+  },
+  matrix: {
+    accent: "#14a64a",
+    bg: "#020704",
+    surface: "#092013",
+    text: "#e9ffef",
+    glow: 48,
+  },
+  aurora: {
+    accent: "#9b287b",
+    bg: "#07050a",
+    surface: "#201229",
+    text: "#f9edff",
+    glow: 62,
+  },
+  solar: {
+    accent: "#d99a00",
+    bg: "#090805",
+    surface: "#27200b",
+    text: "#fff9df",
+    glow: 44,
+  },
 };
 
-let themeEditRevision=0;
-const saveSharedTheme=createSharedThemeSaver(()=>{byId('glowValue').title='App colors are local; overlay theme sync could not be saved.'});
+let themeEditRevision = 0;
+const saveSharedTheme = createSharedThemeSaver(() => {
+  byId("glowValue").title = "App colors are local; overlay theme sync could not be saved.";
+});
 function applyTheme(theme, persist = true) {
   const value = { ...themes.midnight, ...(theme || {}) };
   const root = document.documentElement.style;
@@ -301,20 +451,54 @@ function applyTheme(theme, persist = true) {
   byId("themeText").value = value.text;
   byId("themeGlow").value = value.glow;
   byId("glowValue").value = `${value.glow}%`;
-  if (persist) { themeEditRevision++; localStorage.setItem("ravelink.hud.theme", JSON.stringify(value)); saveSharedTheme(value); }
+  if (persist) {
+    themeEditRevision++;
+    localStorage.setItem("ravelink.hud.theme", JSON.stringify(value));
+    saveSharedTheme(value);
+  }
 }
 
 function customTheme() {
-  return { accent: byId("themeAccent").value, bg: byId("themeBg").value, surface: byId("themeSurface").value, text: byId("themeText").value, glow: Number(byId("themeGlow").value) };
+  return {
+    accent: byId("themeAccent").value,
+    bg: byId("themeBg").value,
+    surface: byId("themeSurface").value,
+    text: byId("themeText").value,
+    glow: Number(byId("themeGlow").value),
+  };
 }
 
-byId("themeButton").onclick = () => { byId("themePanel").hidden = !byId("themePanel").hidden; };
-byId("closeTheme").onclick = () => { byId("themePanel").hidden = true; };
+byId("themeButton").onclick = () => {
+  byId("themePanel").hidden = !byId("themePanel").hidden;
+};
+byId("closeTheme").onclick = () => {
+  byId("themePanel").hidden = true;
+};
 byId("resetTheme").onclick = () => applyTheme(themes.midnight);
-document.querySelectorAll("[data-theme]").forEach(button => button.onclick = () => applyTheme(themes[button.dataset.theme]));
-for (const id of ["themeAccent", "themeBg", "themeSurface", "themeText", "themeGlow"]) byId(id).oninput = () => applyTheme(customTheme());
-try { applyTheme(JSON.parse(localStorage.getItem("ravelink.hud.theme")), false); } catch { applyTheme(themes.midnight, false); }
-void (async()=>{const started=themeEditRevision;try{const response=await fetch('/api/presentation/theme',{cache:'no-store'}),body=await response.json();if(!body.ok||started!==themeEditRevision)return;if(body.revision>0){applyTheme(body.theme,false);localStorage.setItem('ravelink.hud.theme',JSON.stringify(body.theme))}else saveSharedTheme(customTheme())}catch{}})();
+document
+  .querySelectorAll("[data-theme]")
+  .forEach((button) => (button.onclick = () => applyTheme(themes[button.dataset.theme])));
+for (const id of ["themeAccent", "themeBg", "themeSurface", "themeText", "themeGlow"])
+  byId(id).oninput = () => applyTheme(customTheme());
+try {
+  applyTheme(JSON.parse(localStorage.getItem("ravelink.hud.theme")), false);
+} catch {
+  applyTheme(themes.midnight, false);
+}
+void (async () => {
+  const started = themeEditRevision;
+  try {
+    const response = await fetch("/api/presentation/theme", {
+        cache: "no-store",
+      }),
+      body = await response.json();
+    if (!body.ok || started !== themeEditRevision) return;
+    if (body.revision > 0) {
+      applyTheme(body.theme, false);
+      localStorage.setItem("ravelink.hud.theme", JSON.stringify(body.theme));
+    } else saveSharedTheme(customTheme());
+  } catch {}
+})();
 const developerMode = byId("developerMode");
 developerMode.checked = localStorage.getItem("ravelink.hud.developerMode") === "true";
 document.documentElement.dataset.developerMode = String(developerMode.checked);
@@ -341,13 +525,23 @@ function clearFixtureForm() {
 
 function syncFixtureBrandUi() {
   const brand = byId("fixtureBrand").value;
-  document.querySelectorAll("[data-fixture-brand]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.fixtureBrand === brand)));
-  document.querySelectorAll("[data-fixture-brands]").forEach(field => { field.hidden = !field.dataset.fixtureBrands.split(" ").includes(brand); });
+  document
+    .querySelectorAll("[data-fixture-brand]")
+    .forEach((button) =>
+      button.setAttribute("aria-pressed", String(button.dataset.fixtureBrand === brand)),
+    );
+  document.querySelectorAll("[data-fixture-brands]").forEach((field) => {
+    field.hidden = !field.dataset.fixtureBrands.split(" ").includes(brand);
+  });
 }
 byId("fixtureBrand").addEventListener("change", syncFixtureBrandUi);
-document.querySelectorAll("[data-fixture-brand]").forEach(button => button.addEventListener("click", () => {
-  Object.assign(byId("fixtureBrand"), { value: button.dataset.fixtureBrand }).dispatchEvent(new Event("change", { bubbles: true }));
-}));
+document.querySelectorAll("[data-fixture-brand]").forEach((button) =>
+  button.addEventListener("click", () => {
+    Object.assign(byId("fixtureBrand"), {
+      value: button.dataset.fixtureBrand,
+    }).dispatchEvent(new Event("change", { bubbles: true }));
+  }),
+);
 syncFixtureBrandUi();
 byId("showFixtureAddresses").onchange = () => {
   const type = byId("showFixtureAddresses").checked ? "text" : "password";
@@ -356,49 +550,85 @@ byId("showFixtureAddresses").onchange = () => {
 };
 
 function renderFixtures() {
-  byId("hueCount").textContent = String(fixtures.filter(row => row.brand === "hue").length);
-  byId("wizCount").textContent = String(fixtures.filter(row => row.brand === "wiz").length);
-  byId("fixtureRows").innerHTML = fixtures.length ? fixtures.map(row => {
-    const connectivity = fixtureConnectivity.get(row.id);
-    const state = !row.enabled ? "DISABLED" : fixtureTestState.get(row.id)?.status || String(connectivity?.status || (row.credentialsConfigured || row.deviceIpConfigured ? "untested" : "not_configured")).replaceAll("_", " ").toUpperCase();
-    return `<tr><td><strong>${escapeHtml(row.name || row.id)}</strong><br><span class="sub">${escapeHtml(row.id)}</span></td><td>${escapeHtml(row.brand).toUpperCase()}</td><td>${escapeHtml(row.zone || "-")}</td><td>${row.twitchEnabled ? "TWITCH" : "OFF"}</td><td>${escapeHtml(state)}</td><td><div class="actions compact"><button data-fixture-test="${escapeHtml(row.id)}">TEST</button><button data-fixture-edit="${escapeHtml(row.id)}">EDIT</button><button class="danger" data-fixture-delete="${escapeHtml(row.id)}">DELETE</button></div></td></tr>`;
-  }).join("") : '<tr><td colspan="6">NO FIXTURES CONFIGURED</td></tr>';
+  byId("hueCount").textContent = String(fixtures.filter((row) => row.brand === "hue").length);
+  byId("wizCount").textContent = String(fixtures.filter((row) => row.brand === "wiz").length);
+  byId("fixtureRows").innerHTML = fixtures.length
+    ? fixtures
+        .map((row) => {
+          const connectivity = fixtureConnectivity.get(row.id);
+          const state = !row.enabled
+            ? "DISABLED"
+            : fixtureTestState.get(row.id)?.status ||
+              String(
+                connectivity?.status ||
+                  (row.credentialsConfigured || row.deviceIpConfigured
+                    ? "untested"
+                    : "not_configured"),
+              )
+                .replaceAll("_", " ")
+                .toUpperCase();
+          return `<tr><td><strong>${escapeHtml(row.name || row.id)}</strong><br><span class="sub">${escapeHtml(row.id)}</span></td><td>${escapeHtml(row.brand).toUpperCase()}</td><td>${escapeHtml(row.zone || "-")}</td><td>${row.twitchEnabled ? "TWITCH" : "OFF"}</td><td>${escapeHtml(state)}</td><td><div class="actions compact"><button data-fixture-test="${escapeHtml(row.id)}">TEST</button><button data-fixture-edit="${escapeHtml(row.id)}">EDIT</button><button class="danger" data-fixture-delete="${escapeHtml(row.id)}">DELETE</button></div></td></tr>`;
+        })
+        .join("")
+    : '<tr><td colspan="6">NO FIXTURES CONFIGURED</td></tr>';
   renderLightTargets();
   applyLightingReadiness();
 }
 
 function fixtureTestFailure(error) {
   const messages = {
-    hue_light_not_found: "The bridge responded, but this light ID no longer exists. Reconnect the Hue bridge to refresh its lights.",
-    hue_lights_query_failed: "The Hue bridge did not return its light inventory. Check bridge power and network access, then test again.",
-    hue_lights_transport_unavailable: "Hue networking is unavailable. Restart RaveLink and check the local network connection.",
-    wiz_probe_timeout: "The WiZ light did not answer. Confirm it is powered and on the same local network, then rediscover WiZ.",
-    wiz_probe_failed: "The WiZ light could not be reached. Rediscover WiZ to refresh its saved address.",
+    hue_light_not_found:
+      "The bridge responded, but this light ID no longer exists. Reconnect the Hue bridge to refresh its lights.",
+    hue_lights_query_failed:
+      "The Hue bridge did not return its light inventory. Check bridge power and network access, then test again.",
+    hue_lights_transport_unavailable:
+      "Hue networking is unavailable. Restart RaveLink and check the local network connection.",
+    wiz_probe_timeout:
+      "The WiZ light did not answer. Confirm it is powered and on the same local network, then rediscover WiZ.",
+    wiz_probe_failed:
+      "The WiZ light could not be reached. Rediscover WiZ to refresh its saved address.",
     wiz_probe_transport_unavailable: "WiZ network probing is unavailable on this system.",
-    govee_probe_timeout: "The Govee light did not answer. Enable LAN Control in Govee Home, confirm it is powered and on this network, then rediscover it.",
+    govee_probe_timeout:
+      "The Govee light did not answer. Enable LAN Control in Govee Home, confirm it is powered and on this network, then rediscover it.",
     govee_probe_failed: "The Govee light could not be reached over its local LAN API.",
     govee_probe_transport_unavailable: "Govee LAN probing is unavailable on this system.",
-    fixture_not_found: "This fixture is no longer saved. Refresh the fixture list."
+    fixture_not_found: "This fixture is no longer saved. Refresh the fixture list.",
   };
-  return messages[error] || `The fixture test failed (${String(error || "unknown error").replaceAll("_", " ")}). Check its pairing and network settings.`;
+  return (
+    messages[error] ||
+    `The fixture test failed (${String(error || "unknown error").replaceAll("_", " ")}). Check its pairing and network settings.`
+  );
 }
 
 function renderLightTargets() {
   const select = byId("lightTarget");
   const current = select.value || "all";
   const options = [
-    ["all", "ALL LIGHTS"], ["brand:hue", "ALL HUE"], ["brand:wiz", "ALL WIZ"], ["brand:govee", "ALL GOVEE (ALPHA)"],
-    ...fixtureGroups.filter(row => row.enabled !== false && row.fixtureIds?.length).map(row => [`group:${row.id}`, `GROUP: ${row.name}`]),
-    ...[...new Set(fixtures.map(row => row.zone).filter(Boolean))].sort().map(zone => [`zone:${zone}`, `ZONE: ${zone.toUpperCase()}`]),
-    ...fixtures.map(row => [`fixture:${row.id}`, `${String(row.brand).toUpperCase()}: ${row.name || row.id}`])
+    ["all", "ALL LIGHTS"],
+    ["brand:hue", "ALL HUE"],
+    ["brand:wiz", "ALL WIZ"],
+    ["brand:govee", "ALL GOVEE (ALPHA)"],
+    ...fixtureGroups
+      .filter((row) => row.enabled !== false && row.fixtureIds?.length)
+      .map((row) => [`group:${row.id}`, `GROUP: ${row.name}`]),
+    ...[...new Set(fixtures.map((row) => row.zone).filter(Boolean))]
+      .sort()
+      .map((zone) => [`zone:${zone}`, `ZONE: ${zone.toUpperCase()}`]),
+    ...fixtures.map((row) => [
+      `fixture:${row.id}`,
+      `${String(row.brand).toUpperCase()}: ${row.name || row.id}`,
+    ]),
   ];
-  if (current.startsWith('group:') && !options.some(([value]) => value === current)) options.push([current, 'GROUP UNAVAILABLE']);
-  select.replaceChildren(...options.map(([value, label]) => {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = label;
-    return option;
-  }));
+  if (current.startsWith("group:") && !options.some(([value]) => value === current))
+    options.push([current, "GROUP UNAVAILABLE"]);
+  select.replaceChildren(
+    ...options.map(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      return option;
+    }),
+  );
   select.value = options.some(([value]) => value === current) ? current : "all";
   twitchProgramUi?.refreshFixtures();
 }
@@ -406,11 +636,11 @@ function renderLightTargets() {
 async function loadFixtures() {
   const result = await request("/fixtures");
   fixtures = result.fixtures || [];
-  fixtureConnectivity = new Map((result.connectivity?.rows || []).map(row => [row.id, row]));
+  fixtureConnectivity = new Map((result.connectivity?.rows || []).map((row) => [row.id, row]));
   renderFixtures();
 }
 
-byId("fixtureRows").onclick = async event => {
+byId("fixtureRows").onclick = async (event) => {
   const edit = event.target.closest("[data-fixture-edit]");
   const test = event.target.closest("[data-fixture-test]");
   const remove = event.target.closest("[data-fixture-delete]");
@@ -418,19 +648,26 @@ byId("fixtureRows").onclick = async event => {
     test.disabled = true;
     test.textContent = "TESTING";
     try {
-      const result = await request(`/fixtures/${encodeURIComponent(test.dataset.fixtureTest)}/test`, { method: "POST", body: "{}" });
+      const result = await request(
+        `/fixtures/${encodeURIComponent(test.dataset.fixtureTest)}/test`,
+        { method: "POST", body: "{}" },
+      );
       fixtureTestState.set(test.dataset.fixtureTest, { status: "REACHABLE" });
-      showResult("fixtureActionResult", `${result.fixture?.name || "Fixture"} responded successfully.`);
-    }
-    catch (error) {
+      showResult(
+        "fixtureActionResult",
+        `${result.fixture?.name || "Fixture"} responded successfully.`,
+      );
+    } catch (error) {
       fixtureTestState.set(test.dataset.fixtureTest, { status: "UNREACHABLE" });
       showResult("fixtureActionResult", fixtureTestFailure(error.message), true);
+    } finally {
+      test.disabled = false;
+      test.textContent = "TEST";
     }
-    finally { test.disabled = false; test.textContent = "TEST"; }
     renderFixtures();
   }
   if (edit) {
-    const row = fixtures.find(item => item.id === edit.dataset.fixtureEdit);
+    const row = fixtures.find((item) => item.id === edit.dataset.fixtureEdit);
     if (!row) return;
     try {
       const detail = (await request(`/fixtures/${encodeURIComponent(row.id)}/edit`)).fixture;
@@ -447,48 +684,99 @@ byId("fixtureRows").onclick = async event => {
       byId("showFixtureAddresses").checked = false;
       byId("fixtureIp").type = "password";
       byId("fixtureBridgeIp").type = "password";
-    } catch (error) { showResult("fixtureActionResult", error.message, true); }
+    } catch (error) {
+      showResult("fixtureActionResult", error.message, true);
+    }
   }
   if (remove && confirm(`Delete fixture ${remove.dataset.fixtureDelete}?`)) {
-    try { await request(`/fixtures/${encodeURIComponent(remove.dataset.fixtureDelete)}`, { method: "DELETE" }); await loadFixtures(); } catch (error) { showResult("fixtureActionResult", error.message, true); }
+    try {
+      await request(`/fixtures/${encodeURIComponent(remove.dataset.fixtureDelete)}`, {
+        method: "DELETE",
+      });
+      await loadFixtures();
+    } catch (error) {
+      showResult("fixtureActionResult", error.message, true);
+    }
   }
 };
 
 byId("saveFixture").onclick = async () => {
   try {
-    const result = await request("/fixtures", { method: "POST", body: JSON.stringify({ id: byId("fixtureId").value, name: byId("fixtureName").value, brand: byId("fixtureBrand").value, zone: byId("fixtureZone").value, lightId: Number(byId("fixtureLightId").value), ip: byId("fixtureIp").value, bridgeIp: byId("fixtureBridgeIp").value, enabled: byId("fixtureEnabled").checked, twitchEnabled: byId("fixtureTwitch").checked }) });
+    const result = await request("/fixtures", {
+      method: "POST",
+      body: JSON.stringify({
+        id: byId("fixtureId").value,
+        name: byId("fixtureName").value,
+        brand: byId("fixtureBrand").value,
+        zone: byId("fixtureZone").value,
+        lightId: Number(byId("fixtureLightId").value),
+        ip: byId("fixtureIp").value,
+        bridgeIp: byId("fixtureBridgeIp").value,
+        enabled: byId("fixtureEnabled").checked,
+        twitchEnabled: byId("fixtureTwitch").checked,
+      }),
+    });
     showResult("fixtureActionResult", result);
     clearFixtureForm();
     await loadFixtures();
-  } catch (error) { showResult("fixtureActionResult", error.message, true); }
+  } catch (error) {
+    showResult("fixtureActionResult", error.message, true);
+  }
 };
 byId("clearFixture").onclick = clearFixtureForm;
-byId("refreshFixtures").onclick = () => loadFixtures().catch(error => showResult("fixtureActionResult", error.message, true));
+byId("refreshFixtures").onclick = () =>
+  loadFixtures().catch((error) => showResult("fixtureActionResult", error.message, true));
 byId("discoverHue").onclick = async () => {
   byId("discoverHue").disabled = true;
   byId("discoverHue").textContent = "SEARCHING FOR HUE BRIDGE";
-  try { showDiscoveryResult(await request("/hue/discover")); }
-  catch (error) { showResult("fixtureActionResult", error.message, true); }
-  finally { byId("discoverHue").disabled = false; byId("discoverHue").textContent = "1 // DISCOVER HUE"; }
+  try {
+    showDiscoveryResult(await request("/hue/discover"));
+  } catch (error) {
+    showResult("fixtureActionResult", error.message, true);
+  } finally {
+    byId("discoverHue").disabled = false;
+    byId("discoverHue").textContent = "1 // DISCOVER HUE";
+  }
 };
-byId("discoverWiz").onclick = async () => { try { showDiscoveryResult(await request("/wiz/discover")); } catch (error) { showResult("fixtureActionResult", error.message, true); } };
+byId("discoverWiz").onclick = async () => {
+  try {
+    showDiscoveryResult(await request("/wiz/discover"));
+  } catch (error) {
+    showResult("fixtureActionResult", error.message, true);
+  }
+};
 byId("discoverGovee").onclick = async () => {
   const button = byId("discoverGovee");
   button.disabled = true;
   button.textContent = "SEARCHING FOR GOVEE";
-  try { showDiscoveryResult(await request("/govee/discover")); }
-  catch (error) { showResult("fixtureActionResult", error.message, true); }
-  finally { button.disabled = false; button.textContent = "FIND GOVEE LIGHTS"; }
+  try {
+    showDiscoveryResult(await request("/govee/discover"));
+  } catch (error) {
+    showResult("fixtureActionResult", error.message, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = "FIND GOVEE LIGHTS";
+  }
 };
 byId("pairHueManual").onclick = async () => {
   const bridgeIp = byId("fixtureBridgeIp").value;
-  if (!bridgeIp) return showResult("fixtureActionResult", "Enter a Hue bridge address or use discovery.", true);
+  if (!bridgeIp)
+    return showResult("fixtureActionResult", "Enter a Hue bridge address or use discovery.", true);
   try {
     byId("pairHueManual").disabled = true;
     byId("pairHueManual").textContent = "PAIRING";
-    await connectHuePair(await request("/hue/pair/prepare", { method: "POST", body: JSON.stringify({ bridgeIp }) }));
-  } catch (error) { showResult("fixtureActionResult", error.message, true); }
-  finally { byId("pairHueManual").textContent = "2 // PAIR SELECTED BRIDGE"; syncHuePairButton(); }
+    await connectHuePair(
+      await request("/hue/pair/prepare", {
+        method: "POST",
+        body: JSON.stringify({ bridgeIp }),
+      }),
+    );
+  } catch (error) {
+    showResult("fixtureActionResult", error.message, true);
+  } finally {
+    byId("pairHueManual").textContent = "2 // PAIR SELECTED BRIDGE";
+    syncHuePairButton();
+  }
 };
 byId("fixtureBridgeIp").addEventListener("input", syncHuePairButton);
 syncHuePairButton();
@@ -496,29 +784,60 @@ syncHuePairButton();
 byId("applyColor").onclick = async () => {
   setStatus("lightStatus", "APPLYING", "warn");
   const selection = byId("lightTarget").value;
-  const text = byId('colorText').value || byId('colorPicker').value;
-  const body = { text: /(?:^|\s)(?:dim|bright|\d{1,3}%)(?:\s|$)/i.test(text) ? text : `${text} ${byId('brightness').value}%` };
+  const text = byId("colorText").value || byId("colorPicker").value;
+  const body = {
+    text: /(?:^|\s)(?:dim|bright|\d{1,3}%)(?:\s|$)/i.test(text)
+      ? text
+      : `${text} ${byId("brightness").value}%`,
+  };
   if (selection.startsWith("brand:")) body.target = selection.slice(6);
-  else if (selection.startsWith("zone:")) { body.target = "both"; body.zone = selection.slice(5); }
-  else if (selection.startsWith("fixture:")) body.fixtureId = selection.slice(8);
-  else if (selection.startsWith('group:')) body.groupId = selection.slice(6);
+  else if (selection.startsWith("zone:")) {
+    body.target = "both";
+    body.zone = selection.slice(5);
+  } else if (selection.startsWith("fixture:")) body.fixtureId = selection.slice(8);
+  else if (selection.startsWith("group:")) body.groupId = selection.slice(6);
   else body.target = "both";
   try {
-    const result = await request('/color', { method: 'POST', body: JSON.stringify(body) });
-    const dryRun = result.hueDelivery?.dryRun || result.wizDelivery?.dryRun || result.goveeDelivery?.dryRun;
-    const destination = Array.isArray(result.targets) && result.targets.length ? result.targets.join(', ') : 'no fixtures';
-    const command = `${result.hex || 'brightness only'} at ${result.brightnessPercent}%`;
-    const summary = dryRun ? `Dry run: ${command} matched ${destination}. No hardware command sent.`
+    const result = await request("/color", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    const dryRun =
+      result.hueDelivery?.dryRun || result.wizDelivery?.dryRun || result.goveeDelivery?.dryRun;
+    const destination =
+      Array.isArray(result.targets) && result.targets.length
+        ? result.targets.join(", ")
+        : "no fixtures";
+    const command = `${result.hex || "brightness only"} at ${result.brightnessPercent}%`;
+    const summary = dryRun
+      ? `Dry run: ${command} matched ${destination}. No hardware command sent.`
       : `${command} sent to ${destination}. ${result.sent || 0} dispatched, ${result.failed || 0} failed (${result.skippedTargets || 0} missing or disabled).`;
-    showResult('colorResult', summary);
-    setStatus('lightStatus', dryRun ? 'DRY RUN' : result.partial ? 'PARTIAL' : 'APPLIED', dryRun || result.partial ? 'warn' : 'ok');
+    showResult("colorResult", summary);
+    setStatus(
+      "lightStatus",
+      dryRun ? "DRY RUN" : result.partial ? "PARTIAL" : "APPLIED",
+      dryRun || result.partial ? "warn" : "ok",
+    );
+  } catch (error) {
+    showResult("colorResult", error.message, true);
+    setStatus("lightStatus", "FAILED", "bad");
   }
-  catch (error) { showResult("colorResult", error.message, true); setStatus("lightStatus", "FAILED", "bad"); }
 };
-byId("colorText").onkeydown = event => { if (event.key === "Enter") byId("applyColor").click(); };
-byId("colorPicker").oninput = () => { byId("colorText").value = byId("colorPicker").value; };
-byId("brightness").oninput = () => { byId("brightnessValue").value = `${byId("brightness").value}%`; };
-document.querySelectorAll("[data-color]").forEach(button => button.onclick = () => { byId("colorText").value = button.dataset.color; });
+byId("colorText").onkeydown = (event) => {
+  if (event.key === "Enter") byId("applyColor").click();
+};
+byId("colorPicker").oninput = () => {
+  byId("colorText").value = byId("colorPicker").value;
+};
+byId("brightness").oninput = () => {
+  byId("brightnessValue").value = `${byId("brightness").value}%`;
+};
+document.querySelectorAll("[data-color]").forEach(
+  (button) =>
+    (button.onclick = () => {
+      byId("colorText").value = button.dataset.color;
+    }),
+);
 
 async function runControlRoutingTest(text) {
   const output = byId("controlRoutingTestResult");
@@ -526,7 +845,10 @@ async function runControlRoutingTest(text) {
   output.style.color = "#c9d8ff";
   output.textContent = "ROUTING COMMAND...";
   try {
-    const result = await request("/twitch/lights/test", { method: "POST", body: JSON.stringify({ text }) });
+    const result = await request("/twitch/lights/test", {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    });
     const targets = Array.isArray(result.targets) ? result.targets : [];
     output.textContent = result.effect
       ? `${String(result.effect).toUpperCase()} // ${targets.length} TARGETS${result.synchronized ? " // SYNCHRONIZED" : ""}\n${targets.join(", ") || "No active targets"}`
@@ -536,10 +858,14 @@ async function runControlRoutingTest(text) {
     output.style.color = "var(--bad)";
   }
 }
-byId("runControlRoutingTest").onclick = () => runControlRoutingTest(byId("controlRoutingTestInput").value);
+byId("runControlRoutingTest").onclick = () =>
+  runControlRoutingTest(byId("controlRoutingTestInput").value);
 byId("stopControlRoutingTest").onclick = () => runControlRoutingTest("stop");
-byId("controlRoutingTestInput").addEventListener("keydown", event => {
-  if (event.key === "Enter") { event.preventDefault(); void runControlRoutingTest(event.currentTarget.value); }
+byId("controlRoutingTestInput").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    void runControlRoutingTest(event.currentTarget.value);
+  }
 });
 
 byId("baseUrl").value = location.origin;
@@ -556,63 +882,135 @@ function applyWidgetSecurity(status = {}) {
   widgetSecurityStatus = status;
   const managed = status.managementAvailable === true;
   const configured = status.configured === true;
-  const widgetStatusText = status.mode === "environment_read_only"
-    ? "ENV TOKEN ACTIVE"
-    : (configured ? (status.overlapActive ? "TOKEN ROTATING" : "HOSTED INTAKE READY") : "SERVER TOKEN REQUIRED");
-  setStatus("widgetStatus", widgetStatusText, configured ? (status.overlapActive ? "warn" : "ok") : "warn");
+  const widgetStatusText =
+    status.mode === "environment_read_only"
+      ? "ENV TOKEN ACTIVE"
+      : configured
+        ? status.overlapActive
+          ? "TOKEN ROTATING"
+          : "HOSTED INTAKE READY"
+        : "SERVER TOKEN REQUIRED";
+  setStatus(
+    "widgetStatus",
+    widgetStatusText,
+    configured ? (status.overlapActive ? "warn" : "ok") : "warn",
+  );
   byId("rotateIntakeToken").disabled = !managed;
   byId("clearIntakeToken").disabled = !managed || !configured;
   byId("rotateIntakeToken").textContent = configured ? "ROTATE TOKEN" : "GENERATE TOKEN";
-  byId("rotateIntakeToken").title = managed ? "Generate and reveal a server-managed intake token once" : "Token is controlled by RAVELINK_WIDGET_INTAKE_TOKEN";
+  byId("rotateIntakeToken").title = managed
+    ? "Generate and reveal a server-managed intake token once"
+    : "Token is controlled by RAVELINK_WIDGET_INTAKE_TOKEN";
   updateWidgetReadiness();
 }
 function widgetGenerationProblem() {
-  if (!byId("colorRewardId").value.trim() && !byId("teachRewardId").value.trim() && !byId("songRewardId").value.trim() && !byId("playlistRewardId").value.trim()) return "ADD AT LEAST ONE REWARD ID";
-  if (byId("colorRewardId").value.trim() && configuredLightFixtures().length === 0) return "PAIR OR ADD A USABLE FIXTURE FOR THE LIGHT REWARD";
-  if ((byId("songRewardId").value.trim() || byId("playlistRewardId").value.trim()) && !songRequestAvailable) return "INSTALL AND ENABLE SONG REQUEST BEFORE ROUTING ITS REWARD";
-  if (!byId("intakeToken").value.trim()) return widgetSecurityStatus.overlapActive
-    ? "TOKEN WAS ROTATED // ROTATE ONCE MORE TO REVEAL A TOKEN, THEN VERIFY, GENERATE, AND REPLACE THE STREAM ELEMENTS CODE"
-    : "GENERATE OR ENTER AN INTAKE TOKEN";
+  if (
+    !byId("colorRewardId").value.trim() &&
+    !byId("teachRewardId").value.trim() &&
+    !byId("songRewardId").value.trim() &&
+    !byId("playlistRewardId").value.trim()
+  )
+    return "ADD AT LEAST ONE REWARD ID";
+  if (byId("colorRewardId").value.trim() && configuredLightFixtures().length === 0)
+    return "PAIR OR ADD A USABLE FIXTURE FOR THE LIGHT REWARD";
+  if (
+    (byId("songRewardId").value.trim() || byId("playlistRewardId").value.trim()) &&
+    !songRequestAvailable
+  )
+    return "INSTALL AND ENABLE SONG REQUEST BEFORE ROUTING ITS REWARD";
+  if (!byId("intakeToken").value.trim())
+    return widgetSecurityStatus.overlapActive
+      ? "TOKEN WAS ROTATED // ROTATE ONCE MORE TO REVEAL A TOKEN, THEN VERIFY, GENERATE, AND REPLACE THE STREAM ELEMENTS CODE"
+      : "GENERATE OR ENTER AN INTAKE TOKEN";
   try {
     const url = new URL(byId("baseUrl").value);
-    if (url.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)) return "BRIDGE URL MUST BE LOOPBACK HTTP";
-  } catch { return "BRIDGE URL IS INVALID"; }
+    if (url.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname))
+      return "BRIDGE URL MUST BE LOOPBACK HTTP";
+  } catch {
+    return "BRIDGE URL IS INVALID";
+  }
   return "";
 }
 
 function updateWidgetReadiness() {
   const problem = widgetGenerationProblem();
   byId("generateWidget").disabled = Boolean(problem);
-  const rebuildProblem = !byId("colorRewardId").value.trim() && !byId("teachRewardId").value.trim() && !byId("songRewardId").value.trim() && !byId("playlistRewardId").value.trim()
-    ? "Add at least one reward ID before rebuilding the widget."
-    : (byId("colorRewardId").value.trim() && configuredLightFixtures().length === 0
-      ? "Pair or add a usable fixture before rebuilding the lights widget."
-      : ((byId("songRewardId").value.trim() || byId("playlistRewardId").value.trim()) && !songRequestAvailable ? "Install and enable Song Request before rebuilding its widget route." : ""));
-  setUnavailable(byId("rebuildWidget"), !widgetSecurityStatus.managementAvailable || Boolean(rebuildProblem), !widgetSecurityStatus.managementAvailable ? "The intake token is managed by the server environment." : rebuildProblem);
+  const rebuildProblem =
+    !byId("colorRewardId").value.trim() &&
+    !byId("teachRewardId").value.trim() &&
+    !byId("songRewardId").value.trim() &&
+    !byId("playlistRewardId").value.trim()
+      ? "Add at least one reward ID before rebuilding the widget."
+      : byId("colorRewardId").value.trim() && configuredLightFixtures().length === 0
+        ? "Pair or add a usable fixture before rebuilding the lights widget."
+        : (byId("songRewardId").value.trim() || byId("playlistRewardId").value.trim()) &&
+            !songRequestAvailable
+          ? "Install and enable Song Request before rebuilding its widget route."
+          : "";
+  setUnavailable(
+    byId("rebuildWidget"),
+    !widgetSecurityStatus.managementAvailable || Boolean(rebuildProblem),
+    !widgetSecurityStatus.managementAvailable
+      ? "The intake token is managed by the server environment."
+      : rebuildProblem,
+  );
   byId("widgetNotice").textContent = problem || "READY TO GENERATE";
   byId("widgetNotice").className = `notice${problem ? " bad" : ""}`;
   const hasOutput = Boolean(byId("widgetOutput").value);
   setUnavailable(byId("copyWidget"), !hasOutput, "Generate widget code before copying it.");
-  setUnavailable(byId("testIntakeToken"), !byId("intakeToken").value.trim(), "Generate or enter an intake token before verifying it.");
+  setUnavailable(
+    byId("testIntakeToken"),
+    !byId("intakeToken").value.trim(),
+    "Generate or enter an intake token before verifying it.",
+  );
 }
-for (const id of ["colorRewardId", "teachRewardId", "songRewardId", "playlistRewardId", "baseUrl", "intakeToken"]) byId(id).oninput = updateWidgetReadiness;
+for (const id of [
+  "colorRewardId",
+  "teachRewardId",
+  "songRewardId",
+  "playlistRewardId",
+  "baseUrl",
+  "intakeToken",
+])
+  byId(id).oninput = updateWidgetReadiness;
 byId("rotateIntakeToken").onclick = async () => {
-  if (byId("rotateIntakeToken").textContent === "ROTATE TOKEN" && !confirm("Rotate the widget token? Existing widgets keep working briefly during the overlap window.")) return;
+  if (
+    byId("rotateIntakeToken").textContent === "ROTATE TOKEN" &&
+    !confirm(
+      "Rotate the widget token? Existing widgets keep working briefly during the overlap window.",
+    )
+  )
+    return;
   try {
-    const result = await request("/system/widget-token/rotate", { method: "POST", body: "{}" });
+    const result = await request("/system/widget-token/rotate", {
+      method: "POST",
+      body: "{}",
+    });
     byId("intakeToken").value = result.token || "";
     byId("intakeToken").focus();
     byId("intakeToken").select();
     applyWidgetSecurity(result.widgetSecurity);
-  } catch (error) { byId("widgetOutput").value = error.message; }
+  } catch (error) {
+    byId("widgetOutput").value = error.message;
+  }
 };
 byId("clearIntakeToken").onclick = async () => {
-  if (!confirm("Revoke the current and overlapping widget tokens? Hosted widgets will stop until a new token is generated.")) return;
+  if (
+    !confirm(
+      "Revoke the current and overlapping widget tokens? Hosted widgets will stop until a new token is generated.",
+    )
+  )
+    return;
   try {
-    const result = await request("/system/widget-token/clear", { method: "POST", body: "{}" });
+    const result = await request("/system/widget-token/clear", {
+      method: "POST",
+      body: "{}",
+    });
     byId("intakeToken").value = "";
     applyWidgetSecurity(result.widgetSecurity);
-  } catch (error) { byId("widgetOutput").value = error.message; }
+  } catch (error) {
+    byId("widgetOutput").value = error.message;
+  }
 };
 byId("testIntakeToken").onclick = async () => {
   try {
@@ -623,11 +1021,24 @@ byId("testIntakeToken").onclick = async () => {
       body: JSON.stringify({
         contract: "widget.events.v2",
         source: "streamelements",
-        eventEnvelope: { detail: { listener: "message", event: { text: "ravelink-intake-health-check" } } },
-        widgetConfig: { colorRewardId: byId("colorRewardId").value.trim(), teachRewardId: byId("teachRewardId").value.trim(), playlistRewardId: byId("playlistRewardId").value.trim(), songRewardId: byId("songRewardId").value.trim() }
-      })
+        eventEnvelope: {
+          detail: {
+            listener: "message",
+            event: { text: "ravelink-intake-health-check" },
+          },
+        },
+        widgetConfig: {
+          colorRewardId: byId("colorRewardId").value.trim(),
+          teachRewardId: byId("teachRewardId").value.trim(),
+          playlistRewardId: byId("playlistRewardId").value.trim(),
+          songRewardId: byId("songRewardId").value.trim(),
+        },
+      }),
     });
-    byId("widgetNotice").textContent = result.disposition === "irrelevant" ? "INTAKE TOKEN VERIFIED // GENERATE AND REPLACE THE STREAM ELEMENTS WIDGET CODE" : "INTAKE TOKEN VERIFIED";
+    byId("widgetNotice").textContent =
+      result.disposition === "irrelevant"
+        ? "INTAKE TOKEN VERIFIED // GENERATE AND REPLACE THE STREAM ELEMENTS WIDGET CODE"
+        : "INTAKE TOKEN VERIFIED";
     byId("widgetNotice").className = "notice";
   } catch (error) {
     byId("widgetNotice").textContent = `INTAKE TOKEN REJECTED // ${error.message}`;
@@ -638,7 +1049,17 @@ byId("generateWidget").onclick = async () => {
   const problem = widgetGenerationProblem();
   if (problem) return updateWidgetReadiness();
   try {
-    const result = await request("/system/widget-template-get", { method: "POST", body: JSON.stringify({ colorRewardId: byId("colorRewardId").value, teachRewardId: byId("teachRewardId").value, playlistRewardId: byId("playlistRewardId").value, songRewardId: byId("songRewardId").value, baseUrl: byId("baseUrl").value, widgetIntakeToken: byId("intakeToken").value }) });
+    const result = await request("/system/widget-template-get", {
+      method: "POST",
+      body: JSON.stringify({
+        colorRewardId: byId("colorRewardId").value,
+        teachRewardId: byId("teachRewardId").value,
+        playlistRewardId: byId("playlistRewardId").value,
+        songRewardId: byId("songRewardId").value,
+        baseUrl: byId("baseUrl").value,
+        widgetIntakeToken: byId("intakeToken").value,
+      }),
+    });
     byId("widgetOutput").value = result.script || "";
     byId("intakeToken").value = "";
     byId("generateWidget").disabled = true;
@@ -646,18 +1067,36 @@ byId("generateWidget").onclick = async () => {
     applyWidgetSensitiveVisibility();
     byId("widgetNotice").textContent = "WIDGET CODE GENERATED";
     byId("widgetNotice").className = "notice";
-  } catch (error) { byId("widgetNotice").textContent = error.message; byId("widgetNotice").className = "notice bad"; }
+  } catch (error) {
+    byId("widgetNotice").textContent = error.message;
+    byId("widgetNotice").className = "notice bad";
+  }
 };
 byId("rebuildWidget").onclick = async () => {
-  if (!confirm("Create replacement widget code? This rotates the intake token. The currently deployed widget remains valid for ten minutes while you replace its JavaScript.")) return;
+  if (
+    !confirm(
+      "Create replacement widget code? This rotates the intake token. The currently deployed widget remains valid for ten minutes while you replace its JavaScript.",
+    )
+  )
+    return;
   try {
-    const result = await request("/system/widget-template-rebuild", { method: "POST", body: JSON.stringify({ colorRewardId: byId("colorRewardId").value, teachRewardId: byId("teachRewardId").value, playlistRewardId: byId("playlistRewardId").value, songRewardId: byId("songRewardId").value, baseUrl: byId("baseUrl").value }) });
+    const result = await request("/system/widget-template-rebuild", {
+      method: "POST",
+      body: JSON.stringify({
+        colorRewardId: byId("colorRewardId").value,
+        teachRewardId: byId("teachRewardId").value,
+        playlistRewardId: byId("playlistRewardId").value,
+        songRewardId: byId("songRewardId").value,
+        baseUrl: byId("baseUrl").value,
+      }),
+    });
     byId("widgetOutput").value = result.script || "";
     byId("intakeToken").value = "";
     applyWidgetSecurity(result.widgetSecurity);
     setUnavailable(byId("copyWidget"), false);
     applyWidgetSensitiveVisibility();
-    byId("widgetNotice").textContent = "REPLACEMENT READY // COPY IT INTO THE STREAM ELEMENTS CUSTOM WIDGET JS AND SAVE";
+    byId("widgetNotice").textContent =
+      "REPLACEMENT READY // COPY IT INTO THE STREAM ELEMENTS CUSTOM WIDGET JS AND SAVE";
     byId("widgetNotice").className = "notice";
   } catch (error) {
     byId("widgetNotice").textContent = `REBUILD FAILED // ${error.message}`;
@@ -668,14 +1107,18 @@ async function refreshWidgetConnection() {
   try {
     const diagnostics = await request("/system/diagnostics");
     const counters = diagnostics.domains?.widget?.counters || {};
-    const received = Number(counters.received || 0), ready = Number(counters.ready || 0), handled = Number(counters.handled || 0), rejected = Number(counters.rejected || 0);
-    const message = handled > 0
-      ? `DEPLOYMENT ACTIVE // ${handled} REDEMPTION${handled === 1 ? "" : "S"} HANDLED`
-      : ready > 0
-        ? `DEPLOYMENT CONNECTED // ${ready} AUTHENTICATED WIDGET LOAD${ready === 1 ? "" : "S"}; NO MATCHING REDEMPTION YET`
-        : rejected > 0
-          ? `DEPLOYED WIDGET TOKEN REJECTED ${rejected} TIME${rejected === 1 ? "" : "S"} // REBUILD AND REPLACE THE STREAM ELEMENTS JS`
-          : "NO WIDGET CONTACT YET // REBUILD, PASTE THE JS INTO STREAM ELEMENTS, SAVE, THEN REFRESH ITS OBS SOURCE";
+    const received = Number(counters.received || 0),
+      ready = Number(counters.ready || 0),
+      handled = Number(counters.handled || 0),
+      rejected = Number(counters.rejected || 0);
+    const message =
+      handled > 0
+        ? `DEPLOYMENT ACTIVE // ${handled} REDEMPTION${handled === 1 ? "" : "S"} HANDLED`
+        : ready > 0
+          ? `DEPLOYMENT CONNECTED // ${ready} AUTHENTICATED WIDGET LOAD${ready === 1 ? "" : "S"}; NO MATCHING REDEMPTION YET`
+          : rejected > 0
+            ? `DEPLOYED WIDGET TOKEN REJECTED ${rejected} TIME${rejected === 1 ? "" : "S"} // REBUILD AND REPLACE THE STREAM ELEMENTS JS`
+            : "NO WIDGET CONTACT YET // REBUILD, PASTE THE JS INTO STREAM ELEMENTS, SAVE, THEN REFRESH ITS OBS SOURCE";
     byId("widgetConnectionNotice").textContent = message;
     byId("widgetConnectionNotice").className = `notice${handled > 0 || received > 0 ? "" : " bad"}`;
   } catch (error) {
@@ -691,7 +1134,8 @@ byId("copyWidget").onclick = async () => {
     byId("widgetNotice").textContent = "WIDGET CODE COPIED";
     byId("widgetNotice").className = "notice";
   } catch {
-    byId("widgetNotice").textContent = "COPY BLOCKED BY BROWSER // SELECT THE GENERATED OUTPUT MANUALLY";
+    byId("widgetNotice").textContent =
+      "COPY BLOCKED BY BROWSER // SELECT THE GENERATED OUTPUT MANUALLY";
     byId("widgetNotice").className = "notice bad";
   }
 };
@@ -707,7 +1151,13 @@ function renderCoreUpdateStatus(value) {
   byId("downloadUpdate").disabled = !available;
   byId("applyUpdate").disabled = value.staged?.verified !== true || value.hosted !== true;
   byId("rollbackUpdate").disabled = !value.rollback || value.hosted !== true;
-  byId("updateStatus").textContent = value.checking ? "CHECKING" : value.staged ? "READY TO INSTALL" : available ? "UPDATE AVAILABLE" : "CURRENT";
+  byId("updateStatus").textContent = value.checking
+    ? "CHECKING"
+    : value.staged
+      ? "READY TO INSTALL"
+      : available
+        ? "UPDATE AVAILABLE"
+        : "CURRENT";
   byId("updateNotice").textContent = value.lastError
     ? `UPDATE CHECK FAILED // ${value.lastError.replaceAll("_", " ").toUpperCase()}`
     : available
@@ -719,34 +1169,75 @@ function renderCoreUpdateStatus(value) {
 }
 
 async function updateAction(path, body) {
-  const value = await request(path, { method: "POST", body: JSON.stringify(body || {}) });
+  const value = await request(path, {
+    method: "POST",
+    body: JSON.stringify(body || {}),
+  });
   if (value.currentVersion) renderCoreUpdateStatus(value);
   return value;
 }
 
 byId("saveUpdatePreference").onclick = async () => {
-  try { renderCoreUpdateStatus(await updateAction("/system/update/configure", { checkOnLaunch: byId("checkUpdatesOnLaunch").checked })); }
-  catch (error) { byId("updateNotice").textContent = `PREFERENCE NOT SAVED // ${error.message}`; byId("updateNotice").className = "notice bad"; }
+  try {
+    renderCoreUpdateStatus(
+      await updateAction("/system/update/configure", {
+        checkOnLaunch: byId("checkUpdatesOnLaunch").checked,
+      }),
+    );
+  } catch (error) {
+    byId("updateNotice").textContent = `PREFERENCE NOT SAVED // ${error.message}`;
+    byId("updateNotice").className = "notice bad";
+  }
 };
 byId("checkForUpdate").onclick = async () => {
-  try { renderCoreUpdateStatus(await updateAction("/system/update/check")); }
-  catch (error) { byId("updateNotice").textContent = `UPDATE CHECK FAILED // ${error.message}`; byId("updateNotice").className = "notice bad"; }
+  try {
+    renderCoreUpdateStatus(await updateAction("/system/update/check"));
+  } catch (error) {
+    byId("updateNotice").textContent = `UPDATE CHECK FAILED // ${error.message}`;
+    byId("updateNotice").className = "notice bad";
+  }
 };
 byId("downloadUpdate").onclick = async () => {
   byId("downloadUpdate").disabled = true;
   byId("updateNotice").textContent = "DOWNLOADING AND VERIFYING RELEASE...";
-  try { renderCoreUpdateStatus(await updateAction("/system/update/download")); }
-  catch (error) { byId("updateNotice").textContent = `DOWNLOAD FAILED // ${error.message}`; byId("updateNotice").className = "notice bad"; }
+  try {
+    renderCoreUpdateStatus(await updateAction("/system/update/download"));
+  } catch (error) {
+    byId("updateNotice").textContent = `DOWNLOAD FAILED // ${error.message}`;
+    byId("updateNotice").className = "notice bad";
+  }
 };
 byId("applyUpdate").onclick = async () => {
-  if (!confirm(`Install RaveLink Core ${coreUpdateStatus?.staged?.version || "update"} now? The server will restart after creating a rollback snapshot.`)) return;
-  try { await updateAction("/system/update/apply"); byId("updateNotice").textContent = "UPDATE STARTED // RAVELINK CORE WILL REOPEN AFTER ITS HEALTH CHECK"; }
-  catch (error) { byId("updateNotice").textContent = `INSTALL FAILED // ${error.message}`; byId("updateNotice").className = "notice bad"; }
+  if (
+    !confirm(
+      `Install RaveLink Core ${coreUpdateStatus?.staged?.version || "update"} now? The server will restart after creating a rollback snapshot.`,
+    )
+  )
+    return;
+  try {
+    await updateAction("/system/update/apply");
+    byId("updateNotice").textContent =
+      "UPDATE STARTED // RAVELINK CORE WILL REOPEN AFTER ITS HEALTH CHECK";
+  } catch (error) {
+    byId("updateNotice").textContent = `INSTALL FAILED // ${error.message}`;
+    byId("updateNotice").className = "notice bad";
+  }
 };
 byId("rollbackUpdate").onclick = async () => {
-  if (!confirm(`Restore RaveLink Core ${coreUpdateStatus?.rollback?.version || "previous version"} now? Current settings and installed feature state will be preserved.`)) return;
-  try { await updateAction("/system/update/rollback"); byId("updateNotice").textContent = "ROLLBACK STARTED // RAVELINK CORE WILL REOPEN ON THE PREVIOUS VERSION"; }
-  catch (error) { byId("updateNotice").textContent = `ROLLBACK FAILED // ${error.message}`; byId("updateNotice").className = "notice bad"; }
+  if (
+    !confirm(
+      `Restore RaveLink Core ${coreUpdateStatus?.rollback?.version || "previous version"} now? Current settings and installed feature state will be preserved.`,
+    )
+  )
+    return;
+  try {
+    await updateAction("/system/update/rollback");
+    byId("updateNotice").textContent =
+      "ROLLBACK STARTED // RAVELINK CORE WILL REOPEN ON THE PREVIOUS VERSION";
+  } catch (error) {
+    byId("updateNotice").textContent = `ROLLBACK FAILED // ${error.message}`;
+    byId("updateNotice").className = "notice bad";
+  }
 };
 
 async function boot() {
@@ -756,14 +1247,33 @@ async function boot() {
     byId("health").className = "badge ok";
     byId("network").className = "badge ok";
     fixtures = status.fixtures?.items || [];
-    fixtureConnectivity = new Map((status.fixtures?.connectivity?.rows || []).map(row => [row.id, row]));
+    fixtureConnectivity = new Map(
+      (status.fixtures?.connectivity?.rows || []).map((row) => [row.id, row]),
+    );
     songRequestAvailable = status.capabilities?.songRequest === true;
     renderCoreUpdateStatus(await request("/system/update/status"));
     renderFixtures();
     applyWidgetSecurity(status.widgetSecurity);
-    twitchProgramUi = await import('/twitch-light-program.js').then(module => module.initTwitchLightProgram({ request, initialState: status.twitchLightRouting, initialEffectState: status.twitchLightEffects, getFixtures: () => fixtures, changed: groups => { fixtureGroups = groups; renderLightTargets(); } }));
-    if (status.capabilities?.features === true) { byId("featuresTab").hidden = false; await import("/features.js").then(module => module.initFeaturePlatform()); }
-    if (status.capabilities?.mods === true) { byId("modsTab").hidden = false; await import("/mods.js").then(module => module.initModPlatform()); }
+    twitchProgramUi = await import("/twitch-light-program.js").then((module) =>
+      module.initTwitchLightProgram({
+        request,
+        initialState: status.twitchLightRouting,
+        initialEffectState: status.twitchLightEffects,
+        getFixtures: () => fixtures,
+        changed: (groups) => {
+          fixtureGroups = groups;
+          renderLightTargets();
+        },
+      }),
+    );
+    if (status.capabilities?.features === true) {
+      byId("featuresTab").hidden = false;
+      await import("/features.js").then((module) => module.initFeaturePlatform());
+    }
+    if (status.capabilities?.mods === true) {
+      byId("modsTab").hidden = false;
+      await import("/mods.js").then((module) => module.initModPlatform());
+    }
   } catch (error) {
     byId("health").textContent = "CORE OFFLINE";
     byId("health").className = "badge bad";

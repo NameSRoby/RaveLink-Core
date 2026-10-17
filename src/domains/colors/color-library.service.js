@@ -8,19 +8,13 @@
 
 const fs = require("fs");
 const EventEmitter = require("events");
-const {
-  normalizeHex,
-  hexToRgb
-} = require("./color-space");
+const { normalizeHex, hexToRgb } = require("./color-space");
 const {
   readJsonFileWithMetadata,
   writeJsonFile,
-  cloneJsonSafe
+  cloneJsonSafe,
 } = require("../../shared/fs/json-file-store");
-const {
-  normalizeLookupToken,
-  findBestFuzzyMatch
-} = require("../../shared/fuzzy/fuzzy-text");
+const { normalizeLookupToken, findBestFuzzyMatch } = require("../../shared/fuzzy/fuzzy-text");
 
 const TEACH_PATTERN_NAME_HEX = /^(.+?)(?:\s+|[:=,]\s*)(#[0-9a-f]{6})$/i;
 const TEACH_PATTERN_HEX_NAME = /^(#[0-9a-f]{6})(?:\s+|[:=,]\s*)(.+)$/i;
@@ -32,7 +26,7 @@ const BASE_COLORS = Object.freeze({
   yellow: "#ffff00",
   purple: "#8000ff",
   pink: "#ff0080",
-  white: "#ffffff"
+  white: "#ffffff",
 });
 const MAX_CUSTOM_COLORS = 1024;
 const MAX_COLOR_NAME_LENGTH = 64;
@@ -72,7 +66,8 @@ module.exports = function createColorLibraryService(options = {}) {
     if (hasFile) {
       const loaded = readJsonFileWithMetadata(storePath, {});
       customColors = sanitizeColorMap(loaded.value);
-      if (loaded.recovered || JSON.stringify(loaded.value) !== JSON.stringify(customColors)) writeJsonFile(storePath, customColors);
+      if (loaded.recovered || JSON.stringify(loaded.value) !== JSON.stringify(customColors))
+        writeJsonFile(storePath, customColors);
       return;
     }
 
@@ -87,14 +82,14 @@ module.exports = function createColorLibraryService(options = {}) {
       version,
       at: Date.now(),
       change,
-      summary: getSummary()
+      summary: getSummary(),
     });
   }
 
   function getColorMap() {
     return {
       ...customColors,
-      ...BASE_COLORS
+      ...BASE_COLORS,
     };
   }
 
@@ -103,7 +98,7 @@ module.exports = function createColorLibraryService(options = {}) {
       version,
       baseCount: Object.keys(BASE_COLORS).length,
       customCount: Object.keys(customColors).length,
-      totalCount: Object.keys(getColorMap()).length
+      totalCount: Object.keys(getColorMap()).length,
     };
   }
 
@@ -124,7 +119,8 @@ module.exports = function createColorLibraryService(options = {}) {
     // [DEV] 1) explicit HEX, 2) exact full phrase, 3) exact multi-word spans,
     // [DEV] 4) fuzzy full phrase, 5) exact single-token fallback.
     // [DEV] This avoids short-token false positives overshadowing taught names.
-    const optionsSafe = optionsOverride && typeof optionsOverride === "object" ? optionsOverride : {};
+    const optionsSafe =
+      optionsOverride && typeof optionsOverride === "object" ? optionsOverride : {};
     const allowFuzzy = optionsSafe.allowFuzzy !== false;
     const text = String(rawText || "").trim();
     if (!text) {
@@ -132,7 +128,7 @@ module.exports = function createColorLibraryService(options = {}) {
     }
 
     const words = text.split(/\s+/).filter(Boolean);
-    const hexToken = words.find(word => /^#[0-9a-f]{6}$/i.test(word));
+    const hexToken = words.find((word) => /^#[0-9a-f]{6}$/i.test(word));
     if (hexToken) {
       const hex = normalizeHex(hexToken);
       return {
@@ -141,11 +137,11 @@ module.exports = function createColorLibraryService(options = {}) {
         matchedName: "",
         hex,
         rgb: hexToRgb(hex),
-        fuzzy: null
+        fuzzy: null,
       };
     }
 
-    const resolveExact = key => {
+    const resolveExact = (key) => {
       if (!key) return null;
       if (Object.hasOwn(customColors, key) && !Object.hasOwn(BASE_COLORS, key)) {
         const hex = customColors[key];
@@ -155,7 +151,7 @@ module.exports = function createColorLibraryService(options = {}) {
           matchedName: key,
           hex,
           rgb: hexToRgb(hex),
-          fuzzy: null
+          fuzzy: null,
         };
       }
       if (Object.hasOwn(BASE_COLORS, key)) {
@@ -166,13 +162,13 @@ module.exports = function createColorLibraryService(options = {}) {
           matchedName: key,
           hex,
           rgb: hexToRgb(hex),
-          fuzzy: null
+          fuzzy: null,
         };
       }
       return null;
     };
 
-    const normalizedWords = words.map(word => normalizeColorName(word)).filter(Boolean);
+    const normalizedWords = words.map((word) => normalizeColorName(word)).filter(Boolean);
     const fullQuery = normalizeColorName(words.join(" "));
     const fullExact = resolveExact(fullQuery);
     if (fullExact) return fullExact;
@@ -189,7 +185,7 @@ module.exports = function createColorLibraryService(options = {}) {
     if (allowFuzzy) {
       const colorMap = getColorMap();
       const candidates = Object.keys(colorMap);
-      const hydrateFuzzy = fuzzy => {
+      const hydrateFuzzy = (fuzzy) => {
         const matchedName = String(fuzzy?.value || "");
         const matchedHex = colorMap[matchedName];
         return {
@@ -198,12 +194,13 @@ module.exports = function createColorLibraryService(options = {}) {
           matchedName,
           hex: matchedHex,
           rgb: hexToRgb(matchedHex),
-          fuzzy
+          fuzzy,
         };
       };
 
       const fuzzyFull = findBestFuzzyMatch(fullQuery, candidates, {
-        minScore: fuzzyMinScore, allowTranspositions: true
+        minScore: fuzzyMinScore,
+        allowTranspositions: true,
       });
       if (fuzzyFull) return hydrateFuzzy(fuzzyFull);
 
@@ -215,7 +212,8 @@ module.exports = function createColorLibraryService(options = {}) {
           const query = normalizeColorName(normalizedWords.slice(start, end).join(""));
           if (!query || query === fullQuery) continue;
           const fuzzySpan = findBestFuzzyMatch(query, candidates, {
-            minScore: fuzzyMinScore, allowTranspositions: true
+            minScore: fuzzyMinScore,
+            allowTranspositions: true,
           });
           if (!fuzzySpan) continue;
           if (!bestSpan || fuzzySpan.score > bestSpan.score) {
@@ -246,7 +244,7 @@ module.exports = function createColorLibraryService(options = {}) {
         reason: "empty_input",
         refundRecommended: false,
         name: "",
-        hex: ""
+        hex: "",
       };
     }
 
@@ -259,7 +257,7 @@ module.exports = function createColorLibraryService(options = {}) {
         reason: "invalid_format",
         refundRecommended: false,
         name: "",
-        hex: ""
+        hex: "",
       };
     }
 
@@ -274,7 +272,7 @@ module.exports = function createColorLibraryService(options = {}) {
         reason: "invalid_name",
         refundRecommended: false,
         name: "",
-        hex: hex || ""
+        hex: hex || "",
       };
     }
     if (!hex) {
@@ -284,7 +282,7 @@ module.exports = function createColorLibraryService(options = {}) {
         reason: "invalid_hex",
         refundRecommended: false,
         name,
-        hex: ""
+        hex: "",
       };
     }
 
@@ -295,7 +293,7 @@ module.exports = function createColorLibraryService(options = {}) {
         reason: "name_exists_base",
         refundRecommended: true,
         name,
-        hex: BASE_COLORS[name]
+        hex: BASE_COLORS[name],
       };
     }
 
@@ -307,7 +305,7 @@ module.exports = function createColorLibraryService(options = {}) {
         reason: existing === hex ? "already_exists" : "name_exists_custom",
         refundRecommended: true,
         name,
-        hex: existing
+        hex: existing,
       };
     }
 
@@ -319,19 +317,26 @@ module.exports = function createColorLibraryService(options = {}) {
         reason: "hex_exists",
         refundRecommended: true,
         name: existingHex.name,
-        hex: existingHex.hex
+        hex: existingHex.hex,
       };
     }
 
     if (Object.keys(customColors).length >= MAX_CUSTOM_COLORS) {
-      return { ok: false, changed: false, reason: "custom_color_limit_reached", refundRecommended: true, name, hex };
+      return {
+        ok: false,
+        changed: false,
+        reason: "custom_color_limit_reached",
+        refundRecommended: true,
+        name,
+        hex,
+      };
     }
 
     customColors[name] = hex;
     persistAndBroadcast({
       type: "teach",
       name,
-      hex
+      hex,
     });
     return {
       ok: true,
@@ -339,7 +344,7 @@ module.exports = function createColorLibraryService(options = {}) {
       reason: "taught",
       refundRecommended: false,
       name,
-      hex
+      hex,
     };
   }
 
@@ -360,7 +365,7 @@ module.exports = function createColorLibraryService(options = {}) {
       return cloneJsonSafe(getColorMap(), {});
     },
     getSummary,
-    onUpdated
+    onUpdated,
   };
 };
 

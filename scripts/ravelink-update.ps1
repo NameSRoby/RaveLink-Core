@@ -1,3 +1,12 @@
+<#
+Managed Windows update/rollback transaction. The managed path inventories below
+are the boundary between replaceable application files and persistent user state.
+Never broaden them to all files under Root: installed features, credentials, and
+runtime data must survive. Stage/backup state is consumed by the host's expected-
+version health check; an existing process is not proof of a successful upgrade.
+Resolve and validate paths before moves/removals, and preserve recovery records
+until the new host confirms health or restores the previous managed inventory.
+#>
 param(
   [ValidateSet("Apply", "Rollback")][string]$Action,
   [Parameter(Mandatory = $true)][string]$Root,
@@ -5,6 +14,9 @@ param(
   [switch]$NoLaunch
 )
 
+# Node/host grandchildren of pwsh can inherit incompatible PowerShell 7 modules.
+# This helper depends only on the standard modules belonging to its own PS host.
+$env:PSModulePath = "$PSHOME\Modules"
 $ErrorActionPreference = "Stop"
 $rootPath = [IO.Path]::GetFullPath($Root).TrimEnd([IO.Path]::DirectorySeparatorChar)
 $updateRoot = Join-Path $rootPath "runtime\updates"

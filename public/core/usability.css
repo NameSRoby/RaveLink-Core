@@ -1,3 +1,8 @@
+/**
+ * Usability.
+ * Developer context and change constraints:
+ * docs/DEVELOPMENT.md#request-security-and-the-feature-ui-relay
+ */
 .statusLine {
   color: var(--muted) !important;
 }
@@ -63,8 +68,123 @@ html[data-developer-mode="true"] [data-developer-only] {
   margin-top: 8px;
 }
 
-.checkLabel input[type="checkbox"],.toggleGrid input[type="checkbox"]{appearance:none;-webkit-appearance:none;position:relative;flex:0 0 40px;width:40px;min-width:40px;height:22px;min-height:22px;margin:0;border:1px solid #415173;border-radius:999px;background:#070b15;padding:0;cursor:pointer;transition:background .16s,border-color .16s,box-shadow .16s}.checkLabel input[type="checkbox"]::before,.toggleGrid input[type="checkbox"]::before{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#8793aa;transition:transform .16s,background .16s}.checkLabel input[type="checkbox"]:checked,.toggleGrid input[type="checkbox"]:checked{border-color:#238f4b;background:#124f2b;box-shadow:0 0 10px #19ff6a33}.checkLabel input[type="checkbox"]:checked::before,.toggleGrid input[type="checkbox"]:checked::before{transform:translateX(18px);background:#eafff1}.checkLabel input[type="checkbox"]:focus-visible,.toggleGrid input[type="checkbox"]:focus-visible{outline:2px solid #6f9cea;outline-offset:2px}
-.providerSetupCard{margin-top:14px;padding:14px;border:1px solid #394b70;border-radius:7px;background:#080d18}.providerSetupHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;cursor:pointer;list-style:none}.providerSetupHead::-webkit-details-marker{display:none}.providerSetupHead::before{content:"▶";align-self:center;color:#9bb2df;font-size:10px;transition:transform .16s}.providerSetupCard[open]>.providerSetupHead::before{transform:rotate(90deg)}.providerSetupHead div{margin-right:auto}.providerSetupHead span{color:var(--muted);font-size:10px;font-weight:900;letter-spacing:1px}.providerSetupHead h4{margin:3px 0 0;font-size:16px}.providerSetupCard p,.providerSetupCard li{color:var(--muted);line-height:1.5}.providerSetupCard ol{margin:10px 0;padding-left:22px}.providerSetupCard details{margin-top:13px;border-top:1px solid var(--edge);padding-top:10px}.providerSetupCard details summary{cursor:pointer;color:#c8d8ff;font-weight:800}.providerSetupCard .alphaBadge{padding:4px 7px;border:1px solid var(--warn);border-radius:999px;color:var(--warn)}
+.checkLabel input[type="checkbox"],
+.toggleGrid input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: 0 0 40px;
+  width: 40px;
+  min-width: 40px;
+  height: 22px;
+  min-height: 22px;
+  margin: 0;
+  border: 1px solid #415173;
+  border-radius: 999px;
+  background: #070b15;
+  padding: 0;
+  cursor: pointer;
+  transition:
+    background 0.16s,
+    border-color 0.16s,
+    box-shadow 0.16s;
+}
+.checkLabel input[type="checkbox"]::before,
+.toggleGrid input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #8793aa;
+  transition:
+    transform 0.16s,
+    background 0.16s;
+}
+.checkLabel input[type="checkbox"]:checked,
+.toggleGrid input[type="checkbox"]:checked {
+  border-color: #238f4b;
+  background: #124f2b;
+  box-shadow: 0 0 10px #19ff6a33;
+}
+.checkLabel input[type="checkbox"]:checked::before,
+.toggleGrid input[type="checkbox"]:checked::before {
+  transform: translateX(18px);
+  background: #eafff1;
+}
+.checkLabel input[type="checkbox"]:focus-visible,
+.toggleGrid input[type="checkbox"]:focus-visible {
+  outline: 2px solid #6f9cea;
+  outline-offset: 2px;
+}
+.providerSetupCard {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #394b70;
+  border-radius: 7px;
+  background: #080d18;
+}
+.providerSetupHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.providerSetupHead::-webkit-details-marker {
+  display: none;
+}
+.providerSetupHead::before {
+  content: "▶";
+  align-self: center;
+  color: #9bb2df;
+  font-size: 10px;
+  transition: transform 0.16s;
+}
+.providerSetupCard[open] > .providerSetupHead::before {
+  transform: rotate(90deg);
+}
+.providerSetupHead div {
+  margin-right: auto;
+}
+.providerSetupHead span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+.providerSetupHead h4 {
+  margin: 3px 0 0;
+  font-size: 16px;
+}
+.providerSetupCard p,
+.providerSetupCard li {
+  color: var(--muted);
+  line-height: 1.5;
+}
+.providerSetupCard ol {
+  margin: 10px 0;
+  padding-left: 22px;
+}
+.providerSetupCard details {
+  margin-top: 13px;
+  border-top: 1px solid var(--edge);
+  padding-top: 10px;
+}
+.providerSetupCard details summary {
+  cursor: pointer;
+  color: #c8d8ff;
+  font-weight: 800;
+}
+.providerSetupCard .alphaBadge {
+  padding: 4px 7px;
+  border: 1px solid var(--warn);
+  border-radius: 999px;
+  color: var(--warn);
+}
 
 @media (max-width: 560px) {
   .hueSetupOptions {
@@ -115,23 +235,102 @@ html[data-developer-mode="true"] [data-developer-only] {
 }
 
 /* Keep everyday workspaces visible while grouping maintenance and help. */
-#tabs{overflow:visible;flex-wrap:wrap}
-.moreNav{position:relative;flex:0 0 auto}
-.moreNav>summary{display:flex;align-items:center;justify-content:center;min-width:112px;min-height:42px;border:1px solid #2a395f;border-radius:7px;background:var(--surface);padding:8px 13px;font-weight:800;list-style:none;cursor:pointer}
-.moreNav>summary:hover{border-color:var(--accent);box-shadow:0 0 14px var(--accent-glow)}
-.moreNav>summary::-webkit-details-marker{display:none}
-.moreNav>summary::after{content:"\25BE";margin-left:8px;font-size:10px}
-.moreNav.active>summary{border-color:var(--accent);box-shadow:inset 0 -2px var(--accent)}
-.moreNavMenu{position:absolute;z-index:30;top:calc(100% + 7px);right:0;width:min(360px,calc(100vw - 24px));padding:10px;border:1px solid #365080;border-radius:7px;background:#080d1b;box-shadow:0 14px 45px #000}
-.moreNavMenu>span{display:block;padding:4px 7px 9px;color:var(--muted);font-size:10px;font-weight:900;letter-spacing:1px}
-.moreNavMenu .tabButton{display:block;width:100%;min-height:58px;margin:4px 0;text-align:left}
-.moreNavMenu .tabButton strong,.moreNavMenu .tabButton small{display:block}
-.moreNavMenu .tabButton small{margin-top:4px;color:var(--muted);font-size:10px;font-weight:500}
-.moreNavMenu .tabButton.active small{color:#fff}
-.moreNavMenu .tabButton[hidden]{display:none}
+#tabs {
+  overflow: visible;
+  flex-wrap: wrap;
+}
+.moreNav {
+  position: relative;
+  flex: 0 0 auto;
+}
+.moreNav > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 112px;
+  min-height: 42px;
+  border: 1px solid #2a395f;
+  border-radius: 7px;
+  background: var(--surface);
+  padding: 8px 13px;
+  font-weight: 800;
+  list-style: none;
+  cursor: pointer;
+}
+.moreNav > summary:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 14px var(--accent-glow);
+}
+.moreNav > summary::-webkit-details-marker {
+  display: none;
+}
+.moreNav > summary::after {
+  content: "\25BE";
+  margin-left: 8px;
+  font-size: 10px;
+}
+.moreNav.active > summary {
+  border-color: var(--accent);
+  box-shadow: inset 0 -2px var(--accent);
+}
+.moreNavMenu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 7px);
+  right: 0;
+  width: min(360px, calc(100vw - 24px));
+  padding: 10px;
+  border: 1px solid #365080;
+  border-radius: 7px;
+  background: #080d1b;
+  box-shadow: 0 14px 45px #000;
+}
+.moreNavMenu > span {
+  display: block;
+  padding: 4px 7px 9px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+.moreNavMenu .tabButton {
+  display: block;
+  width: 100%;
+  min-height: 58px;
+  margin: 4px 0;
+  text-align: left;
+}
+.moreNavMenu .tabButton strong,
+.moreNavMenu .tabButton small {
+  display: block;
+}
+.moreNavMenu .tabButton small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+.moreNavMenu .tabButton.active small {
+  color: #fff;
+}
+.moreNavMenu .tabButton[hidden] {
+  display: none;
+}
 
 @media (max-width: 560px) {
-  #tabs>.tabButton,#tabs>.moreNav{flex:1 1 calc(50% - 8px)}
-  #tabs>.tabButton,.moreNav>summary{width:100%}
-  .moreNavMenu{position:fixed;top:auto;right:10px;left:10px;width:auto}
+  #tabs > .tabButton,
+  #tabs > .moreNav {
+    flex: 1 1 calc(50% - 8px);
+  }
+  #tabs > .tabButton,
+  .moreNav > summary {
+    width: 100%;
+  }
+  .moreNavMenu {
+    position: fixed;
+    top: auto;
+    right: 10px;
+    left: 10px;
+    width: auto;
+  }
 }

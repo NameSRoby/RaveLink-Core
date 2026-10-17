@@ -1,3 +1,5 @@
+const clampNumber = require("../../shared/validation/clamp-number");
+const resolveSignifyPemPath = require("./hue-ca-path");
 // [TITLE] Module: adapters/brands/hue-bridge.adapter.js
 // [TITLE] Purpose: Hue transport adapter boundary
 // [TITLE] Functionality Index:
@@ -7,7 +9,6 @@
 // [TITLE] - aggregate send success/failure telemetry
 
 const fs = require("node:fs");
-const path = require("node:path");
 const tls = require("node:tls");
 const https = require("node:https");
 const createHueEntertainmentRuntime = require("./hue-entertainment.runtime");
@@ -15,33 +16,39 @@ let DefaultBonjour;
 
 function loadDefaultBonjour() {
   if (DefaultBonjour !== undefined) return DefaultBonjour;
-  try { ({ Bonjour: DefaultBonjour } = require("bonjour-service")); }
-  catch { DefaultBonjour = null; }
+  try {
+    ({ Bonjour: DefaultBonjour } = require("bonjour-service"));
+  } catch {
+    DefaultBonjour = null;
+  }
   return DefaultBonjour;
 }
 
 module.exports = function createHueBridgeAdapter(options = {}) {
   const axios = options.axios;
-  const getHttpsAgent = typeof options.getHttpsAgent === "function"
-    ? options.getHttpsAgent
-    : (() => undefined);
+  const getHttpsAgent =
+    typeof options.getHttpsAgent === "function" ? options.getHttpsAgent : () => undefined;
   const log = options.log || console;
   const dryRun = options.dryRun !== false;
   const now = typeof options.now === "function" ? options.now : Date.now;
   const setTimeoutFn = typeof options.setTimeout === "function" ? options.setTimeout : setTimeout;
-  const clearTimeoutFn = typeof options.clearTimeout === "function" ? options.clearTimeout : clearTimeout;
-  const getBonjour = typeof options.Bonjour === "function" ? () => options.Bonjour : loadDefaultBonjour;
-  const egressGovernor = options.egressGovernor && typeof options.egressGovernor.run === "function"
-    ? options.egressGovernor
-    : null;
+  const clearTimeoutFn =
+    typeof options.clearTimeout === "function" ? options.clearTimeout : clearTimeout;
+  const getBonjour =
+    typeof options.Bonjour === "function" ? () => options.Bonjour : loadDefaultBonjour;
+  const egressGovernor =
+    options.egressGovernor && typeof options.egressGovernor.run === "function"
+      ? options.egressGovernor
+      : null;
   const rootDir = String(options.rootDir || process.cwd()).trim();
-  const createHueEntertainment = typeof options.createHueEntertainmentRuntime === "function"
-    ? options.createHueEntertainmentRuntime
-    : createHueEntertainmentRuntime;
+  const createHueEntertainment =
+    typeof options.createHueEntertainmentRuntime === "function"
+      ? options.createHueEntertainmentRuntime
+      : createHueEntertainmentRuntime;
   const hueEntertainment = createHueEntertainment({
     log,
     now,
-    rootDir
+    rootDir,
   });
   const TRANSPORT_MODES = new Set(["auto", "rest", "entertainment"]);
   let transportMode = "auto";
@@ -56,17 +63,17 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       reason: "idle",
       fixtureReadyCount: 0,
       fixtureTotalCount: 0,
-      lastAttemptAt: 0
+      lastAttemptAt: 0,
     },
     sent: 0,
     skipped: 0,
     sendErrors: 0,
     lastDurationMs: 0,
-    updatedAt: Number(now() || Date.now())
+    updatedAt: Number(now() || Date.now()),
   };
   let lastSendErrorLog = {
     message: "",
-    at: 0
+    at: 0,
   };
   const hueBridgeFailureState = new Map();
   const hueBridgeTransportHints = new Map();
@@ -93,7 +100,9 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       const oldest = map.get(oldestKey);
       map.delete(oldestKey);
       cacheEvictions += 1;
-      try { onEvict?.(oldest); } catch {}
+      try {
+        onEvict?.(oldest);
+      } catch {}
     }
     map.set(key, value);
   }
@@ -108,26 +117,32 @@ module.exports = function createHueBridgeAdapter(options = {}) {
         try {
           const operation = operations[index];
           const value = egressGovernor
-            ? await egressGovernor.run({ owner: "lighting.hue", priority: "baseline", queueDeadlineMs: 5000 }, operation)
+            ? await egressGovernor.run(
+                {
+                  owner: "lighting.hue",
+                  priority: "baseline",
+                  queueDeadlineMs: 5000,
+                },
+                operation,
+              )
             : await operation();
           results[index] = { status: "fulfilled", value };
+        } catch (reason) {
+          results[index] = { status: "rejected", reason };
         }
-        catch (reason) { results[index] = { status: "rejected", reason }; }
       }
     }
-    const workers = Array.from({ length: Math.min(maximumConcurrent, operations.length) }, () => worker());
+    const workers = Array.from({ length: Math.min(maximumConcurrent, operations.length) }, () =>
+      worker(),
+    );
     await Promise.all(workers);
     return results;
   }
 
-  function clampNumber(value, min, max, fallback) {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) return Number(fallback);
-    return Math.min(Number(max), Math.max(Number(min), parsed));
-  }
-
   function sanitizeBridgeHost(value) {
-    const token = String(value || "").trim().toLowerCase();
+    const token = String(value || "")
+      .trim()
+      .toLowerCase();
     if (!token) return "";
     if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(token)) return token;
     if (/^[a-z0-9][a-z0-9.-]{0,252}[a-z0-9]$/i.test(token)) return token;
@@ -158,7 +173,9 @@ module.exports = function createHueBridgeAdapter(options = {}) {
   }
 
   function sanitizeEntertainmentAreaId(value) {
-    return String(value || "").trim().slice(0, 96);
+    return String(value || "")
+      .trim()
+      .slice(0, 96);
   }
 
   function buildHueRestStatePayload(rawState = {}) {
@@ -184,9 +201,7 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     // [DEV] Entertainment frames keep RGB identity independent from brightness.
     // [DEV] We decode XY using neutral luma by default so `bri` stays intensity-only.
     const useBrightnessForLuma = opts.useBrightnessForLuma === true;
-    const bri = useBrightnessForLuma
-      ? clampNumber(state.bri, 1, 254, 254)
-      : 254;
+    const bri = useBrightnessForLuma ? clampNumber(state.bri, 1, 254, 254) : 254;
     if (!(y > 0.0001)) {
       const gray = clampRgbChannel((bri / 254) * 255, 0);
       return { r: gray, g: gray, b: gray };
@@ -194,9 +209,9 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     const Y = bri / 254;
     const X = (Y / y) * x;
     const Z = (Y / y) * Math.max(0, 1 - x - y);
-    let r = (X * 1.656492) - (Y * 0.354851) - (Z * 0.255038);
-    let g = (-X * 0.707196) + (Y * 1.655397) + (Z * 0.036152);
-    let b = (X * 0.051713) - (Y * 0.121364) + (Z * 1.01153);
+    let r = X * 1.656492 - Y * 0.354851 - Z * 0.255038;
+    let g = -X * 0.707196 + Y * 1.655397 + Z * 0.036152;
+    let b = X * 0.051713 - Y * 0.121364 + Z * 1.01153;
     r = Math.max(0, r);
     g = Math.max(0, g);
     b = Math.max(0, b);
@@ -206,13 +221,12 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       g /= max;
       b /= max;
     }
-    const gamma = value => value <= 0.0031308
-      ? (12.92 * value)
-      : ((1 + 0.055) * Math.pow(value, 1 / 2.4) - 0.055);
+    const gamma = (value) =>
+      value <= 0.0031308 ? 12.92 * value : (1 + 0.055) * Math.pow(value, 1 / 2.4) - 0.055;
     return {
       r: clampRgbChannel(gamma(r) * 255, 0),
       g: clampRgbChannel(gamma(g) * 255, 0),
-      b: clampRgbChannel(gamma(b) * 255, 0)
+      b: clampRgbChannel(gamma(b) * 255, 0),
     };
   }
 
@@ -221,14 +235,12 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     if (source.on === false) {
       return { r: 0, g: 0, b: 0 };
     }
-    const direct = source.__rgb && typeof source.__rgb === "object"
-      ? source.__rgb
-      : null;
+    const direct = source.__rgb && typeof source.__rgb === "object" ? source.__rgb : null;
     if (direct) {
       return {
         r: clampRgbChannel(direct.r, 0),
         g: clampRgbChannel(direct.g, 0),
-        b: clampRgbChannel(direct.b, 0)
+        b: clampRgbChannel(direct.b, 0),
       };
     }
     return convertHueXyStateToRgb(source, { useBrightnessForLuma: false });
@@ -242,17 +254,18 @@ module.exports = function createHueBridgeAdapter(options = {}) {
   }
 
   function getHueFixtureCapabilities(target = {}) {
-    const extras = target?.extras && typeof target.extras === "object"
-      ? target.extras
-      : {};
-    const row = extras.hueBridgeCapabilities && typeof extras.hueBridgeCapabilities === "object"
-      ? extras.hueBridgeCapabilities
-      : {};
+    const extras = target?.extras && typeof target.extras === "object" ? target.extras : {};
+    const row =
+      extras.hueBridgeCapabilities && typeof extras.hueBridgeCapabilities === "object"
+        ? extras.hueBridgeCapabilities
+        : {};
     return {
       supportsEntertainment: row.supportsEntertainment !== false,
       supportsHttps: row.supportsHttps !== false,
       forceHttp: row.forceHttp === true,
-      bridgeModelId: String(row.bridgeModelId || "").trim().toUpperCase()
+      bridgeModelId: String(row.bridgeModelId || "")
+        .trim()
+        .toUpperCase(),
     };
   }
 
@@ -290,7 +303,7 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     if (!token) {
       return {
         failures: 0,
-        cooldownUntil: 0
+        cooldownUntil: 0,
       };
     }
     const row = hueBridgeFailureState.get(token);
@@ -298,13 +311,13 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       return {
         failures: Math.max(0, Math.round(Number(row.failures || 0))),
         cooldownUntil: Math.max(0, Number(row.cooldownUntil || 0)),
-        lastReason: String(row.lastReason || "")
+        lastReason: String(row.lastReason || ""),
       };
     }
     return {
       failures: 0,
       cooldownUntil: 0,
-      lastReason: ""
+      lastReason: "",
     };
   }
 
@@ -316,15 +329,25 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       return { mode: "https", until: 0 };
     }
     return {
-      mode: String(row.mode || "https").trim().toLowerCase() === "http" ? "http" : "https",
-      until: Math.max(0, Number(row.until || 0))
+      mode:
+        String(row.mode || "https")
+          .trim()
+          .toLowerCase() === "http"
+          ? "http"
+          : "https",
+      until: Math.max(0, Number(row.until || 0)),
     };
   }
 
   function setHueBridgeTransportHint(bridgeIp = "", username = "", mode = "https", ttlMs = 0) {
     const key = buildHueBridgeTransportHintKey(bridgeIp, username);
     if (!key) return;
-    const normalizedMode = String(mode || "https").trim().toLowerCase() === "http" ? "http" : "https";
+    const normalizedMode =
+      String(mode || "https")
+        .trim()
+        .toLowerCase() === "http"
+        ? "http"
+        : "https";
     const ttl = Math.max(0, Math.round(Number(ttlMs || 0)));
     if (normalizedMode !== "http" || ttl <= 0) {
       hueBridgeTransportHints.delete(key);
@@ -333,26 +356,30 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     const at = Number(now() || Date.now());
     setBoundedMap(hueBridgeTransportHints, key, {
       mode: "http",
-      until: at + ttl
+      until: at + ttl,
     });
   }
 
   function shouldTreatAsTransientBridgeFailure(error) {
-    const code = String(error?.code || "").trim().toUpperCase();
+    const code = String(error?.code || "")
+      .trim()
+      .toUpperCase();
     const message = String(error?.message || error || "").toLowerCase();
-    return code === "ECONNABORTED"
-      || code === "ETIMEDOUT"
-      || code === "ECONNRESET"
-      || code === "EHOSTUNREACH"
-      || code === "ENETUNREACH"
-      || code === "ECONNREFUSED"
-      || message.includes("timeout")
-      || message.includes("timed out")
-      || message.includes("fetch failed")
-      || message.includes("aborted")
-      || message.includes("stream has been aborted")
-      || message.includes("socket hang up")
-      || message.includes("network");
+    return (
+      code === "ECONNABORTED" ||
+      code === "ETIMEDOUT" ||
+      code === "ECONNRESET" ||
+      code === "EHOSTUNREACH" ||
+      code === "ENETUNREACH" ||
+      code === "ECONNREFUSED" ||
+      message.includes("timeout") ||
+      message.includes("timed out") ||
+      message.includes("fetch failed") ||
+      message.includes("aborted") ||
+      message.includes("stream has been aborted") ||
+      message.includes("socket hang up") ||
+      message.includes("network")
+    );
   }
 
   function recordHueBridgeFailure(bridgeIp = "", username = "", error = null) {
@@ -361,14 +388,23 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     const at = Number(now() || Date.now());
     const prev = getHueBridgeFailureRow(key);
     const transient = shouldTreatAsTransientBridgeFailure(error);
-    const nextFailures = transient ? Math.min(10, prev.failures + 1) : Math.min(10, Math.max(1, prev.failures));
+    const nextFailures = transient
+      ? Math.min(10, prev.failures + 1)
+      : Math.min(10, Math.max(1, prev.failures));
     const cooldownMs = transient
-      ? Math.round(clampNumber(HUE_FAILURE_COOLDOWN_BASE_MS * (2 ** (nextFailures - 1)), HUE_FAILURE_COOLDOWN_BASE_MS, HUE_FAILURE_COOLDOWN_MAX_MS, HUE_FAILURE_COOLDOWN_BASE_MS))
+      ? Math.round(
+          clampNumber(
+            HUE_FAILURE_COOLDOWN_BASE_MS * 2 ** (nextFailures - 1),
+            HUE_FAILURE_COOLDOWN_BASE_MS,
+            HUE_FAILURE_COOLDOWN_MAX_MS,
+            HUE_FAILURE_COOLDOWN_BASE_MS,
+          ),
+        )
       : HUE_FAILURE_COOLDOWN_BASE_MS;
     setBoundedMap(hueBridgeFailureState, key, {
       failures: nextFailures,
       cooldownUntil: at + cooldownMs,
-      lastReason: String(error?.message || error || "")
+      lastReason: String(error?.message || error || ""),
     });
   }
 
@@ -385,7 +421,7 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       return {
         active: false,
         reason: "",
-        until: 0
+        until: 0,
       };
     }
     const row = hueEntertainmentSuppressionByBridge.get(key);
@@ -394,24 +430,29 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       return {
         active: false,
         reason: "",
-        until: 0
+        until: 0,
       };
     }
     return {
       active: true,
       reason: String(row.reason || ""),
-      until: Number(row.until || 0)
+      until: Number(row.until || 0),
     };
   }
 
-  function setHueEntertainmentSuppression(bridgeIp = "", username = "", reason = "", ttlMs = HUE_ENTERTAINMENT_SUPPRESS_MS) {
+  function setHueEntertainmentSuppression(
+    bridgeIp = "",
+    username = "",
+    reason = "",
+    ttlMs = HUE_ENTERTAINMENT_SUPPRESS_MS,
+  ) {
     const key = buildHueBridgeFailureKey(bridgeIp, username);
     if (!key) return;
     const ttl = Math.max(1000, Math.round(Number(ttlMs || HUE_ENTERTAINMENT_SUPPRESS_MS)));
     const at = Number(now() || Date.now());
     setBoundedMap(hueEntertainmentSuppressionByBridge, key, {
       reason: String(reason || "").trim(),
-      until: at + ttl
+      until: at + ttl,
     });
   }
 
@@ -430,19 +471,22 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       hueBridgeCapabilityCache.delete(key);
       return null;
     }
-    return row.capabilities && typeof row.capabilities === "object"
-      ? row.capabilities
-      : null;
+    return row.capabilities && typeof row.capabilities === "object" ? row.capabilities : null;
   }
 
-  function setCachedHueBridgeCapabilities(bridgeIp = "", username = "", capabilities = null, ttlMs = HUE_BRIDGE_CAPABILITY_TTL_MS) {
+  function setCachedHueBridgeCapabilities(
+    bridgeIp = "",
+    username = "",
+    capabilities = null,
+    ttlMs = HUE_BRIDGE_CAPABILITY_TTL_MS,
+  ) {
     const key = buildHueBridgeCapabilityKey(bridgeIp, username);
     if (!key || !capabilities || typeof capabilities !== "object") return;
     const ttl = Math.max(5000, Math.round(Number(ttlMs || HUE_BRIDGE_CAPABILITY_TTL_MS)));
     const at = Number(now() || Date.now());
     setBoundedMap(hueBridgeCapabilityCache, key, {
       capabilities,
-      expiresAt: at + ttl
+      expiresAt: at + ttl,
     });
   }
 
@@ -451,10 +495,11 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     const user = sanitizeUsername(username);
     if (!host || !user) return null;
     const fromFixture = getHueFixtureCapabilities(fixture);
-    const hasExplicitFixtureCapability = fixture?.extras
-      && typeof fixture.extras === "object"
-      && fixture.extras.hueBridgeCapabilities
-      && typeof fixture.extras.hueBridgeCapabilities === "object";
+    const hasExplicitFixtureCapability =
+      fixture?.extras &&
+      typeof fixture.extras === "object" &&
+      fixture.extras.hueBridgeCapabilities &&
+      typeof fixture.extras.hueBridgeCapabilities === "object";
     if (hasExplicitFixtureCapability) {
       setCachedHueBridgeCapabilities(host, user, fromFixture);
       return fromFixture;
@@ -472,7 +517,7 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       const capabilities = inferBridgeCapabilities({
         bridgeConfig,
         clientKey: fixture?.clientKey || "",
-        entertainmentAreas: []
+        entertainmentAreas: [],
       });
       setCachedHueBridgeCapabilities(host, user, capabilities);
       if (capabilities.forceHttp === true) {
@@ -491,20 +536,22 @@ module.exports = function createHueBridgeAdapter(options = {}) {
   function shouldSuppressHueEntertainmentFromError(error) {
     const message = String(error?.message || error || "").toLowerCase();
     if (!message) return false;
-    return message.includes("invalid ip address")
-      || message.includes("entertainment_configuration")
-      || message.includes("hue_entertainment_area_unavailable")
-      || message.includes("hue_entertainment_start_timeout")
-      || message.includes("hue_entertainment_start_failed")
-      || message.includes("hue_entertainment_socket_error")
-      || message.includes("dtls handshake timed out")
-      || message.includes("node-dtls-client")
-      || message.includes("unable to verify")
-      || message.includes("certificate")
-      || message.includes("self signed")
-      || message.includes("tls")
-      || message.includes("socket is closed")
-      || message.includes("cannot send data");
+    return (
+      message.includes("invalid ip address") ||
+      message.includes("entertainment_configuration") ||
+      message.includes("hue_entertainment_area_unavailable") ||
+      message.includes("hue_entertainment_start_timeout") ||
+      message.includes("hue_entertainment_start_failed") ||
+      message.includes("hue_entertainment_socket_error") ||
+      message.includes("dtls handshake timed out") ||
+      message.includes("node-dtls-client") ||
+      message.includes("unable to verify") ||
+      message.includes("certificate") ||
+      message.includes("self signed") ||
+      message.includes("tls") ||
+      message.includes("socket is closed") ||
+      message.includes("cannot send data")
+    );
   }
 
   async function readBridgeConfig(bridgeHost = "", username = "", input = {}) {
@@ -512,27 +559,25 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     const user = sanitizeUsername(username);
     if (!host || !user || !axios || typeof axios.get !== "function") return {};
     try {
-      const response = await axios.get(
-        `http://${host}/api/${user}/config`,
-        { timeout: clampNumber(input.timeoutMs, 200, 10000, 2200) }
-      );
-      return response?.data && typeof response.data === "object"
-        ? response.data
-        : {};
+      const response = await axios.get(`http://${host}/api/${user}/config`, {
+        timeout: clampNumber(input.timeoutMs, 200, 10000, 2200),
+      });
+      return response?.data && typeof response.data === "object" ? response.data : {};
     } catch {
       return {};
     }
   }
 
   function inferBridgeCapabilities(input = {}) {
-    const bridgeConfig = input.bridgeConfig && typeof input.bridgeConfig === "object"
-      ? input.bridgeConfig
-      : {};
+    const bridgeConfig =
+      input.bridgeConfig && typeof input.bridgeConfig === "object" ? input.bridgeConfig : {};
     const clientKey = sanitizeClientKey(input.clientKey || "");
     const entertainmentAreas = Array.isArray(input.entertainmentAreas)
       ? input.entertainmentAreas
       : [];
-    const bridgeModelId = String(bridgeConfig.modelid || bridgeConfig.modelId || "").trim().toUpperCase();
+    const bridgeModelId = String(bridgeConfig.modelid || bridgeConfig.modelId || "")
+      .trim()
+      .toUpperCase();
     // BSB001 keeps its legacy HTTP REST fallback. If the operator has explicit
     // Entertainment credentials, allow the bounded DTLS runtime to try them;
     // handshake failures are suppressed and fall back to REST.
@@ -546,31 +591,13 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       supportsHttps,
       supportsEntertainment,
       forceHttp: isLegacyBridgeV1,
-      entertainmentAreasAvailable: entertainmentAreas.length > 0
+      entertainmentAreasAvailable: entertainmentAreas.length > 0,
     };
-  }
-
-  function resolveHueRestCaPath() {
-    const candidates = [];
-    if (process.env.RAVE_HUE_CA_CERT_PATH) {
-      candidates.push(String(process.env.RAVE_HUE_CA_CERT_PATH));
-    }
-    try {
-      const hueSyncPkg = require.resolve("hue-sync/package.json");
-      const hueSyncDir = path.dirname(hueSyncPkg);
-      candidates.push(path.join(hueSyncDir, "signify.pem"));
-    } catch {
-      // Optional dependency path.
-    }
-    if (rootDir) {
-      candidates.push(path.join(rootDir, "node_modules", "hue-sync", "signify.pem"));
-    }
-    return candidates.find(candidate => candidate && fs.existsSync(candidate)) || "";
   }
 
   function ensureHueRestCaLoaded() {
     if (hueRestCaPem) return;
-    const caPath = resolveHueRestCaPath();
+    const caPath = resolveSignifyPemPath(rootDir);
     if (!caPath) return;
     try {
       hueRestCaPem = fs.readFileSync(caPath, "utf8");
@@ -591,23 +618,22 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       keepAlive: true,
       maxSockets: 24,
       keepAliveMsecs: 1000,
-      rejectUnauthorized: true
+      rejectUnauthorized: true,
     };
     if (hueRestCaPem) {
       options.ca = hueRestCaPem;
     }
     if (bridgeId) {
       options.servername = bridgeId;
-      options.checkServerIdentity = (_host, cert) =>
-        tls.checkServerIdentity(bridgeId, cert);
+      options.checkServerIdentity = (_host, cert) => tls.checkServerIdentity(bridgeId, cert);
     }
     const agent = new https.Agent(options);
-    setBoundedMap(hueRestHttpsAgentByBridge, cacheKey, agent, previous => previous?.destroy?.());
+    setBoundedMap(hueRestHttpsAgentByBridge, cacheKey, agent, (previous) => previous?.destroy?.());
     return agent;
   }
 
   async function sleep(ms) {
-    await new Promise(resolve => setTimeoutFn(resolve, Math.max(1, Math.round(Number(ms) || 1))));
+    await new Promise((resolve) => setTimeoutFn(resolve, Math.max(1, Math.round(Number(ms) || 1))));
   }
 
   async function discoverBridges(input = {}) {
@@ -615,49 +641,58 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       const Bonjour = getBonjour();
       return Bonjour
         ? discoverBridgesMdns(input)
-        : { ok: false, error: "hue_discovery_transport_unavailable", bridges: [] };
+        : {
+            ok: false,
+            error: "hue_discovery_transport_unavailable",
+            bridges: [],
+          };
     }
     const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
     const url = String(
       source.discoveryUrl ||
-      options.discoveryUrl ||
-      process.env.HUE_DISCOVERY_URL ||
-      "https://discovery.meethue.com/"
+        options.discoveryUrl ||
+        process.env.HUE_DISCOVERY_URL ||
+        "https://discovery.meethue.com/",
     ).trim();
     if (!url) {
       return {
         ok: false,
         error: "hue_discovery_url_missing",
-        bridges: []
+        bridges: [],
       };
     }
 
     try {
       const response = await axios.get(url, {
-        timeout: clampNumber(source.timeoutMs, 200, 12000, 3500)
+        timeout: clampNumber(source.timeoutMs, 200, 12000, 3500),
       });
       const rows = Array.isArray(response?.data) ? response.data : [];
       const bridges = rows
-        .map(row => ({
+        .map((row) => ({
           id: sanitizeBridgeId(row?.id || row?.bridgeid || row?.bridgeId),
-          ip: sanitizeBridgeHost(row?.internalipaddress || row?.ip || row?.internalIpAddress)
+          ip: sanitizeBridgeHost(row?.internalipaddress || row?.ip || row?.internalIpAddress),
         }))
-        .filter(row => row.ip)
-        .map(row => ({
+        .filter((row) => row.ip)
+        .map((row) => ({
           id: row.id,
           ip: row.ip,
-          source: "meethue_discovery"
+          source: "meethue_discovery",
         }));
       const cloud = {
         ok: true,
         bridges,
-        source: "meethue_discovery"
+        source: "meethue_discovery",
       };
       if (bridges.length || !getBonjour()) return cloud;
       return discoverBridgesMdns(source);
     } catch (error) {
       if (getBonjour()) return discoverBridgesMdns(source);
-      return { ok: false, error: "hue_discovery_failed", detail: String(error?.message || error), bridges: [] };
+      return {
+        ok: false,
+        error: "hue_discovery_failed",
+        detail: String(error?.message || error),
+        bridges: [],
+      };
     }
   }
 
@@ -671,17 +706,28 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     let timer = null;
     let settled = false;
     try {
-      return await new Promise(resolve => {
-        const finish = result => {
+      return await new Promise((resolve) => {
+        const finish = (result) => {
           if (settled) return;
           settled = true;
           if (timer) clearTimeoutFn(timer);
-          try { browser?.stop?.(); } catch {}
-          try { bonjour?.destroy?.(); } catch {}
+          try {
+            browser?.stop?.();
+          } catch {}
+          try {
+            bonjour?.destroy?.();
+          } catch {}
           resolve(result);
         };
-        bonjour = new Bonjour({}, error => finish({ ok: false, error: "hue_mdns_failed", detail: String(error?.message || error), bridges: [] }));
-        browser = bonjour.find({ type: "hue", protocol: "tcp" }, service => {
+        bonjour = new Bonjour({}, (error) =>
+          finish({
+            ok: false,
+            error: "hue_mdns_failed",
+            detail: String(error?.message || error),
+            bridges: [],
+          }),
+        );
+        browser = bonjour.find({ type: "hue", protocol: "tcp" }, (service) => {
           const txt = service?.txt && typeof service.txt === "object" ? service.txt : {};
           const id = sanitizeBridgeId(txt.bridgeid || txt.bridgeId || txt.id || "");
           for (const address of Array.isArray(service?.addresses) ? service.addresses : []) {
@@ -690,13 +736,30 @@ module.exports = function createHueBridgeAdapter(options = {}) {
           }
         });
         if (settled) return;
-        timer = setTimeoutFn(() => finish({ ok: true, bridges: [...bridges.values()], source: "mdns" }), timeoutMs);
+        timer = setTimeoutFn(
+          () =>
+            finish({
+              ok: true,
+              bridges: [...bridges.values()],
+              source: "mdns",
+            }),
+          timeoutMs,
+        );
         timer?.unref?.();
       });
     } catch (error) {
-      try { browser?.stop?.(); } catch {}
-      try { bonjour?.destroy?.(); } catch {}
-      return { ok: false, error: "hue_mdns_failed", detail: String(error?.message || error), bridges: [] };
+      try {
+        browser?.stop?.();
+      } catch {}
+      try {
+        bonjour?.destroy?.();
+      } catch {}
+      return {
+        ok: false,
+        error: "hue_mdns_failed",
+        detail: String(error?.message || error),
+        bridges: [],
+      };
     }
   }
 
@@ -705,20 +768,21 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     const user = sanitizeUsername(username);
     if (!host || !user || !axios || typeof axios.get !== "function") return [];
     try {
-      const response = await axios.get(
-        `http://${host}/api/${user}/groups`,
-        { timeout: clampNumber(input.timeoutMs, 200, 10000, 2000) }
-      );
+      const response = await axios.get(`http://${host}/api/${user}/groups`, {
+        timeout: clampNumber(input.timeoutMs, 200, 10000, 2000),
+      });
       const groups = response?.data && typeof response.data === "object" ? response.data : {};
       const out = [];
       for (const [id, row] of Object.entries(groups)) {
-        const type = String(row?.type || "").trim().toLowerCase();
+        const type = String(row?.type || "")
+          .trim()
+          .toLowerCase();
         if (type !== "entertainment") continue;
         const areaId = String(id || "").trim();
         if (!areaId) continue;
         out.push({
           id: areaId,
-          name: String(row?.name || areaId).trim() || areaId
+          name: String(row?.name || areaId).trim() || areaId,
         });
       }
       return out.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
@@ -735,28 +799,27 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       return {
         ok: false,
         error: "invalid_bridge_ip",
-        lights: []
+        lights: [],
       };
     }
     if (!username) {
       return {
         ok: false,
         error: "missing_hue_username",
-        lights: []
+        lights: [],
       };
     }
     if (!axios || typeof axios.get !== "function") {
       return {
         ok: false,
         error: "hue_lights_transport_unavailable",
-        lights: []
+        lights: [],
       };
     }
     try {
-      const response = await axios.get(
-        `http://${bridgeIp}/api/${username}/lights`,
-        { timeout: clampNumber(source.timeoutMs, 200, 10000, 2500) }
-      );
+      const response = await axios.get(`http://${bridgeIp}/api/${username}/lights`, {
+        timeout: clampNumber(source.timeoutMs, 200, 10000, 2500),
+      });
       const payload = response?.data && typeof response.data === "object" ? response.data : {};
       const lights = [];
       for (const [rawId, rawLight] of Object.entries(payload)) {
@@ -765,35 +828,40 @@ module.exports = function createHueBridgeAdapter(options = {}) {
         lights.push({
           lightId,
           name: String(rawLight?.name || `Hue light ${lightId}`).trim() || `Hue light ${lightId}`,
-          modelId: String(rawLight?.modelid || "").trim().toUpperCase(),
+          modelId: String(rawLight?.modelid || "")
+            .trim()
+            .toUpperCase(),
           type: String(rawLight?.type || "").trim(),
           productName: String(rawLight?.productname || "").trim(),
           uniqueId: String(rawLight?.uniqueid || "").trim(),
           swVersion: String(rawLight?.swversion || "").trim(),
           colorTemperatureMired: {
             minimum: clampNumber(rawLight?.capabilities?.control?.ct?.min, 100, 1000, 153),
-            maximum: clampNumber(rawLight?.capabilities?.control?.ct?.max, 100, 1000, 500)
-          }
+            maximum: clampNumber(rawLight?.capabilities?.control?.ct?.max, 100, 1000, 500),
+          },
         });
       }
       lights.sort((a, b) => Number(a.lightId || 0) - Number(b.lightId || 0));
       return {
         ok: true,
         bridgeIp,
-        lights
+        lights,
       };
     } catch (error) {
       return {
         ok: false,
         error: "hue_lights_query_failed",
         detail: String(error?.message || error),
-        lights: []
+        lights: [],
       };
     }
   }
 
   function normalizeDeviceType(value) {
-    const token = String(value || "ravelink#bridge").trim().toLowerCase().replace(/[^a-z0-9#_-]/g, "");
+    const token = String(value || "ravelink#bridge")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9#_-]/g, "");
     if (!token.includes("#")) return `${token.slice(0, 19) || "ravelink"}#bridge`;
     const [appRaw, deviceRaw] = token.split("#", 2);
     const app = String(appRaw || "ravelink").slice(0, 19) || "ravelink";
@@ -807,13 +875,13 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     if (!bridgeIp) {
       return {
         ok: false,
-        error: "invalid_bridge_ip"
+        error: "invalid_bridge_ip",
       };
     }
     if (!axios || typeof axios.post !== "function") {
       return {
         ok: false,
-        error: "hue_pair_transport_unavailable"
+        error: "hue_pair_transport_unavailable",
       };
     }
     const timeoutMs = clampNumber(source.timeoutMs, 1000, 120000, 30000);
@@ -821,17 +889,15 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     const deadline = Number(now() || Date.now()) + timeoutMs;
     const payload = {
       devicetype: normalizeDeviceType(source.appName || "ravelink#bridge"),
-      generateclientkey: true
+      generateclientkey: true,
     };
 
     let lastError = "";
     while (Number(now() || Date.now()) <= deadline) {
       try {
-        const response = await axios.post(
-          `http://${bridgeIp}/api`,
-          payload,
-          { timeout: clampNumber(source.requestTimeoutMs, 250, 10000, 2500) }
-        );
+        const response = await axios.post(`http://${bridgeIp}/api`, payload, {
+          timeout: clampNumber(source.requestTimeoutMs, 250, 10000, 2500),
+        });
         const rows = Array.isArray(response?.data) ? response.data : [];
         for (const row of rows) {
           if (row?.success && typeof row.success === "object") {
@@ -839,15 +905,15 @@ module.exports = function createHueBridgeAdapter(options = {}) {
             const clientKey = sanitizeClientKey(row.success.clientkey);
             if (!username) continue;
             const entertainmentAreas = await listEntertainmentAreas(bridgeIp, username, {
-              timeoutMs: source.areaTimeoutMs
+              timeoutMs: source.areaTimeoutMs,
             });
             const bridgeConfig = await readBridgeConfig(bridgeIp, username, {
-              timeoutMs: source.configTimeoutMs
+              timeoutMs: source.configTimeoutMs,
             });
             const capabilities = inferBridgeCapabilities({
               bridgeConfig,
               clientKey,
-              entertainmentAreas
+              entertainmentAreas,
             });
             setCachedHueBridgeCapabilities(bridgeIp, username, capabilities);
             if (capabilities.forceHttp === true) {
@@ -857,14 +923,14 @@ module.exports = function createHueBridgeAdapter(options = {}) {
               ok: true,
               bridge: {
                 ip: bridgeIp,
-                id: sanitizeBridgeId(source.bridgeId || "")
+                id: sanitizeBridgeId(source.bridgeId || ""),
               },
               credentials: {
                 username,
-                clientKey
+                clientKey,
               },
               entertainmentAreas,
-              capabilities
+              capabilities,
             };
           }
           if (row?.error && typeof row.error === "object") {
@@ -876,7 +942,9 @@ module.exports = function createHueBridgeAdapter(options = {}) {
             return {
               ok: false,
               error: "pair_failed",
-              detail: String(row.error.description || row.error.address || "bridge rejected pairing")
+              detail: String(
+                row.error.description || row.error.address || "bridge rejected pairing",
+              ),
             };
           }
         }
@@ -889,7 +957,7 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     return {
       ok: false,
       error: "link_button_timeout",
-      detail: lastError || "timed out waiting for Hue link-button confirmation"
+      detail: lastError || "timed out waiting for Hue link-button confirmation",
     };
   }
 
@@ -898,12 +966,16 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     // [DEV] domain layer composes state; adapter only performs side effects.
     const targets = Array.isArray(fixtures) ? fixtures : [];
     const restStatePayload = buildHueRestStatePayload(state);
-    const command = { method: "PUT", resource: "light-state", body: restStatePayload };
+    const command = {
+      method: "PUT",
+      resource: "light-state",
+      body: restStatePayload,
+    };
     if (!targets.length) {
       transportTelemetry = {
         ...transportTelemetry,
         skipped: Number(transportTelemetry.skipped || 0),
-        updatedAt: Number(now() || Date.now())
+        updatedAt: Number(now() || Date.now()),
       };
       return { sent: 0, failed: 0, dryRun, command };
     }
@@ -912,7 +984,7 @@ module.exports = function createHueBridgeAdapter(options = {}) {
         ...transportTelemetry,
         sent: Number(transportTelemetry.sent || 0) + targets.length,
         lastDurationMs: 0,
-        updatedAt: Number(now() || Date.now())
+        updatedAt: Number(now() || Date.now()),
       };
       return { sent: targets.length, failed: 0, dryRun: true, command };
     }
@@ -920,7 +992,10 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     const transportDesired = normalizeTransportMode(transportMode);
     // Tunable-white commands must reach the REST state endpoint. Entertainment
     // frames carry RGB values and cannot preserve a requested Hue `ct` mode.
-    const entertainmentEnabled = state?.__forceRest !== true && !Number.isFinite(Number(state?.ct)) && (transportDesired === "entertainment" || transportDesired === "auto");
+    const entertainmentEnabled =
+      state?.__forceRest !== true &&
+      !Number.isFinite(Number(state?.ct)) &&
+      (transportDesired === "entertainment" || transportDesired === "auto");
     const entertainmentRgb = resolveHueEntertainmentRgb(state);
     const entertainmentReadyGroups = new Map();
     const restTargets = [];
@@ -932,19 +1007,32 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       const clientKey = sanitizeClientKey(target?.clientKey || "");
       const entertainmentAreaId = sanitizeEntertainmentAreaId(target?.entertainmentAreaId || "");
       const bridgeId = sanitizeBridgeId(target?.bridgeId || "");
-      const runtimeCapabilities = await resolveRuntimeBridgeCapabilities(bridgeIp, username, target);
+      const runtimeCapabilities = await resolveRuntimeBridgeCapabilities(
+        bridgeIp,
+        username,
+        target,
+      );
       const effectiveTarget = runtimeCapabilities
         ? {
-          ...target,
-          extras: {
-            ...(target?.extras && typeof target.extras === "object" ? target.extras : {}),
-            hueBridgeCapabilities: runtimeCapabilities
+            ...target,
+            extras: {
+              ...(target?.extras && typeof target.extras === "object" ? target.extras : {}),
+              hueBridgeCapabilities: runtimeCapabilities,
+            },
           }
-        }
         : target;
       const entertainmentSuppression = getHueEntertainmentSuppression(bridgeIp, username);
-      const canUseEntertainment = fixtureSupportsHueEntertainment(effectiveTarget) && entertainmentSuppression.active !== true;
-      if (entertainmentEnabled && canUseEntertainment && bridgeIp && username && clientKey && entertainmentAreaId) {
+      const canUseEntertainment =
+        fixtureSupportsHueEntertainment(effectiveTarget) &&
+        entertainmentSuppression.active !== true;
+      if (
+        entertainmentEnabled &&
+        canUseEntertainment &&
+        bridgeIp &&
+        username &&
+        clientKey &&
+        entertainmentAreaId
+      ) {
         const key = `${bridgeIp}|${username}|${clientKey}|${entertainmentAreaId}|${bridgeId}`;
         if (!entertainmentReadyGroups.has(key)) {
           entertainmentReadyGroups.set(key, {
@@ -953,9 +1041,9 @@ module.exports = function createHueBridgeAdapter(options = {}) {
               username,
               clientKey,
               entertainmentAreaId,
-              bridgeId
+              bridgeId,
             },
-            fixtures: []
+            fixtures: [],
           });
         }
         entertainmentReadyGroups.get(key).fixtures.push(effectiveTarget);
@@ -975,14 +1063,18 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     let entertainmentFallbackCount = 0;
     let entertainmentAttempted = 0;
     const entertainmentStatus = hueEntertainment.getStatus();
-    if (entertainmentEnabled && entertainmentReadyGroups.size > 0 && entertainmentStatus.available === true) {
+    if (
+      entertainmentEnabled &&
+      entertainmentReadyGroups.size > 0 &&
+      entertainmentStatus.available === true
+    ) {
       for (const group of entertainmentReadyGroups.values()) {
         entertainmentAttempted += group.fixtures.length;
         const result = await hueEntertainment.sendFrame(group.config, {
           rgb: entertainmentRgb,
           bri: clampNumber(state?.bri, 1, 254, 254),
           on: state?.on !== false,
-          fixtureCount: group.fixtures.length
+          fixtureCount: group.fixtures.length,
         });
         if (result?.ok === true) {
           clearHueEntertainmentSuppression(group.config.bridgeIp, group.config.username);
@@ -992,18 +1084,29 @@ module.exports = function createHueBridgeAdapter(options = {}) {
           const entertainmentError = result?.error || "hue_entertainment_send_failed";
           logSendErrorThrottled(entertainmentError);
           if (shouldSuppressHueEntertainmentFromError(entertainmentError)) {
-            setHueEntertainmentSuppression(group.config.bridgeIp, group.config.username, entertainmentError);
-            setHueBridgeTransportHint(group.config.bridgeIp, group.config.username, "http", HUE_HTTP_HINT_MS);
+            setHueEntertainmentSuppression(
+              group.config.bridgeIp,
+              group.config.username,
+              entertainmentError,
+            );
+            setHueBridgeTransportHint(
+              group.config.bridgeIp,
+              group.config.username,
+              "http",
+              HUE_HTTP_HINT_MS,
+            );
             entertainmentSuppressedCount += group.fixtures.length;
           }
           restTargets.push(...group.fixtures);
         }
       }
     } else if (entertainmentReadyGroups.size > 0) {
-      restTargets.push(...Array.from(entertainmentReadyGroups.values()).flatMap(row => row.fixtures));
+      restTargets.push(
+        ...Array.from(entertainmentReadyGroups.values()).flatMap((row) => row.fixtures),
+      );
     }
 
-    const operations = restTargets.map(target => async () => {
+    const operations = restTargets.map((target) => async () => {
       const bridgeIp = sanitizeBridgeHost(target?.bridgeIp || "");
       const username = sanitizeUsername(target?.username || "");
       const lightId = Math.round(clampNumber(target?.lightId, 1, 65535, 0));
@@ -1011,7 +1114,7 @@ module.exports = function createHueBridgeAdapter(options = {}) {
         return {
           ok: false,
           error: "invalid_hue_target",
-          detail: { bridgeIp, username, lightId }
+          detail: { bridgeIp, username, lightId },
         };
       }
 
@@ -1023,7 +1126,7 @@ module.exports = function createHueBridgeAdapter(options = {}) {
           return {
             ok: false,
             skipped: true,
-            error: `bridge_temporarily_unreachable_${Math.max(1, Math.round(bridgeFailure.cooldownUntil - at))}ms`
+            error: `bridge_temporarily_unreachable_${Math.max(1, Math.round(bridgeFailure.cooldownUntil - at))}ms`,
           };
         }
       }
@@ -1034,15 +1137,17 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       const transportHint = getHueBridgeTransportHint(bridgeIp, username);
       const nowAtHintCheck = Number(now() || Date.now());
       const forceHttpTransport = fixtureForcesHueHttp(target);
-      const shouldTryHttpFirst = forceHttpTransport || (transportHint.mode === "http" && transportHint.until > nowAtHintCheck);
+      const shouldTryHttpFirst =
+        forceHttpTransport ||
+        (transportHint.mode === "http" && transportHint.until > nowAtHintCheck);
 
       async function sendHttpWithTimeout(timeoutMs = HUE_REQUEST_TIMEOUT_FALLBACK_MS) {
         await axios.put(httpUrl, restStatePayload, {
-          timeout: clampNumber(timeoutMs, 300, 6000, HUE_REQUEST_TIMEOUT_FALLBACK_MS)
+          timeout: clampNumber(timeoutMs, 300, 6000, HUE_REQUEST_TIMEOUT_FALLBACK_MS),
         });
         return {
           ok: true,
-          transport: "http_fallback"
+          transport: "http_fallback",
         };
       }
 
@@ -1063,36 +1168,37 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       try {
         await axios.put(httpsUrl, restStatePayload, {
           timeout: HUE_REQUEST_TIMEOUT_MS,
-          httpsAgent
+          httpsAgent,
         });
         setHueBridgeTransportHint(bridgeIp, username, "https", 0);
         clearHueBridgeFailure(bridgeIp, username);
         return {
           ok: true,
-          transport: "https"
+          transport: "https",
         };
       } catch (firstError) {
         const message = String(firstError?.message || firstError || "").toLowerCase();
         const code = String(firstError?.code || "").toUpperCase();
-        const shouldFallbackHttp = message.includes("certificate")
-          || message.includes("unable to verify")
-          || message.includes("self signed")
-          || message.includes("tls")
-          || message.includes("hostname/ip")
-          || message.includes("fetch failed")
-          || message.includes("aborted")
-          || message.includes("stream has been aborted")
-          || message.includes("timeout")
-          || message.includes("timed out")
-          || code === "ECONNABORTED"
-          || code === "ETIMEDOUT"
-          || code === "ECONNRESET"
-          || code === "EHOSTUNREACH";
+        const shouldFallbackHttp =
+          message.includes("certificate") ||
+          message.includes("unable to verify") ||
+          message.includes("self signed") ||
+          message.includes("tls") ||
+          message.includes("hostname/ip") ||
+          message.includes("fetch failed") ||
+          message.includes("aborted") ||
+          message.includes("stream has been aborted") ||
+          message.includes("timeout") ||
+          message.includes("timed out") ||
+          code === "ECONNABORTED" ||
+          code === "ETIMEDOUT" ||
+          code === "ECONNRESET" ||
+          code === "EHOSTUNREACH";
         if (!shouldFallbackHttp) {
           recordHueBridgeFailure(bridgeIp, username, firstError);
           return {
             ok: false,
-            error: firstError
+            error: firstError,
           };
         }
         try {
@@ -1101,13 +1207,13 @@ module.exports = function createHueBridgeAdapter(options = {}) {
           clearHueBridgeFailure(bridgeIp, username);
           return {
             ok: true,
-            transport: "http_fallback"
+            transport: "http_fallback",
           };
         } catch (fallbackError) {
           recordHueBridgeFailure(bridgeIp, username, fallbackError || firstError);
           return {
             ok: false,
-            error: fallbackError
+            error: fallbackError,
           };
         }
       }
@@ -1140,40 +1246,47 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       skipped: Number(transportTelemetry.skipped || 0) + skipped,
       sendErrors: Number(transportTelemetry.sendErrors || 0) + failed,
       lastDurationMs: durationMs,
-      transportFallbackReason: entertainmentFallbackCount > 0
-        ? "entertainment_failed_rest_fallback"
-        : (httpFallbackSent > 0 ? "rest_https_failed_http_fallback" : transportTelemetry.transportFallbackReason),
+      transportFallbackReason:
+        entertainmentFallbackCount > 0
+          ? "entertainment_failed_rest_fallback"
+          : httpFallbackSent > 0
+            ? "rest_https_failed_http_fallback"
+            : transportTelemetry.transportFallbackReason,
       entertainment: {
         ...transportTelemetry.entertainment,
         active: entertainmentEnabled && entertainmentStatus.available === true,
-        reason: entertainmentNow.available === true
-          ? (
-            entertainmentSuppressedCount > 0
+        reason:
+          entertainmentNow.available === true
+            ? entertainmentSuppressedCount > 0
               ? "entertainment_temporarily_suppressed"
-              : (entertainmentFallbackCount > 0
+              : entertainmentFallbackCount > 0
                 ? "entertainment_partial_failure"
-                : (entertainmentAttempted > 0 ? "entertainment_active" : "entertainment_idle"))
-          )
-          : (entertainmentNow.reason || "hue_sync_unavailable"),
-        fixtureReadyCount: entertainmentReadyGroups.size > 0
-          ? entertainmentAttempted
-          : Number(transportTelemetry?.entertainment?.fixtureReadyCount || 0),
+                : entertainmentAttempted > 0
+                  ? "entertainment_active"
+                  : "entertainment_idle"
+            : entertainmentNow.reason || "hue_sync_unavailable",
+        fixtureReadyCount:
+          entertainmentReadyGroups.size > 0
+            ? entertainmentAttempted
+            : Number(transportTelemetry?.entertainment?.fixtureReadyCount || 0),
         fixtureTotalCount: targets.length,
-        lastAttemptAt: Number(now() || Date.now())
+        lastAttemptAt: Number(now() || Date.now()),
       },
-      updatedAt: Number(now() || Date.now())
+      updatedAt: Number(now() || Date.now()),
     };
     return {
       sent: sent + entertainmentSent,
       failed,
       skipped,
       dryRun: false,
-      command
+      command,
     };
   }
 
   function normalizeTransportMode(mode) {
-    const token = String(mode || "").trim().toLowerCase();
+    const token = String(mode || "")
+      .trim()
+      .toLowerCase();
     return TRANSPORT_MODES.has(token) ? token : "auto";
   }
 
@@ -1182,66 +1295,70 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     const lower = rawMessage.toLowerCase();
     const logDetail = (() => {
       if (
-        lower.includes("hue_entertainment_start_timeout")
-        || lower.includes("dtls handshake timed out")
+        lower.includes("hue_entertainment_start_timeout") ||
+        lower.includes("dtls handshake timed out")
       ) {
         return {
           code: "hue_entertainment_start_timeout",
-          message: "Entertainment fallback -> REST (DTLS start timed out)"
+          message: "Entertainment fallback -> REST (DTLS start timed out)",
         };
       }
       if (
-        lower.includes("socket is closed")
-        || lower.includes("cannot send data")
-        || lower.includes("hue_entertainment_socket_error")
+        lower.includes("socket is closed") ||
+        lower.includes("cannot send data") ||
+        lower.includes("hue_entertainment_socket_error")
       ) {
         return {
           code: "hue_entertainment_session_closed",
-          message: "Entertainment fallback -> REST (session closed)"
+          message: "Entertainment fallback -> REST (session closed)",
         };
       }
       if (
-        lower.includes("hue_entertainment_start_failed")
-        || lower.includes("hue_entertainment_area_unavailable")
-        || lower.includes("certificate")
-        || lower.includes("self signed")
-        || lower.includes("tls")
-        || lower.includes("unable to verify")
+        lower.includes("hue_entertainment_start_failed") ||
+        lower.includes("hue_entertainment_area_unavailable") ||
+        lower.includes("certificate") ||
+        lower.includes("self signed") ||
+        lower.includes("tls") ||
+        lower.includes("unable to verify")
       ) {
         return {
           code: "hue_entertainment_unavailable",
-          message: "Entertainment fallback -> REST (bridge transport unavailable)"
-        };
-      }
-      if (lower.includes("timeout") || lower.includes("timed out") || lower.includes("econnaborted")) {
-        return {
-          code: "hue_request_timeout",
-          message: "REST send failed (bridge timeout)"
+          message: "Entertainment fallback -> REST (bridge transport unavailable)",
         };
       }
       if (
-        lower.includes("fetch failed")
-        || lower.includes("stream has been aborted")
-        || lower.includes("aborted")
-        || lower.includes("econnreset")
-        || lower.includes("ehostunreach")
-        || lower.includes("enetunreach")
-        || lower.includes("econnrefused")
-        || lower.includes("socket hang up")
+        lower.includes("timeout") ||
+        lower.includes("timed out") ||
+        lower.includes("econnaborted")
+      ) {
+        return {
+          code: "hue_request_timeout",
+          message: "REST send failed (bridge timeout)",
+        };
+      }
+      if (
+        lower.includes("fetch failed") ||
+        lower.includes("stream has been aborted") ||
+        lower.includes("aborted") ||
+        lower.includes("econnreset") ||
+        lower.includes("ehostunreach") ||
+        lower.includes("enetunreach") ||
+        lower.includes("econnrefused") ||
+        lower.includes("socket hang up")
       ) {
         return {
           code: "hue_network_unreachable",
-          message: "REST send failed (bridge unreachable)"
+          message: "REST send failed (bridge unreachable)",
         };
       }
       return {
         code: rawMessage,
-        message: `Send failed (${rawMessage})`
+        message: `Send failed (${rawMessage})`,
       };
     })();
     const at = Number(now() || Date.now());
     const sameMessage = logDetail.code === String(lastSendErrorLog.message || "");
-    const withinWindow = (at - Number(lastSendErrorLog.at || 0)) < HUE_SEND_ERROR_LOG_WINDOW_MS;
+    const withinWindow = at - Number(lastSendErrorLog.at || 0) < HUE_SEND_ERROR_LOG_WINDOW_MS;
     if (sameMessage && withinWindow) return;
     lastSendErrorLog = { message: logDetail.code, at };
     log.warn(`[HUE] ${logDetail.message}`);
@@ -1250,24 +1367,28 @@ module.exports = function createHueBridgeAdapter(options = {}) {
   function setTransportMode(mode = "auto") {
     transportMode = normalizeTransportMode(mode);
     if (transportMode === "rest") {
-      Promise.resolve(hueEntertainment.stopAll("transport_mode_rest"))
-        .catch(() => {
-          // [DEV] best-effort cleanup only
-        });
+      Promise.resolve(hueEntertainment.stopAll("transport_mode_rest")).catch(() => {
+        // [DEV] best-effort cleanup only
+      });
     }
     transportTelemetry = {
       ...transportTelemetry,
       transportDesired: transportMode,
-      updatedAt: Number(now() || Date.now())
+      updatedAt: Number(now() || Date.now()),
     };
     return getTelemetry();
   }
 
   function evaluateEntertainmentReadiness(fixtures = []) {
     const rows = Array.isArray(fixtures) ? fixtures : [];
-    const hueRows = rows.filter(row => String(row?.brand || "").trim().toLowerCase() === "hue");
-    const entertainmentCapableRows = hueRows.filter(row => fixtureSupportsHueEntertainment(row));
-    const readyRows = hueRows.filter(row => {
+    const hueRows = rows.filter(
+      (row) =>
+        String(row?.brand || "")
+          .trim()
+          .toLowerCase() === "hue",
+    );
+    const entertainmentCapableRows = hueRows.filter((row) => fixtureSupportsHueEntertainment(row));
+    const readyRows = hueRows.filter((row) => {
       if (!fixtureSupportsHueEntertainment(row)) return false;
       const bridgeIp = String(row?.bridgeIp || "").trim();
       const username = String(row?.username || "").trim();
@@ -1277,15 +1398,15 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     });
     return {
       fixtureTotalCount: entertainmentCapableRows.length,
-      fixtureReadyCount: readyRows.length
+      fixtureReadyCount: readyRows.length,
     };
   }
 
   function syncTransportForFixtures(fixtures = [], meta = {}) {
     const desiredRaw = normalizeTransportMode(meta.mode || transportMode);
     const readiness = evaluateEntertainmentReadiness(fixtures);
-    const wantEntertainment = desiredRaw === "entertainment"
-      || (desiredRaw === "auto" && readiness.fixtureReadyCount > 0);
+    const wantEntertainment =
+      desiredRaw === "entertainment" || (desiredRaw === "auto" && readiness.fixtureReadyCount > 0);
     const entertainmentStatus = hueEntertainment.getStatus();
 
     let transportActive = "rest";
@@ -1324,9 +1445,9 @@ module.exports = function createHueBridgeAdapter(options = {}) {
         reason: entertainmentReason,
         fixtureReadyCount: readiness.fixtureReadyCount,
         fixtureTotalCount: readiness.fixtureTotalCount,
-        lastAttemptAt: Number(now() || Date.now())
+        lastAttemptAt: Number(now() || Date.now()),
       },
-      updatedAt: Number(now() || Date.now())
+      updatedAt: Number(now() || Date.now()),
     };
     return getTelemetry();
   }
@@ -1339,26 +1460,51 @@ module.exports = function createHueBridgeAdapter(options = {}) {
       resources: {
         maximumEntriesPerCache: MAX_HUE_CACHE_ENTRIES,
         maximumRestConcurrency: MAX_HUE_REST_CONCURRENCY,
-        cacheEntries: hueRestHttpsAgentByBridge.size + hueBridgeFailureState.size + hueBridgeTransportHints.size
-          + hueEntertainmentSuppressionByBridge.size + hueBridgeCapabilityCache.size + hueBridgeCapabilityProbeByKey.size,
+        cacheEntries:
+          hueRestHttpsAgentByBridge.size +
+          hueBridgeFailureState.size +
+          hueBridgeTransportHints.size +
+          hueEntertainmentSuppressionByBridge.size +
+          hueBridgeCapabilityCache.size +
+          hueBridgeCapabilityProbeByKey.size,
         cacheEvictions,
-        lifecycleEvictions
-      }
+        lifecycleEvictions,
+      },
     };
   }
 
   async function reconcileFixtures(fixtures = []) {
-    const rows = (Array.isArray(fixtures) ? fixtures : []).filter(row => String(row?.brand || "").toLowerCase() === "hue");
-    const bridgeKeys = new Set(rows.map(row => sanitizeBridgeIdToken(row.bridgeId) || sanitizeBridgeHost(row.bridgeIp)).filter(Boolean));
-    const authKeys = new Set(rows.map(row => buildHueBridgeFailureKey(row.bridgeIp, row.username)).filter(Boolean));
+    const rows = (Array.isArray(fixtures) ? fixtures : []).filter(
+      (row) => String(row?.brand || "").toLowerCase() === "hue",
+    );
+    const bridgeKeys = new Set(
+      rows
+        .map((row) => sanitizeBridgeIdToken(row.bridgeId) || sanitizeBridgeHost(row.bridgeIp))
+        .filter(Boolean),
+    );
+    const authKeys = new Set(
+      rows.map((row) => buildHueBridgeFailureKey(row.bridgeIp, row.username)).filter(Boolean),
+    );
     let removed = 0;
     for (const [key, agent] of [...hueRestHttpsAgentByBridge.entries()]) {
       if (bridgeKeys.has(key)) continue;
-      hueRestHttpsAgentByBridge.delete(key); removed += 1;
-      try { agent?.destroy?.(); } catch {}
+      hueRestHttpsAgentByBridge.delete(key);
+      removed += 1;
+      try {
+        agent?.destroy?.();
+      } catch {}
     }
-    for (const map of [hueBridgeFailureState, hueBridgeTransportHints, hueEntertainmentSuppressionByBridge, hueBridgeCapabilityCache]) {
-      for (const key of [...map.keys()]) if (!authKeys.has(key)) { map.delete(key); removed += 1; }
+    for (const map of [
+      hueBridgeFailureState,
+      hueBridgeTransportHints,
+      hueEntertainmentSuppressionByBridge,
+      hueBridgeCapabilityCache,
+    ]) {
+      for (const key of [...map.keys()])
+        if (!authKeys.has(key)) {
+          map.delete(key);
+          removed += 1;
+        }
     }
     lifecycleEvictions += removed;
     await hueEntertainment.reconcileConfigs?.(rows);
@@ -1367,9 +1513,17 @@ module.exports = function createHueBridgeAdapter(options = {}) {
 
   async function shutdown() {
     await hueEntertainment.stopAll("shutdown");
-    for (const agent of hueRestHttpsAgentByBridge.values()) { try { agent?.destroy?.(); } catch {} }
-    hueRestHttpsAgentByBridge.clear(); hueBridgeFailureState.clear(); hueBridgeTransportHints.clear();
-    hueEntertainmentSuppressionByBridge.clear(); hueBridgeCapabilityCache.clear(); hueBridgeCapabilityProbeByKey.clear();
+    for (const agent of hueRestHttpsAgentByBridge.values()) {
+      try {
+        agent?.destroy?.();
+      } catch {}
+    }
+    hueRestHttpsAgentByBridge.clear();
+    hueBridgeFailureState.clear();
+    hueBridgeTransportHints.clear();
+    hueEntertainmentSuppressionByBridge.clear();
+    hueBridgeCapabilityCache.clear();
+    hueBridgeCapabilityProbeByKey.clear();
     return { ok: true };
   }
 
@@ -1382,6 +1536,6 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     syncTransportForFixtures,
     getTelemetry,
     reconcileFixtures,
-    shutdown
+    shutdown,
   };
 };

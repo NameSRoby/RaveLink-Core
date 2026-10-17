@@ -1,3 +1,6 @@
+// Windows tray host. Application policy stays in Node; this process owns the
+// single-instance boundary, server child, tray UI, and update health handshake.
+// See docs/DEVELOPMENT.md, "Windows host and updates", before changing ownership.
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -22,6 +25,9 @@ namespace RaveLink.Core.WindowsHost
 {
     internal static class Program
     {
+        // These names are stable across upgrades. The v0.6 suffix is an IPC
+        // compatibility identifier, not the current product version: renaming
+        // it would allow old and new hosts to compete for the same local port.
         private const string MutexName = "Local\\RaveLink-Core-v0.6";
         internal const string ExitEventName = "Local\\RaveLink-Core-Exit-v0.6";
 
@@ -69,6 +75,9 @@ namespace RaveLink.Core.WindowsHost
         }
     }
 
+    // ApplicationContext keeps the message loop alive without a main window.
+    // All async UI callbacks must respect the exiting flag, and shutdown must
+    // release the tray icon and native job handle even if Node is unresponsive.
     internal sealed class CoreApplicationContext : ApplicationContext
     {
         private readonly string root;
@@ -118,6 +127,9 @@ namespace RaveLink.Core.WindowsHost
             StartOrAttachAsync();
         }
 
+        // A healthy existing server can be attached without launching another
+        // child. After an update, health must confirm the expected version before
+        // rollback information is retired; process existence alone is insufficient.
         private async void StartOrAttachAsync()
         {
             await lifecycle.WaitAsync();
@@ -325,6 +337,9 @@ namespace RaveLink.Core.WindowsHost
         private static string Quote(string value) { return "\"" + value.Replace("\"", "\\\"") + "\""; }
     }
 
+    // Loopback HTTP operations use finite deadlines. Keep launch/stop behavior
+    // separate from update verification so an unrelated listener cannot confirm
+    // a different application version as successfully installed.
     internal static class ServerControl
     {
         internal static int Port()
@@ -408,6 +423,9 @@ namespace RaveLink.Core.WindowsHost
         }
     }
 
+    // A Windows job object ties the managed Node child to this host's lifetime.
+    // Closing the last handle terminates owned children, including abnormal host
+    // exit. Do not add an attached, independently owned server to this job.
     internal static class NativeJob
     {
         private const uint KillOnJobClose = 0x00002000;

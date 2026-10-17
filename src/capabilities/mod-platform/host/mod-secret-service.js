@@ -7,7 +7,8 @@
 
 const HANDLE_RE = /^[a-z][a-z0-9._-]{0,79}$/;
 const OPERATION_RE = /^[a-z][a-z0-9.-]{0,63}$/;
-const FORBIDDEN_OPERATIONS = /(?:^|[.-])(?:get|read|raw|reveal|export|dump|value|token|secret)(?:$|[.-])/;
+const FORBIDDEN_OPERATIONS =
+  /(?:^|[.-])(?:get|read|raw|reveal|export|dump|value|token|secret)(?:$|[.-])/;
 
 module.exports = function createModSecretService(options = {}) {
   const now = typeof options.now === "function" ? options.now : Date.now;
@@ -22,19 +23,31 @@ module.exports = function createModSecretService(options = {}) {
 
   function register(descriptor = {}) {
     const handle = String(descriptor.handle || "");
-    if (!HANDLE_RE.test(handle) || !descriptor.operations || typeof descriptor.operations !== "object" || Array.isArray(descriptor.operations)) {
+    if (
+      !HANDLE_RE.test(handle) ||
+      !descriptor.operations ||
+      typeof descriptor.operations !== "object" ||
+      Array.isArray(descriptor.operations)
+    ) {
       throw new Error("invalid_secret_handle");
     }
     const operations = new Map();
     for (const [name, operation] of Object.entries(descriptor.operations)) {
-      if (!OPERATION_RE.test(name) || FORBIDDEN_OPERATIONS.test(name)
-        || typeof operation?.perform !== "function" || typeof operation?.validateResult !== "function") {
+      if (
+        !OPERATION_RE.test(name) ||
+        FORBIDDEN_OPERATIONS.test(name) ||
+        typeof operation?.perform !== "function" ||
+        typeof operation?.validateResult !== "function"
+      ) {
         throw new Error("invalid_secret_operation");
       }
       operations.set(name, operation);
     }
     if (!operations.size) throw new Error("empty_secret_operations");
-    handles.set(handle, { operations, available: typeof descriptor.available === "function" ? descriptor.available : () => true });
+    handles.set(handle, {
+      operations,
+      available: typeof descriptor.available === "function" ? descriptor.available : () => true,
+    });
     return { ok: true, handle, operations: [...operations.keys()].sort() };
   }
 
@@ -51,13 +64,15 @@ module.exports = function createModSecretService(options = {}) {
     const operationContract = registered.operations.get(operation);
     if (!operationContract) return { ok: false, error: "secret_operation_denied" };
     let available = false;
-    try { available = registered.available() === true; } catch {}
+    try {
+      available = registered.available() === true;
+    } catch {}
     if (!available) return { ok: false, error: "secret_not_configured" };
     try {
       const result = await operationContract.perform(payload, {
         modId,
         signal: context.signal,
-        deadlineAt: context.deadlineAt
+        deadlineAt: context.deadlineAt,
       });
       if (operationContract.validateResult(result) !== true) {
         record({ modId, handle, operation, outcome: "response_rejected" });
@@ -77,10 +92,20 @@ module.exports = function createModSecretService(options = {}) {
     for (const [handle, descriptor] of handles) {
       if (!approved.has(handle)) continue;
       let configured = false;
-      try { configured = descriptor.available() === true; } catch {}
-      available.push({ handle, configured, operations: [...descriptor.operations.keys()].sort() });
+      try {
+        configured = descriptor.available() === true;
+      } catch {}
+      available.push({
+        handle,
+        configured,
+        operations: [...descriptor.operations.keys()].sort(),
+      });
     }
-    return { ok: true, handles: available.sort((a, b) => a.handle.localeCompare(b.handle)), audit: audit.map(row => ({ ...row })) };
+    return {
+      ok: true,
+      handles: available.sort((a, b) => a.handle.localeCompare(b.handle)),
+      audit: audit.map((row) => ({ ...row })),
+    };
   }
 
   return Object.freeze({ getStatus, invoke, register });

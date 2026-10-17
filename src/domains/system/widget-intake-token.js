@@ -12,7 +12,9 @@ function normalizeWidgetIntakeToken(value = "") {
 }
 
 function getByPath(source, path) {
-  const parts = String(path || "").split(".").filter(Boolean);
+  const parts = String(path || "")
+    .split(".")
+    .filter(Boolean);
   let current = source;
   for (const part of parts) {
     if (!current || typeof current !== "object") return "";
@@ -31,10 +33,10 @@ function readWidgetIntakeTokenFromRequest(req = {}, body = {}) {
   const headers = req.headers && typeof req.headers === "object" ? req.headers : {};
   return normalizeWidgetIntakeToken(
     extractBearerToken(headers.authorization || headers.Authorization) ||
-    headers["x-ravelink-widget-token"] ||
-    headers["x-widget-token"] ||
-    getByPath(body, "widgetIntakeToken") ||
-    getByPath(body, "widgetConfig.widgetIntakeToken")
+      headers["x-ravelink-widget-token"] ||
+      headers["x-widget-token"] ||
+      getByPath(body, "widgetIntakeToken") ||
+      getByPath(body, "widgetConfig.widgetIntakeToken"),
   );
 }
 
@@ -48,5 +50,5 @@ function timingSafeTokenEqual(left = "", right = "") {
 module.exports = {
   normalizeWidgetIntakeToken,
   readWidgetIntakeTokenFromRequest,
-  timingSafeTokenEqual
+  timingSafeTokenEqual,
 };

@@ -19,9 +19,13 @@ function canonicalGrant(manifest) {
       secrets: [...(permissions.secrets || [])].sort(),
       ui: permissions.ui === true,
       process: permissions.process === true,
-      hardware: [...(permissions.hardware || [])].sort()
+      hardware: [...(permissions.hardware || [])].sort(),
     },
-    resources: Object.fromEntries(Object.keys(resources).sort().map(key => [key, resources[key]]))
+    resources: Object.fromEntries(
+      Object.keys(resources)
+        .sort()
+        .map((key) => [key, resources[key]]),
+    ),
   };
 }
 
@@ -49,7 +53,12 @@ function diffGrants(previous = null, next) {
   const decreased = [];
   for (const [key, value] of Object.entries(next.resources || {})) {
     const prior = Number(before.resources?.[key]);
-    if (!Number.isFinite(prior) || value > prior) increased.push({ resource: key, from: Number.isFinite(prior) ? prior : null, to: value });
+    if (!Number.isFinite(prior) || value > prior)
+      increased.push({
+        resource: key,
+        from: Number.isFinite(prior) ? prior : null,
+        to: value,
+      });
     else if (value < prior) decreased.push({ resource: key, from: prior, to: value });
   }
   return { added, removed, increased, decreased };
@@ -58,7 +67,13 @@ function diffGrants(previous = null, next) {
 async function readStore(storePath) {
   try {
     const parsed = JSON.parse(await fs.promises.readFile(storePath, "utf8"));
-    if (parsed?.schemaVersion === 1 && parsed.approvals && typeof parsed.approvals === "object" && !Array.isArray(parsed.approvals)) return parsed;
+    if (
+      parsed?.schemaVersion === 1 &&
+      parsed.approvals &&
+      typeof parsed.approvals === "object" &&
+      !Array.isArray(parsed.approvals)
+    )
+      return parsed;
   } catch {}
   return { schemaVersion: 1, approvals: {} };
 }
@@ -67,12 +82,17 @@ async function writeStore(storePath, store) {
   const directory = path.dirname(storePath);
   await fs.promises.mkdir(directory, { recursive: true });
   const tempPath = `${storePath}.${process.pid}.${crypto.randomBytes(4).toString("hex")}.tmp`;
-  await fs.promises.writeFile(tempPath, `${JSON.stringify(store, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  await fs.promises.writeFile(tempPath, `${JSON.stringify(store, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
   await fs.promises.rename(tempPath, storePath);
 }
 
 module.exports = function createModApprovalStore(options = {}) {
-  const storePath = path.resolve(String(options.storePath || path.join(process.cwd(), "runtime", "mods", "approvals.json")));
+  const storePath = path.resolve(
+    String(options.storePath || path.join(process.cwd(), "runtime", "mods", "approvals.json")),
+  );
   const now = typeof options.now === "function" ? options.now : Date.now;
 
   async function getStatus(manifest) {
@@ -90,7 +110,7 @@ module.exports = function createModApprovalStore(options = {}) {
       approvedFingerprint: String(approval?.fingerprint || ""),
       approvedAt: Number(approval?.approvedAt || 0),
       approvedVersion: String(approval?.version || ""),
-      diff: diffGrants(approval?.grant || null, current)
+      diff: diffGrants(approval?.grant || null, current),
     };
   }
 
@@ -105,7 +125,7 @@ module.exports = function createModApprovalStore(options = {}) {
       fingerprint,
       version: manifest.version,
       approvedAt: Number(now()),
-      grant: current
+      grant: current,
     };
     await writeStore(storePath, store);
     return { ok: true, ...(await getStatus(manifest)) };

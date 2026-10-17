@@ -1,3 +1,10 @@
+/**
+ * Server composition and HTTP ownership.
+ * Construct services before registering their routes, then attach only the requested
+ * optional extension. The returned services/lifecycle are also used by tests without
+ * listening on a port. Keep core startup independent of installed feature state;
+ * side effects that need shutdown must register an owner with the lifecycle.
+ */
 // [TITLE] Module: app/core/create-core-server.js
 // [TITLE] Purpose: independently bootable clean-slate lighting HTTP server
 
@@ -6,10 +13,12 @@ const express = require("express");
 const axios = require("axios");
 const createLightingCore = require("./create-lighting-core");
 const registerLightingCoreRoutes = require("./register-lighting-core.routes");
-const registerPresentationRoutes = require('./register-presentation.routes');
-const { errorHandler: clientApiErrors } = require('./register-client-api.routes');
+const registerPresentationRoutes = require("./register-presentation.routes");
+const { errorHandler: clientApiErrors } = require("./register-client-api.routes");
 const { installRequestSecurityMiddleware } = require("../runtime/request-security.middleware");
-const { createSystemWidgetEventController } = require("../../domains/system/widget-event.controller");
+const {
+  createSystemWidgetEventController,
+} = require("../../domains/system/widget-event.controller");
 const createRuntimeMetricsService = require("../../domains/system/runtime-metrics.service");
 const createLifecycleRegistry = require("../../domains/system/lifecycle-registry");
 const createTokenBucket = require("../runtime/token-bucket");
@@ -22,18 +31,24 @@ const createTaughtColorPreviewService = require("../../domains/colors/taught-col
 module.exports = function createCoreServer(options = {}) {
   const rootDir = path.resolve(options.rootDir || path.join(__dirname, "../../.."));
   const runtimeDir = path.resolve(options.runtimeDir || path.join(rootDir, "runtime"));
-  const widgetIntakeToken = String(options.widgetIntakeToken ?? process.env.RAVELINK_WIDGET_INTAKE_TOKEN ?? "").trim();
+  const widgetIntakeToken = String(
+    options.widgetIntakeToken ?? process.env.RAVELINK_WIDGET_INTAKE_TOKEN ?? "",
+  ).trim();
   const widgetOrigins = Array.isArray(options.widgetOrigins)
     ? options.widgetOrigins
-    : String(process.env.RAVELINK_WIDGET_ALLOWED_ORIGINS || "https://streamelements.com").split(",");
+    : String(process.env.RAVELINK_WIDGET_ALLOWED_ORIGINS || "https://streamelements.com").split(
+        ",",
+      );
   const egressGovernor = createEgressGovernor(options.egressGovernorOptions);
-  const profile = options.profile || (options.capabilities?.mods && options.capabilities?.features
-    ? "clean-slate-core+features+mods"
-    : options.capabilities?.features
-      ? "clean-slate-core+features"
-      : options.capabilities?.mods
-        ? "clean-slate-core+mods"
-        : "clean-slate-core");
+  const profile =
+    options.profile ||
+    (options.capabilities?.mods && options.capabilities?.features
+      ? "clean-slate-core+features+mods"
+      : options.capabilities?.features
+        ? "clean-slate-core+features"
+        : options.capabilities?.mods
+          ? "clean-slate-core+mods"
+          : "clean-slate-core");
   const core = createLightingCore({
     rootDir,
     axios: options.axios || axios,
@@ -45,75 +60,124 @@ module.exports = function createCoreServer(options = {}) {
       colorsStorePath: path.join(runtimeDir, "colors", "colors.custom.json"),
       fixturesStorePath: path.join(runtimeDir, "fixtures", "fixtures.json"),
       fixtureSecretsVaultPath: path.join(runtimeDir, "fixtures", "fixtures.vault.json"),
-      twitchConfigPath: path.join(runtimeDir, "twitch", "twitch.color.config.json")
-    }
+      twitchConfigPath: path.join(runtimeDir, "twitch", "twitch.color.config.json"),
+    },
   });
   let twitchIntakeMode = "streamelements";
   const twitchIntakeGate = Object.freeze({
     getMode: () => twitchIntakeMode,
-    setMode: value => {
+    setMode: (value) => {
       twitchIntakeMode = value === "native" ? "native" : "streamelements";
       return twitchIntakeMode;
-    }
+    },
   });
   const hardwareOnboarding = createHardwareOnboardingService({ core });
   const coreUpdates = createCoreUpdateService({
     rootDir,
     runtimeDir,
     requestShutdown: options.requestShutdown,
-    ...(options.coreUpdateOptions || {})
+    ...(options.coreUpdateOptions || {}),
   });
   const widgetTokenVault = createWidgetIntakeTokenVault({
     vaultPath: path.join(runtimeDir, "system", "widget-intake.vault.json"),
     environmentToken: widgetIntakeToken,
-    ...(options.widgetTokenVaultOptions || {})
+    ...(options.widgetTokenVaultOptions || {}),
   });
   const lifecycle = createLifecycleRegistry();
   const runtimeMetrics = createRuntimeMetricsService({
     ...(options.runtimeMetricsOptions || {}),
-    ownedWork: () => lifecycle.snapshot()
+    ownedWork: () => lifecycle.snapshot(),
   });
-  lifecycle.register({ owner: "core", id: "runtime-metrics", type: "monitor", stop: runtimeMetrics.shutdown });
-  lifecycle.register({ owner: "core", id: "egress-governor", type: "network", stop: egressGovernor.shutdown });
-  lifecycle.register({ owner: "lighting.transports", id: "hue-wiz-adapters", type: "network", stop: core.shutdown });
+  lifecycle.register({
+    owner: "core",
+    id: "runtime-metrics",
+    type: "monitor",
+    stop: runtimeMetrics.shutdown,
+  });
+  lifecycle.register({
+    owner: "core",
+    id: "egress-governor",
+    type: "network",
+    stop: egressGovernor.shutdown,
+  });
+  lifecycle.register({
+    owner: "lighting.transports",
+    id: "hue-wiz-adapters",
+    type: "network",
+    stop: core.shutdown,
+  });
   const taughtColorPreview = createTaughtColorPreviewService({
     colorCommandService: core.colorCommandService,
     fixtureRegistry: core.fixtureRegistry,
     lightingLab: core.lightingLab,
     hueBridge: core.hueBridge,
     wizBridge: core.wizBridge,
-    goveeBridge: core.goveeBridge
+    goveeBridge: core.goveeBridge,
   });
-  lifecycle.register({ owner: "core", id: "taught-color-preview", type: "timer", stop: taughtColorPreview.shutdown });
+  lifecycle.register({
+    owner: "core",
+    id: "taught-color-preview",
+    type: "timer",
+    stop: taughtColorPreview.shutdown,
+  });
   const widgetController = createSystemWidgetEventController({
-    colorApply: async body => {
-      const result = await core.colorCommandService.applyColorText(body?.text || body?.colorText || "", body || {});
+    colorApply: async (body) => {
+      const result = await core.colorCommandService.applyColorText(
+        body?.text || body?.colorText || "",
+        body || {},
+      );
       return { status: result.ok === false ? 400 : 200, body: result };
     },
-    teachColor: async body => {
-      const result = core.colorLibrary.teachColor(body?.text || body?.userInput || [body?.name, body?.hex].filter(Boolean).join(" "));
+    teachColor: async (body) => {
+      const result = core.colorLibrary.teachColor(
+        body?.text || body?.userInput || [body?.name, body?.hex].filter(Boolean).join(" "),
+      );
       return { status: result.ok === false ? 400 : 200, body: result };
     },
-    previewTaughtColor: hex => taughtColorPreview.preview(hex),
+    previewTaughtColor: (hex) => taughtColorPreview.preview(hex),
     getTeachSettings: () => core.twitchLightRouting.snapshot().teaching,
-    sendChat: async payload => {
+    sendChat: async (payload) => {
       const registry = extension?.registry || extension?.features?.registry;
       if (!registry?.request) return { ok: false, error: "twitch_chat_unavailable" };
-      const result = await registry.request("twitch-integration", "twitch.chat.send.v1", "send", payload, { timeoutMs: 5000 });
-      return result?.ok === true ? result.value : { ok: false, error: String(result?.error?.code || "twitch_chat_unavailable") };
+      const result = await registry.request(
+        "twitch-integration",
+        "twitch.chat.send.v1",
+        "send",
+        payload,
+        { timeoutMs: 5000 },
+      );
+      return result?.ok === true
+        ? result.value
+        : {
+            ok: false,
+            error: String(result?.error?.code || "twitch_chat_unavailable"),
+          };
     },
-    submitSongRequest: async payload => {
+    submitSongRequest: async (payload) => {
       const registry = extension?.registry || extension?.features?.registry;
       if (!registry?.request) return { ok: false, error: "song_request_unavailable" };
-      return registry.request("song-request", "song.queue.submit.v1", "submit", payload, { timeoutMs: 30000 });
+      return registry.request("song-request", "song.queue.submit.v1", "submit", payload, {
+        timeoutMs: 30000,
+      });
     },
-    settleRedemption: async payload => {
+    settleRedemption: async (payload) => {
       const registry = extension?.registry || extension?.features?.registry;
       if (!registry?.request) return { ok: false, error: "twitch_settlement_unavailable" };
-      const result = await registry.request("twitch-integration", "twitch.redemptions.v1", "settle", payload, { timeoutMs: 7000 });
-      return result?.ok === true ? result.value : { ok: false, error: String(result?.error?.code || "twitch_settlement_unavailable") };
+      const result = await registry.request(
+        "twitch-integration",
+        "twitch.redemptions.v1",
+        "settle",
+        payload,
+        { timeoutMs: 7000 },
+      );
+      return result?.ok === true
+        ? result.value
+        : {
+            ok: false,
+            error: String(result?.error?.code || "twitch_settlement_unavailable"),
+          };
     },
-    getTwitchIntakeMode: twitchIntakeGate.getMode
+    getTwitchIntakeMode: twitchIntakeGate.getMode,
   });
   const widgetIntakeLimiter = createTokenBucket(options.widgetIntakeLimiterOptions);
   const app = express();
@@ -122,11 +186,11 @@ module.exports = function createCoreServer(options = {}) {
     allowRemoteWrite: options.allowRemoteWrite === true,
     isWidgetCrossOriginEnabled: () => widgetTokenVault.getStatus().configured,
     widgetOrigins,
-    port: Number(options.port || process.env.PORT || 5050)
+    port: Number(options.port || process.env.PORT || 5050),
   });
   app.use(runtimeMetrics.requestMiddleware());
   registerPresentationRoutes(app, { runtimeDir });
-  require('./register-navigation.routes')(app, { runtimeDir });
+  require("./register-navigation.routes")(app, { runtimeDir });
   // Prevent stale widgets from posting an HTML 404 into chat. This compatibility
   // sink stays behind normal write security and never invokes retired behavior.
   app.post("/mods/music-request-engine/now_playing_announce", (_req, res) => {
@@ -149,17 +213,36 @@ module.exports = function createCoreServer(options = {}) {
     getCapabilities: () => {
       const registry = extension?.registry || extension?.features?.registry;
       const features = registry?.list?.().features || [];
-      return { songRequest: features.some(row => row.id === "song-request" && row.lifecycle === "active") };
+      return {
+        songRequest: features.some(
+          (row) => row.id === "song-request" && row.lifecycle === "active",
+        ),
+      };
     },
     profile,
-    requestShutdown: options.requestShutdown
+    requestShutdown: options.requestShutdown,
   });
-  extension = typeof options.extend === "function"
-    ? options.extend({ app, express, rootDir, runtimeDir, egressGovernor, widgetController, twitchIntakeGate, lightingCore: core })
-    : null;
+  extension =
+    typeof options.extend === "function"
+      ? options.extend({
+          app,
+          express,
+          rootDir,
+          runtimeDir,
+          egressGovernor,
+          widgetController,
+          twitchIntakeGate,
+          lightingCore: core,
+        })
+      : null;
   coreUpdates.startLaunchCheck();
   if (typeof extension?.shutdown === "function") {
-    lifecycle.register({ owner: extension.owner || "optional-platform", id: "extension", type: "capability", stop: extension.shutdown });
+    lifecycle.register({
+      owner: extension.owner || "optional-platform",
+      id: "extension",
+      type: "capability",
+      stop: extension.shutdown,
+    });
   }
   app.use(clientApiErrors);
   app.use((error, req, res, next) => {
@@ -168,8 +251,18 @@ module.exports = function createCoreServer(options = {}) {
   });
   return {
     app,
-    services: Object.freeze({ lightingCore: core, hardwareOnboarding, coreUpdates, widgetController, widgetIntakeLimiter, widgetTokenVault, runtimeMetrics, egressGovernor, lifecycle }),
+    services: Object.freeze({
+      lightingCore: core,
+      hardwareOnboarding,
+      coreUpdates,
+      widgetController,
+      widgetIntakeLimiter,
+      widgetTokenVault,
+      runtimeMetrics,
+      egressGovernor,
+      lifecycle,
+    }),
     extension,
-    profile
+    profile,
   };
 };

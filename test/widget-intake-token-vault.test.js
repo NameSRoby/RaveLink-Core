@@ -6,24 +6,25 @@ const path = require("node:path");
 
 const { createWidgetIntakeTokenVault } = require("../src/domains/system/widget-intake-token-vault");
 
-const protect = plain => ({ ok: true, encrypted: { ...plain } });
-const unprotect = encrypted => ({ ok: true, plain: { ...encrypted } });
+const protect = (plain) => ({ ok: true, encrypted: { ...plain } });
+const unprotect = (encrypted) => ({ ok: true, plain: { ...encrypted } });
 
-test("managed widget token persists, rotates with bounded overlap, and revokes backups", t => {
+test("managed widget token persists, rotates with bounded overlap, and revokes backups", (t) => {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-widget-token-"));
   const vaultPath = path.join(runtimeDir, "widget.vault.json");
   t.after(() => fs.rmSync(runtimeDir, { recursive: true, force: true }));
   let clock = 10_000;
   const tokens = ["a".repeat(43), "b".repeat(43)];
-  const create = () => createWidgetIntakeTokenVault({
-    vaultPath,
-    persistent: true,
-    protect,
-    unprotect,
-    now: () => clock,
-    overlapMs: 60_000,
-    generateToken: () => tokens.shift() || "c".repeat(43)
-  });
+  const create = () =>
+    createWidgetIntakeTokenVault({
+      vaultPath,
+      persistent: true,
+      protect,
+      unprotect,
+      now: () => clock,
+      overlapMs: 60_000,
+      generateToken: () => tokens.shift() || "c".repeat(43),
+    });
   const vault = create();
   const first = vault.rotate();
   assert.equal(first.ok, true);
@@ -51,7 +52,7 @@ test("managed widget token persists, rotates with bounded overlap, and revokes b
   assert.equal(restored.getStatus().configured, false);
 });
 
-test("environment widget token overrides managed storage and is read-only", t => {
+test("environment widget token overrides managed storage and is read-only", (t) => {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-widget-env-token-"));
   const vaultPath = path.join(runtimeDir, "widget.vault.json");
   t.after(() => fs.rmSync(runtimeDir, { recursive: true, force: true }));
@@ -61,7 +62,7 @@ test("environment widget token overrides managed storage and is read-only", t =>
     environmentToken: "deployment-token",
     persistent: true,
     protect,
-    unprotect
+    unprotect,
   });
   assert.equal(vault.getStatus().mode, "environment_read_only");
   assert.equal(vault.getStatus().managementAvailable, false);

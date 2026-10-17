@@ -1,9 +1,20 @@
+<#
+Windows media-session observer: emits bounded JSON lines for one selected provider.
+The Node supervisor owns child lifetime, source validation, and forwarding pressure.
+Keep stdout UTF-8 JSON only; diagnostic output on stdout would corrupt the protocol.
+Track identity and thumbnail arrival are independent. Recheck artwork after a short
+bounded cache interval and clear the previous track's image when identity changes.
+WinRT async operations are awaited explicitly because Windows PowerShell cannot
+directly await their projected interfaces. See docs/DEVELOPMENT.md for the flow.
+#>
 param(
   [ValidateSet("tidal", "spotify", "apple-music")]
   [string]$Provider = "tidal",
   [switch]$Once
 )
 
+# Resolve standard cmdlets from this host rather than an inherited pwsh 7 path.
+$env:PSModulePath = "$PSHOME\Modules"
 $ErrorActionPreference = "Stop"
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 [Console]::OutputEncoding = $utf8

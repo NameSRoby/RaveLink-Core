@@ -1,29 +1,81 @@
-const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
-const {chromium}=require('playwright');
-const createCore=require('../src/app/core/create-core-server');
-test('tab placement saves locally, survives reload and supports moving tabs back from More or Hidden',async t=>{
- const runtimeDir=fs.mkdtempSync(path.join(os.tmpdir(),'ravelink-navigation-'));
- const created=createCore({runtimeDir,dryRun:true});
- const server=await new Promise(resolve=>{const s=created.app.listen(0,'127.0.0.1',()=>resolve(s));});
- const browser=await chromium.launch({headless:true});
- t.after(async()=>{await browser.close();await created.services.lifecycle.stopAll();await new Promise(r=>server.close(r));fs.rmSync(runtimeDir,{recursive:true,force:true});});
- const base='http://127.0.0.1:'+server.address().port,page=await browser.newPage(),errors=[];
- page.on('pageerror',e=>errors.push(e.message));await page.goto(base,{waitUntil:'networkidle'});
- await page.locator('#themeButton').click();await page.locator('#customizeTabs').click();
- await page.locator('label:has(select[data-tab-id="widget"]) [data-choice-value="hidden"]').click();await page.locator('label:has(select[data-tab-id="fixtures"]) [data-choice-value="more"]').click();await page.locator('label:has(select[data-tab-id="updates"]) [data-choice-value="main"]').click();
- await page.locator('#saveNavigation').click();await page.locator('#navigationNotice').filter({hasText:'Tab layout saved.'}).waitFor();
- await page.locator('#closeNavigation').click();await page.locator('#closeTheme').click();
- assert.equal(await page.locator('[data-tab="widget"]').isVisible(),false);
- assert.equal(await page.locator('#tabs > [data-tab="updates"]').isVisible(),true);
- await page.locator('#moreNav > summary').click();await page.locator('#moreNav [data-tab="fixtures"]').click();
- assert.equal(await page.locator('[data-panel="fixtures"]').isVisible(),true);
- await page.reload({waitUntil:'networkidle'});assert.equal(await page.locator('[data-tab="widget"]').isVisible(),false);
- assert.equal(JSON.parse(fs.readFileSync(path.join(runtimeDir,'system/navigation.json'))).tabs.widget,'hidden');
- const remote=await fetch(base+'/api/presentation/navigation',{method:'PUT',headers:{'content-type':'application/json',origin:'https://example.invalid'},body:JSON.stringify({tabs:{widget:'main'}})});assert.equal(remote.status,403);
- const invalid=await fetch(base+'/api/presentation/navigation',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({tabs:{widget:'delete'}})});assert.equal(invalid.status,400);
- await page.locator('#themeButton').click();await page.locator('#customizeTabs').click();await page.locator('#resetNavigation').click();
- await page.locator('label:has(select[data-tab-id="widget"]) [data-choice-value="main"][aria-checked=true]').waitFor();
- await page.locator('#closeNavigation').click();assert.equal(await page.locator('[data-tab="widget"]').isVisible(),true);
- await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
- assert.deepEqual(errors,[]);
+const test = require("node:test"),
+  assert = require("node:assert/strict"),
+  fs = require("node:fs"),
+  os = require("node:os"),
+  path = require("node:path");
+const { chromium } = require("playwright");
+const createCore = require("../src/app/core/create-core-server");
+test("tab placement saves locally, survives reload and supports moving tabs back from More or Hidden", async (t) => {
+  const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-navigation-"));
+  const created = createCore({ runtimeDir, dryRun: true });
+  const server = await new Promise((resolve) => {
+    const s = created.app.listen(0, "127.0.0.1", () => resolve(s));
+  });
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await created.services.lifecycle.stopAll();
+    await new Promise((r) => server.close(r));
+    fs.rmSync(runtimeDir, { recursive: true, force: true });
+  });
+  const base = "http://127.0.0.1:" + server.address().port,
+    page = await browser.newPage(),
+    errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.locator("#themeButton").click();
+  await page.locator("#customizeTabs").click();
+  await page
+    .locator('label:has(select[data-tab-id="widget"]) [data-choice-value="hidden"]')
+    .click();
+  await page
+    .locator('label:has(select[data-tab-id="fixtures"]) [data-choice-value="more"]')
+    .click();
+  await page.locator('label:has(select[data-tab-id="updates"]) [data-choice-value="main"]').click();
+  await page.locator("#saveNavigation").click();
+  await page.locator("#navigationNotice").filter({ hasText: "Tab layout saved." }).waitFor();
+  await page.locator("#closeNavigation").click();
+  await page.locator("#closeTheme").click();
+  assert.equal(await page.locator('[data-tab="widget"]').isVisible(), false);
+  assert.equal(await page.locator('#tabs > [data-tab="updates"]').isVisible(), true);
+  await page.locator("#moreNav > summary").click();
+  await page.locator('#moreNav [data-tab="fixtures"]').click();
+  assert.equal(await page.locator('[data-panel="fixtures"]').isVisible(), true);
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(await page.locator('[data-tab="widget"]').isVisible(), false);
+  assert.equal(
+    JSON.parse(fs.readFileSync(path.join(runtimeDir, "system/navigation.json"))).tabs.widget,
+    "hidden",
+  );
+  const remote = await fetch(base + "/api/presentation/navigation", {
+    method: "PUT",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://example.invalid",
+    },
+    body: JSON.stringify({ tabs: { widget: "main" } }),
+  });
+  assert.equal(remote.status, 403);
+  const invalid = await fetch(base + "/api/presentation/navigation", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ tabs: { widget: "delete" } }),
+  });
+  assert.equal(invalid.status, 400);
+  await page.locator("#themeButton").click();
+  await page.locator("#customizeTabs").click();
+  await page.locator("#resetNavigation").click();
+  await page
+    .locator(
+      'label:has(select[data-tab-id="widget"]) [data-choice-value="main"][aria-checked=true]',
+    )
+    .waitFor();
+  await page.locator("#closeNavigation").click();
+  assert.equal(await page.locator('[data-tab="widget"]').isVisible(), true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+    true,
+  );
+  assert.deepEqual(errors, []);
 });

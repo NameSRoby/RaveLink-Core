@@ -3,16 +3,16 @@
   "installable": false,
   "upstream": "8c92e3067de9659caca4c9da7979da3897458e27",
   "files": {
-    "renderer.js": "946b649467ad361ec4f75338f7ba84e0df0b04434c42673f816498412d155462",
+    "renderer.js": "d089feb8c1d31b77d34f25ac10550366721674202c9973a04306e1f23409ba1c",
     "platform-hook.cjs": "3b5e516920bf74affe0c10c7a95c97fadcfa7149529857cac6850bc3e43ba4d8",
     "LICENSE.Spicetify": "20c17d8b8c48a600800dfd14f95d5cb9ff47066a9641ddeab48dc54aec96e331",
     "NOTICE.md": "930656a4ec34199cac8c2b5fd01902551bbe391a81a0c9a08cbf02e22b616471",
-    "catalog.cjs": "8d3f3b3062ef7f934ec819d4901d3f926ce66ae0410a5b93379baa87fc6c1f09",
-    "playlist-reader.cjs": "f26d912880fc9b929c924be75401d0421755d31bde953ee4f740985d8ff364c8",
-    "desktop-adapter.cjs": "4c4fa0e0b36af05559fb10eaa4775d50a39fd92bfbbc39f036e1ba6e88a003de",
-    "native-facade.cjs": "5ecf780370f6203191e93206f78c7f260cf9b007bdf7866f19a7e354d0947fd5",
-    "connection-worker.cjs": "2f1362c7102dae0fab0e732fdd3d4cb5abf694554cdc96907caa2a727910eaff",
-    "renderer-bootstrap.cjs": "0253f3c8a76a6012eca67bfdab65f98623030feeffe1d39bdfc9d262aef2f4c3",
-    "build-spotify-desktop.js": "820b0f75d920d94348f688c31d0078713c36e5ec8c07c8d0911795b30346a1de"
+    "catalog.cjs": "4635a27f2dc16ae5225527a8d22ff8205f199f76db37a2e84009f21967878469",
+    "playlist-reader.cjs": "0d85e680da129df0f85243e0b135685590ec1cc78799aa093b2636ea98ec2f0c",
+    "desktop-adapter.cjs": "652879a85a1e7271dfa207b4b9d451b47401a6a6a4293cabb2988700ecd4760f",
+    "native-facade.cjs": "48a395f0d444a878c223314506d1386c126b50b1d147616918db8b017fe2a4f1",
+    "connection-worker.cjs": "c12d69040a66366024bb955bec834ff0b6660d6f5a16f64e29c5525009f98d49",
+    "renderer-bootstrap.cjs": "1ea0f7a99731e6e4bc4dfa2dadf5ff7604e91984a4d23cae3a6082c7b60eee7e",
+    "build-spotify-desktop.js": "f83d01dc9cfb6efa0d02dcf58504f236c9c1fc1cdf892845d2dbc4f9bd4d4e10"
   }
 }

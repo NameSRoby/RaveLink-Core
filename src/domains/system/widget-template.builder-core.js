@@ -3,15 +3,27 @@
 
 function normalizeWidgetPayload(input = {}) {
   const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
-  let baseUrl = String(source.baseUrl || "http://127.0.0.1:5050").trim().slice(0, 2048);
+  let baseUrl = String(source.baseUrl || "http://127.0.0.1:5050")
+    .trim()
+    .slice(0, 2048);
   while (baseUrl.endsWith("/")) baseUrl = baseUrl.slice(0, -1);
   return {
-    colorRewardId: String(source.colorRewardId || "").trim().slice(0, 512),
-    teachRewardId: String(source.teachRewardId || "").trim().slice(0, 512),
-    songRewardId: String(source.songRewardId || "").trim().slice(0, 512),
-    playlistRewardId: String(source.playlistRewardId || "").trim().slice(0, 512),
+    colorRewardId: String(source.colorRewardId || "")
+      .trim()
+      .slice(0, 512),
+    teachRewardId: String(source.teachRewardId || "")
+      .trim()
+      .slice(0, 512),
+    songRewardId: String(source.songRewardId || "")
+      .trim()
+      .slice(0, 512),
+    playlistRewardId: String(source.playlistRewardId || "")
+      .trim()
+      .slice(0, 512),
     baseUrl: baseUrl || "http://127.0.0.1:5050",
-    widgetIntakeToken: String(source.widgetIntakeToken || "").trim().slice(0, 512)
+    widgetIntakeToken: String(source.widgetIntakeToken || "")
+      .trim()
+      .slice(0, 512),
   };
 }
 
@@ -22,20 +34,25 @@ function buildWidgetTemplateWarnings(input = {}) {
     source.twitchUserAccessToken,
     source.twitchRefreshToken,
     source.streamElementsBotJwt,
-    source.streamElementsBotChannelId
-  ].some(value => String(value || "").trim());
+    source.streamElementsBotChannelId,
+  ].some((value) => String(value || "").trim());
   const warnings = ignoredCredentials
-    ? [{
-      code: "widget_credentials_ignored",
-      severity: "warning",
-      message: "OAuth and chat credentials are server-owned and were excluded from widget code."
-    }]
+    ? [
+        {
+          code: "widget_credentials_ignored",
+          severity: "warning",
+          message:
+            "OAuth and chat credentials are server-owned and were excluded from widget code.",
+        },
+      ]
     : [];
-  if (!String(source.widgetIntakeToken || "").trim()) warnings.push({
-    code: "widget_intake_token_missing",
-    severity: "warning",
-    message: "Hosted widget forwarding requires the same scoped intake token configured on the server."
-  });
+  if (!String(source.widgetIntakeToken || "").trim())
+    warnings.push({
+      code: "widget_intake_token_missing",
+      severity: "warning",
+      message:
+        "Hosted widget forwarding requires the same scoped intake token configured on the server.",
+    });
   return warnings;
 }
 
@@ -53,8 +70,8 @@ function generateSlimWidgetTemplateScript(config = {}) {
     "  let inFlight = false;",
     "  const FORWARD_TIMEOUT_MS = 3500;",
     "",
-    "  function text(value) { return String(value == null ? \"\" : value).trim(); }",
-    "  function object(value) { return value && typeof value === \"object\" && !Array.isArray(value) ? value : {}; }",
+    '  function text(value) { return String(value == null ? "" : value).trim(); }',
+    '  function object(value) { return value && typeof value === "object" && !Array.isArray(value) ? value : {}; }',
     "  function eventParts(envelope) {",
     "    const root = object(envelope);",
     "    const detail = object(root.detail);",
@@ -68,7 +85,7 @@ function generateSlimWidgetTemplateScript(config = {}) {
     "  }",
     "  function rewardId(envelope) {",
     "    const p = eventParts(envelope);",
-    "    return text(p.tags[\"custom-reward-id\"] || p.tags.customRewardId || p.reward.id || p.data.rewardId || p.redemption.rewardId || p.event.rewardId);",
+    '    return text(p.tags["custom-reward-id"] || p.tags.customRewardId || p.reward.id || p.data.rewardId || p.redemption.rewardId || p.event.rewardId);',
     "  }",
     "  function eventId(envelope) {",
     "    const p = eventParts(envelope);",
@@ -87,7 +104,7 @@ function generateSlimWidgetTemplateScript(config = {}) {
     "    const id = rewardId(envelope);",
     "    if (id) return rewardIds.size === 0 || rewardIds.has(id);",
     "    const listener = text(object(envelope).detail && object(envelope).detail.listener).toLowerCase();",
-    "    return rewardIds.size === 0 && listener.includes(\"redemption\");",
+    '    return rewardIds.size === 0 && listener.includes("redemption");',
     "  }",
     "  function isDuplicate(envelope) {",
     "    const id = eventId(envelope);",
@@ -101,11 +118,11 @@ function generateSlimWidgetTemplateScript(config = {}) {
     "  }",
     "  function transportResult(ok, status) {",
     "    const code = Number(status || 0);",
-    "    let outcome = ok ? \"accepted\" : \"rejected\";",
-    "    if (code === 401 || code === 403) outcome = \"authentication_rejected\";",
-    "    else if (code === 429) outcome = \"rate_limited\";",
-    "    else if (code === 404) outcome = \"contract_unavailable\";",
-    "    else if (code >= 500 || code === 0) outcome = \"server_unavailable\";",
+    '    let outcome = ok ? "accepted" : "rejected";',
+    '    if (code === 401 || code === 403) outcome = "authentication_rejected";',
+    '    else if (code === 429) outcome = "rate_limited";',
+    '    else if (code === 404) outcome = "contract_unavailable";',
+    '    else if (code >= 500 || code === 0) outcome = "server_unavailable";',
     "    return { ok: ok === true, status: code, outcome, terminal: true };",
     "  }",
     "  async function forward(envelope, force) {",
@@ -114,19 +131,19 @@ function generateSlimWidgetTemplateScript(config = {}) {
     "    const controller = new AbortController();",
     "    const timeout = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);",
     "    try {",
-    "      const headers = { \"Content-Type\": \"application/json\" };",
-    "      if (CFG.widgetIntakeToken) headers.Authorization = \"Bearer \" + CFG.widgetIntakeToken;",
-    "      const response = await fetch(CFG.baseUrl + \"/widget/events\", {",
-    "        method: \"POST\",",
+    '      const headers = { "Content-Type": "application/json" };',
+    '      if (CFG.widgetIntakeToken) headers.Authorization = "Bearer " + CFG.widgetIntakeToken;',
+    '      const response = await fetch(CFG.baseUrl + "/widget/events", {',
+    '        method: "POST",',
     "        headers,",
-    "        body: JSON.stringify({ contract: \"widget.events.v2\", source: \"streamelements\", eventEnvelope: compactEvent(envelope), widgetConfig: {",
+    '        body: JSON.stringify({ contract: "widget.events.v2", source: "streamelements", eventEnvelope: compactEvent(envelope), widgetConfig: {',
     "          colorRewardId: CFG.colorRewardId, teachRewardId: CFG.teachRewardId, songRewardId: CFG.songRewardId, playlistRewardId: CFG.playlistRewardId",
     "        } }),",
     "        signal: controller.signal",
     "      });",
     "      return transportResult(response.ok, response.status);",
     "    } catch (error) {",
-    "      console.warn(\"[RAVELINK][WIDGET] event forward failed\", text(error && error.message));",
+    '      console.warn("[RAVELINK][WIDGET] event forward failed", text(error && error.message));',
     "      return transportResult(false, 0);",
     "    } finally {",
     "      clearTimeout(timeout);",
@@ -134,10 +151,10 @@ function generateSlimWidgetTemplateScript(config = {}) {
     "    }",
     "  }",
     "  function onEventReceived(envelope) { void forward(envelope); }",
-    "  window.addEventListener(\"onEventReceived\", onEventReceived);",
-    "  window.addEventListener(\"onWidgetLoad\", function () { void forward({ detail: { listener: \"ravelink-widget-ready\", event: { version: 3 } } }, true); });",
+    '  window.addEventListener("onEventReceived", onEventReceived);',
+    '  window.addEventListener("onWidgetLoad", function () { void forward({ detail: { listener: "ravelink-widget-ready", event: { version: 3 } } }, true); });',
     "  window.RaveLinkWidgetRuntime = Object.freeze({ config: CFG, forward, isRelevant });",
-    "})();"
+    "})();",
   ].join("\n");
 }
 
@@ -147,7 +164,7 @@ function generateWidgetTemplate(payload = {}) {
     ok: true,
     script: generateSlimWidgetTemplateScript(active),
     active,
-    warnings: buildWidgetTemplateWarnings(payload)
+    warnings: buildWidgetTemplateWarnings(payload),
   };
 }
 
@@ -155,5 +172,5 @@ module.exports = {
   normalizeWidgetPayload,
   buildWidgetTemplateWarnings,
   generateSlimWidgetTemplateScript,
-  generateWidgetTemplate
+  generateWidgetTemplate,
 };

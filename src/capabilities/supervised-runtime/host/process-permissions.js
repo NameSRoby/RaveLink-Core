@@ -20,7 +20,7 @@ function detectPermissionSupport(flags = process.allowedNodeEnvironmentFlags) {
     network: hasFlag(flags, "--allow-net"),
     childProcess: hasFlag(flags, "--allow-child-process"),
     worker: hasFlag(flags, "--allow-worker"),
-    addons: hasFlag(flags, "--allow-addons")
+    addons: hasFlag(flags, "--allow-addons"),
   });
 }
 
@@ -45,7 +45,7 @@ function buildProcessPermissions(options = {}) {
       missing,
       support,
       execArgv: [],
-      unsafe: false
+      unsafe: false,
     };
   }
 
@@ -59,7 +59,8 @@ function buildProcessPermissions(options = {}) {
         execArgv.push(`--allow-fs-read=${path.resolve(String(readRoot))}`);
       }
     }
-    if (permissions.process === true && support.childProcess) execArgv.push("--allow-child-process");
+    if (permissions.process === true && support.childProcess)
+      execArgv.push("--allow-child-process");
     if (permissions.nativeAddons === true && support.addons) execArgv.push("--allow-addons");
   }
   return {
@@ -68,11 +69,11 @@ function buildProcessPermissions(options = {}) {
     missing,
     support,
     execArgv,
-    unsafe: missing.length > 0
+    unsafe: missing.length > 0,
   };
 }
 
 module.exports = {
   buildProcessPermissions,
-  detectPermissionSupport
+  detectPermissionSupport,
 };

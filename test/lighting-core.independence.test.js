@@ -20,8 +20,8 @@ test("lighting core parses and applies a Twitch color without retired capabiliti
     paths: {
       colorsStorePath: path.join(runtimeDir, "colors", "colors.custom.json"),
       fixturesStorePath: path.join(runtimeDir, "fixtures", "fixtures.json"),
-      twitchConfigPath: path.join(runtimeDir, "twitch", "twitch.color.config.json")
-    }
+      twitchConfigPath: path.join(runtimeDir, "twitch", "twitch.color.config.json"),
+    },
   });
 
   const fixture = core.fixtureRegistry.upsertFixture({
@@ -30,13 +30,21 @@ test("lighting core parses and applies a Twitch color without retired capabiliti
     zone: "wiz",
     ip: "192.0.2.10",
     twitchEnabled: true,
-    engineEnabled: false
+    engineEnabled: false,
   });
   assert.equal(fixture.ok, true);
   core.twitchLightRouting.save({
     ...core.twitchLightRouting.snapshot(),
     mode: "assignments",
-    rules: [{ id: "active-fixtures", name: "Active Fixtures", prefix: "", enabled: true, fixtureIds: ["wiz-core-1"] }]
+    rules: [
+      {
+        id: "active-fixtures",
+        name: "Active Fixtures",
+        prefix: "",
+        enabled: true,
+        fixtureIds: ["wiz-core-1"],
+      },
+    ],
   });
 
   const parsed = core.directiveService.parseTwitchColorDirective("red");
@@ -50,7 +58,12 @@ test("lighting core parses and applies a Twitch color without retired capabiliti
 });
 
 test("lighting core modules have no retired-capability imports", () => {
-  for (const file of ["index.js", "create-lighting-core.js", "create-core-server.js", "register-lighting-core.routes.js"]) {
+  for (const file of [
+    "index.js",
+    "create-lighting-core.js",
+    "create-core-server.js",
+    "register-lighting-core.routes.js",
+  ]) {
     const source = fs.readFileSync(path.resolve(__dirname, "../src/app/core", file), "utf8");
     for (const forbiddenImport of [
       "domains/audio",
@@ -59,7 +72,7 @@ test("lighting core modules have no retired-capability imports", () => {
       "domains/midi",
       "domains/mods",
       "capabilities/mod-platform",
-      "system-oauth"
+      "system-oauth",
     ]) {
       assert.equal(source.includes(forbiddenImport), false, `${file} imports ${forbiddenImport}`);
     }
@@ -70,20 +83,36 @@ test("core HTTP server declares absent capabilities and applies color independen
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-core-http-"));
   t.after(() => fs.rmSync(runtimeDir, { recursive: true, force: true }));
   const { app, services } = createCoreServer({ runtimeDir, dryRun: true });
-  const server = await new Promise(resolve => {
+  const server = await new Promise((resolve) => {
     const listening = app.listen(0, "127.0.0.1", () => resolve(listening));
   });
-  t.after(() => new Promise(resolve => server.close(resolve)));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const health = await fetch(`${base}/health`).then(response => response.json());
+  const health = await fetch(`${base}/health`).then((response) => response.json());
   assert.equal(health.profile, "clean-slate-core");
   assert.equal("raveEngine" in health.capabilities, false);
   assert.equal("twitchOauth" in health.capabilities, false);
   assert.equal(health.capabilities.mods, false);
-  assert.deepEqual(Object.keys(services), ["lightingCore", "hardwareOnboarding", "coreUpdates", "widgetController", "widgetIntakeLimiter", "widgetTokenVault", "runtimeMetrics", "egressGovernor", "lifecycle"]);
+  assert.deepEqual(Object.keys(services), [
+    "lightingCore",
+    "hardwareOnboarding",
+    "coreUpdates",
+    "widgetController",
+    "widgetIntakeLimiter",
+    "widgetTokenVault",
+    "runtimeMetrics",
+    "egressGovernor",
+    "lifecycle",
+  ]);
   const loadedModules = Object.keys(require.cache).join("\n").replaceAll("\\", "/");
-  for (const forbiddenModule of ["/domains/audio/", "/domains/engine-v2/", "/domains/live/", "/domains/midi/", "/domains/mods/"]) {
-  assert.equal(loadedModules.includes(forbiddenModule), false, `core loaded ${forbiddenModule}`);
+  for (const forbiddenModule of [
+    "/domains/audio/",
+    "/domains/engine-v2/",
+    "/domains/live/",
+    "/domains/midi/",
+    "/domains/mods/",
+  ]) {
+    assert.equal(loadedModules.includes(forbiddenModule), false, `core loaded ${forbiddenModule}`);
   }
 
   const initialStatusResponse = await fetch(`${base}/system/status`);
@@ -96,45 +125,70 @@ test("core HTTP server declares absent capabilities and applies color independen
   assert.equal(JSON.stringify(initialStatus).includes("jwt"), false);
   assert.equal(JSON.stringify(initialStatus).includes("secret"), false);
   const unchangedStatus = await fetch(`${base}/system/status`, {
-    headers: { "if-none-match": initialStatusResponse.headers.get("etag") }
+    headers: { "if-none-match": initialStatusResponse.headers.get("etag") },
   });
   assert.equal(unchangedStatus.status, 304);
 
   const fixtureResponse = await fetch(`${base}/fixtures`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ id: "wiz-core-http", brand: "wiz", ip: "127.0.0.2", twitchEnabled: true })
+    body: JSON.stringify({
+      id: "wiz-core-http",
+      brand: "wiz",
+      ip: "127.0.0.2",
+      twitchEnabled: true,
+    }),
   });
   assert.equal(fixtureResponse.status, 200);
   services.lightingCore.twitchLightRouting.save({
     ...services.lightingCore.twitchLightRouting.snapshot(),
     mode: "assignments",
-    rules: [{ id: "active-fixtures", name: "Active Fixtures", prefix: "", enabled: true, fixtureIds: ["wiz-core-http"] }]
+    rules: [
+      {
+        id: "active-fixtures",
+        name: "Active Fixtures",
+        prefix: "",
+        enabled: true,
+        fixtureIds: ["wiz-core-http"],
+      },
+    ],
   });
   const colorResponse = await fetch(`${base}/color`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ text: "wiz red" })
+    body: JSON.stringify({ text: "wiz red" }),
   });
   assert.equal(colorResponse.status, 200);
   assert.equal((await colorResponse.json()).wizTargets, 1);
 
-  const retiredAnnouncement = await fetch(`${base}/mods/music-request-engine/now_playing_announce`, { method: "POST" });
+  const retiredAnnouncement = await fetch(
+    `${base}/mods/music-request-engine/now_playing_announce`,
+    { method: "POST" },
+  );
   assert.equal(retiredAnnouncement.status, 204);
   assert.equal(retiredAnnouncement.headers.get("deprecation"), "true");
   assert.equal(await retiredAnnouncement.text(), "");
-  const blockedRetiredAnnouncement = await fetch(`${base}/mods/music-request-engine/now_playing_announce`, {
-    method: "POST",
-    headers: { origin: "https://attacker.invalid" }
-  });
+  const blockedRetiredAnnouncement = await fetch(
+    `${base}/mods/music-request-engine/now_playing_announce`,
+    {
+      method: "POST",
+      headers: { origin: "https://attacker.invalid" },
+    },
+  );
   assert.equal(blockedRetiredAnnouncement.status, 403);
 
   for (let index = 0; index < 30; index += 1) {
     const irrelevant = await fetch(`${base}/widget/events`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ contract: "widget.events.v2", source: "streamelements", eventEnvelope: { detail: { listener: "message", event: { text: `message-${index}` } } } })
-    }).then(response => response.json());
+      body: JSON.stringify({
+        contract: "widget.events.v2",
+        source: "streamelements",
+        eventEnvelope: {
+          detail: { listener: "message", event: { text: `message-${index}` } },
+        },
+      }),
+    }).then((response) => response.json());
     assert.equal(irrelevant.disposition, "irrelevant");
   }
   const validAfterNoise = await fetch(`${base}/widget/events`, {
@@ -144,12 +198,23 @@ test("core HTTP server declares absent capabilities and applies color independen
       contract: "widget.events.v2",
       source: "streamelements",
       widgetConfig: { colorRewardId: "reward-color" },
-      eventEnvelope: { detail: { listener: "redemption-latest", event: { redemption: { id: "after-noise", user_input: "red", reward: { id: "reward-color" } } } } }
-    })
-  }).then(response => response.json());
+      eventEnvelope: {
+        detail: {
+          listener: "redemption-latest",
+          event: {
+            redemption: {
+              id: "after-noise",
+              user_input: "red",
+              reward: { id: "reward-color" },
+            },
+          },
+        },
+      },
+    }),
+  }).then((response) => response.json());
   assert.equal(validAfterNoise.disposition, "handled");
 
-  const shell = await fetch(`${base}/`).then(response => response.text());
+  const shell = await fetch(`${base}/`).then((response) => response.text());
   assert.match(shell, /RAVELINK/);
   assert.doesNotMatch(shell, /AUDIO|MIDI|OAUTH/);
 
@@ -161,8 +226,19 @@ test("core HTTP server declares absent capabilities and applies color independen
   assert.equal(diagnosticsResponse.status, 200);
   assert.equal(diagnostics.owner, "core");
   assert.equal(diagnostics.process.rssMiB > 0, true);
-  assert.deepEqual(diagnostics.process.ownedWork.map(row => `${row.owner}:${row.id}`), ["core:runtime-metrics", "core:egress-governor", "lighting.transports:hue-wiz-adapters", "core:taught-color-preview"]);
-  assert.equal(diagnostics.routes.some(row => row.route === "POST /color"), true);
+  assert.deepEqual(
+    diagnostics.process.ownedWork.map((row) => `${row.owner}:${row.id}`),
+    [
+      "core:runtime-metrics",
+      "core:egress-governor",
+      "lighting.transports:hue-wiz-adapters",
+      "core:taught-color-preview",
+    ],
+  );
+  assert.equal(
+    diagnostics.routes.some((row) => row.route === "POST /color"),
+    true,
+  );
   assert.equal(JSON.stringify(diagnostics).includes("wiz-core-http"), false);
   assert.equal(diagnostics.instrumentation.recurringTimers, 0);
   assert.equal(diagnostics.instrumentation.retainedLatencySamples <= 250, true);
@@ -177,14 +253,18 @@ test("core HTTP server declares absent capabilities and applies color independen
   const oversizedResponse = await fetch(`${base}/teach`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name: "oversized", hex: "#ffffff", padding: "x".repeat(70 * 1024) })
+    body: JSON.stringify({
+      name: "oversized",
+      hex: "#ffffff",
+      padding: "x".repeat(70 * 1024),
+    }),
   });
   assert.equal(oversizedResponse.status, 413);
 
   const widgetResponse = await fetch(`${base}/system/widget-template-get`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ colorRewardId: "reward-color", baseUrl: base })
+    body: JSON.stringify({ colorRewardId: "reward-color", baseUrl: base }),
   });
   const widget = await widgetResponse.json();
   assert.equal(widgetResponse.status, 200);
@@ -199,19 +279,33 @@ test("capability snapshots follow live Song Request feature lifecycle", async (t
     runtimeDir,
     dryRun: true,
     capabilities: { features: true },
-    extend: () => ({ registry: { list: () => ({ features: [{ id: "song-request", lifecycle }] }) } })
+    extend: () => ({
+      registry: {
+        list: () => ({ features: [{ id: "song-request", lifecycle }] }),
+      },
+    }),
   });
-  const server = await new Promise(resolve => {
+  const server = await new Promise((resolve) => {
     const listening = created.app.listen(0, "127.0.0.1", () => resolve(listening));
   });
   t.after(async () => {
     await created.services.lifecycle.stopAll();
-    await new Promise(resolve => server.close(resolve));
+    await new Promise((resolve) => server.close(resolve));
     fs.rmSync(runtimeDir, { recursive: true, force: true });
   });
   const base = `http://127.0.0.1:${server.address().port}`;
-  assert.equal((await fetch(`${base}/health`).then(response => response.json())).capabilities.songRequest, false);
+  assert.equal(
+    (await fetch(`${base}/health`).then((response) => response.json())).capabilities.songRequest,
+    false,
+  );
   lifecycle = "active";
-  assert.equal((await fetch(`${base}/health`).then(response => response.json())).capabilities.songRequest, true);
-  assert.equal((await fetch(`${base}/system/status`).then(response => response.json())).capabilities.songRequest, true);
+  assert.equal(
+    (await fetch(`${base}/health`).then((response) => response.json())).capabilities.songRequest,
+    true,
+  );
+  assert.equal(
+    (await fetch(`${base}/system/status`).then((response) => response.json())).capabilities
+      .songRequest,
+    true,
+  );
 });

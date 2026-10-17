@@ -18,6 +18,10 @@
         "songRewardId": { "type": "string", "maxLength": 512 }
       }
     },
-    "target": { "type": "string", "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9.-]*$" }
+    "target": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9.-]*$"
+    }
   }
 }

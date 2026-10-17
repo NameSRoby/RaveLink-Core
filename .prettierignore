@@ -1,0 +1,15 @@
+# Generated bundles are rebuilt from their formatted sources.
+node_modules/
+dist/
+runtime/
+features/installed/
+integrations/*/dist/
+integrations/*/vendor/
+experiments/
+package-lock.json
+# Builders check these assembled pages against their readable fragments.
+features/song-request/ui/player.html
+features/song-request/ui/server-playlist.html
+features/song-request/ui/overlay-editor.html
+features/song-request/ui/obs-overlay.html
+features/*/ravelink.feature.json

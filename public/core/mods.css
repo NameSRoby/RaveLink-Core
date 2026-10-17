@@ -1,3 +1,8 @@
+/**
+ * Mods.
+ * Developer context and change constraints:
+ * docs/DEVELOPMENT.md#request-security-and-the-feature-ui-relay
+ */
 .inboxPath {
   color: var(--ok);
   font-family: Consolas, monospace;

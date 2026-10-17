@@ -1,3 +1,8 @@
+/**
+ * Feature process supervisor.
+ * Developer context and change constraints:
+ * docs/DEVELOPMENT.md#supervised-workers-contracts-and-packages
+ */
 const path = require("node:path");
 const createProcessSupervisor = require("../../supervised-runtime/host/process-supervisor");
 const { buildProcessPermissions } = require("../../supervised-runtime/host/process-permissions");
@@ -12,11 +17,14 @@ module.exports = function createFeatureProcessSupervisor(options = {}) {
     statusIdentityField: "featureId",
     apiMajor: 1,
     validateManifest: validateFeatureManifestV1,
-    buildPermissions: permissionOptions => buildProcessPermissions({
-      ...permissionOptions,
-      additionalReadRoots: [path.join(__dirname, "..", "..", "supervised-runtime")]
-    }),
+    buildPermissions: (permissionOptions) =>
+      buildProcessPermissions({
+        ...permissionOptions,
+        additionalReadRoots: [path.join(__dirname, "..", "..", "supervised-runtime")],
+      }),
     platformRoot: options.platformRoot || path.join(__dirname, "..", "..", "supervised-runtime"),
-    bootstrapPath: options.bootstrapPath || path.join(__dirname, "..", "..", "supervised-runtime", "runtime", "worker-bootstrap.js")
+    bootstrapPath:
+      options.bootstrapPath ||
+      path.join(__dirname, "..", "..", "supervised-runtime", "runtime", "worker-bootstrap.js"),
   });
 };

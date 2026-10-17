@@ -11,21 +11,32 @@ const {
   DEFAULT_LIMITS,
   hashFileSha256,
   scanPackageDirectory,
-  verifyIntegrityInventory
+  verifyIntegrityInventory,
 } = require("../../../shared/packages/package-directory-integrity");
 
 const MANIFEST_NAME = "ravelink.mod.json";
 async function verifyPackageDirectory(rootPath, options = {}) {
   const scanned = await scanPackageDirectory(rootPath, options.limits);
   if (!scanned.ok) return scanned;
-  const manifestRow = scanned.files.find(row => row.path === MANIFEST_NAME);
+  const manifestRow = scanned.files.find((row) => row.path === MANIFEST_NAME);
   if (!manifestRow) return { ok: false, error: "manifest_missing" };
-  if (manifestRow.bytes > scanned.limits.maxManifestBytes) return { ok: false, error: "manifest_too_large" };
+  if (manifestRow.bytes > scanned.limits.maxManifestBytes)
+    return { ok: false, error: "manifest_too_large" };
   let rawManifest;
-  try { rawManifest = JSON.parse(await fs.promises.readFile(manifestRow.absolute, "utf8")); }
-  catch { return { ok: false, error: "manifest_invalid_json" }; }
-  const validation = validateManifestV1(rawManifest, { modApiMajor: options.modApiMajor || 1 });
-  if (!validation.ok) return { ok: false, error: "manifest_invalid", manifestErrors: validation.errors };
+  try {
+    rawManifest = JSON.parse(await fs.promises.readFile(manifestRow.absolute, "utf8"));
+  } catch {
+    return { ok: false, error: "manifest_invalid_json" };
+  }
+  const validation = validateManifestV1(rawManifest, {
+    modApiMajor: options.modApiMajor || 1,
+  });
+  if (!validation.ok)
+    return {
+      ok: false,
+      error: "manifest_invalid",
+      manifestErrors: validation.errors,
+    };
   const manifest = validation.value;
   const integrity = await verifyIntegrityInventory(scanned, MANIFEST_NAME, manifest.integrity);
   if (!integrity.ok) return integrity;
@@ -33,8 +44,8 @@ async function verifyPackageDirectory(rootPath, options = {}) {
     ok: true,
     root: scanned.root,
     manifest,
-    files: scanned.files.map(row => ({ path: row.path, bytes: row.bytes })),
-    totalBytes: scanned.totalBytes
+    files: scanned.files.map((row) => ({ path: row.path, bytes: row.bytes })),
+    totalBytes: scanned.totalBytes,
   };
 }
 
@@ -43,5 +54,5 @@ module.exports = {
   MANIFEST_NAME,
   hashFileSha256,
   scanPackageDirectory,
-  verifyPackageDirectory
+  verifyPackageDirectory,
 };

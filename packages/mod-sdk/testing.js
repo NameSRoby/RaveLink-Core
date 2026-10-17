@@ -1,3 +1,8 @@
+/**
+ * Testing.
+ * Developer context and change constraints:
+ * docs/DEVELOPMENT.md#startup-and-shutdown
+ */
 const { createCapabilityClient } = require("./index");
 
 function createModTestHarness(mod, options = {}) {
@@ -8,7 +13,9 @@ function createModTestHarness(mod, options = {}) {
   let active = false;
   let activationContext = null;
 
-  function now() { return currentTime; }
+  function now() {
+    return currentTime;
+  }
   function advance(ms) {
     const amount = Number(ms);
     if (!Number.isFinite(amount) || amount < 0) throw new TypeError("clock_advance_invalid");
@@ -18,10 +25,23 @@ function createModTestHarness(mod, options = {}) {
 
   async function callCapability(capability, method, payload, callOptions = {}) {
     const key = `${capability}/${method}`;
-    calls.push({ at: now(), capability, method, payload, providerId: String(callOptions.providerId || "") });
+    calls.push({
+      at: now(),
+      capability,
+      method,
+      payload,
+      providerId: String(callOptions.providerId || ""),
+    });
     const provider = providers.get(key);
-    if (!provider) throw Object.assign(new Error("provider_unavailable"), { code: "provider_unavailable", retryable: true });
-    return await provider(payload, Object.freeze({ now, providerId: String(callOptions.providerId || "") }));
+    if (!provider)
+      throw Object.assign(new Error("provider_unavailable"), {
+        code: "provider_unavailable",
+        retryable: true,
+      });
+    return await provider(
+      payload,
+      Object.freeze({ now, providerId: String(callOptions.providerId || "") }),
+    );
   }
 
   function publishEvent(capability, event, payload) {
@@ -37,7 +57,7 @@ function createModTestHarness(mod, options = {}) {
       consumedCapabilities: Object.freeze([...(options.consumes || [])]),
       callCapability,
       publishEvent,
-      now
+      now,
     });
     await mod.activate(activationContext);
     active = true;
@@ -47,12 +67,19 @@ function createModTestHarness(mod, options = {}) {
   async function request(capability, method, payload, signal = new AbortController().signal) {
     if (!active) throw new Error("mod_not_active");
     if (typeof mod.handleRequest !== "function") throw new Error("mod_request_handler_missing");
-    return await mod.handleRequest({ capability, method, payload, signal, deadlineAt: now() + 5000 });
+    return await mod.handleRequest({
+      capability,
+      method,
+      payload,
+      signal,
+      deadlineAt: now() + 5000,
+    });
   }
 
   async function emit(capability, event, payload) {
     if (!active) throw new Error("mod_not_active");
-    if (typeof mod.handleEvent === "function") return await mod.handleEvent({ capability, event, payload });
+    if (typeof mod.handleEvent === "function")
+      return await mod.handleEvent({ capability, event, payload });
     return undefined;
   }
 
@@ -71,7 +98,7 @@ function createModTestHarness(mod, options = {}) {
     now,
     request,
     start,
-    stop
+    stop,
   });
 }
 

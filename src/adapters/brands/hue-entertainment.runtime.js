@@ -1,3 +1,5 @@
+const clampNumber = require("../../shared/validation/clamp-number");
+const resolveSignifyPemPath = require("./hue-ca-path");
 // [TITLE] Module: adapters/brands/hue-entertainment.runtime.js
 // [TITLE] Purpose: bounded Hue Entertainment transport runtime (session start/send/stop)
 // [TITLE] Functionality Index:
@@ -9,22 +11,17 @@
 // [DEV] Session ownership is scoped by bridge + username + clientKey + area so
 // [DEV] one failing stream does not poison unrelated Hue groups.
 
-const fs = require("node:fs");
 const path = require("node:path");
 const dns = require("node:dns");
-
-function clampNumber(value, min, max, fallback) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return Number(fallback);
-  return Math.min(Number(max), Math.max(Number(min), parsed));
-}
 
 function normalizeToken(value) {
   return String(value || "").trim();
 }
 
 function normalizeHost(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 }
 
 function buildSessionKey(config = {}) {
@@ -50,15 +47,12 @@ function inferAreaChannelCount(area = {}) {
 }
 
 function getAreaTokenSet(area = {}) {
-  const values = [
-    area?.id,
-    area?.rid,
-    area?.name,
-    area?.metadata?.name
-  ];
+  const values = [area?.id, area?.rid, area?.name, area?.metadata?.name];
   const tokens = new Set();
   for (const value of values) {
-    const token = String(value || "").trim().toLowerCase();
+    const token = String(value || "")
+      .trim()
+      .toLowerCase();
     if (!token) continue;
     tokens.add(token);
   }
@@ -66,9 +60,11 @@ function getAreaTokenSet(area = {}) {
 }
 
 function matchArea(areas = [], requested = "") {
-  const rows = Array.isArray(areas) ? areas.filter(row => row && typeof row === "object") : [];
+  const rows = Array.isArray(areas) ? areas.filter((row) => row && typeof row === "object") : [];
   if (!rows.length) return null;
-  const requestedToken = String(requested || "").trim().toLowerCase();
+  const requestedToken = String(requested || "")
+    .trim()
+    .toLowerCase();
   if (!requestedToken) return rows[0];
   for (const row of rows) {
     const tokens = getAreaTokenSet(row);
@@ -81,13 +77,10 @@ function sanitizeError(error) {
   return String(error?.message || error || "unknown_hue_entertainment_error").trim();
 }
 
-const baseDnsLookup = typeof dns.lookup === "function"
-  ? dns.lookup.bind(dns)
-  : null;
+const baseDnsLookup = typeof dns.lookup === "function" ? dns.lookup.bind(dns) : null;
 const hueDnsOverrides = new Map();
 const MAX_HUE_DNS_OVERRIDES = 768;
 let hueDnsOverrideEvictions = 0;
-let hueDnsPatchInstalled = false;
 let patchedHueLookupFn = null;
 let hueDnsPatchReadyLogged = false;
 const hueCaTrustReadyByPath = new Set();
@@ -97,15 +90,23 @@ function isValidIpv4Host(value = "") {
 }
 
 function normalizeBridgeDnsToken(value = "") {
-  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9:-]/g, "");
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9:-]/g, "");
 }
 
 function normalizeBridgeDnsTokenCompact(value = "") {
-  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 }
 
 function buildBridgeDnsLookupCandidates(hostname = "") {
-  const raw = String(hostname || "").trim().toLowerCase();
+  const raw = String(hostname || "")
+    .trim()
+    .toLowerCase();
   if (!raw) return [];
   const hostOnly = raw.split(".")[0] || raw;
   const tokens = new Set();
@@ -125,7 +126,6 @@ function buildBridgeDnsLookupCandidates(hostname = "") {
 function installHueDnsOverride(log = console) {
   if (!baseDnsLookup) return;
   if (patchedHueLookupFn && dns.lookup === patchedHueLookupFn) {
-    hueDnsPatchInstalled = true;
     return;
   }
   patchedHueLookupFn = function patchedHueLookup(hostname, options, callback) {
@@ -136,9 +136,7 @@ function installHueDnsOverride(log = console) {
       opts = undefined;
     }
     const hostTokens = buildBridgeDnsLookupCandidates(hostname);
-    const mappedIp = hostTokens
-      .map(token => hueDnsOverrides.get(token))
-      .find(Boolean);
+    const mappedIp = hostTokens.map((token) => hueDnsOverrides.get(token)).find(Boolean);
     if (mappedIp && typeof cb === "function") {
       const allMode = Boolean(opts && typeof opts === "object" && opts.all === true);
       if (allMode) {
@@ -149,7 +147,6 @@ function installHueDnsOverride(log = console) {
     return baseDnsLookup(hostname, opts, cb);
   };
   dns.lookup = patchedHueLookupFn;
-  hueDnsPatchInstalled = true;
   if (!hueDnsPatchReadyLogged) {
     hueDnsPatchReadyLogged = true;
     log.log?.("[HUE] Entertainment DNS bridge-id override ready");
@@ -162,7 +159,7 @@ function registerHueDnsOverride(bridgeId = "", bridgeIp = "", log = console) {
   const ip = String(bridgeIp || "").trim();
   if ((!bridgeToken && !bridgeTokenCompact) || !isValidIpv4Host(ip)) return false;
   installHueDnsOverride(log);
-  const setOverride = token => {
+  const setOverride = (token) => {
     if (!hueDnsOverrides.has(token) && hueDnsOverrides.size >= MAX_HUE_DNS_OVERRIDES) {
       hueDnsOverrides.delete(hueDnsOverrides.keys().next().value);
       hueDnsOverrideEvictions += 1;
@@ -181,31 +178,13 @@ function registerHueDnsOverride(bridgeId = "", bridgeIp = "", log = console) {
   return true;
 }
 
-function resolveSignifyPemPath(rootDir = "") {
-  const candidates = [];
-  if (process.env.RAVE_HUE_CA_CERT_PATH) {
-    candidates.push(String(process.env.RAVE_HUE_CA_CERT_PATH || "").trim());
-  }
-  try {
-    const hueSyncPkg = require.resolve("hue-sync/package.json");
-    const hueSyncDir = path.dirname(hueSyncPkg);
-    candidates.push(path.join(hueSyncDir, "signify.pem"));
-  } catch {
-    // Optional dependency path.
-  }
-  if (rootDir) {
-    candidates.push(path.join(rootDir, "node_modules", "hue-sync", "signify.pem"));
-  }
-  return candidates.find(candidate => candidate && fs.existsSync(candidate)) || "";
-}
-
 function ensureHueCaTrust(rootDir = "", log = console) {
   const certPath = resolveSignifyPemPath(rootDir);
   if (!certPath) {
     return {
       installed: false,
       reason: "signify_pem_missing",
-      certPath: ""
+      certPath: "",
     };
   }
   const existing = String(process.env.NODE_EXTRA_CA_CERTS || "").trim();
@@ -218,20 +197,20 @@ function ensureHueCaTrust(rootDir = "", log = console) {
     return {
       installed: true,
       reason: "node_extra_ca_set",
-      certPath
+      certPath,
     };
   }
   if (existing.toLowerCase() === certPath.toLowerCase()) {
     return {
       installed: true,
       reason: "node_extra_ca_already_set",
-      certPath
+      certPath,
     };
   }
   return {
     installed: false,
     reason: "node_extra_ca_conflict",
-    certPath
+    certPath,
   };
 }
 
@@ -248,7 +227,7 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
   const caTrust = ensureHueCaTrust(rootDir, log);
   let lastSessionStopLog = {
     reason: "",
-    at: 0
+    at: 0,
   };
 
   try {
@@ -282,30 +261,34 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
   let lastErrorAt = 0;
 
   function shouldLogSessionStop(reason = "") {
-    const token = String(reason || "").trim().toLowerCase();
+    const token = String(reason || "")
+      .trim()
+      .toLowerCase();
     if (!token) return false;
     if (
-      token === "idle_timeout"
-      || token === "transition_failed"
-      || token === "transport_mode_rest"
-      || token === "shutdown"
+      token === "idle_timeout" ||
+      token === "transition_failed" ||
+      token === "transport_mode_rest" ||
+      token === "shutdown"
     ) {
       return false;
     }
     const at = Number(now() || Date.now());
     const sameReason = token === String(lastSessionStopLog.reason || "");
-    const withinWindow = (at - Number(lastSessionStopLog.at || 0)) < 15000;
+    const withinWindow = at - Number(lastSessionStopLog.at || 0) < 15000;
     if (sameReason && withinWindow) return false;
     lastSessionStopLog = { reason: token, at };
     return true;
   }
 
   function formatSessionStopReason(reason = "") {
-    return String(reason || "")
-      .trim()
-      .replace(/[_-]+/g, " ")
-      .replace(/\s+/g, " ")
-      .toLowerCase() || "unknown";
+    return (
+      String(reason || "")
+        .trim()
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .toLowerCase() || "unknown"
+    );
   }
 
   async function stopSessionByKey(key = "", reason = "stop") {
@@ -315,8 +298,16 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
     if (!session) return;
     sessionsByKey.delete(token);
     try {
-      if (session.bridge && typeof session.bridge.updateEntertainmentArea === "function" && session.areaId) {
-        await Promise.resolve(session.bridge.updateEntertainmentArea(session.areaId, { action: "stop" }));
+      if (
+        session.bridge &&
+        typeof session.bridge.updateEntertainmentArea === "function" &&
+        session.areaId
+      ) {
+        await Promise.resolve(
+          session.bridge.updateEntertainmentArea(session.areaId, {
+            action: "stop",
+          }),
+        );
       }
     } catch {
       // [DEV] Best effort shutdown: keep teardown robust even when bridge rejects stop.
@@ -386,10 +377,10 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
       const bridge = new HueSyncConstructor({
         credentials: {
           username: normalizeToken(config.username),
-          clientkey: normalizeToken(config.clientKey).toUpperCase()
+          clientkey: normalizeToken(config.clientKey).toUpperCase(),
         },
         id: normalizeToken(config.bridgeId),
-        url: normalizeHost(config.bridgeIp)
+        url: normalizeHost(config.bridgeIp),
       });
       // [DEV] hue-sync constructor patches dns.lookup with a legacy callback shape.
       // [DEV] Re-apply our Node-24-safe override immediately after construction.
@@ -405,7 +396,7 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
       // [DEV] Guard against Node 24 + hue-sync start hanging when DTLS emits error
       // [DEV] before hue-sync resolves the start promise. We always race start with
       // [DEV] socket error and timeout to avoid deadlocks + unhandled events.
-      const startResult = await new Promise(resolve => {
+      const startResult = await new Promise((resolve) => {
         let settled = false;
         let guardTimer = null;
         const settle = (ok, error = "") => {
@@ -417,23 +408,26 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
           }
           resolve({
             ok,
-            error: sanitizeError(error || "")
+            error: sanitizeError(error || ""),
           });
         };
         const startCall = Promise.resolve(bridge.start(selectedArea, START_TIMEOUT_MS));
         const dtlsSocket = bridge?.socket;
-        const onSocketError = error => {
+        const onSocketError = (error) => {
           settle(false, error || "dtls_socket_error");
         };
         if (dtlsSocket && typeof dtlsSocket.once === "function") {
           dtlsSocket.once("error", onSocketError);
         }
-        guardTimer = setTimeout(() => {
-          settle(false, "hue_entertainment_start_timeout");
-        }, Math.max(START_TIMEOUT_MS + 1200, 2500));
+        guardTimer = setTimeout(
+          () => {
+            settle(false, "hue_entertainment_start_timeout");
+          },
+          Math.max(START_TIMEOUT_MS + 1200, 2500),
+        );
         startCall
           .then(() => settle(true))
-          .catch(error => settle(false, error || "hue_entertainment_start_failed"));
+          .catch((error) => settle(false, error || "hue_entertainment_start_failed"));
       });
       if (!startResult.ok) {
         try {
@@ -448,7 +442,7 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
         }
         return {
           ok: false,
-          error: startResult.error || "hue_entertainment_start_failed"
+          error: startResult.error || "hue_entertainment_start_failed",
         };
       }
 
@@ -461,11 +455,11 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
         areaName: normalizeToken(selectedArea?.name || selectedArea?.metadata?.name || areaId),
         channelCount: Math.max(1, inferAreaChannelCount(selectedArea)),
         lastUsedAt: Number(now() || Date.now()),
-        socketErrorHandler: null
+        socketErrorHandler: null,
       };
       const socket = bridge?.socket;
       if (socket && typeof socket.on === "function") {
-        const socketErrorHandler = error => {
+        const socketErrorHandler = (error) => {
           lastError = sanitizeError(error || "hue_entertainment_socket_error");
           lastErrorAt = Number(now() || Date.now());
           void stopSessionByKey(key, "socket_error");
@@ -476,12 +470,12 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
       sessionsByKey.set(key, session);
       return { ok: true, session };
     })()
-      .catch(error => {
+      .catch((error) => {
         lastError = sanitizeError(error);
         lastErrorAt = Number(now() || Date.now());
         return {
           ok: false,
-          error: lastError
+          error: lastError,
         };
       })
       .finally(() => {
@@ -500,7 +494,7 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
     return {
       r: clampNumber(Math.round(Number(rgb.r || 0) * gain), 0, 255, 0),
       g: clampNumber(Math.round(Number(rgb.g || 0) * gain), 0, 255, 0),
-      b: clampNumber(Math.round(Number(rgb.b || 0) * gain), 0, 255, 0)
+      b: clampNumber(Math.round(Number(rgb.b || 0) * gain), 0, 255, 0),
     };
   }
 
@@ -513,7 +507,7 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
     const rgb = scaleRgbForBrightness(rgbInput, input.bri, input.on !== false);
     const requestedCount = Math.max(
       1,
-      Math.round(Number(input.channelCount || input.fixtureCount || session.channelCount || 1))
+      Math.round(Number(input.channelCount || input.fixtureCount || session.channelCount || 1)),
     );
     const frame = Array.from({ length: requestedCount }, () => [rgb.r, rgb.g, rgb.b]);
     try {
@@ -521,7 +515,7 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
       session.lastUsedAt = Number(now() || Date.now());
       return {
         ok: true,
-        channelCount: requestedCount
+        channelCount: requestedCount,
       };
     } catch (error) {
       const detail = sanitizeError(error);
@@ -530,7 +524,7 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
       await stopSessionByKey(session.key, "transition_failed");
       return {
         ok: false,
-        error: detail
+        error: detail,
       };
     }
   }
@@ -542,13 +536,15 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
     }
     return {
       ok: true,
-      stopped: keys.length
+      stopped: keys.length,
     };
   }
 
   async function reconcileConfigs(configs = []) {
-    const retained = new Set((Array.isArray(configs) ? configs : []).map(buildSessionKey).filter(Boolean));
-    const stale = [...sessionsByKey.keys()].filter(key => !retained.has(key));
+    const retained = new Set(
+      (Array.isArray(configs) ? configs : []).map(buildSessionKey).filter(Boolean),
+    );
+    const stale = [...sessionsByKey.keys()].filter((key) => !retained.has(key));
     for (const key of stale) await stopSessionByKey(key, "fixture_removed");
     return { ok: true, removed: stale.length, retained: retained.size };
   }
@@ -564,7 +560,7 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
       dnsOverrideEvictions: hueDnsOverrideEvictions,
       activeSessions: sessionsByKey.size,
       lastError,
-      lastErrorAt
+      lastErrorAt,
     };
   }
 
@@ -572,6 +568,6 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
     sendFrame,
     stopAll,
     reconcileConfigs,
-    getStatus
+    getStatus,
   };
 };

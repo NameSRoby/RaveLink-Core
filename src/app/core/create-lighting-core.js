@@ -19,10 +19,10 @@ const createFixtureSecretVault = require("../../domains/fixtures/fixture-secret-
 const createLightingProfileService = require("../../domains/fixtures/lighting-profile.service");
 const createLightingLayoutService = require("../../domains/fixtures/lighting-layout.service");
 const createLightingLabService = require("../../domains/fixtures/lighting-lab.service");
-const createTwitchLightRouting = require('../../domains/twitch/twitch-light-routing');
-const createTwitchLightEffectsService = require('../../domains/twitch/twitch-light-effects.service');
-const path = require('node:path');
-const fs = require('node:fs');
+const createTwitchLightRouting = require("../../domains/twitch/twitch-light-routing");
+const createTwitchLightEffectsService = require("../../domains/twitch/twitch-light-effects.service");
+const path = require("node:path");
+const fs = require("node:fs");
 
 const TWITCH_COLOR_CONFIG_DEFAULT = Object.freeze({
   version: 1,
@@ -32,9 +32,9 @@ const TWITCH_COLOR_CONFIG_DEFAULT = Object.freeze({
     hue: "",
     wiz: "wiz",
     govee: "govee",
-    other: ""
+    other: "",
   }),
-  fixturePrefixes: Object.freeze({})
+  fixturePrefixes: Object.freeze({}),
 });
 
 module.exports = function createLightingCore(options = {}) {
@@ -48,70 +48,113 @@ module.exports = function createLightingCore(options = {}) {
   const colorLibrary = createColorLibraryService({
     storePath: paths.colorsStorePath,
     seedCustomColors: options.colorSeed || colorSeedDefault,
-    fuzzyMinScore: 180
+    fuzzyMinScore: 180,
   });
-  const fixtureSecretVault = paths.fixtureSecretsVaultPath ? createFixtureSecretVault({
-    vaultPath: paths.fixtureSecretsVaultPath,
-    ...(options.fixtureSecretVaultOptions || {})
-  }) : null;
+  const fixtureSecretVault = paths.fixtureSecretsVaultPath
+    ? createFixtureSecretVault({
+        vaultPath: paths.fixtureSecretsVaultPath,
+        ...(options.fixtureSecretVaultOptions || {}),
+      })
+    : null;
   const fixtureRegistry = createFixtureRegistry({
     storePath: paths.fixturesStorePath,
     secretVault: fixtureSecretVault,
-    seedConfig: options.fixtureSeed || fixtureSeedDefault
+    seedConfig: options.fixtureSeed || fixtureSeedDefault,
   });
   const twitchColorConfig = createTwitchColorConfigRuntime({
     configPath: paths.twitchConfigPath,
-    configDefault: options.twitchColorConfigDefault || TWITCH_COLOR_CONFIG_DEFAULT
+    configDefault: options.twitchColorConfigDefault || TWITCH_COLOR_CONFIG_DEFAULT,
   });
-  const twitchLightRouting = createTwitchLightRouting({ storePath: path.join(path.dirname(paths.twitchConfigPath), 'twitch-light-routing.json'), colorLibrary });
+  const twitchLightRouting = createTwitchLightRouting({
+    storePath: path.join(path.dirname(paths.twitchConfigPath), "twitch-light-routing.json"),
+    colorLibrary,
+  });
   let routingSnapshot = twitchLightRouting.snapshot();
   const legacyGroupsPath = path.join(path.dirname(paths.fixturesStorePath), "light-groups.json");
   const legacyGroupsArchivePath = `${legacyGroupsPath}.migrated`;
-  if (routingSnapshot.ok && fs.existsSync(legacyGroupsPath) && !fs.existsSync(legacyGroupsArchivePath)) {
+  if (
+    routingSnapshot.ok &&
+    fs.existsSync(legacyGroupsPath) &&
+    !fs.existsSync(legacyGroupsArchivePath)
+  ) {
     try {
       if (fs.statSync(legacyGroupsPath).size > 131072) throw new Error("legacy_groups_too_large");
       if (routingSnapshot.rules.length === 0) {
         const legacy = JSON.parse(fs.readFileSync(legacyGroupsPath, "utf8"));
         const groups = Array.isArray(legacy?.groups) ? legacy.groups.slice(0, 32) : [];
-        const rules = groups.filter(row => row && /^[a-zA-Z0-9-]{1,64}$/.test(row.id) && typeof row.name === "string" && Array.isArray(row.fixtureIds) && row.fixtureIds.length <= 64).map(row => ({
-          id: row.id,
-          name: row.name.trim().slice(0, 64),
-          prefix: `group_${row.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 25) || "lights"}`,
-          enabled: true,
-          fixtureIds: [...new Set(row.fixtureIds.filter(id => typeof id === "string" && id.trim() && id.length <= 256))]
-        })).filter(row => row.name && row.fixtureIds.length);
-        if (rules.length) routingSnapshot = twitchLightRouting.save({ ...routingSnapshot, mode: "assignments", rules });
+        const rules = groups
+          .filter(
+            (row) =>
+              row &&
+              /^[a-zA-Z0-9-]{1,64}$/.test(row.id) &&
+              typeof row.name === "string" &&
+              Array.isArray(row.fixtureIds) &&
+              row.fixtureIds.length <= 64,
+          )
+          .map((row) => ({
+            id: row.id,
+            name: row.name.trim().slice(0, 64),
+            prefix: `group_${
+              row.name
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "_")
+                .replace(/^_+|_+$/g, "")
+                .slice(0, 25) || "lights"
+            }`,
+            enabled: true,
+            fixtureIds: [
+              ...new Set(
+                row.fixtureIds.filter(
+                  (id) => typeof id === "string" && id.trim() && id.length <= 256,
+                ),
+              ),
+            ],
+          }))
+          .filter((row) => row.name && row.fixtureIds.length);
+        if (rules.length)
+          routingSnapshot = twitchLightRouting.save({
+            ...routingSnapshot,
+            mode: "assignments",
+            rules,
+          });
       }
       fs.renameSync(legacyGroupsPath, legacyGroupsArchivePath);
     } catch {}
   }
   if (routingSnapshot.ok && routingSnapshot.mode === "legacy") {
-    const upgradedRouting = twitchLightRouting.save({ ...routingSnapshot, mode: "assignments" });
+    const upgradedRouting = twitchLightRouting.save({
+      ...routingSnapshot,
+      mode: "assignments",
+    });
     if (upgradedRouting.ok) routingSnapshot = upgradedRouting;
   }
   const directiveService = createTwitchColorDirectiveService({
     colorLibrary,
     getParserOptions: twitchLightRouting.parserOptions,
-    sanitizeText: twitchColorConfig.sanitizeCommandText
+    sanitizeText: twitchColorConfig.sanitizeCommandText,
   });
   const hueBridge = createHueBridgeAdapter({
     axios: options.axios,
     dryRun: options.dryRun === true,
     rootDir: String(options.rootDir || "").trim(),
     egressGovernor: options.egressGovernor,
-    log: options.log || console
+    log: options.log || console,
   });
   const wizBridge = createWizBridgeAdapter({
     dryRun: options.dryRun === true,
-    log: options.log || console
+    log: options.log || console,
   });
-  const goveeBridge = createGoveeLanAdapter({ dryRun: options.dryRun === true, log: options.log || console });
+  const goveeBridge = createGoveeLanAdapter({
+    dryRun: options.dryRun === true,
+    log: options.log || console,
+  });
   const lightingLayout = createLightingLayoutService({
     storePath: path.join(path.dirname(paths.fixturesStorePath), "lighting-layout.json"),
-    fixtureRegistry
+    fixtureRegistry,
   });
   const lightingLab = createLightingLabService({
-    storePath: path.join(path.dirname(paths.fixturesStorePath), "lighting-lab.json"), fixtureRegistry
+    storePath: path.join(path.dirname(paths.fixturesStorePath), "lighting-lab.json"),
+    fixtureRegistry,
   });
   const twitchLightEffects = createTwitchLightEffectsService({
     storePath: path.join(path.dirname(paths.twitchConfigPath), "twitch-light-effects.json"),
@@ -119,7 +162,7 @@ module.exports = function createLightingCore(options = {}) {
     directiveService,
     adapters: { hue: hueBridge, wiz: wizBridge, govee: goveeBridge },
     lightingLayout,
-    lightingLab
+    lightingLab,
   });
   const lightingProfiles = createLightingProfileService({
     storePath: path.join(path.dirname(paths.fixturesStorePath), "lighting-profiles.json"),
@@ -127,15 +170,19 @@ module.exports = function createLightingCore(options = {}) {
     directiveService,
     adapters: { hue: hueBridge, wiz: wizBridge, govee: goveeBridge },
     twitchLightEffects,
-    lightingLab
+    lightingLab,
   });
   let reconcilePromise = Promise.resolve();
-  const reconcileTransports = fixtures => {
-    reconcilePromise = reconcilePromise.catch(() => null).then(() => Promise.allSettled([
-      Promise.resolve().then(() => hueBridge.reconcileFixtures(fixtures)),
-      Promise.resolve().then(() => wizBridge.reconcileFixtures(fixtures)),
-      Promise.resolve().then(() => goveeBridge.reconcileFixtures(fixtures))
-    ]));
+  const reconcileTransports = (fixtures) => {
+    reconcilePromise = reconcilePromise
+      .catch(() => null)
+      .then(() =>
+        Promise.allSettled([
+          Promise.resolve().then(() => hueBridge.reconcileFixtures(fixtures)),
+          Promise.resolve().then(() => wizBridge.reconcileFixtures(fixtures)),
+          Promise.resolve().then(() => goveeBridge.reconcileFixtures(fixtures)),
+        ]),
+      );
     return reconcilePromise;
   };
   const unsubscribeFixtures = fixtureRegistry.subscribe(reconcileTransports);
@@ -144,7 +191,11 @@ module.exports = function createLightingCore(options = {}) {
     unsubscribeFixtures();
     await twitchLightEffects.shutdown();
     await reconcilePromise;
-    await Promise.allSettled([hueBridge.shutdown(), Promise.resolve(wizBridge.shutdown()), Promise.resolve(goveeBridge.shutdown())]);
+    await Promise.allSettled([
+      hueBridge.shutdown(),
+      Promise.resolve(wizBridge.shutdown()),
+      Promise.resolve(goveeBridge.shutdown()),
+    ]);
   }
   const colorCommandService = createColorCommandService({
     twitchColorConfig,
@@ -156,7 +207,7 @@ module.exports = function createLightingCore(options = {}) {
     wizBridge,
     goveeBridge,
     twitchLightEffects,
-    lightingLab
+    lightingLab,
   });
 
   return Object.freeze({
@@ -173,6 +224,6 @@ module.exports = function createLightingCore(options = {}) {
     lightingProfiles,
     lightingLayout,
     lightingLab,
-    shutdown
+    shutdown,
   });
 };

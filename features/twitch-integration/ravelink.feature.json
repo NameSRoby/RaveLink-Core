@@ -76,9 +76,9 @@
   "integrity": {
     "algorithm": "sha256",
     "files": {
-      "contracts/twitch-integration-v1.contracts.json": "71efdbb31320fce708bf0be5a7803f0c8a4f821dcfd66c9765b9f745908f29f5",
-      "dist/main.js": "73b996b9532d8b1bb74b5a40be59c5999cb673b73352acdfd7e40717c96dfaa4",
-      "ui/connection.html": "6b02f8f6c7b1d793a709a344dcceff43111b50c249f8ddce85bba13d4a8ac610"
+      "contracts/twitch-integration-v1.contracts.json": "5ec0dcec7dc34a902c938d9767e4ca1bc34c4d0fb7c0b253bc3a4b2b48ab364d",
+      "dist/main.js": "0a404c12adb4b996b81badef92db31837f39864adf18c12e2d65bdd4e208a94a",
+      "ui/connection.html": "f758ab7433b8c0bb3789eaf09e0835abc9dc6e4c5f726acd52616f768691b72b"
     }
   }
 }
