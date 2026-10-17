@@ -263,7 +263,10 @@ test("Player connects TIDAL automatically, signs in, chooses supported countries
     if (result.command) commandBacklog.push(result.command);
     return result;
   };
-  heartbeat = setInterval(() => void poll().catch(() => {}), 250);
+  // Match renderer-poll.js: the real companion reports every two seconds.
+  // A 250 ms fixture adds an unrelated telemetry burst during rapid UI actions
+  // and can trip the unchanged IPC safety ceiling on fast hosted runners.
+  heartbeat = setInterval(() => void poll().catch(() => {}), 2000);
   await poll();
   await surface.locator("#refreshTidal").click();
   await surface.locator("#tidalConnection").filter({ hasText: "ready to queue songs" }).waitFor();
