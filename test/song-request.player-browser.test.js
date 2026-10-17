@@ -69,7 +69,10 @@ test("Player connects TIDAL automatically, signs in, chooses supported countries
   const server = await new Promise((resolve) => {
     const listener = created.app.listen(0, "127.0.0.1", () => resolve(listener));
   });
-  const browser = await chromium.launch({ headless: true });
+  // This is a multi-step operator workflow, not an IPC saturation test.
+  // Pace browser actions consistently across local and faster hosted runners
+  // while retaining the production rate ceiling and all lifecycle assertions.
+  const browser = await chromium.launch({ headless: true, slowMo: 50 });
   t.after(async () => {
     clearInterval(heartbeat);
     await browser.close();

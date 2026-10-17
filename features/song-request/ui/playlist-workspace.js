@@ -9,6 +9,7 @@ window.installPlaylistWorkspace = function installPlaylistWorkspace({
   startTransfer,
   dismissTransfer,
   reviewSource,
+  explainError = (code) => code,
 }) {
   const style = document.createElement("style");
   style.textContent =
@@ -19,7 +20,7 @@ window.installPlaylistWorkspace = function installPlaylistWorkspace({
   activity.hidden = true;
   activity.setAttribute("aria-label", "Current transfer");
   activity.innerHTML =
-    '<div id="transferStage" role="status" aria-live="polite"></div><progress id="transferMeter" max="1" value="0" aria-label="Transfer progress"></progress><p id="transferNextStep"></p><div id="transferStats"></div><div id="transferStatusActions"></div><button id="transferStartNew" hidden>Choose another source</button>';
+    '<div id="transferStage" role="status" aria-live="polite"></div><progress id="transferMeter" max="1" value="0" aria-label="Transfer progress"></progress><p id="transferNextStep"></p><p id="transferProblem" class="notice bad" role="alert" hidden></p><div id="transferStats"></div><div id="transferStatusActions"></div><button id="transferStartNew" hidden>Choose another source</button>';
   panel.querySelector("h2").after(activity);
   const introduction = [...panel.children].find((node) => node.tagName === "P");
   if (introduction) panel.querySelector("h2").after(introduction);
@@ -133,10 +134,15 @@ window.installPlaylistWorkspace = function installPlaylistWorkspace({
     );
     const running = ["reading", "matching", "writing"].includes(job.state),
       waiting = job.retryAt > Date.now();
+    // A paused match/write retains its real progress instead of showing 100%.
+    const progressState =
+      job.state === "paused"
+        ? job.resumeState || (job.kind === "matching" ? "matching" : "reading")
+        : job.state;
     const processed =
-      job.state === "matching"
+      progressState === "matching"
         ? job.processed
-        : job.state === "writing"
+        : progressState === "writing"
           ? (job.completedWritten || 0) + job.written
           : job.count;
     const waitLabel =
@@ -153,6 +159,10 @@ window.installPlaylistWorkspace = function installPlaylistWorkspace({
         ? "Playlist loaded - choose a destination"
         : stages[job.state] || job.state;
     activity.dataset.attention = String(waiting || ["paused", "uncertain"].includes(job.state));
+    // The detailed report is collapsed by default. Recovery instructions must
+    // remain visible beside Resume rather than live only inside that report.
+    $("transferProblem").hidden = !job.error;
+    $("transferProblem").textContent = job.error ? explainError(job.error) : "";
     $("transferMeter").max = Math.max(1, job.count);
     $("transferMeter").value = Math.min(job.count, processed);
     $("transferMeter").hidden = ["review", "canceled", "complete"].includes(job.state);

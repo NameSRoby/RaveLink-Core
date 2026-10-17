@@ -75,6 +75,7 @@
     panel,
     libraryView,
     reviewSource: () => perform("review_source"),
+    explainError: (code) => errors[code] || code,
     dismissTransfer: async () => {
       if (await perform("dismiss")) {
         message("");
@@ -136,7 +137,8 @@
       "Prepare the updated Spotify companion in Player / Setup, then fully quit Spotify and open it with RaveLink.",
     spotify_playlist_read_failed:
       "Spotify could not read this playlist. Check the link and account access, then try again.",
-    spotify_companion_unavailable: "Open Spotify with RaveLink in Player / Setup, then try again.",
+    spotify_companion_unavailable:
+      "Spotify is not connected to RaveLink. Fully quit Spotify, then use Player ? Spotify ? Setup ? Open Spotify with RaveLink. Return here and Resume; your imported tracks are saved.",
     exports_folder_full:
       "The exports folder is full. Open it and move or remove older CSV files, then export again.",
     export_file_limit:

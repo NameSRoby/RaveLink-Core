@@ -19,6 +19,7 @@ test("playlist Transfers UI imports/exports CSV and completes a reviewed TIDAL a
     path.join(root, "installed/song-request"),
     { recursive: true },
   );
+  let spotifyAvailable = false;
   const apiCalls = [],
     spotifyWritten = [];
   const spotifyTrack = {
@@ -126,10 +127,10 @@ test("playlist Transfers UI imports/exports CSV and completes a reviewed TIDAL a
       tidalCatalogFetch: fetchImpl,
       providers: {
         "spotify.desktop.host.v1/playlist": spotifyPlaylist,
-        "spotify.desktop.host.v1/resolve": async () => ({
-          ok: true,
-          candidate: spotifyTrack,
-        }),
+        "spotify.desktop.host.v1/resolve": async () =>
+          spotifyAvailable
+            ? { ok: true, candidate: spotifyTrack }
+            : { ok: false, error: "spotify_companion_unavailable" },
         ...Object.fromEntries(
           ["youtube", "soundcloud"].map((provider) => [
             provider + ".catalog.host.v1/resolve",
@@ -403,6 +404,21 @@ test("playlist Transfers UI imports/exports CSV and completes a reviewed TIDAL a
     await surface.getByRole("button", { name: "Review playlist", exact: true }).click();
     await surface.locator("#transferTargetChoices button[data-provider=" + target + "]").click();
     await surface.locator("#matchTidal").click();
+    if (target === "spotify") {
+      // Exercise a real worker pause while the report remains collapsed.
+      await surface.locator("#transferStage").filter({ hasText: "Transfer paused" }).waitFor();
+      await surface
+        .locator("#transferProblem")
+        .filter({ hasText: "Spotify is not connected" })
+        .waitFor();
+      assert.equal(await surface.locator("#transferProblem").isVisible(), true);
+      assert.equal(await surface.locator("#transferProblem").getAttribute("role"), "alert");
+      assert.ok(
+        (await surface.locator("#transferMeter").evaluate((node) => node.value / node.max)) < 1,
+      );
+      spotifyAvailable = true;
+      await surface.locator("#resumeTransfer").click();
+    }
     await surface
       .locator("#transferProgress")
       .filter({

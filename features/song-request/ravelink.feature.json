@@ -3,7 +3,7 @@
   "id": "song-request",
   "name": "Song Request",
   "description": "Song requests, portable playlists and reviewed cross-service transfers with moderation and OBS overlays.",
-  "version": "0.44.8",
+  "version": "0.44.9",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
@@ -275,11 +275,11 @@
       "ui/playlist-match-review.js": "e9420702f1324d28239e73c3e11e21a77313d02e8fc384392598c1a544ff24a2",
       "ui/playlist-provider-ui.js": "d56fef0082a674e4dd4434384631f663352b181c16cf7569b250e21612c329b3",
       "ui/playlist-transfer-flow.js": "33c436d64712645c0ddf16b48399833ec79eea1cded8e2c2496b815adbd7494c",
-      "ui/playlist-transfers.js": "10991170e4ea4b21ef50d091ac9cd286852ecd5c34dde4c022535ca3d218b307",
-      "ui/playlist-workspace.js": "a61a9833e03eec245f786085f022ddcbbac7f2f17d5dfea575a8f504c6ffcf06",
+      "ui/playlist-transfers.js": "6af64d556df902e3f556259ee208fb472d8c56c48dc2ad88b37f4921b8b4f88d",
+      "ui/playlist-workspace.js": "fb2d6f94f73cbc7f0de1b561681b69320ca5ad729e653fd7f9b30cb933989e71",
       "ui/provider-marks.js": "d9105fa2243175e54a02acf1e66fe9d554c91b190adb19717d9460b65f4bfab3",
       "ui/request-queue.html": "83f38a55c9fbc83dd272aad3cf685a5a5a62b9c2b43292bc5e8c5288894777b8",
-      "ui/server-playlist.html": "c8cc5b5e30779d33066431d38abc6490e85efa3fb3e7bf8e83bba4a8bfc1f596"
+      "ui/server-playlist.html": "0e921a71bda8d12d54696db534e8f50172099f1214d5bca842437ab45fdb9c94"
     }
   }
 }
