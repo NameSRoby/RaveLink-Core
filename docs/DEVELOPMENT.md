@@ -237,6 +237,12 @@ configuration, and runtime data. Do not infer a successful update from a process
 existing; verify the expected healthy version. The C# CodeQL job builds the actual
 `net48` WinForms project on Windows so framework symbols resolve during analysis.
 
+Windows PowerShell helpers explicitly select their host's own standard module
+directory. A Node process launched from PowerShell 7 can otherwise pass incompatible
+module paths into `powershell.exe`, breaking JSON, encryption, and updater cmdlets.
+Keep the helpers independent of parent-shell module configuration; see Microsoft's
+[module-path inheritance documentation](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_psmodulepath).
+
 ## Editing, rebuilding, and checking a change
 
 Use Node 24 for the maintained checks. Install development dependencies with

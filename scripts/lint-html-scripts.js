@@ -9,30 +9,39 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { ESLint } = require("eslint");
 const { ROOT, sourceFiles } = require("./lib/source-inventory");
+const htmlScripts = require("./lib/html-scripts");
 
 async function main() {
   const eslint = new ESLint({
     overrideConfig: [{ files: ["**/*.inline.js"], languageOptions: { sourceType: "script" } }],
   });
+  const moduleEslint = new ESLint({
+    overrideConfig: [{ files: ["**/*.inline.js"], languageOptions: { sourceType: "module" } }],
+  });
   let errors = 0;
   let pages = 0;
   for (const relative of sourceFiles().filter((file) => file.endsWith(".html"))) {
     const html = fs.readFileSync(path.join(ROOT, relative), "utf8");
-    const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].filter(
-      (match) => {
-        if (/\bsrc\s*=/i.test(match[1])) return false;
-        const type = /\btype\s*=\s*["']([^"']+)["']/i.exec(match[1])?.[1];
-        return !type || ["module", "text/javascript", "application/javascript"].includes(type);
-      },
-    );
+    const scripts = await htmlScripts(html);
     if (!scripts.length) continue;
     pages++;
-    const [report] = await eslint.lintText(scripts.map((match) => match[2]).join("\n;\n"), {
-      filePath: path.join(ROOT, "src", path.basename(relative) + ".inline.js"),
-    });
-    for (const message of report.messages) {
-      console.error(`[INLINE] ${relative}:inline:${message.line}: ${message.message}`);
-      errors++;
+    // Classic tags share globals; each module tag has its own lexical scope.
+    const classic = scripts
+      .filter((script) => !script.module)
+      .map((script) => script.code)
+      .join("\n;\n");
+    const groups = [
+      ...(classic ? [{ code: classic, module: false }] : []),
+      ...scripts.filter((script) => script.module),
+    ];
+    for (const group of groups) {
+      const [report] = await (group.module ? moduleEslint : eslint).lintText(group.code, {
+        filePath: path.join(ROOT, "src", path.basename(relative) + ".inline.js"),
+      });
+      for (const message of report.messages) {
+        console.error(`[INLINE] ${relative}:inline:${message.line}: ${message.message}`);
+        errors++;
+      }
     }
   }
   console.log(`[INLINE] ${pages} HTML pages checked; ${errors} errors.`);

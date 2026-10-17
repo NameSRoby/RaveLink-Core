@@ -13,6 +13,8 @@ param(
   [switch]$Once
 )
 
+# Resolve standard cmdlets from this host rather than an inherited pwsh 7 path.
+$env:PSModulePath = "$PSHOME\Modules"
 $ErrorActionPreference = "Stop"
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 [Console]::OutputEncoding = $utf8

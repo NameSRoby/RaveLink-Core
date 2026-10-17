@@ -14,6 +14,9 @@ param(
   [switch]$NoLaunch
 )
 
+# Node/host grandchildren of pwsh can inherit incompatible PowerShell 7 modules.
+# This helper depends only on the standard modules belonging to its own PS host.
+$env:PSModulePath = "$PSHOME\Modules"
 $ErrorActionPreference = "Stop"
 $rootPath = [IO.Path]::GetFullPath($Root).TrimEnd([IO.Path]::DirectorySeparatorChar)
 $updateRoot = Join-Path $rootPath "runtime\updates"

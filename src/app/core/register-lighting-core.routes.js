@@ -2,6 +2,7 @@
 // [TITLE] Purpose: minimal HTTP surface for the independent lighting core
 
 const crypto = require("node:crypto");
+const { rateLimit } = require("express-rate-limit");
 const registerClientApiRoutes = require("./register-client-api.routes");
 
 function publicFixture(fixture = {}) {
@@ -110,6 +111,21 @@ const {
 } = require("../../domains/system/widget-events-v2");
 
 module.exports = function registerLightingCoreRoutes(app, options = {}) {
+  // Bound credential attempts before vault verification. The existing token
+  // bucket separately budgets successful template generation; rejected tokens
+  // must not bypass all admission control just because generation never starts.
+  const widgetTemplateAttempts = rateLimit({
+    windowMs: 60000,
+    limit: 120,
+    keyGenerator: () => "widget-template",
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    handler: (_req, res) =>
+      res
+        .set("Cache-Control", "no-store")
+        .status(429)
+        .json({ ok: false, error: "widget_template_rate_limited" }),
+  });
   const core = options.core;
   const widgetController = options.widgetController;
   const widgetIntakeLimiter = options.widgetIntakeLimiter;
@@ -672,7 +688,7 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
     res.setHeader("Cache-Control", "no-store");
     return res.json(result);
   });
-  app.post("/system/widget-template-get", (req, res) => {
+  app.post("/system/widget-template-get", widgetTemplateAttempts, (req, res) => {
     if (!isLocalOrSameHostRequest(req))
       return res.status(403).json({ ok: false, error: "local_request_required" });
     res.setHeader("Cache-Control", "no-store");

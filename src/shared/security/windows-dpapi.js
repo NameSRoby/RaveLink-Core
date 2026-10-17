@@ -12,7 +12,15 @@ function runPowerShellJson(script = "", timeoutMs = 8_000, input = "") {
   if (!command) return { ok: false, error: "powershell_script_missing" };
   const result = spawnSync(
     "powershell.exe",
-    ["-NoProfile", "-NonInteractive", "-Command", command],
+    // A Node grandchild of pwsh can inherit PowerShell 7 module directories.
+    // Windows PowerShell may then load incompatible Utility/Security modules.
+    // These private helpers need only the modules shipped with their own host.
+    [
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      '$env:PSModulePath = "$PSHOME\\Modules";\n' + command,
+    ],
     {
       encoding: "utf8",
       input: String(input || ""),

@@ -45,14 +45,25 @@ the checks that exclude the full client SDK and unrelated integrations.
 
 The unmodified published baseline passed **330 tests**. The sanitized maintenance
 source passed a **383-test full regression run**. The additional read-only
-feature-byte regression passed separately; CI runs the combined **384 tests**.
+feature-byte, HTML parser, credential-attempt, and inherited-module-path regressions
+passed separately; CI runs the combined **387 tests**.
 Formatting, lint, inline-script lint, literal-import checks, generated-byte checks,
 feature hashes, the publication privacy audit, production/development dependency
 audits, third-party notices, and Windows host compilation also passed locally.
-The static pass checked **355 JavaScript files, 512 local imports, and eight HTML
+The static pass checked **358 JavaScript files, 514 local imports, and eight HTML
 pages**, with no unresolved literal imports or duplicated whole implementations.
 Parsed JavaScript was compared against the baseline to distinguish formatting
 from the deliberately changed implementations.
+
+The first hosted Windows run exposed a parent-shell dependency: PowerShell 7
+module paths could reach Windows PowerShell grandchildren, causing encryption
+failures and missing updater cmdlets. DPAPI, media observation, and updater helpers
+now use their own host's standard modules. The regression suite explicitly
+supplies an unusable inherited module path to exercise this recovery.
+
+Security review also led to a proper HTML parser for inline-script extraction and
+a standard request limiter before widget-token verification. The existing token
+bucket continues to budget successful template generation separately.
 
 An isolated 10,000-row review-page benchmark (1,000 calls) measured approximately
 178 ms before and 0.8 ms after. This measures paging only, not an entire transfer

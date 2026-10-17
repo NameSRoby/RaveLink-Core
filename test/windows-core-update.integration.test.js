@@ -93,7 +93,11 @@ for (const targetVersion of ["0.6.2", "0.7.1a"])
           root,
           "-NoLaunch",
         ],
-        { encoding: "utf8", windowsHide: true },
+        {
+          encoding: "utf8",
+          windowsHide: true,
+          env: { ...process.env, PSModulePath: path.join(root, "unavailable-modules") },
+        },
       );
       assert.equal(apply.status, 0, `${apply.stdout}\n${apply.stderr}`);
       assert.equal(
