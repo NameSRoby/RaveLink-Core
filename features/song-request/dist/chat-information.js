@@ -9,6 +9,10 @@ const clean = (value, length = 180) =>
   String(value || "")
     .normalize("NFKC")
     .replace(/<[^>]*>/g, "")
+    // Chat is plain text. Removing tag-shaped spans is only presentation cleanup:
+    // nested or unfinished spans can leave delimiters, so discard those too.
+    // HTML consumers must still render replies with textContent, never innerHTML.
+    .replace(/[<>]/g, "")
     .replace(/[\u0000-\u001f\u007f]/g, " ")
     .replace(/\s+/g, " ")
     .trim()

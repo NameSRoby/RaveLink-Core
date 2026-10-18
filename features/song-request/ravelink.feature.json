@@ -3,7 +3,7 @@
   "id": "song-request",
   "name": "Song Request",
   "description": "Song requests, portable playlists and reviewed cross-service transfers with moderation and OBS overlays.",
-  "version": "0.45.0",
+  "version": "0.45.1",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
@@ -201,7 +201,7 @@
     "files": {
       "contracts/song-request-v1.contracts.json": "2ff60bada553b77b5b719d9e6cc1f013797a149b360b6651bed18925200c32fe",
       "dist/catalog-policy.js": "123754a7652d229b1a80dee02b99b7bd51facf6c50e689bb44a151a9cea62f7d",
-      "dist/chat-information.js": "0381bc127632625f663b570816b51a5d9b7198eb5c15878edc6011de209cb4e6",
+      "dist/chat-information.js": "ba2d38403810d1074d6a3a9d92bea9b1aa8422a5b50d626680e5c96b9dba0d3b",
       "dist/chat-player-commands.js": "2d20a0d5705ff86e1067bea9b6460768f6a1d24c35190086be1a13f4b5f28646",
       "dist/chat-responses.js": "3c85996eee51341a1b71216f3fea4bf432b355e9939f635322a5ece527cbb5b3",
       "dist/community-playlists.js": "11f3d61b436e916fd617b9c043199ec39bacf82f899e2b5b1198142a5e3c5335",

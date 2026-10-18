@@ -144,6 +144,24 @@ test("uncertain or disconnected native delivery never invents an exact position"
   f.playback.primary = null;
   assert.match((await f.query("song")).message, /temporarily unavailable/);
 });
+
+test("chat metadata removes delimiters from nested, unfinished and normalized markup", async () => {
+  const f = fixture("youtube");
+  for (const title of [
+    "<<script>script>alert(1)</script>",
+    "<script",
+    "<b>Song</b>",
+    "\uff1cscript\uff1e",
+  ]) {
+    f.playback.managed.candidate.title = title;
+    f.playback.managed.candidate.artists = ["Artist <img", "<<b>b>Guest</b>"];
+    const current = await f.query("song");
+    assert.equal(current.ok, true);
+    assert.doesNotMatch(current.message, /[<>\uff1c\uff1e\r\n]/);
+    f.local[1].candidate.title = title;
+    assert.doesNotMatch((await f.query("songqueue")).message, /[<>\uff1c\uff1e\r\n]/);
+  }
+});
 test("queue position pages beyond the first 25 requests and sanitizes bounded multilingual titles", async () => {
   const f = fixture("youtube");
   f.local.splice(
