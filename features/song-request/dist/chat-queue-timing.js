@@ -38,7 +38,7 @@ module.exports = function queueTiming({
   const total = duration(clock) || duration(current);
   const position = clock?.positionMs;
   let wait =
-    !current && !native
+    !current && !native && playback.playbackEnabled === true
       ? 0
       : fresh &&
           total !== null &&

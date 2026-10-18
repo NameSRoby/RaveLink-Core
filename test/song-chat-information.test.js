@@ -39,6 +39,12 @@ test("queue estimates sum predecessors, qualify pauses and propagate unknown tim
     timing(input).every((label) => label === "ETA unavailable"),
     "unowned native entries cannot be timed",
   );
+  assert.ok(
+    timing({ ...input, native: false, current: null, observation: null }).every(
+      (label) => label === "ETA unavailable",
+    ),
+    "a stopped managed player has no start-time estimate",
+  );
 });
 test("Windows media metadata describes a non-requested desktop song without a candidate wrapper", async () => {
   const queue = require("../features/song-request/dist/domain").createSongQueue();
