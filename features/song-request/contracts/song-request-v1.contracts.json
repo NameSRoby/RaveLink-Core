@@ -2559,6 +2559,37 @@
               }
             }
           }
+        },
+        "query": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["command", "requesterId"],
+            "properties": {
+              "command": {
+                "enum": ["song", "songqueue", "queue"]
+              },
+              "requesterId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok", "message"],
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              },
+              "message": {
+                "type": "string",
+                "maxLength": 450
+              }
+            }
+          }
         }
       }
     }

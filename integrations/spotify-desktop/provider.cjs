@@ -112,6 +112,9 @@ module.exports = function createSpotifyProvider(options) {
     const active = [...receipts.values()].filter((row) =>
       ["pending", "unknown", "appended"].includes(row.phase),
     );
+    const entryByUid = new Map(
+      [...receipts.values()].filter((row) => row.uid).map((row) => [row.uid, row.entryId]),
+    );
     return {
       ok: true,
       enabled: true,
@@ -147,6 +150,9 @@ module.exports = function createSpotifyProvider(options) {
                 .map((item) => ({ uid: item.uid }))
             : [],
       })),
+      queueOrder: fresh
+        ? (snapshot?.queue || []).map((item) => entryByUid.get(item.uid)).filter(Boolean)
+        : [],
       installation: installation ? { prepared: true, id: installation.id } : { prepared: false },
     };
   }

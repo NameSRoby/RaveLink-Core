@@ -165,6 +165,19 @@ test("Spotify host admits ten native requests, keeps ownership, refills after ad
     assert.equal(result.appended, true);
   }
   assert.equal(f.provider.status().capacity.available, 0);
+  await f.worker.step();
+  assert.deepEqual(
+    f.provider.status().queueOrder,
+    Array.from({ length: 10 }, (_, i) => "request-" + i),
+  );
+  f.queue.reverse();
+  await f.worker.step();
+  assert.deepEqual(
+    f.provider.status().queueOrder,
+    Array.from({ length: 10 }, (_, i) => "request-" + (9 - i)),
+  );
+  f.queue.reverse();
+  await f.worker.step();
   const full = await f.provider.handle("enqueue", {
     entryId: "eleven",
     candidate: resolved.candidate,

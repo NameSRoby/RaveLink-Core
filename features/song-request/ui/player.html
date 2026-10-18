@@ -3185,6 +3185,9 @@ function installChatCommandPermissions(container) {
   container.append(section);
   const commands = {
     request: "!sr / !songrequest",
+    song: "!song (now playing)",
+    songqueue: "!songqueue (next 5)",
+    queue: "!queue (your position)",
     volume: "!volume 0-100",
     skip: "!skip",
     remove: "!remove [song]",
@@ -3246,7 +3249,8 @@ function installChatCommandPermissions(container) {
       const { command, role } = input.dataset;
       const enabled =
         grants[command]?.[role] ??
-        (role === "moderator" || ["request", "skip", "remove"].includes(command));
+        (role === "moderator" ||
+          ["request", "skip", "remove", "song", "songqueue", "queue"].includes(command));
       if (input.tagName === "SELECT")
         input.value = !enabled
           ? "disabled"

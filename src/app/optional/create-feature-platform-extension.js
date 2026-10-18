@@ -23,6 +23,10 @@ function createFeaturePlatformExtension(options = {}) {
     let youtubeCatalog;
     const chatCommands = createTwitchChatCommandRouter({
       reply: (payload) => twitchProvider().sendChat(payload),
+      querySongRequest: (payload) =>
+        registry.request("song-request", "song.chat.commands.v1", "query", payload, {
+          timeoutMs: 15000,
+        }),
       submitSongRequest: (payload) =>
         registry.request("song-request", "song.queue.submit.v1", "submit", payload, {
           timeoutMs: 30000,

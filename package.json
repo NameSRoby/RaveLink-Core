@@ -1,7 +1,7 @@
 {
   "name": "ravelink-core",
-  "version": "0.7.1-c",
-  "releaseVersion": "0.7.1c",
+  "version": "0.7.1-d",
+  "releaseVersion": "0.7.1d",
   "description": "RaveLink Core for modular local lighting, Twitch, and creator features on Windows",
   "license": "Apache-2.0",
   "homepage": "https://github.com/NameSRoby/RaveLink-Core#readme",

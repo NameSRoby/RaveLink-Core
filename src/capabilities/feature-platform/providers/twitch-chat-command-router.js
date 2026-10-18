@@ -22,6 +22,9 @@ const MODERATOR_COMMANDS = new Set([
 const COMMAND_ALIASES = new Map([
   ["sr", "request"],
   ["songrequest", "request"],
+  ["song", "song"],
+  ["songqueue", "songqueue"],
+  ["queue", "queue"],
   ["skip", "skip"],
   ["skipsong", "skip"],
   ["srskip", "skip"],
@@ -86,6 +89,28 @@ module.exports = function createTwitchChatCommandRouter(options = {}) {
   const moderateSongRequest =
     options.moderateSongRequest || (async () => ({ ok: false, error: "song_request_unavailable" }));
   const now = options.now || Date.now;
+  async function information(command, profile, event, argument) {
+    let result;
+    try {
+      result = argument
+        ? { ok: false, message: `Use !${command} without arguments.` }
+        : resultValue(await options.querySongRequest?.({ command, requesterId: profile.userId }));
+    } catch {
+      result = null;
+    }
+    await options.reply?.({
+      message: boundedText(
+        result?.message || "Song information is temporarily unavailable. Try again shortly.",
+        450,
+      ),
+      replyParentMessageId: boundedText(event.message_id, 160),
+    });
+    return {
+      handled: true,
+      accepted: result?.ok === true,
+      code: result?.ok ? "information_sent" : "information_unavailable",
+    };
+  }
   const cooldowns = new Map();
   const profiles = new Map();
   const handledMessages = new Map();
@@ -264,6 +289,8 @@ module.exports = function createTwitchChatCommandRouter(options = {}) {
       return argument
         ? requestSong(event, profile, argument, config)
         : { handled: false, reason: "invalid_command" };
+    if (["song", "songqueue", "queue"].includes(command))
+      return information(command, profile, event, argument);
     if (command === "skip" || command === "remove")
       return selfOrModerator(
         command,

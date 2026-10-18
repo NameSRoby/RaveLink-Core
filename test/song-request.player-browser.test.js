@@ -919,6 +919,12 @@ test("Moderation edits shared command permissions and scope through the supervis
     return frame;
   };
   let frame = await open();
+  for (const command of ["song", "songqueue", "queue"])
+    assert.equal(
+      await frame.locator(`[data-command="${command}"][data-role="viewer"]`).isChecked(),
+      true,
+    );
+  await frame.locator('[data-command="song"][data-role="viewer"]').uncheck();
   assert.equal(
     await frame.getByLabel("!volume 0-100: Moderators", { exact: true }).isChecked(),
     true,
@@ -947,6 +953,8 @@ test("Moderation edits shared command permissions and scope through the supervis
   const read = () =>
     created.extension.registry.request("song-request", "song.chat.commands.v1", "status", null);
   const policy = (await read()).value;
+  assert.equal(policy.commandPermissions.song.viewer, false);
+  assert.equal(policy.commandPermissions.songqueue.viewer, true);
   assert.deepEqual(Object.keys(policy).sort(), ["commandPermissions", "connected", "ok"]);
   assert.equal(policy.commandPermissions.volume.vip, true);
   assert.equal(policy.commandPermissions.skipAny.viewer, true);
@@ -969,6 +977,7 @@ test("Moderation edits shared command permissions and scope through the supervis
   await stop();
   base = await start();
   frame = await open();
+  assert.equal(await frame.locator('[data-command="song"][data-role="viewer"]').isChecked(), false);
   assert.equal(
     await frame.getByLabel("!volume 0-100: VIPs", { exact: true }).isChecked(),
     true,

@@ -326,3 +326,5 @@ Native chat stays subscribed in StreamElements reward mode when authorized.
 Reward subscriptions and delivery remain exclusive to the chosen reward intake
 transport. This separation prevents changing reward transport from silently
 turning off moderator commands or delivering a redemption twice.
+
+Chat information queries use song.chat.commands.v1/query. The router binds !queue to the authenticated chatter ID and owns the single explicit reply; automatic outcome toggles do not silence requested information. The worker reads the selected provider and merges confirmed native queueOrder entry IDs with locally waiting requests, deduplicating occurrence IDs and excluding the current item. Native ordering comes from observed queue UIDs (or official Spotify queue occurrences), not handoff insertion order. Unconfirmed deliveries prevent exact-position claims. Public messages contain only bounded song metadata and positions; never serialize provider state, account details, requester hashes or IDs into chat. Query handlers must remain read-only.

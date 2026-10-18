@@ -392,8 +392,11 @@ test("moderator and broadcaster skips pass the real broker without a cooldown be
       });
       assert.equal(result.value?.ok, true, JSON.stringify(result));
     }
+    const infoReplies = [];
     const router = createRouter({
       now: () => 1000,
+      reply: async (payload) => infoReplies.push(payload),
+      querySongRequest: (payload) => request("song.chat.commands.v1", "query", payload),
       moderateSongRequest: moderate,
       selfManageSongRequest: (p) => request("song.queue.submit.v1", "self", p),
     });
@@ -405,6 +408,11 @@ test("moderator and broadcaster skips pass the real broker without a cooldown be
       badges: user === "mod" ? [{ set_id: "moderator" }] : [],
       message: { text },
     });
+    assert.equal((await router.handle(chat("!songqueue", "alice"))).accepted, true);
+    assert.match(infoReplies.at(-1).message, /1\. First.*4\. Remove this/);
+    assert.equal((await router.handle(chat("!queue", "alice"))).accepted, true);
+    assert.match(infoReplies.at(-1).message, /#1.*3 more queued/);
+    assert.equal((await request("song.queue.read.v1", "status", {})).value.counts.queued, 4);
     assert.equal(
       (await router.handle(chat("!remove Remove this"))).accepted,
       true,
@@ -446,4 +454,48 @@ test("moderator and broadcaster skips pass the real broker without a cooldown be
     await registry.shutdown();
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("information commands have independent role grants, reject identity arguments and reply once", async () => {
+  const replies = [],
+    queries = [];
+  const router = createRouter({
+    querySongRequest: async (p) => {
+      queries.push(p);
+      return { ok: true, value: { ok: true, message: "Public song information" } };
+    },
+    reply: async (p) => replies.push(p),
+  });
+  const event = (text) => ({
+    message_id: crypto.randomUUID(),
+    chatter_user_id: "alice",
+    broadcaster_user_id: "owner",
+    message: { text },
+  });
+  for (const cmd of ["song", "songqueue", "queue"]) {
+    const e = event("!" + cmd);
+    assert.equal((await router.handle(e, { songRequestChatEnabled: false })).accepted, true);
+    assert.equal(queries.at(-1).requesterId, "alice");
+    assert.equal(queries.at(-1).command, cmd);
+    assert.equal(replies.at(-1).replyParentMessageId, e.message_id);
+    const count = replies.length;
+    await router.handle(e, {});
+    assert.equal(replies.length, count);
+  }
+  const before = queries.length;
+  await router.handle(event("!queue @other"), {});
+  assert.equal(queries.length, before);
+  assert.match(replies.at(-1).message, /without arguments/);
+  await router.handle(event("!song"), { commandPermissions: { song: { viewer: false } } });
+  assert.equal(queries.length, before);
+  assert.match(replies.at(-1).message, /permission/);
+  const failed = createRouter({
+    querySongRequest: async () => {
+      throw Error("private credential");
+    },
+    reply: async (p) => replies.push(p),
+  });
+  await failed.handle(event("!song"), {});
+  assert.match(replies.at(-1).message, /temporarily unavailable/);
+  assert.doesNotMatch(replies.at(-1).message, /credential/);
 });

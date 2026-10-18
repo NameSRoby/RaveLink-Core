@@ -4,6 +4,16 @@
 
 RaveLink Core is a local Windows app for streamer lighting, music requests and optional Twitch integration. It runs in the tray and opens at `http://127.0.0.1:5050`.
 
+## 0.7.1d feature expansion
+
+- Added **!song** to report the selected player's current song and artist, including a paused label when applicable.
+- Added **!songqueue** to list up to five upcoming RaveLink song requests, excluding the currently playing song. Requests already delivered to Spotify or TIDAL are included before locally waiting requests, in the observed request order.
+- Added **!queue** to tell the chatter their next request's position, how many requests are ahead, whether their song is playing, and whether they have more requests waiting. With no pending requests, it says so explicitly.
+- Added separate Moderator, VIP and Viewer permission toggles for all three commands under **Song Request > Player > Moderation > Chat commands & permissions**. These read-only commands default to enabled for every role and work with either reward intake mode. Existing moderation permissions are preserved.
+- Replies stay within chat message limits, sanitize song metadata and suppress replayed events. Unconfirmed desktop deliveries report that their position is pending instead of guessing. These queries do not change playback or the queue, and work independently of automatic chat-announcement toggles.
+
+**Updating:** install 0.7.1d, update **Song Request to 0.45.0** and **Twitch Integration to 0.12.5** under **Packages**, restart Core and refresh the dashboard. Keep existing local data; saved accounts, playlists, overlay profiles and permissions are preserved. No new Twitch scopes or companion restart are required for these information commands when the existing connection is working. The original 0.7.1 updater needs a manual upgrade to recognize letter-suffixed releases.
+
 ## 0.7.1c patch notes
 
 This replacement build adds the Moderation command editor and fixes silently rejected skips. If you already installed 0.7.1c, reinstall the current download, update the optional features under Packages, and restart Core.
@@ -44,16 +54,16 @@ This patch fixes problems in 0.7.1 while retaining its existing lighting, music,
 
 **Updating from 0.7.1:** use the installer below, or stop Core and extract the portable update into your installation folder. Keep your existing local data. The 0.7.1 updater does not recognize letter-suffixed releases; 0.7.1a adds support for them. After upgrading Core, update **Song Request** under **Packages** to receive the feature fixes. Restart Core, then reload the dashboard and refresh OBS browser sources. There is no need to reconnect accounts or erase playlists.
 
-## Install 0.7.1c
+## Install 0.7.1d
 
-1. Download **RaveLink-Core-Windows-v0.7.1c-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
+1. Download **RaveLink-Core-Windows-v0.7.1d-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
 2. Choose an installation folder and optional features. Setup downloads and verifies only your selected features from this repository.
 3. Choose **Main**, **More** or **Hidden** placement for tabs. Change this later from the settings gear → **Choose tabs**.
 4. Launch from the Start menu or desktop shortcut. Use the tray icon to reopen, restart or exit.
 
 Windows 10 or 11, 64-bit, is required. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-For portable use, extract **RaveLink-Core-Windows-v0.7.1c-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
+For portable use, extract **RaveLink-Core-Windows-v0.7.1d-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
 
 ## Lighting
 

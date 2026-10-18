@@ -156,6 +156,9 @@ module.exports = function createExperimentalTidalBridge(options) {
         .slice(-10)
         .map((row) => ({ ...row })),
       handoffs: visible.map((row) => ({ ...row })),
+      queueOrder: (nativeQueue?.uids || [])
+        .map((uid) => active.find((row) => row.uid === uid)?.entryId)
+        .filter(Boolean),
       pairingFile: pairingPath,
     };
   }

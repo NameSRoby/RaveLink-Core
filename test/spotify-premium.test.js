@@ -171,6 +171,10 @@ test("Premium scheduler confirms append, preserves a ten-request window, guards 
       true,
     );
   assert.equal(provider.status().capacity.queued, 10);
+  assert.deepEqual(
+    provider.status().queueOrder,
+    Array.from({ length: 10 }, (_, i) => "request-" + i),
+  );
   assert.equal(
     (
       await provider.handle("enqueue", {

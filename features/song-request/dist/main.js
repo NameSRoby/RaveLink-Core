@@ -357,15 +357,17 @@ async function handleOperation(request) {
   // Twitch feature UI. Expose only the policy, never connection credentials.
   if (
     request.capability === "song.chat.commands.v1" &&
-    ["status", "configure"].includes(request.method)
+    ["status", "configure", "query"].includes(request.method)
   ) {
     try {
-      return await context.callCapability(
-        "twitch.commands.host.v1",
-        request.method,
-        request.payload,
-        { timeoutMs: 5000 },
-      );
+      return request.method === "query"
+        ? await require("./chat-information")(
+            { queue, preferences: playerPreferences, tidal: experimentalTidal, spotify },
+            request.payload,
+          )
+        : await context.callCapability("twitch.commands.host.v1", request.method, request.payload, {
+            timeoutMs: 5000,
+          });
     } catch {
       return {
         ok: false,

@@ -190,6 +190,11 @@ module.exports = function premiumProvider(options) {
     const currentOwner = [...receipts.values()].find(
       (row) => row.phase === "playing" && row.uid === state?.current?.uid,
     );
+    const remaining = [...receipts.values()].filter((row) => row.phase === "appended");
+    const queueOrder = (fresh ? state.queue : []).flatMap((uri) => {
+      const index = remaining.findIndex((row) => row.uri === uri);
+      return index < 0 ? [] : [remaining.splice(index, 1)[0].entryId];
+    });
     return {
       ok: true,
       enabled: true,
@@ -224,6 +229,7 @@ module.exports = function premiumProvider(options) {
             ? [{ uid: "official-queue-" + row.entryId }]
             : [],
       })),
+      queueOrder,
     };
   }
   async function resolve(payload) {
