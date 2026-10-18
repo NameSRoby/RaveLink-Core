@@ -33,6 +33,12 @@ test("SoundCloud source uses confirmed local metadata without starting a Windows
   });
   await harness.start();
   t.after(() => harness.stop());
+  assert.deepEqual(
+    controls.map((row) => row.action),
+    ["stop"],
+    "restoring a local player stops a previous desktop observer",
+  );
+  controls.length = 0;
   const select = (source) =>
     harness.request("song.observer.admin.v1", "control", {
       action: "select",
