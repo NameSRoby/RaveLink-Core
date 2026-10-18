@@ -3,6 +3,43 @@ const test = require("node:test"),
   crypto = require("node:crypto");
 const information = require("../features/song-request/dist/chat-information");
 const key = (name) => "req_" + crypto.createHash("sha256").update(name).digest("hex");
+
+test("queue estimates sum predecessors, qualify pauses and propagate unknown timing", () => {
+  const timing = require("../features/song-request/dist/chat-queue-timing");
+  const now = 100000;
+  const current = {
+    status: "playing",
+    durationMs: 180000,
+    positionMs: 60000,
+    observedAt: now - 10000,
+  };
+  const input = {
+    rows: [{ durationMs: 180000 }, { durationMs: 120000 }, { durationMs: 60000 }],
+    current,
+    observation: current,
+    playback: { control: {} },
+    native: false,
+    now,
+  };
+  assert.deepEqual(timing(input), ["in ~1:50", "in ~4:50", "in ~6:50"]);
+  current.status = "paused";
+  assert.deepEqual(timing(input), [
+    "~2:00 after resume",
+    "~5:00 after resume",
+    "~7:00 after resume",
+  ]);
+  delete input.rows[0].durationMs;
+  assert.deepEqual(timing(input), ["~2:00 after resume", "ETA unavailable", "ETA unavailable"]);
+  current.observedAt = now - 16000;
+  assert.ok(timing(input).every((label) => label === "ETA unavailable"));
+  current.observedAt = now;
+  input.native = true;
+  input.state = { capacity: { queued: 3 }, queueOrder: ["known-request"] };
+  assert.ok(
+    timing(input).every((label) => label === "ETA unavailable"),
+    "unowned native entries cannot be timed",
+  );
+});
 test("Windows media metadata describes a non-requested desktop song without a candidate wrapper", async () => {
   const queue = require("../features/song-request/dist/domain").createSongQueue();
   queue.configurePlaybackSource({ source: "tidal" });
@@ -60,12 +97,15 @@ function fixture(provider) {
     uid: id + "-uid",
     requesterKey: key(owner),
     phase: "appended",
-    candidate: { provider, providerItemId: id, title, artists: ["Artist"] },
+    candidate: { provider, providerItemId: id, title, artists: ["Artist"], durationMs: 180000 },
   });
   const current = {
     ...row("current", "Current song", "alice"),
     phase: "playing",
     status: "playing",
+    observedAt: Date.now(),
+    positionMs: 60000,
+    durationMs: 180000,
   };
   const next = Array.from({ length: 6 }, (_, i) =>
     row("next" + i, "Upcoming " + (i + 1), i === 1 ? "alice" : "bob"),
@@ -119,9 +159,11 @@ for (const provider of ["youtube", "soundcloud", "tidal", "spotify"]) {
     assert.match((await f.query("song")).message, /Now playing: Current song - Artist/);
     const next = (await f.query("songqueue")).message;
     assert.match(next, /1\. Upcoming 1/);
+    assert.match(next, /Upcoming 1.*in ~[12]:/);
     assert.match(next, /5\. Upcoming 5/);
     assert.doesNotMatch(next, /Upcoming 6|Current song|Waiting song|req_/);
     assert.match((await f.query("queue")).message, /playing now.*#2.*1 ahead.*1 more queued/);
+    assert.match((await f.query("queue")).message, /Upcoming 2.*in ~[45]:/);
     assert.match((await f.query("queue", "stranger")).message, /no pending song requests/);
     assert.equal(
       JSON.stringify([f.state, f.local]),
@@ -131,6 +173,7 @@ for (const provider of ["youtube", "soundcloud", "tidal", "spotify"]) {
     f.playback.primary.status = "paused";
     f.playback.control.paused = true;
     assert.match((await f.query("song")).message, /^Paused:/);
+    assert.match((await f.query("songqueue")).message, /after resume/);
   });
 }
 test("uncertain or disconnected native delivery never invents an exact position", async () => {

@@ -153,6 +153,9 @@ module.exports = function createSpotifyProvider(options) {
       queueOrder: fresh
         ? (snapshot?.queue || []).map((item) => entryByUid.get(item.uid)).filter(Boolean)
         : [],
+      queueTimingComplete: Boolean(
+        fresh && snapshot.complete && snapshot.queue.every((item) => entryByUid.has(item.uid)),
+      ),
       installation: installation ? { prepared: true, id: installation.id } : { prepared: false },
     };
   }

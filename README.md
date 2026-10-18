@@ -6,6 +6,14 @@ RaveLink Core is a local Windows app for streamer lighting, music requests and o
 
 ## 0.7.1d feature expansion
 
+### Updated 0.7.1d package
+
+- `!queue` now includes your requested song, its queue position and estimated time until playback. `!songqueue` includes an estimate for each of the next five requests. Estimates account for the current track and preceding songs; paused playback is qualified and missing or uncertain timing is reported as unavailable.
+- Startup restores the saved music player and automatically starts its desktop now-playing observer for TIDAL or Spotify, even when the playback snapshot is absent or older than the selection.
+- A stopped Song Request worker leaves a visible recovery notice with access to Packages instead of silently losing its tab. Worker exits and resource-limit stops leave bounded local diagnostic entries. The cause of the reported isolated stop has not been confirmed.
+
+Update **Song Request** to **0.45.3** under **Packages** after replacing the application. Restart Core to load the updated host and navigation code. Existing local settings and account data are retained.
+
 - Added **!song** to report the selected player's current song and artist, including a paused label when applicable.
 - Added **!songqueue** to list up to five upcoming RaveLink song requests, excluding the currently playing song. Requests already delivered to Spotify or TIDAL are included before locally waiting requests, in the observed request order.
 - Added **!queue** to tell the chatter their next request's position, how many requests are ahead, whether their song is playing, and whether they have more requests waiting. With no pending requests, it says so explicitly.
@@ -13,7 +21,7 @@ RaveLink Core is a local Windows app for streamer lighting, music requests and o
 - Replies stay within chat message limits, sanitize song metadata and suppress replayed events. Unconfirmed desktop deliveries report that their position is pending instead of guessing. These queries do not change playback or the queue, and work independently of automatic chat-announcement toggles.
 - Hardened chat metadata cleanup against nested and unfinished markup; Song Request 0.45.2 includes the CodeQL sanitizer fix.
 
-**Updating:** install 0.7.1d, update **Song Request to 0.45.2** and **Twitch Integration to 0.12.5** under **Packages**, restart Core and refresh the dashboard. Keep existing local data; saved accounts, playlists, overlay profiles and permissions are preserved. No new Twitch scopes or companion restart are required for these information commands when the existing connection is working. The original 0.7.1 updater needs a manual upgrade to recognize letter-suffixed releases.
+**Updating:** install 0.7.1d, update **Song Request to 0.45.3** and **Twitch Integration to 0.12.5** under **Packages**, restart Core and refresh the dashboard. Keep existing local data; saved accounts, playlists, overlay profiles and permissions are preserved. No new Twitch scopes or companion restart are required for these information commands when the existing connection is working. The original 0.7.1 updater needs a manual upgrade to recognize letter-suffixed releases.
 
 ## 0.7.1c patch notes
 

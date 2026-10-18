@@ -23,6 +23,35 @@ test("tab placement saves locally, survives reload and supports moving tabs back
     errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(base, { waitUntil: "networkidle" });
+  // A failed optional worker must remain discoverable while its dead pages are
+  // removed. Explicit disabling still removes its workspace as before.
+  await page.evaluate(async () => {
+    const navigation = await import("/feature-navigation.js");
+    const feature = {
+      id: "song-request",
+      name: "Song Request",
+      version: "fixture",
+      pid: 1,
+      lifecycle: "active",
+      enabledOnStartup: true,
+      uiContributions: [{ id: "player", title: "Player", surface: "panel" }],
+    };
+    navigation.syncFeatureNavigation([feature]);
+    navigation.selectMainTab("feature:song-request");
+    navigation.syncFeatureNavigation([{ ...feature, lifecycle: "crashed", pid: 0 }]);
+  });
+  assert.equal(await page.locator('[data-tab="feature:song-request"]').count(), 1);
+  assert.match(
+    await page.locator('[data-panel="feature:song-request"]').innerText(),
+    /stopped unexpectedly/,
+  );
+  assert.equal(await page.locator('[data-panel="feature:song-request"] iframe').count(), 0);
+  await page.getByRole("button", { name: "Open Packages", exact: true }).click();
+  assert.equal(await page.locator('[data-panel="features"]').isVisible(), true);
+  await page.evaluate(async () =>
+    (await import("/feature-navigation.js")).syncFeatureNavigation([]),
+  );
+  assert.equal(await page.locator('[data-tab="feature:song-request"]').count(), 0);
   await page.locator("#themeButton").click();
   await page.locator("#customizeTabs").click();
   await page

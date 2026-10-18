@@ -320,23 +320,7 @@ async function activate(nextContext) {
       publishPlayback({ ok: true });
     },
   });
-  const source = queue.playbackStatus().playbackSource;
-  if (!["youtube", "soundcloud"].includes(source)) {
-    try {
-      await context.callCapability(
-        "media.windows.now-playing.v1",
-        "control",
-        { action: "select", provider: source },
-        { timeoutMs: 1000 },
-      );
-      await context.callCapability(
-        "media.windows.now-playing.v1",
-        "control",
-        { action: "start" },
-        { timeoutMs: 1000 },
-      );
-    } catch {}
-  }
+  await require("./restore-player")({ preferences: playerPreferences, queue, context });
 }
 
 function sendResponse(request, result) {

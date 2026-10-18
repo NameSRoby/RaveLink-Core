@@ -97,6 +97,7 @@ module.exports = function createFeatureHostRegistry(options = {}) {
           Number(lastActivity.get(featureId) || 0) >=
         60000,
       onViolation: async (featureId, violation) => {
+        console.warn(`[FEATURE] ${featureId} stopped: ${violation.code}`);
         await disable(featureId, { reason: violation.code });
       },
     });
@@ -377,8 +378,17 @@ module.exports = function createFeatureHostRegistry(options = {}) {
           callProvider(row.manifest, capability, method, payload, callOptions),
         onBrokerEvent: (capability, event, payload) =>
           publishFeatureEvent(row, capability, event, payload),
-        onExit: () => {
+        onExit: (status) => {
           resourceMonitor.unregister(row.id);
+          // The Windows host captures stderr in its local log. Keep a bounded
+          // lifecycle breadcrumb so an isolated worker failure survives restart;
+          // never include request payloads, credentials or worker file paths.
+          if (["crashed", "quarantined"].includes(status?.lifecycle)) {
+            const code = /^[a-zA-Z0-9_:.-]{1,100}$/.test(status.lastError || "")
+              ? status.lastError
+              : "feature_worker_failed";
+            console.warn(`[FEATURE] ${row.id} ${status.lifecycle}: ${code}`);
+          }
           notifyLifecycle();
         },
       });

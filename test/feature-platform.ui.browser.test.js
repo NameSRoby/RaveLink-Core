@@ -692,8 +692,10 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   assert.equal(await designer.locator("#workspace .segment").count(), 2);
   const activePid = created.extension.registry.list().features[0].pid;
   process.kill(activePid);
-  await page.locator('[data-tab="feature:song-request"]').waitFor({ state: "detached" });
-  assert.equal(await page.locator('[data-panel="feature:song-request"]').count(), 0);
+  await workspace.getByRole("status").filter({ hasText: "stopped unexpectedly" }).waitFor();
+  assert.equal(await page.locator('[data-tab="feature:song-request"]').count(), 1);
+  assert.equal(await workspace.locator("iframe").count(), 0);
+  assert.equal(await workspace.getByRole("button", { name: "Open Packages" }).count(), 1);
   await fetch(`${base}/api/features/song-request/restart`, { method: "POST" });
   await page.locator('[data-tab="feature:song-request"]').waitFor({ state: "attached" });
   await page.locator('[data-tab="feature:song-request"]').click();

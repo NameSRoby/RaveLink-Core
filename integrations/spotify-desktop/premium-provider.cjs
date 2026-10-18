@@ -230,6 +230,7 @@ module.exports = function premiumProvider(options) {
             : [],
       })),
       queueOrder,
+      queueTimingComplete: Boolean(fresh && state.queue.length === queueOrder.length),
     };
   }
   async function resolve(payload) {

@@ -113,11 +113,16 @@ export function selectMainTab(key) {
 }
 
 export function syncFeatureNavigation(features) {
-  // A workspace is useful only while its package is running and contributes
-  // at least one page. Disabled/crashed packages remain manageable in Packages,
-  // and backend-only payloads never become empty tabs.
+  // Keep an unexpectedly stopped workspace discoverable without mounting dead
+  // worker pages. Explicitly disabled packages still leave navigation normally.
   const visibleFeatures = features.filter(
-    (feature) => feature.lifecycle === "active" && (feature.uiContributions || []).length > 0,
+    (feature) =>
+      (feature.lifecycle === "active" ||
+        (["crashed", "quarantined", "incompatible"].includes(feature.lifecycle) &&
+          (feature.enabledOnStartup || views.has(feature.id))) ||
+        (views.has(feature.id) &&
+          ["active_rss_limit", "idle_cpu_limit"].includes(feature.stateReason))) &&
+      (feature.uiContributions || []).length > 0,
   );
   const ids = new Set(visibleFeatures.map((row) => row.id));
   for (const [id, view] of views) {
@@ -132,6 +137,7 @@ export function syncFeatureNavigation(features) {
       feature.version,
       feature.pid,
       feature.lifecycle,
+      feature.stateReason,
       feature.uiContributions,
     ]);
     let view = views.get(feature.id);
@@ -161,6 +167,20 @@ export function syncFeatureNavigation(features) {
     const heading = document.createElement("h2");
     heading.textContent = feature.name.toUpperCase();
     view.panel.append(heading);
+    if (feature.lifecycle !== "active") {
+      const notice = document.createElement("p");
+      notice.setAttribute("role", "status");
+      notice.textContent = ["active_rss_limit", "idle_cpu_limit"].includes(feature.stateReason)
+        ? `${feature.name} stopped after exceeding its resource budget. Open Packages to review its status and restart it.`
+        : `${feature.name} stopped unexpectedly or could not start. Open Packages to review its status and restart it. Playback in an external music player may continue.`;
+      const manage = document.createElement("button");
+      manage.type = "button";
+      manage.textContent = "Open Packages";
+      manage.onclick = () => selectMainTab("features");
+      view.panel.append(notice, manage);
+      view.open = () => {};
+      continue;
+    }
     const tabs = document.createElement("nav");
     tabs.className = "tabs featureSubtabs";
     tabs.setAttribute("aria-label", `${feature.name} views`);

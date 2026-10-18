@@ -109,6 +109,14 @@ module.exports = async function chatInformation({ queue, preferences, tidal, spo
         row.entryId !== currentId &&
         !nativeRows.some((x) => x.entryId === row.entryId),
     );
+  const timing = require("./chat-queue-timing")({
+    rows,
+    current,
+    observation,
+    playback,
+    state,
+    native,
+  });
   if (payload.command === "songqueue") {
     if (orderUncertain)
       return reply(
@@ -119,7 +127,7 @@ module.exports = async function chatInformation({ queue, preferences, tidal, spo
       "Next requests: " +
         rows
           .slice(0, 5)
-          .map((row, i) => `${i + 1}. ${describe(row, 70)}`)
+          .map((row, i) => `${i + 1}. ${describe(row, 48)} (${timing[i]})`)
           .join(" | "),
     );
   }
@@ -130,8 +138,8 @@ module.exports = async function chatInformation({ queue, preferences, tidal, spo
     current?.paused ||
     current?.status === "paused" ||
     (!native && playback.control?.paused)
-      ? "Your requested song is paused."
-      : "Your requested song is playing now.";
+      ? `Your requested song "${describe(current, 90)}" is paused.`
+      : `Your requested song "${describe(current, 90)}" is playing now.`;
   const owned = rows
     .map((row, i) => ({ row, position: i + 1 }))
     .filter((x) => x.row.requesterKey === key);
@@ -145,6 +153,6 @@ module.exports = async function chatInformation({ queue, preferences, tidal, spo
     );
   if (!owned.length) return reply("You have no pending song requests.");
   return reply(
-    `${playing ? currentNotice + " " : ""}Your next request is #${owned[0].position} in the request queue (${owned[0].position - 1} ahead)${owned.length > 1 ? `; ${owned.length - 1} more queued` : ""}.`,
+    `${playing ? currentNotice + " " : ""}Your next request "${describe(owned[0].row, 90)}" is #${owned[0].position} in the request queue (${owned[0].position - 1} ahead; ${timing[owned[0].position - 1]})${owned.length > 1 ? `; ${owned.length - 1} more queued` : ""}.`,
   );
 };
