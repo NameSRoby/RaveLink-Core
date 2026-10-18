@@ -5,7 +5,7 @@
  */
 // A release must download every manifest and payload from one immutable tree.
 // A moving branch can be cached per file by GitHub and briefly mix revisions.
-const OFFICIAL_FEATURE_REVISION = "55a993a32e83138633d8ac10b0d6e02aba3228b2";
+const OFFICIAL_FEATURE_REVISION = "49e03988f9b17710753018f8e68c51a07082db3b";
 const GITHUB_RAW_ROOT = `https://raw.githubusercontent.com/NameSRoby/RaveLink-Core/${OFFICIAL_FEATURE_REVISION}/features/`;
 
 const OFFICIAL_FEATURE_SOURCES = Object.freeze([
