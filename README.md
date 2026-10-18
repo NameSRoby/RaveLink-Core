@@ -11,9 +11,9 @@ RaveLink Core is a local Windows app for streamer lighting, music requests and o
 - Added **!queue** to tell the chatter their next request's position, how many requests are ahead, whether their song is playing, and whether they have more requests waiting. With no pending requests, it says so explicitly.
 - Added separate Moderator, VIP and Viewer permission toggles for all three commands under **Song Request > Player > Moderation > Chat commands & permissions**. These read-only commands default to enabled for every role and work with either reward intake mode. Existing moderation permissions are preserved.
 - Replies stay within chat message limits, sanitize song metadata and suppress replayed events. Unconfirmed desktop deliveries report that their position is pending instead of guessing. These queries do not change playback or the queue, and work independently of automatic chat-announcement toggles.
-- Hardened chat metadata cleanup against nested and unfinished markup; Song Request 0.45.1 includes the CodeQL sanitizer fix.
+- Hardened chat metadata cleanup against nested and unfinished markup; Song Request 0.45.2 includes the CodeQL sanitizer fix.
 
-**Updating:** install 0.7.1d, update **Song Request to 0.45.1** and **Twitch Integration to 0.12.5** under **Packages**, restart Core and refresh the dashboard. Keep existing local data; saved accounts, playlists, overlay profiles and permissions are preserved. No new Twitch scopes or companion restart are required for these information commands when the existing connection is working. The original 0.7.1 updater needs a manual upgrade to recognize letter-suffixed releases.
+**Updating:** install 0.7.1d, update **Song Request to 0.45.2** and **Twitch Integration to 0.12.5** under **Packages**, restart Core and refresh the dashboard. Keep existing local data; saved accounts, playlists, overlay profiles and permissions are preserved. No new Twitch scopes or companion restart are required for these information commands when the existing connection is working. The original 0.7.1 updater needs a manual upgrade to recognize letter-suffixed releases.
 
 ## 0.7.1c patch notes
 
