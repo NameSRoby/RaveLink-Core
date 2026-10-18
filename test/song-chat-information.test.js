@@ -30,6 +30,27 @@ test("Windows media metadata describes a non-requested desktop song without a ca
     { command: "song", requesterId: "alice" },
   );
   assert.match(result.message, /Now playing: Background song - Background artist/);
+  queue.observe({ provider: "tidal", sourceId: "fixture", available: false });
+  const missing = await information(
+    {
+      queue,
+      preferences: async () => ({ ok: true, player: "tidal" }),
+      tidal: async () => ({
+        ok: true,
+        ready: true,
+        connected: true,
+        current: { uid: "background", trackId: "123" },
+        handoffs: [],
+        queueOrder: [],
+      }),
+    },
+    { command: "song", requesterId: "alice" },
+  );
+  assert.equal(
+    missing.ok,
+    false,
+    "a known playing occurrence with missing metadata is unavailable, not an empty player",
+  );
 });
 function fixture(provider) {
   const native = ["tidal", "spotify"].includes(provider);

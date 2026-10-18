@@ -55,7 +55,7 @@ module.exports = async function chatInformation({ queue, preferences, tidal, spo
       (!native || state?.connected) && (current?.candidate?.title || current?.title)
         ? current
         : observation;
-    if (native && !candidate && !state?.connected)
+    if (native && !candidate && (!state?.connected || state?.current?.uid))
       return { ok: false, message: "Now-playing information is temporarily unavailable." };
     if (!candidate || (!native && !["playing", "paused"].includes(candidate.status)))
       return reply("No song is currently playing.");
