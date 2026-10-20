@@ -27,6 +27,7 @@ const createEgressGovernor = require("../runtime/egress-governor");
 const createHardwareOnboardingService = require("../../domains/fixtures/hardware-onboarding.service");
 const { createCoreUpdateService } = require("../../domains/system/core-update.service");
 const createTaughtColorPreviewService = require("../../domains/colors/taught-color-preview.service");
+const createMusicToLightService = require("../../domains/music-to-light/music-to-light.service");
 
 module.exports = function createCoreServer(options = {}) {
   const rootDir = path.resolve(options.rootDir || path.join(__dirname, "../../.."));
@@ -84,6 +85,30 @@ module.exports = function createCoreServer(options = {}) {
     ...(options.widgetTokenVaultOptions || {}),
   });
   const lifecycle = createLifecycleRegistry();
+  let extension = null;
+  const musicToLight = createMusicToLightService({
+    core,
+    controllerOptions: options.musicControllerOptions,
+    designPath: path.join(runtimeDir, "music-to-light", "design.json"),
+    operatorPath: path.join(runtimeDir, "music-to-light", "operator.json"),
+    readPlayback: async () => {
+      const registry = extension?.registry || extension?.features?.registry;
+      if (
+        !registry
+          ?.list()
+          .features.some((row) => row.id === "song-request" && row.lifecycle === "active")
+      )
+        return null;
+      const result = await registry.request(
+        "song-request",
+        "song.playback.read.v1",
+        "status",
+        null,
+        { timeoutMs: 750 },
+      );
+      return result?.ok ? result.value : null;
+    },
+  });
   const runtimeMetrics = createRuntimeMetricsService({
     ...(options.runtimeMetricsOptions || {}),
     ownedWork: () => lifecycle.snapshot(),
@@ -107,6 +132,8 @@ module.exports = function createCoreServer(options = {}) {
     stop: core.shutdown,
   });
   const taughtColorPreview = createTaughtColorPreviewService({
+    outputOwnership: core.fixtureOutput.ownership,
+    directiveService: core.directiveService,
     colorCommandService: core.colorCommandService,
     fixtureRegistry: core.fixtureRegistry,
     lightingLab: core.lightingLab,
@@ -119,6 +146,18 @@ module.exports = function createCoreServer(options = {}) {
     id: "taught-color-preview",
     type: "timer",
     stop: taughtColorPreview.shutdown,
+  });
+  lifecycle.register({
+    owner: "core",
+    id: "music-to-light",
+    type: "audio",
+    stop: musicToLight.shutdown,
+  });
+  core.twitchLightEffects.setMusicHandler({
+    start: musicToLight.rave,
+    check: musicToLight.checkRave,
+    stop: musicToLight.stopRave,
+    ids: musicToLight.raveIds,
   });
   const widgetController = createSystemWidgetEventController({
     colorApply: async (body) => {
@@ -190,6 +229,7 @@ module.exports = function createCoreServer(options = {}) {
   });
   app.use(runtimeMetrics.requestMiddleware());
   registerPresentationRoutes(app, { runtimeDir });
+  require("./register-music-to-light.routes")(app, { host: musicToLight });
   require("./register-navigation.routes")(app, { runtimeDir });
   // Prevent stale widgets from posting an HTML 404 into chat. This compatibility
   // sink stays behind normal write security and never invokes retired behavior.
@@ -198,7 +238,6 @@ module.exports = function createCoreServer(options = {}) {
     res.status(204).end();
   });
   app.use(express.static(path.join(rootDir, "public", "core")));
-  let extension = null;
   registerLightingCoreRoutes(app, {
     core,
     widgetController,
@@ -253,6 +292,7 @@ module.exports = function createCoreServer(options = {}) {
     app,
     services: Object.freeze({
       lightingCore: core,
+      musicToLight,
       hardwareOnboarding,
       coreUpdates,
       widgetController,

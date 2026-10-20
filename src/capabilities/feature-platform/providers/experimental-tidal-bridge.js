@@ -100,6 +100,12 @@ module.exports = function createExperimentalTidalBridge(options) {
       schemaVersion: 1,
       entries: [...receipts.values()],
     });
+  const recoverDurations = require("./tidal-duration-recovery")({
+    entries: receipts,
+    resolve: (id) => request("resolve", id),
+    persist,
+    isActive: () => !stopped,
+  });
   if (receipts.size) persist();
   fs.mkdirSync(options.runtimeDir, { recursive: true });
   writeJsonFile(
@@ -210,6 +216,7 @@ module.exports = function createExperimentalTidalBridge(options) {
         uid: "",
         title: candidate.title,
         artists: candidate.artists,
+        durationMs: candidate.durationMs,
         ...owner,
       });
       persist();
@@ -351,6 +358,9 @@ module.exports = function createExperimentalTidalBridge(options) {
         options.onQueueChanged?.();
       } catch {}
     }
+    // Legacy receipts lacked durations. Recover them through bounded metadata
+    // reads only after existing operator/delivery commands have cleared.
+    if (ready && nativeQueue && !commands.size) recoverDurations();
     const command = ready ? [...commands.values()].find((row) => !row.delivered) : null;
     if (command) command.delivered = true;
     return {

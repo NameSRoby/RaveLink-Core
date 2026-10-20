@@ -9,12 +9,9 @@
 // [TITLE] Purpose: bounded, fixture-scoped channel-point lighting effects
 
 const fs = require("node:fs");
+const createLightEffectCommand = require("./light-effect-command");
 const { writeJsonFile } = require("../../shared/fs/json-file-store");
-const {
-  hsvToRgb255,
-  createHueStateFromRgb,
-  createWizStateFromRgb,
-} = require("../colors/color-space");
+const { createHueStateFromRgb, createWizStateFromRgb } = require("../colors/color-space");
 
 const DEFAULT = Object.freeze({
   version: 1,
@@ -24,34 +21,11 @@ const DEFAULT = Object.freeze({
   fixtureIds: [],
   prefixes: {},
 });
-const EFFECTS = new Set([
-  "cycle",
-  "fade",
-  "breathe",
-  "rainbow",
-  "wave",
-  "sweep",
-  "ripple",
-  "chase",
-]);
-const SPEEDS = Object.freeze({ fast: 1200, normal: 2400, slow: 4500 });
-const SYNCHRONIZATION_LEAD_MS = 500;
 const ENGINE_TICK_MS = 50;
 const STREAM_CADENCE_MS = 250;
-const RAINBOW = Object.freeze([0, 45, 90, 150, 210, 270, 315].map((hue) => hsvToRgb255(hue, 1, 1)));
 
 function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, Number(value)));
-}
-function rgbFromHex(value) {
-  const match = /^#([0-9a-f]{6})$/i.exec(String(value || ""));
-  return match
-    ? {
-        r: parseInt(match[1].slice(0, 2), 16),
-        g: parseInt(match[1].slice(2, 4), 16),
-        b: parseInt(match[1].slice(4, 6), 16),
-      }
-    : null;
 }
 function mix(a, b, amount) {
   const t = clamp(amount, 0, 1);
@@ -66,6 +40,7 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
   const { storePath, fixtureRegistry, directiveService, adapters = {} } = options;
   const lightingLayout = options.lightingLayout;
   const lightingLab = options.lightingLab;
+  const outputOwnership = options.outputOwnership;
   if (!storePath || !fixtureRegistry || !directiveService?.parseTwitchColorDirective)
     throw new Error(
       "createTwitchLightEffectsService requires storage, fixtures, and directive service",
@@ -82,17 +57,47 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
     shuttingDown = false;
   let faultCount = 0,
     lastFault = null;
+  let musicHandler = null,
+    effectRevision = 0,
+    ravePending = false;
+  const isRaveActive = () => ravePending || (musicHandler?.ids() || []).length > 0;
+  function isRaveStop(rawText) {
+    const route = resolve(rawText);
+    return parse(route.matched ? route.text : rawText).type === "stop";
+  }
   const active = new Map(),
     cooldownUntil = new Map(),
     restoreGenerations = new Map(),
+    restoring = new Map(),
     pendingTasks = new Set(),
     delayedTimers = new Set(),
     faultReportAfter = new Map();
-  const dispatchLatest = require("./fixture-effect-dispatch")({
-    isCurrent: (entry) => !shuttingDown && active.get(entry.fixture.id) === entry,
-    dispatch,
-    reportFault,
-  });
+  // Core uses one broker queue for frames, manual writes and returns. Retain the
+  // standalone scheduler adapter for consumers that have not composed Core.
+  const dispatchLatest = outputOwnership
+    ? Object.assign(
+        (entry, frame, transitionMs) => {
+          if (!shuttingDown && active.get(entry.fixture.id) === entry) {
+            const task = supervise(
+              () => dispatch(entry.fixture, frame, transitionMs, entry),
+              "dispatch",
+              entry.fixture.id,
+            );
+            entry.firstDelivery ||= task;
+          }
+        },
+        {
+          afterCurrent: (_id, action) => Promise.resolve().then(action),
+          // A manual write enters the broker itself; waiting here would delay
+          // invalidation and let another old frame slip in before takeover.
+          settled: () => Promise.resolve(),
+        },
+      )
+    : require("./fixture-effect-dispatch")({
+        isCurrent: (entry) => !shuttingDown && active.get(entry.fixture.id) === entry,
+        dispatch,
+        reportFault,
+      });
   const scheduleOnce = typeof options.setTimeout === "function" ? options.setTimeout : setTimeout;
   const unscheduleOnce =
     typeof options.clearTimeout === "function" ? options.clearTimeout : clearTimeout;
@@ -149,8 +154,8 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
       ...structuredClone(config),
       returnEffect: config.returnEffect === true,
       prefixes: structuredClone(config.prefixes || {}),
-      activeFixtureIds: [...active.keys()].sort(),
-      supportedCommands: [...EFFECTS, "stop"],
+      activeFixtureIds: [...new Set([...active.keys(), ...(musicHandler?.ids() || [])])].sort(),
+      supportedCommands: [...createLightEffectCommand.supportedCommands],
       diagnostics: { faultCount, lastFault },
       ...(invalid ? { error: "twitch_effects_storage_invalid" } : {}),
     };
@@ -177,82 +182,12 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
       return { ok: false, error: "twitch_effects_write_failed" };
     }
     config = structuredClone(next);
+    effectRevision++;
+    require("./music-light-effect-command").cancelRemoved(musicHandler, next, supervise);
     return snapshot();
   }
 
-  function parse(rawText) {
-    const source = String(rawText || "")
-      .replace(/\s+/g, " ")
-      .trim();
-    const requested = /^([a-z]+)(?:\s+|$)/i.exec(source)?.[1]?.toLowerCase() || "";
-    const first = requested === "alternate" ? "cycle" : requested;
-    if (first === "stop" && /^(?:stop|stop\s+(?:effects?|lights?))$/i.test(source))
-      return { matched: true, ok: true, type: "stop" };
-    if (!EFFECTS.has(first)) return { matched: false };
-    let remainder = source.slice(requested.length).trim(),
-      speed = "normal";
-    const speedMatch = /(?:^|\s)(fast|slow|normal)$/i.exec(remainder);
-    if (speedMatch) {
-      speed = speedMatch[1].toLowerCase();
-      remainder = remainder.slice(0, speedMatch.index).trim();
-    }
-    let colors = [];
-    if (first === "rainbow") {
-      if (remainder)
-        return {
-          matched: true,
-          ok: false,
-          error: "rainbow_accepts_only_an_optional_speed",
-        };
-      colors = RAINBOW.map((row) => ({ ...row }));
-    } else {
-      if (!remainder && first === "wave") colors = RAINBOW.map((row) => ({ ...row }));
-      else {
-        const tokens = remainder
-          .split(/\s*,\s*/)
-          .map((row) => row.trim())
-          .filter(Boolean);
-        const minimum = first === "breathe" ? 1 : 2;
-        if (
-          tokens.length < minimum ||
-          tokens.length > 12 ||
-          (requested === "alternate" && tokens.length !== 2) ||
-          (first === "breathe" && tokens.length !== 1)
-        ) {
-          return {
-            matched: true,
-            ok: false,
-            error:
-              requested === "alternate"
-                ? "alternate_requires_exactly_two_colors"
-                : first === "breathe"
-                  ? "breathe_requires_one_color"
-                  : "effect_requires_2_to_12_colors",
-          };
-        }
-        for (const token of tokens) {
-          const parsed = directiveService.parseTwitchColorDirective(token);
-          const rgb = parsed.ok ? rgbFromHex(parsed.hex) : null;
-          if (!rgb)
-            return {
-              matched: true,
-              ok: false,
-              error: `invalid_effect_color:${token}`,
-            };
-          colors.push(rgb);
-        }
-      }
-    }
-    return {
-      matched: true,
-      ok: true,
-      type: first,
-      speed,
-      durationMs: SPEEDS[speed],
-      colors,
-      ...(requested === "alternate" ? { compatibilityAlias: "alternate" } : {}),
-    };
-  }
+  const parse = createLightEffectCommand(directiveService);
 
   function resolve(rawText) {
     const source = String(rawText || "")
@@ -320,6 +255,7 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
       );
   }
   function invalidateRestore(id) {
+    restoring.delete(String(id));
     restoreGenerations.set(String(id), Number(restoreGenerations.get(String(id)) || 0) + 1);
   }
   function reportFault(error, stage, fixtureId = "") {
@@ -384,40 +320,23 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
     if (!fired) delayedTimers.add(timerHandle);
     timerHandle?.unref?.();
   }
-  async function restore(entry, options = {}) {
-    const shouldRestore =
-      options.force === true ||
-      config.returnEffect === true ||
-      entry?.settings?.restorePrevious === true;
-    if (!shouldRestore || !entry?.previousState?.value) return;
-    const adapter = adapters[String(entry.fixture.brand).toLowerCase()];
-    const generation = Number(restoreGenerations.get(entry.fixture.id) || 0) + 1;
-    restoreGenerations.set(entry.fixture.id, generation);
-    const finish = async () => adapter?.sendState?.([entry.fixture], entry.previousState.value);
-    if (config.returnEffect !== true || options.animate === false || !entry.lastFrame)
-      return finish();
-    const offset =
-      lightingLayout?.spatialOffset?.(
-        entry.fixture.id,
-        "sweep",
-        entry.fixtureIndex,
-        entry.fixtureCount,
-        entry.settings,
-      ) ?? entry.fixtureIndex / Math.max(1, entry.fixtureCount - 1);
-    later(entry.fixture.id, generation, clamp(offset, 0, 1) * 240, async () => {
-      try {
-        await dispatch(
-          entry.fixture,
-          {
-            rgb: entry.lastFrame.rgb,
-            brightness: Math.min(18, entry.lastFrame.brightness),
-          },
-          120,
-        );
-      } catch {}
-      later(entry.fixture.id, generation, 180, finish);
-    });
-  }
+  const entertainment = require("./effect-entertainment")({ adapter: adapters.hue, active });
+  const releaseEntertainment = entertainment.release;
+  const restoreEntry = require("./effect-restoration")({
+    outputOwnership,
+    adapters,
+    lightingLayout,
+    active,
+    restoring,
+    restoreGenerations,
+    later,
+    dispatch,
+    dispatchLatest,
+    returnEffect: () => config.returnEffect === true,
+  });
+
+  const restore = (entry, options) => entertainment.restore(entry, options, restoreEntry);
+
   function stopFixtures(fixtureIds, options = {}) {
     let stopped = 0;
     for (const id of fixtureIds) {
@@ -428,7 +347,7 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
       stopped += 1;
       if (entry.settings.cooldownSeconds > 0)
         cooldownUntil.set(key, now() + entry.settings.cooldownSeconds * 1000);
-      if (options.restore !== false && !shuttingDown)
+      if (outputOwnership || (options.restore !== false && !shuttingDown))
         supervise(() => restore(entry, options), "restore", key);
       else invalidateRestore(key);
     }
@@ -443,14 +362,24 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
   }
   function cancelForStaticTargets(fixtureIds) {
     const targets = new Set((Array.isArray(fixtureIds) ? fixtureIds : []).map(String));
+    // The effect may already have expired while its animated return is pending.
+    // Static writes own their targets even when no active entry remains.
+    for (const id of targets) invalidateRestore(id);
     const sessions = new Set(
       [...targets].map((id) => active.get(id)?.sessionId).filter((value) => value !== undefined),
     );
     const affected = [...active.values()].filter((entry) => sessions.has(entry.sessionId));
     for (const entry of affected) {
       active.delete(entry.fixture.id);
-      if (targets.has(entry.fixture.id)) invalidateRestore(entry.fixture.id);
-      else if (!shuttingDown)
+      if (targets.has(entry.fixture.id)) {
+        invalidateRestore(entry.fixture.id);
+        if (outputOwnership)
+          supervise(
+            () => restore(entry, { restore: false, animate: false }),
+            "static_override_release",
+            entry.fixture.id,
+          );
+      } else if (!shuttingDown)
         supervise(
           () => restore(entry, { force: true, animate: true }),
           "static_override_restore",
@@ -479,11 +408,7 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
   function isSmooth(command) {
     return ["fade", "rainbow", "wave", "sweep", "ripple", "breathe"].includes(command.type);
   }
-  function nextAbsoluteDeadline(entry, at, cadence) {
-    const origin = entry.startedAt - entry.latencyMs;
-    if (at < origin) return origin;
-    return origin + (Math.floor((at - origin) / cadence) + 1) * cadence;
-  }
+  const nextAbsoluteDeadline = require("./fixture-effect-dispatch").nextDeadline;
 
   function render(entry, at) {
     const { command, fixtureIndex, fixtureCount } = entry;
@@ -546,19 +471,32 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
       phase: smooth ? Math.floor(elapsed / 333) : Math.floor(position),
     };
   }
-  function dispatch(fixture, frame, transitionMs) {
+  function dispatch(fixture, frame, transitionMs, entry) {
     const brand = String(fixture.brand).toLowerCase();
     if (brand === "hue") {
       const state = createHueStateFromRgb(frame.rgb, {
         brightness: Math.round((frame.brightness * 254) / 100),
         transitiontime: Math.round(clamp(transitionMs / 100, 0, 30)),
       });
-      return adapters.hue?.sendState?.([fixture], state);
+      entertainment.decorateState(state, entry);
+      const delivery = outputOwnership
+        ? outputOwnership.write(entry?.leaseToken, state)
+        : adapters.hue?.sendState?.([fixture], state);
+      return entertainment.guardDelivery(delivery, entry, () => {
+        stopFixtures(
+          [...active.values()]
+            .filter((e) => e.sessionId === entry.sessionId)
+            .map((e) => e.fixture.id),
+          { force: true, animate: false },
+        );
+      });
     }
     const state = createWizStateFromRgb(frame.rgb, {
       dimming: frame.brightness,
     });
-    return adapters[brand]?.sendState?.([fixture], state);
+    return outputOwnership
+      ? outputOwnership.write(entry?.leaseToken, state)
+      : adapters[brand]?.sendState?.([fixture], state);
   }
   async function tick() {
     if (ticking) return;
@@ -567,6 +505,19 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
       const at = now();
       for (const [id, entry] of active) {
         try {
+          if (entry.capturing) continue;
+          if (outputOwnership && !outputOwnership.has(entry.leaseToken)) {
+            active.delete(id);
+            supervise(() => releaseEntertainment(entry.sessionId), "transport_release", id);
+            continue;
+          }
+          if (
+            outputOwnership &&
+            (!config.fixtureIds.includes(id) || lightingLab?.isExcluded?.(id))
+          ) {
+            stopFixtures([id], { force: true, animate: false });
+            continue;
+          }
           const limits = [
             entry.settings.durationSeconds > 0 ? entry.settings.durationSeconds * 1000 : 0,
             entry.settings.repeatCount > 0
@@ -578,51 +529,15 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
             stopFixtures([id]);
             continue;
           }
-          const brand = String(entry.fixture.brand).toLowerCase();
-          const hueEntertainmentReason =
-            brand === "hue"
-              ? String(adapters.hue?.getTelemetry?.()?.entertainment?.reason || "")
-              : "";
-          const hueEntertainmentStreaming = hueEntertainmentReason === "entertainment_active";
-          const cadence =
-            brand === "hue"
-              ? hueEntertainmentStreaming
-                ? STREAM_CADENCE_MS
-                : ["wave", "sweep", "ripple"].includes(entry.command.type)
-                  ? entry.command.durationMs / 4
-                  : entry.command.type === "breathe"
-                    ? entry.command.durationMs / 2
-                    : entry.command.durationMs
-              : isSmooth(entry.command)
-                ? STREAM_CADENCE_MS
-                : entry.command.durationMs;
+          const cadence = isSmooth(entry.command)
+            ? entry.entertainmentActive
+              ? ENGINE_TICK_MS
+              : STREAM_CADENCE_MS
+            : entry.command.durationMs;
           if (at < entry.nextSentAt) continue;
-          const initialFrame = entry.lastSentAt < 0;
-          let frame = render(
-            entry,
-            initialFrame ? Math.min(at, entry.startedAt) : at + entry.latencyMs,
-          );
-          // REST-capable Hue bulbs perform the transition themselves. At each
-          // shared boundary, send the next boundary's target while WiZ/Govee
-          // interpolate against the same clock. The first frame always settles
-          // every brand on the common starting color before that clock begins.
-          const smooth = isSmooth(entry.command);
-          if (
-            brand === "hue" &&
-            !hueEntertainmentStreaming &&
-            smooth &&
-            !initialFrame &&
-            at >= entry.startedAt
-          ) {
-            frame = render(entry, at + cadence + entry.latencyMs);
-          }
-          const hueSmoothStream =
-            hueEntertainmentStreaming &&
-            ["fade", "rainbow", "wave", "sweep", "ripple", "breathe"].includes(entry.command.type);
-          if (brand === "hue" && !hueSmoothStream && frame.phase === entry.lastPhase) {
-            entry.nextSentAt = nextAbsoluteDeadline(entry, at, cadence);
-            continue;
-          }
+          // Every transport receives the current frame immediately. Do not
+          // predict a future Hue target or delay another brand to compensate.
+          const frame = render(entry, at);
           entry.lastSentAt = at;
           entry.lastPhase = frame.phase;
           entry.lastFrame = frame;
@@ -630,39 +545,49 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
           // cadence to the previous (possibly late) dispatch, because that makes
           // unlike device cadences beat against each other and periodically swap
           // which brand appears to lead.
-          entry.nextSentAt = initialFrame
-            ? brand === "hue" && !hueEntertainmentStreaming && smooth
-              ? entry.startedAt - entry.latencyMs
-              : nextAbsoluteDeadline(entry, entry.startedAt - entry.latencyMs, cadence)
-            : nextAbsoluteDeadline(entry, at, cadence);
+          entry.nextSentAt = nextAbsoluteDeadline(entry, at, cadence);
           // Start every due adapter in this same engine turn. A slow Hue HTTP
           // response must not hold the WiZ/Govee clock; adapter failures remain
           // isolated and a later absolute deadline catches up without drift.
-          dispatchLatest(entry, frame, smooth && !initialFrame ? cadence : 0);
+          dispatchLatest(entry, frame, 0);
         } catch (error) {
           reportFault(error, "render", id);
         }
       }
     } finally {
       ticking = false;
+      if (!active.size && timer) {
+        unschedule(timer);
+        timer = null;
+      }
     }
   }
 
   async function handle(rawText, context = {}) {
+    if (shuttingDown) return { matched: true, ok: false, error: "lighting_shutting_down" };
     const command = parse(rawText);
-    if (!command.matched) return { matched: false };
+    if (!command.matched || !command.ok) return command;
+    // Admission precedes revision changes: a rejected redemption must not
+    // invalidate the in-flight Rave that it was refused permission to replace.
+    if (command.type !== "stop" && isRaveActive())
+      return { matched: true, ok: false, error: "music_rave_active", refundRecommended: true };
+    const requestRevision = context.preview ? effectRevision : ++effectRevision;
     const routedIds = Array.isArray(context.fixtureIds) ? context.fixtureIds : [];
     if (command.type === "stop") {
-      const relevant = routedIds.filter((id) => active.has(id));
+      const relevant = command.raveOnly ? [] : routedIds.filter((id) => active.has(id));
+      const musicIds = await require("./music-light-effect-command").stopRouted(
+        musicHandler,
+        command.raveOnly ? musicHandler?.ids() || [] : routedIds,
+        context.preview,
+      );
       return {
         matched: true,
         ok: true,
         effect: "stop",
-        stopped: context.preview ? relevant.length : stopFixtures(relevant),
-        targets: relevant,
+        stopped: (context.preview ? relevant.length : stopFixtures(relevant)) + musicIds.length,
+        targets: [...new Set([...relevant, ...musicIds])],
       };
     }
-    if (!command.ok) return command;
     if (!config.enabled)
       return {
         matched: true,
@@ -699,44 +624,164 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
         sent: 0,
         failed: 0,
       };
-    const startedAt = now() + SYNCHRONIZATION_LEAD_MS,
-      sessionId = ++sessionSequence;
-    fixtures.forEach((fixture, fixtureIndex) =>
-      active.set(fixture.id, {
+    if (command.type === "rave") {
+      ravePending = true;
+      try {
+        return await require("./music-light-effect-command")({
+          handler: musicHandler,
+          command,
+          fixtures,
+          settings,
+          isCurrent: () => requestRevision === effectRevision,
+          stopFixtures,
+          setCooldown: (id, until) => cooldownUntil.set(id, until),
+          now,
+        });
+      } finally {
+        ravePending = false;
+      }
+    }
+    let startedAt = now();
+    const sessionId = ++sessionSequence;
+    const entries = fixtures.map((fixture, fixtureIndex) => {
+      const previous = active.get(fixture.id);
+      const entry = {
         fixture,
         command,
         fixtureIndex,
         fixtureCount: fixtures.length,
         settings,
-        previousState:
-          active.get(fixture.id)?.previousState || lightingLab?.previousState?.(fixture.id),
+        previousState: previous?.previousState || null,
         sessionId,
         startedAt,
-        latencyMs: Number(lightingLab?.latencyFor?.(fixture.id) || 0),
+        capturing: true,
         lastSentAt: -Infinity,
         nextSentAt: -Infinity,
         lastPhase: -1,
         lastFrame: null,
+      };
+      active.set(fixture.id, entry);
+      entry.baseline =
+        (outputOwnership
+          ? outputOwnership
+              .replaceOwned({
+                fixtureId: fixture.id,
+                owner: "core.effects",
+                kind: "effect",
+                ttlMs: 15000,
+              })
+              .then((grant) => {
+                entry.leaseToken = grant.token;
+                return { brand: fixture.brand, value: grant.baseline };
+              })
+          : null) ||
+        previous?.baseline ||
+        (restoring.has(fixture.id) ? Promise.resolve(restoring.get(fixture.id)) : null) ||
+        (async () => {
+          await dispatchLatest.settled(fixture.id);
+          const reader = adapters[String(fixture.brand).toLowerCase()]?.readState;
+          if (typeof reader !== "function") return lightingLab?.previousState?.(fixture.id);
+          const read = await reader(fixture);
+          return read?.ok && read.state ? { brand: fixture.brand, value: read.state } : null;
+        })();
+      return entry;
+    });
+    fixtures.forEach((fixture) => invalidateRestore(fixture.id));
+    await Promise.all(
+      entries.map(async (entry) => {
+        try {
+          entry.previousState = await entry.baseline;
+        } catch (error) {
+          // A newer command can replace the reservation while the shared native
+          // read is pending. Report once below, only if this entry still owns
+          // the required baseline. Obsolete reservations are not device faults.
+          entry.captureError = error;
+        }
+        if (
+          (outputOwnership || config.returnEffect || settings.restorePrevious) &&
+          !entry.previousState?.value &&
+          active.get(entry.fixture.id) === entry
+        ) {
+          active.delete(entry.fixture.id);
+          reportFault(
+            entry.captureError ||
+              Object.assign(Error("previous_state_unavailable"), {
+                code: "previous_state_unavailable",
+              }),
+            "capture",
+            entry.fixture.id,
+          );
+        }
       }),
     );
-    fixtures.forEach((fixture) => invalidateRestore(fixture.id));
+    const owned = entries.filter((entry) => active.get(entry.fixture.id) === entry);
+    if (!owned.length)
+      return {
+        matched: true,
+        ok: false,
+        error: "effect_baseline_unavailable_or_superseded",
+        targets: [],
+        sent: 0,
+        failed: fixtures.length,
+      };
+    const prepared = await entertainment.prepare(owned, sessionId);
+    if (
+      prepared &&
+      (!prepared.ok ||
+        shuttingDown ||
+        owned.some((entry) => active.get(entry.fixture.id) !== entry))
+    ) {
+      stopFixtures(
+        owned.filter((e) => active.get(e.fixture.id) === e).map((e) => e.fixture.id),
+        { force: true, animate: false },
+      );
+      await releaseEntertainment(sessionId);
+      return {
+        matched: true,
+        ok: false,
+        error: prepared.error || "effect_superseded",
+        sent: 0,
+        failed: owned.length,
+        targets: [],
+      };
+    }
+    startedAt = now();
+    owned.forEach((entry) => {
+      entry.capturing = false;
+      entry.startedAt = startedAt;
+    });
     ensureTimer();
     await tick();
+    let delivered = owned.length;
+    if (outputOwnership) {
+      const receipts = await Promise.allSettled(owned.map((entry) => entry.firstDelivery));
+      delivered = receipts.filter(
+        (row) => row.status === "fulfilled" && row.value?.sent === 1 && !row.value.failed,
+      ).length;
+      receipts.forEach((row, index) => {
+        if (
+          (row.status !== "fulfilled" || row.value?.sent !== 1 || row.value.failed) &&
+          active.get(owned[index].fixture.id) === owned[index]
+        )
+          stopFixtures([owned[index].fixture.id], { force: true, animate: false });
+      });
+    }
     const result = {
       matched: true,
-      ok: true,
+      ok: delivered > 0,
       effect: command.type,
       speed: command.speed,
-      synchronized: true,
+      synchronized: false,
       startsAt: startedAt,
-      targets: fixtures.map((row) => row.id),
-      sent: fixtures.length,
-      failed: 0,
+      targets: owned.map((entry) => entry.fixture.id),
+      sent: delivered,
+      failed: fixtures.length - delivered,
+      ...(!delivered ? { error: "effect_delivery_unconfirmed" } : {}),
     };
     lightingLab?.record?.({
       source: "effect",
       command: rawText,
-      ok: true,
+      ok: result.ok,
       targets: result.targets,
       sent: result.sent,
       detail: `${command.type}:${command.speed}`,
@@ -754,7 +799,10 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
     }
     for (const handle of delayedTimers) unscheduleOnce(handle);
     delayedTimers.clear();
-    stopFixtures([...active.keys()], { restore: false });
+    stopFixtures(
+      [...active.keys()],
+      outputOwnership ? { force: true, animate: false } : { restore: false },
+    );
     if (pendingTasks.size) {
       let deadline;
       await Promise.race([
@@ -768,6 +816,11 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
   }
 
   return Object.freeze({
+    setMusicHandler: (handler) => {
+      musicHandler = handler;
+    },
+    isRaveActive,
+    isRaveStop,
     snapshot,
     save,
     parse,
@@ -775,6 +828,7 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
     handle,
     cancelFixtureIds,
     cancelForStaticTargets,
+    waitForFixtureWrites: (ids) => Promise.all((ids || []).map((id) => dispatchLatest.settled(id))),
     tick,
     shutdown,
   });

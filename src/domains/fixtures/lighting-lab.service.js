@@ -65,14 +65,8 @@ module.exports = function createLightingLabService(options = {}) {
         ),
       ),
     ].slice(0, 64);
-    const latencyOffsets = Object.fromEntries(
-      Object.entries(
-        raw.latencyOffsets && typeof raw.latencyOffsets === "object" ? raw.latencyOffsets : {},
-      )
-        .filter(([id]) => ID_RE.test(id) && known.has(id))
-        .slice(0, 64)
-        .map(([id, value]) => [id, Math.round(clamp(value, -2000, 2000, 0))]),
-    );
+    // Read legacy settings without reapplying manual cross-brand compensation.
+    const latencyOffsets = {};
     const presets = (Array.isArray(raw.presets) ? raw.presets : [])
       .slice(0, 24)
       .map((row, index) => ({
@@ -135,7 +129,7 @@ module.exports = function createLightingLabService(options = {}) {
       limits: {
         maximumPresets: 24,
         maximumHistory: 100,
-        maximumLatencyMs: 2000,
+        maximumLatencyMs: 0,
       },
     };
   }
@@ -155,9 +149,6 @@ module.exports = function createLightingLabService(options = {}) {
   }
   function isExcluded(id) {
     return state.excludedFixtureIds.includes(String(id));
-  }
-  function latencyFor(id) {
-    return Number(state.latencyOffsets[String(id)] || 0);
   }
   function rememberState(id, brand, value) {
     const key = String(id);
@@ -227,7 +218,6 @@ module.exports = function createLightingLabService(options = {}) {
     settings,
     save,
     isExcluded,
-    latencyFor,
     rememberState,
     previousState,
     record,

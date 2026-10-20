@@ -34,6 +34,9 @@ for (const targetVersion of ["0.6.2", "0.7.1a"])
       write(root, "src/old.js", "old program");
       write(root, "RaveLink-Core.exe", "old host");
       write(root, "runtime/RaveLink-Core-Node.exe", "old node");
+      write(root, "integrations/music-to-light/controller.cjs", "old controller");
+      write(root, "runtime/music-to-light/cargo/release/ravelink-audio-probe.exe", "old probe");
+      write(root, "runtime/music-to-light/operator.json", "private source selection");
       write(root, "runtime/user-state.json", "preserve runtime");
       write(root, "config/user.json", "preserve config");
       write(root, "features/installed/custom/state.json", "preserve feature");
@@ -47,6 +50,8 @@ for (const targetVersion of ["0.6.2", "0.7.1a"])
       write(release, "RaveLink-Core.exe", "new host");
       write(release, "packages/tidal-desktop/installer.cjs", "new companion");
       write(release, "runtime/RaveLink-Core-Node.exe", "new node");
+      write(release, "integrations/music-to-light/controller.cjs", "new controller");
+      write(release, "runtime/music-to-light/cargo/release/ravelink-audio-probe.exe", "new probe");
       fs.mkdirSync(path.dirname(archive), { recursive: true });
       const zipped = spawnSync(
         "powershell.exe",
@@ -101,6 +106,21 @@ for (const targetVersion of ["0.6.2", "0.7.1a"])
       );
       assert.equal(apply.status, 0, `${apply.stdout}\n${apply.stderr}`);
       assert.equal(
+        fs.readFileSync(path.join(root, "integrations/music-to-light/controller.cjs"), "utf8"),
+        "new controller",
+      );
+      assert.equal(
+        fs.readFileSync(
+          path.join(root, "runtime/music-to-light/cargo/release/ravelink-audio-probe.exe"),
+          "utf8",
+        ),
+        "new probe",
+      );
+      assert.equal(
+        fs.readFileSync(path.join(root, "runtime/music-to-light/operator.json"), "utf8"),
+        "private source selection",
+      );
+      assert.equal(
         fs.readFileSync(path.join(root, "src/app/core/create-core-server.js"), "utf8"),
         "new program",
       );
@@ -136,6 +156,21 @@ for (const targetVersion of ["0.6.2", "0.7.1a"])
         { encoding: "utf8", windowsHide: true },
       );
       assert.equal(rollback.status, 0, `${rollback.stdout}\n${rollback.stderr}`);
+      assert.equal(
+        fs.readFileSync(path.join(root, "integrations/music-to-light/controller.cjs"), "utf8"),
+        "old controller",
+      );
+      assert.equal(
+        fs.readFileSync(
+          path.join(root, "runtime/music-to-light/cargo/release/ravelink-audio-probe.exe"),
+          "utf8",
+        ),
+        "old probe",
+      );
+      assert.equal(
+        fs.readFileSync(path.join(root, "runtime/music-to-light/operator.json"), "utf8"),
+        "private source selection",
+      );
       assert.equal(fs.readFileSync(path.join(root, "src/old.js"), "utf8"), "old program");
       assert.equal(fs.existsSync(path.join(root, "src/app/core/create-core-server.js")), false);
       assert.equal(fs.existsSync(path.join(root, "packages/tidal-desktop/installer.cjs")), false);

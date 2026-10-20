@@ -16,15 +16,10 @@ export function initLightingLab() {
     const excludedFixtureIds = [...document.querySelectorAll("[data-lab-excluded]:checked")].map(
       (row) => row.dataset.labExcluded,
     );
-    const latencyOffsets = Object.fromEntries(
-      [...document.querySelectorAll("[data-lab-latency]")]
-        .map((row) => [row.dataset.labLatency, Number(row.value || 0)])
-        .filter(([, value]) => value !== 0),
-    );
     return {
       revision: state.revision,
       excludedFixtureIds,
-      latencyOffsets,
+      latencyOffsets: {},
       brightnessLimit: Number(element("labBrightnessLimit").value),
       durationSeconds: Number(element("labDurationSeconds").value),
       repeatCount: Number(element("labRepeatCount").value),
@@ -50,7 +45,6 @@ export function initLightingLab() {
       card.innerHTML = `<div class="labFixtureHead"><div><strong></strong><span></span></div><button type="button" data-health-test>TEST</button></div>
         <div class="labCapabilityRow"><span>RGB ${row.rgb ? "YES" : "NO"}</span><span>WHITE ${row.tunableWhite ? "YES" : "NO"}</span><span>POSITION ${row.spatial ? "SET" : "MISSING"}</span><span>SEGMENTS ${row.segments ? "YES" : "NO"}</span></div>
         <label class="switchLabel"><input type="checkbox" data-lab-excluded="${row.id}" ${row.excluded ? "checked" : ""}><span class="toggleSwitch" aria-hidden="true"></span><span>TEMPORARILY EXCLUDE</span></label>
-        <label>MANUAL VISUAL ADJUSTMENT MS<input type="number" min="-2000" max="2000" step="25" value="${row.latencyOffsetMs}" data-lab-latency="${row.id}" title="This is a visual correction, not measured network latency. Use a negative value to delay a fixture that consistently changes first, or a positive value to advance one that consistently changes late."></label>
         <p class="effectHelp"></p>`;
       card.querySelector("strong").textContent = row.name;
       card.querySelector(".labFixtureHead span").textContent =
@@ -192,7 +186,7 @@ export function initLightingLab() {
         method: "POST",
         body: JSON.stringify(payload()),
       });
-      notice("LIGHT LAB SAVED");
+      notice("EFFECT SETTINGS SAVED");
       await load(true);
     } catch (error) {
       notice(
@@ -208,6 +202,7 @@ export function initLightingLab() {
     element("labBrightnessLimitValue").value = `${element("labBrightnessLimit").value}%`;
   };
   element("saveLightingLab").onclick = save;
+  element("saveLightingProtection").onclick = save;
   element("refreshLightingLab").onclick = () =>
     load(true).catch((error) => notice(error.message, true));
   element("calibrateLightingLatency").onclick = async (event) => {

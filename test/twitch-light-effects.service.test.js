@@ -106,6 +106,8 @@ test("dynamic effect parser supports the approved language and does not claim ex
     "sweep cyan, purple",
     "ripple red, blue",
     "chase red, green, blue",
+    "rave",
+    "rave red, green, blue aggressive",
     "stop",
   ]) {
     const parsed = service.parse(command);
@@ -117,6 +119,103 @@ test("dynamic effect parser supports the approved language and does not claim ex
   assert.equal(service.parse("alternate red, green, blue").ok, false);
   assert.equal(service.parse("alternate red, blue").type, "cycle");
   assert.equal(service.snapshot().supportedCommands.includes("alternate"), false);
+});
+
+test("rave uses dynamic admission and rejects replacement until an explicit stop", async (t) => {
+  const { service } = setup(t, { durationSeconds: 12, brightnessLimit: 35 });
+  service.save({
+    revision: 0,
+    enabled: true,
+    fixtureIds: ["old-hue", "desk-wiz"],
+    prefixes: { "old-hue": "desk" },
+  });
+  const starts = [],
+    stops = [];
+  let ids = [];
+  service.setMusicHandler({
+    check: () => true,
+    start: async (request) => {
+      starts.push(request);
+      ids = request.fixtureIds;
+      return { ok: true, targets: ids };
+    },
+    stop: async (targets) => {
+      stops.push(targets);
+      ids = [];
+    },
+    ids: () => ids,
+  });
+  const route = service.resolve("desk rave red, blue fast");
+  const result = await service.handle(route.text, { fixtureIds: route.fixtureIds });
+  assert.equal(result.ok, true);
+  assert.deepEqual(starts[0], {
+    fixtureIds: ["old-hue"],
+    palette: ["#ff0000", "#0000ff"],
+    feel: "fast",
+    brightnessLimit: 35,
+    seconds: 12,
+  });
+  assert.ok(service.snapshot().activeFixtureIds.includes("old-hue"));
+  const refused = await service.handle("cycle red, blue", { fixtureIds: ["old-hue"] });
+  assert.equal(refused.error, "music_rave_active");
+  assert.equal(refused.refundRecommended, true);
+  assert.equal(stops.length, 0);
+  assert.deepEqual(ids, ["old-hue"]);
+  const repeated = await service.handle("rave green, blue", { fixtureIds: ["old-hue"] });
+  assert.equal(repeated.error, "music_rave_active");
+  assert.equal(starts.length, 1);
+  await service.handle("rave stop", { fixtureIds: ["desk-wiz"] });
+  assert.deepEqual(stops.at(-1), ["old-hue"]);
+  await service.shutdown();
+});
+
+test("Rave admission protects asynchronous startup and rejected requests cannot supersede it", async (t) => {
+  const { service } = setup(t);
+  service.save({ revision: 0, enabled: true, fixtureIds: ["old-hue"], prefixes: {} });
+  let admit,
+    ids = [];
+  service.setMusicHandler({
+    check: () =>
+      new Promise((resolve) => {
+        admit = resolve;
+      }),
+    start: async () => {
+      ids = ["old-hue"];
+      return { ok: true, targets: ids };
+    },
+    stop: async () => {
+      ids = [];
+    },
+    ids: () => ids,
+  });
+  const pending = service.handle("rave", { fixtureIds: ["old-hue"] });
+  assert.equal(service.isRaveActive(), true);
+  for (const text of ["rave", "cycle red, blue", "rainbow"]) {
+    const blocked = await service.handle(text, { fixtureIds: ["old-hue"] });
+    assert.equal(blocked.refundRecommended, true);
+  }
+  admit();
+  assert.equal((await pending).ok, true);
+  assert.deepEqual(ids, ["old-hue"]);
+  await service.handle("stop", { fixtureIds: ["old-hue"] });
+  assert.equal(service.isRaveActive(), false);
+});
+test("a rejected rave does not cancel an already active dynamic effect", async (t) => {
+  const { service } = setup(t);
+  service.save({ revision: 0, enabled: true, fixtureIds: ["old-hue"], prefixes: {} });
+  await service.handle("cycle red, blue", { fixtureIds: ["old-hue"] });
+  service.setMusicHandler({
+    check: () => {
+      throw Error("music_capture_permission_required");
+    },
+    start: () => assert.fail("must not capture"),
+    stop: async () => {},
+    ids: () => [],
+  });
+  const result = await service.handle("rave", { fixtureIds: ["old-hue"] });
+  assert.equal(result.error, "music_capture_permission_required");
+  assert.deepEqual(service.snapshot().activeFixtureIds, ["old-hue"]);
+  await service.shutdown();
 });
 
 test("dynamic routes use all fixtures by default and shared prefixes select subsets", (t) => {
@@ -233,11 +332,11 @@ test("effects require opt-in, intersect the allowlist, and start from one shared
   assert.equal(calls[0].brand, "hue");
   assert.equal(calls[0].state.transitiontime, 0);
   assert.equal(calls[0].state.__forceRest, undefined);
-  assert.equal(result.synchronized, true);
-  assert.equal(result.startsAt, 1500);
-  await advance(500);
+  assert.equal(result.synchronized, false);
+  assert.equal(result.startsAt, 1000);
+  await advance(250);
   assert.equal(calls.length, 2);
-  assert.equal(calls[1].state.transitiontime, 24);
+  assert.equal(calls[1].state.transitiontime, 0);
   assert.equal(typeof interval(), "function");
   const stopped = await service.handle("stop", { fixtureIds: ["old-hue"] });
   assert.equal(stopped.stopped, 1);
@@ -272,7 +371,7 @@ test("mixed-brand cycle fixtures use the same phase boundaries", async (t) => {
   const result = await service.handle("cycle red, blue", {
     fixtureIds: ["shelf-govee", "old-hue", "desk-wiz"],
   });
-  assert.equal(result.synchronized, true);
+  assert.equal(result.synchronized, false);
   assert.equal(
     new Set(
       calls
@@ -285,7 +384,6 @@ test("mixed-brand cycle fixtures use the same phase boundaries", async (t) => {
     calls.some((row) => row.brand === "hue"),
     true,
   );
-  await advance(500);
   calls.length = 0;
   await advance(2400);
   assert.deepEqual(new Set(calls.map((row) => row.brand)), new Set(["hue", "wiz", "govee"]));
@@ -312,7 +410,6 @@ test("mixed-brand hard steps use absolute boundaries without relative cadence be
     fixtureIds: ["old-hue", "desk-wiz", "shelf-govee"],
   });
   calls.length = 0;
-  await advance(500);
   await advance(2399);
   assert.equal(calls.length, 0);
   await advance(1);
@@ -458,7 +555,7 @@ test("shutdown has a bounded wait when an offline adapter never settles a restor
   assert.deepEqual(service.snapshot().activeFixtureIds, []);
 });
 
-test("a negative timing adjustment delays a faster fixture on the shared phase clock", async (t) => {
+test("legacy timing offsets do not delay a fixture or predict another brand's colors", async (t) => {
   const { service, calls, advance } = setup(t, {
     latencyOffsets: { "desk-wiz": -100 },
   });
@@ -470,16 +567,11 @@ test("a negative timing adjustment delays a faster fixture on the shared phase c
   await service.handle("cycle red, blue", {
     fixtureIds: ["old-hue", "desk-wiz"],
   });
-  await advance(500);
   calls.length = 0;
   await advance(2400);
-  assert.deepEqual(
-    calls.map((row) => row.brand),
-    ["hue"],
-  );
-  await advance(100);
-  const delayedWiz = calls.find((row) => row.brand === "wiz");
-  assert.deepEqual([delayedWiz.state.r, delayedWiz.state.g, delayedWiz.state.b], [0, 0, 255]);
+  assert.deepEqual(new Set(calls.map((row) => row.brand)), new Set(["hue", "wiz"]));
+  const wiz = calls.find((row) => row.brand === "wiz");
+  assert.deepEqual([wiz.state.r, wiz.state.g, wiz.state.b], [0, 0, 255]);
 });
 
 test("chase keeps one master clock while applying a deterministic fixture gap", async (t) => {
@@ -492,7 +584,6 @@ test("chase keeps one master clock while applying a deterministic fixture gap", 
   await service.handle("chase red, blue fast", {
     fixtureIds: ["old-hue", "desk-wiz", "shelf-govee"],
   });
-  await advance(500);
   calls.length = 0;
   await advance(1200);
   const wiz = calls.find((row) => row.brand === "wiz"),
@@ -583,6 +674,122 @@ test("spatial sweep is a brightness pulse while wave remains a full-brightness g
   );
 });
 
+test("an effects-only bulb captures real state and restores after an in-flight frame", async (t) => {
+  const baseline = { on: false, dimming: 33, temp: 2700 },
+    writes = [];
+  let release,
+    reads = 0;
+  const { service } = setup(t, {
+    restorePrevious: true,
+    adapters: {
+      wiz: {
+        readState: async () => {
+          reads++;
+          return { ok: true, state: baseline };
+        },
+        sendState: async (_rows, state) => {
+          writes.push(state);
+          if (writes.length === 1)
+            await new Promise((resolve) => {
+              release = resolve;
+            });
+          return { sent: 1, failed: 0 };
+        },
+      },
+    },
+  });
+  service.save({ revision: 0, enabled: true, fixtureIds: ["desk-wiz"] });
+  assert.equal((await service.handle("fade red, blue", { fixtureIds: ["desk-wiz"] })).ok, true);
+  await service.handle("stop", { fixtureIds: ["desk-wiz"] });
+  assert.equal(writes.length, 1, "restore must wait for the outstanding frame");
+  release();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(reads, 1);
+  assert.deepEqual(
+    writes.at(-1),
+    baseline,
+    "restore off and white mode without an active-route color cache",
+  );
+  await service.shutdown();
+});
+
+test("a replacement during animated return retains the original baseline", async (t) => {
+  const baseline = { on: true, bri: 42, ct: 320 },
+    callbacks = [],
+    writes = [];
+  let reads = 0;
+  const { service } = setup(t, {
+    restorePrevious: true,
+    setTimeout: (fn) => {
+      callbacks.push(fn);
+      return { unref() {} };
+    },
+    adapters: {
+      hue: {
+        readState: async () => {
+          reads++;
+          return { ok: true, state: baseline };
+        },
+        sendState: async (_rows, state) => {
+          writes.push(state);
+          return { sent: 1 };
+        },
+      },
+    },
+  });
+  service.save({ revision: 0, enabled: true, returnEffect: true, fixtureIds: ["old-hue"] });
+  await service.handle("cycle red, blue", { fixtureIds: ["old-hue"] });
+  await service.handle("stop", { fixtureIds: ["old-hue"] });
+  await service.handle("cycle blue, red", { fixtureIds: ["old-hue"] });
+  assert.equal(reads, 1, "pending return must not become the next effect's baseline");
+  await service.handle("stop", { fixtureIds: ["old-hue"] });
+  while (callbacks.length) {
+    callbacks.shift()();
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.deepEqual(writes.at(-1), baseline);
+  await service.shutdown();
+});
+
+test("a static command cancels an animated return after the effect has already stopped", async (t) => {
+  const callbacks = [];
+  const { service, calls } = setup(t, {
+    setTimeout: (fn) => {
+      callbacks.push(fn);
+      return { unref() {} };
+    },
+    previousStates: { "desk-wiz": { brand: "wiz", value: { on: false } } },
+  });
+  service.save({ revision: 0, enabled: true, returnEffect: true, fixtureIds: ["desk-wiz"] });
+  await service.handle("cycle red, blue", { fixtureIds: ["desk-wiz"] });
+  await service.handle("stop", { fixtureIds: ["desk-wiz"] });
+  service.cancelForStaticTargets(["desk-wiz"]);
+  calls.length = 0;
+  while (callbacks.length) {
+    callbacks.shift()();
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.equal(calls.length, 0, "a pending return must not overwrite a newer static color");
+  await service.shutdown();
+});
+
+test("an unavailable physical baseline prevents a return-enabled effect from changing that bulb", async (t) => {
+  const { service, calls } = setup(t, {
+    restorePrevious: true,
+    adapters: {
+      wiz: {
+        readState: async () => ({ ok: false }),
+        sendState: async () => calls.push("unexpected"),
+      },
+    },
+  });
+  service.save({ revision: 0, enabled: true, fixtureIds: ["desk-wiz"] });
+  assert.equal((await service.handle("fade red, blue", { fixtureIds: ["desk-wiz"] })).ok, false);
+  assert.equal(calls.length, 0);
+  assert.deepEqual(service.snapshot().activeFixtureIds, []);
+  await service.shutdown();
+});
+
 test("rapid effect replacements discard obsolete frames and never overlap writes to one fixture", async (t) => {
   const calls = [],
     release = [];
@@ -617,5 +824,66 @@ test("rapid effect replacements discard obsolete frames and never overlap writes
   );
   release.shift()();
   await new Promise((resolve) => setImmediate(resolve));
+  await service.shutdown();
+});
+
+test("dynamic effects wait for Entertainment preheat and sample smooth Hue frames at twenty Hz", async (t) => {
+  let ready,
+    stopped = 0;
+  const barrier = new Promise((resolve) => {
+    ready = resolve;
+  });
+  const sends = [];
+  const { service, calls, advance } = setup(t, {
+    adapters: {
+      hue: {
+        prepareEntertainment: () => barrier,
+        stopEntertainment: async () => {
+          stopped++;
+        },
+        sendState: async (_fixtures, state) => {
+          sends.push(state);
+          return { sent: 1, failed: 0 };
+        },
+      },
+    },
+  });
+  service.save({ revision: 0, enabled: true, fixtureIds: ["old-hue", "desk-wiz"] });
+  const starting = service.handle("fade red, blue", { fixtureIds: ["old-hue", "desk-wiz"] });
+  await new Promise((resolve) => setImmediate(resolve));
+  await advance(500);
+  assert.equal(sends.length, 0);
+  assert.equal(calls.length, 0);
+  ready({ ok: true, activeIds: ["old-hue"] });
+  assert.equal((await starting).ok, true);
+  for (let i = 0; i < 10; i++) {
+    await advance(50);
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.equal(sends.length, 11);
+  assert.ok(sends.every((state) => state.__entertainment === true));
+  service.cancelFixtureIds(["old-hue", "desk-wiz"]);
+  await service.shutdown();
+  assert.equal(stopped, 1);
+});
+
+test("dynamic effects stop before their first frame when Entertainment preheat fails", async (t) => {
+  const { service, calls } = setup(t, {
+    adapters: {
+      hue: {
+        prepareEntertainment: async () => ({ ok: false, error: "hue_entertainment_start_timeout" }),
+        stopEntertainment: async () => {},
+        sendState: async () => {
+          throw Error("unexpected_frame");
+        },
+      },
+    },
+  });
+  service.save({ revision: 0, enabled: true, fixtureIds: ["old-hue", "desk-wiz"] });
+  const result = await service.handle("fade red, blue", { fixtureIds: ["old-hue", "desk-wiz"] });
+  assert.equal(result.ok, false);
+  assert.equal(result.error, "hue_entertainment_start_timeout");
+  assert.equal(calls.length, 0);
+  assert.deepEqual(service.snapshot().activeFixtureIds, []);
   await service.shutdown();
 });

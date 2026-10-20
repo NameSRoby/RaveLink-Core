@@ -468,6 +468,14 @@ module.exports = function createFixtureRegistry(options = {}) {
     getFixtures() {
       return cloneJsonSafe(runtime.fixtures, []);
     },
+    // Ownership eligibility is independent of a program's routing switches.
+    // The calling program still selects its explicit targets before acquiring.
+    listConfigured() {
+      return cloneJsonSafe(
+        runtime.fixtures.filter((f) => f.enabled !== false && isConfigured(f)),
+        [],
+      );
+    },
     getFixturesRuntimeRef() {
       return runtime.fixtures;
     },

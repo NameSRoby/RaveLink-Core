@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "fixtures": [
+    {
+      "operation": "health",
+      "request": null,
+      "response": {
+        "ok": true,
+        "version": "0.6.4",
+        "profile": "clean-slate-core",
+        "capabilities": {
+          "lightingCore": true,
+          "features": false,
+          "mods": false,
+          "widget": true
+        }
+      }
+    },
+    {
+      "operation": "fixtures.list",
+      "request": null,
+      "response": {
+        "ok": true,
+        "version": 0,
+        "fixtures": [],
+        "connectivity": {}
+      }
+    },
+    {
+      "operation": "fixtures.edit",
+      "request": { "id": "desk" },
+      "response": {
+        "ok": true,
+        "oneTimeReveal": true,
+        "fixture": {
+          "id": "desk",
+          "brand": "wiz",
+          "name": "Desk",
+          "ip": "192.0.2.10"
+        }
+      }
+    },
+    {
+      "operation": "fixtures.upsert",
+      "request": { "id": "desk", "brand": "wiz", "ip": "192.0.2.10" },
+      "response": {
+        "ok": true,
+        "fixture": {
+          "id": "desk",
+          "name": "Desk",
+          "brand": "wiz",
+          "enabled": true,
+          "credentialsConfigured": false
+        }
+      }
+    },
+    {
+      "operation": "fixtures.delete",
+      "request": { "id": "desk" },
+      "response": { "ok": true, "deleted": "desk" }
+    },
+    {
+      "operation": "fixtures.test",
+      "request": { "id": "desk" },
+      "response": { "ok": true, "reachable": true }
+    },
+    {
+      "operation": "lights.apply",
+      "request": { "text": "red", "fixtureId": "desk" },
+      "response": { "ok": true, "sent": 1, "failed": 0, "partial": false }
+    },
+    {
+      "operation": "widget.status",
+      "request": null,
+      "response": {
+        "ok": true,
+        "widgetSecurity": {
+          "configured": true,
+          "scopedTokenConfigured": true,
+          "crossOriginEnabled": true,
+          "allowedOrigins": ["https://streamelements.com"],
+          "contract": "widget.events.v2"
+        }
+      }
+    },
+    {
+      "operation": "widget.get",
+      "request": {
+        "baseUrl": "http://127.0.0.1:5050",
+        "widgetIntakeToken": "example-scoped-token"
+      },
+      "response": {
+        "ok": true,
+        "script": "/* example generated widget */",
+        "active": {
+          "baseUrl": "http://127.0.0.1:5050",
+          "widgetIntakeToken": "example-scoped-token"
+        },
+        "warnings": []
+      }
+    },
+    {
+      "operation": "widget.rebuild",
+      "request": { "baseUrl": "http://127.0.0.1:5050" },
+      "response": {
+        "ok": true,
+        "script": "/* example generated widget */",
+        "active": {
+          "baseUrl": "http://127.0.0.1:5050",
+          "widgetIntakeToken": "example-new-token"
+        },
+        "warnings": [],
+        "oneTimeReveal": true
+      }
+    },
+    {
+      "operation": "widget.clear-token",
+      "request": {},
+      "response": { "ok": true, "widgetSecurity": { "configured": false } }
+    },
+    {
+      "operation": "updates.status",
+      "request": null,
+      "response": {
+        "ok": true,
+        "currentVersion": "0.6.4",
+        "checkOnLaunch": false,
+        "checking": false,
+        "downloading": false,
+        "latest": null,
+        "staged": null,
+        "rollback": null,
+        "hosted": false,
+        "lastError": ""
+      }
+    },
+    {
+      "operation": "updates.configure",
+      "request": { "checkOnLaunch": false },
+      "response": {
+        "ok": true,
+        "currentVersion": "0.6.4",
+        "checkOnLaunch": false,
+        "checking": false,
+        "downloading": false,
+        "latest": null,
+        "staged": null,
+        "rollback": null,
+        "hosted": false,
+        "lastError": ""
+      }
+    },
+    {
+      "operation": "updates.check",
+      "request": {},
+      "response": {
+        "ok": true,
+        "currentVersion": "0.6.4",
+        "checkOnLaunch": false,
+        "checking": false,
+        "downloading": false,
+        "latest": {
+          "version": "0.6.5",
+          "name": "RaveLink 0.6.5",
+          "publishedAt": "2026-10-10",
+          "available": true
+        },
+        "staged": null,
+        "rollback": null,
+        "hosted": false,
+        "lastError": ""
+      }
+    },
+    {
+      "operation": "updates.download",
+      "request": {},
+      "response": {
+        "ok": true,
+        "currentVersion": "0.6.4",
+        "checkOnLaunch": false,
+        "checking": false,
+        "downloading": false,
+        "latest": null,
+        "staged": { "version": "0.6.5", "verified": true },
+        "rollback": null,
+        "hosted": true,
+        "lastError": ""
+      }
+    },
+    {
+      "operation": "updates.apply",
+      "request": {},
+      "response": { "ok": true, "action": "apply", "stopping": true }
+    },
+    {
+      "operation": "updates.rollback",
+      "request": {},
+      "response": { "ok": true, "action": "rollback", "stopping": true }
+    }
+  ],
+  "errors": [
+    {
+      "ok": false,
+      "error": "client_api_request_invalid",
+      "operation": "lights.apply"
+    },
+    { "ok": false, "error": "fixture_not_found" },
+    {
+      "ok": false,
+      "error": "client_api_response_invalid",
+      "operation": "lights.apply",
+      "outcome": "unknown"
+    }
+  ]
+}

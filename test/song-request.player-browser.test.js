@@ -147,11 +147,22 @@ test("Player connects TIDAL automatically, signs in, chooses supported countries
   });
   assert.equal(await surface.locator("#playerFrame").isHidden(), true);
   assert.equal(await surface.locator("#catalogSettings").isHidden(), true);
-  const wrongHost = await fetch(base + "/auth/tidal/callback", {
-    headers: { host: "example.com" },
-    redirect: "manual",
+  // Fetch can replace Host with the URL authority; use HTTP to exercise the
+  // actual hostile Host header rather than accidentally making a valid request.
+  const wrongHostStatus = await new Promise((resolve, reject) => {
+    const request = require("node:http").get(
+      base + "/auth/tidal/callback",
+      {
+        headers: { host: "example.com" },
+      },
+      (response) => {
+        response.resume();
+        resolve(response.statusCode);
+      },
+    );
+    request.on("error", reject);
   });
-  assert.equal(wrongHost.status, 403);
+  assert.equal(wrongHostStatus, 403);
   const repeatedState = await fetch(base + "/auth/tidal/callback?state=one&state=two", {
     redirect: "manual",
   });

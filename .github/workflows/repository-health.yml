@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: npm.cmd ci
       - name: Install browser test runtime
-        run: npx.cmd --no-install playwright install chromium
+        run: npx.cmd --no-install playwright install chromium firefox
       - name: Verify source and generated payloads
         run: npm.cmd run verify:health
       - name: Run regression tests

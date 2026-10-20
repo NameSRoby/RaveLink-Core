@@ -1,573 +1,366 @@
-const clampNumber = require("../../shared/validation/clamp-number");
-const resolveSignifyPemPath = require("./hue-ca-path");
-// [TITLE] Module: adapters/brands/hue-entertainment.runtime.js
-// [TITLE] Purpose: bounded Hue Entertainment transport runtime (session start/send/stop)
-// [TITLE] Functionality Index:
-// [TITLE] - lazy optional dependency loading for hue-sync + cross-fetch compatibility
-// [TITLE] - bridge/area session lifecycle with deterministic keying
-// [TITLE] - RGB frame fan-out for fixture-group sends
-// [TITLE] - explicit status surface for diagnostics + readiness
-// [DEV] Complex Flow:
-// [DEV] Session ownership is scoped by bridge + username + clientKey + area so
-// [DEV] one failing stream does not poison unrelated Hue groups.
-
-const path = require("node:path");
-const dns = require("node:dns");
-
-function normalizeToken(value) {
-  return String(value || "").trim();
+/** Hue Entertainment v1/v2 over DTLS. Frames address actual light/channel IDs;
+ * no selected fixture count is ever used as an area-wide RGB broadcast.
+ * Startup, send and teardown are bounded, and shutdown invalidates pending starts.
+ */
+const https = require("node:https");
+const fs = require("node:fs");
+const resolveCa = require("./hue-ca-path");
+const keyFor = (c) => [c.bridgeIp, c.username, c.clientKey, c.entertainmentAreaId].join("|");
+const fault = (code) => Object.assign(new Error(code), { code });
+const lightId = (value) =>
+  String(value || "")
+    .split("/")
+    .pop();
+function packet(version, areaId, sequence, channels, rgb) {
+  const header = Buffer.alloc(16);
+  header.write("HueStream");
+  header[9] = version;
+  header[11] = sequence % 256;
+  const rows = channels.map((id) => {
+    const row = Buffer.alloc(version === 1 ? 9 : 7);
+    if (version === 1) row.writeUInt16BE(Number(id), 1);
+    else row[0] = Number(id);
+    const offset = version === 1 ? 3 : 1;
+    [rgb.r, rgb.g, rgb.b].forEach((v, i) => row.writeUInt16BE(Math.round(v) * 257, offset + i * 2));
+    return row;
+  });
+  return Buffer.concat([header, ...(version === 2 ? [Buffer.from(areaId, "ascii")] : []), ...rows]);
 }
-
-function normalizeHost(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
-}
-
-function buildSessionKey(config = {}) {
-  const bridgeIp = normalizeHost(config.bridgeIp);
-  const username = normalizeToken(config.username);
-  const clientKey = normalizeToken(config.clientKey).toUpperCase();
-  const area = normalizeToken(config.entertainmentAreaId).toLowerCase();
-  const bridgeId = normalizeToken(config.bridgeId).toLowerCase();
-  if (!bridgeIp || !username || !clientKey || !area) return "";
-  return `${bridgeIp}|${username}|${clientKey}|${area}|${bridgeId}`;
-}
-
-function inferAreaChannelCount(area = {}) {
-  const channels = Array.isArray(area.channels) ? area.channels.length : 0;
-  if (channels > 0) return channels;
-  const lightServices = Array.isArray(area.light_services) ? area.light_services.length : 0;
-  if (lightServices > 0) return lightServices;
-  const serviceLocations = Array.isArray(area?.locations?.service_locations)
-    ? area.locations.service_locations.length
-    : 0;
-  if (serviceLocations > 0) return serviceLocations;
-  return 1;
-}
-
-function getAreaTokenSet(area = {}) {
-  const values = [area?.id, area?.rid, area?.name, area?.metadata?.name];
-  const tokens = new Set();
-  for (const value of values) {
-    const token = String(value || "")
-      .trim()
-      .toLowerCase();
-    if (!token) continue;
-    tokens.add(token);
-  }
-  return tokens;
-}
-
-function matchArea(areas = [], requested = "") {
-  const rows = Array.isArray(areas) ? areas.filter((row) => row && typeof row === "object") : [];
-  if (!rows.length) return null;
-  const requestedToken = String(requested || "")
-    .trim()
-    .toLowerCase();
-  if (!requestedToken) return rows[0];
-  for (const row of rows) {
-    const tokens = getAreaTokenSet(row);
-    if (tokens.has(requestedToken)) return row;
-  }
-  return rows[0];
-}
-
-function sanitizeError(error) {
-  return String(error?.message || error || "unknown_hue_entertainment_error").trim();
-}
-
-const baseDnsLookup = typeof dns.lookup === "function" ? dns.lookup.bind(dns) : null;
-const hueDnsOverrides = new Map();
-const MAX_HUE_DNS_OVERRIDES = 768;
-let hueDnsOverrideEvictions = 0;
-let patchedHueLookupFn = null;
-let hueDnsPatchReadyLogged = false;
-const hueCaTrustReadyByPath = new Set();
-
-function isValidIpv4Host(value = "") {
-  return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(String(value || "").trim());
-}
-
-function normalizeBridgeDnsToken(value = "") {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9:-]/g, "");
-}
-
-function normalizeBridgeDnsTokenCompact(value = "") {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-}
-
-function buildBridgeDnsLookupCandidates(hostname = "") {
-  const raw = String(hostname || "")
-    .trim()
-    .toLowerCase();
-  if (!raw) return [];
-  const hostOnly = raw.split(".")[0] || raw;
-  const tokens = new Set();
-  const candidates = [raw, hostOnly];
-  for (const candidate of candidates) {
-    const token = normalizeBridgeDnsToken(candidate);
-    if (token) tokens.add(token);
-    const compact = normalizeBridgeDnsTokenCompact(candidate);
-    if (compact) tokens.add(compact);
-    if (compact.length >= 16) {
-      tokens.add(compact.slice(0, 16));
-    }
-  }
-  return Array.from(tokens);
-}
-
-function installHueDnsOverride(log = console) {
-  if (!baseDnsLookup) return;
-  if (patchedHueLookupFn && dns.lookup === patchedHueLookupFn) {
-    return;
-  }
-  patchedHueLookupFn = function patchedHueLookup(hostname, options, callback) {
-    let opts = options;
-    let cb = callback;
-    if (typeof options === "function") {
-      cb = options;
-      opts = undefined;
-    }
-    const hostTokens = buildBridgeDnsLookupCandidates(hostname);
-    const mappedIp = hostTokens.map((token) => hueDnsOverrides.get(token)).find(Boolean);
-    if (mappedIp && typeof cb === "function") {
-      const allMode = Boolean(opts && typeof opts === "object" && opts.all === true);
-      if (allMode) {
-        return process.nextTick(() => cb(null, [{ address: mappedIp, family: 4 }]));
-      }
-      return process.nextTick(() => cb(null, mappedIp, 4));
-    }
-    return baseDnsLookup(hostname, opts, cb);
-  };
-  dns.lookup = patchedHueLookupFn;
-  if (!hueDnsPatchReadyLogged) {
-    hueDnsPatchReadyLogged = true;
-    log.log?.("[HUE] Entertainment DNS bridge-id override ready");
-  }
-}
-
-function registerHueDnsOverride(bridgeId = "", bridgeIp = "", log = console) {
-  const bridgeToken = normalizeBridgeDnsToken(bridgeId);
-  const bridgeTokenCompact = normalizeBridgeDnsTokenCompact(bridgeId);
-  const ip = String(bridgeIp || "").trim();
-  if ((!bridgeToken && !bridgeTokenCompact) || !isValidIpv4Host(ip)) return false;
-  installHueDnsOverride(log);
-  const setOverride = (token) => {
-    if (!hueDnsOverrides.has(token) && hueDnsOverrides.size >= MAX_HUE_DNS_OVERRIDES) {
-      hueDnsOverrides.delete(hueDnsOverrides.keys().next().value);
-      hueDnsOverrideEvictions += 1;
-    }
-    hueDnsOverrides.set(token, ip);
-  };
-  if (bridgeToken) {
-    setOverride(bridgeToken);
-  }
-  if (bridgeTokenCompact) {
-    setOverride(bridgeTokenCompact);
-    if (bridgeTokenCompact.length >= 16) {
-      setOverride(bridgeTokenCompact.slice(0, 16));
-    }
-  }
-  return true;
-}
-
-function ensureHueCaTrust(rootDir = "", log = console) {
-  const certPath = resolveSignifyPemPath(rootDir);
-  if (!certPath) {
-    return {
-      installed: false,
-      reason: "signify_pem_missing",
-      certPath: "",
-    };
-  }
-  const existing = String(process.env.NODE_EXTRA_CA_CERTS || "").trim();
-  if (!existing) {
-    process.env.NODE_EXTRA_CA_CERTS = certPath;
-    if (!hueCaTrustReadyByPath.has(certPath)) {
-      hueCaTrustReadyByPath.add(certPath);
-      log.log?.(`[HUE] Entertainment CA trust ready (${path.basename(certPath)})`);
-    }
-    return {
-      installed: true,
-      reason: "node_extra_ca_set",
-      certPath,
-    };
-  }
-  if (existing.toLowerCase() === certPath.toLowerCase()) {
-    return {
-      installed: true,
-      reason: "node_extra_ca_already_set",
-      certPath,
-    };
-  }
-  return {
-    installed: false,
-    reason: "node_extra_ca_conflict",
-    certPath,
-  };
-}
-
 module.exports = function createHueEntertainmentRuntime(options = {}) {
-  const log = options.log || console;
-  const now = typeof options.now === "function" ? options.now : Date.now;
-  const rootDir = normalizeToken(options.rootDir || process.cwd());
-  const SESSION_IDLE_TTL_MS = Math.max(5000, Math.round(Number(options.sessionIdleTtlMs || 30000)));
-  const START_TIMEOUT_MS = Math.max(1500, Math.round(Number(options.startTimeoutMs || 9000)));
-
-  let HueSyncConstructor = null;
-  let availabilityReason = "";
-  let crossFetchEnabled = false;
-  const caTrust = ensureHueCaTrust(rootDir, log);
-  let lastSessionStopLog = {
-    reason: "",
-    at: 0,
-  };
-
-  try {
-    const crossFetch = require("cross-fetch");
-    const fetchFn = crossFetch?.fetch || crossFetch;
-    if (typeof fetchFn === "function") {
-      globalThis.fetch = fetchFn;
-      if (crossFetch?.Headers) globalThis.Headers = crossFetch.Headers;
-      if (crossFetch?.Request) globalThis.Request = crossFetch.Request;
-      if (crossFetch?.Response) globalThis.Response = crossFetch.Response;
-      crossFetchEnabled = true;
-    }
-  } catch {
-    crossFetchEnabled = false;
-  }
-
-  try {
-    const hueSyncModule = require("hue-sync");
-    HueSyncConstructor = hueSyncModule?.HueSync || hueSyncModule?.default || hueSyncModule;
-    if (typeof HueSyncConstructor !== "function") {
-      HueSyncConstructor = null;
-      availabilityReason = "hue-sync constructor unavailable";
-    }
-  } catch (error) {
-    availabilityReason = `hue-sync unavailable (${sanitizeError(error)})`;
-  }
-
-  const sessionsByKey = new Map();
-  const startPromiseByKey = new Map();
-  let lastError = "";
-  let lastErrorAt = 0;
-
-  function shouldLogSessionStop(reason = "") {
-    const token = String(reason || "")
-      .trim()
-      .toLowerCase();
-    if (!token) return false;
-    if (
-      token === "idle_timeout" ||
-      token === "transition_failed" ||
-      token === "transport_mode_rest" ||
-      token === "shutdown"
-    ) {
-      return false;
-    }
-    const at = Number(now() || Date.now());
-    const sameReason = token === String(lastSessionStopLog.reason || "");
-    const withinWindow = at - Number(lastSessionStopLog.at || 0) < 15000;
-    if (sameReason && withinWindow) return false;
-    lastSessionStopLog = { reason: token, at };
-    return true;
-  }
-
-  function formatSessionStopReason(reason = "") {
-    return (
-      String(reason || "")
-        .trim()
-        .replace(/[_-]+/g, " ")
-        .replace(/\s+/g, " ")
-        .toLowerCase() || "unknown"
-    );
-  }
-
-  async function stopSessionByKey(key = "", reason = "stop") {
-    const token = String(key || "").trim();
-    if (!token) return;
-    const session = sessionsByKey.get(token);
-    if (!session) return;
-    sessionsByKey.delete(token);
+  const now = options.now || Date.now;
+  const http = options.axios || require("axios");
+  const timeoutMs = options.startTimeoutMs ?? 9000;
+  const settleMs = options.preheatMs ?? 150;
+  const sessions = new Map(),
+    pending = new Map(),
+    stopping = new Map();
+  let epoch = 0,
+    lastError = "",
+    closed = false,
+    sent = 0;
+  let createSocket = options.createSocket,
+    unavailable = "";
+  if (!createSocket) {
     try {
-      if (
-        session.bridge &&
-        typeof session.bridge.updateEntertainmentArea === "function" &&
-        session.areaId
-      ) {
-        await Promise.resolve(
-          session.bridge.updateEntertainmentArea(session.areaId, {
-            action: "stop",
-          }),
-        );
-      }
+      createSocket = require("node-dtls-client").dtls.createSocket;
     } catch {
-      // [DEV] Best effort shutdown: keep teardown robust even when bridge rejects stop.
-    }
-    try {
-      if (session.socketErrorHandler && session.bridge?.socket) {
-        const socket = session.bridge.socket;
-        if (typeof socket.off === "function") {
-          socket.off("error", session.socketErrorHandler);
-        } else if (typeof socket.removeListener === "function") {
-          socket.removeListener("error", session.socketErrorHandler);
-        }
-      }
-    } catch {
-      // best effort
-    }
-    try {
-      session.bridge?.stop?.();
-    } catch {
-      // best effort
-    }
-    try {
-      session.bridge?.abortionController?.abort?.();
-    } catch {
-      // best effort
-    }
-    try {
-      session.bridge?.socket?.close?.();
-    } catch {
-      // best effort
-    }
-    if (shouldLogSessionStop(reason)) {
-      log.warn?.(`[HUE] Entertainment session stopped (${formatSessionStopReason(reason)})`);
+      unavailable = "node_dtls_client_unavailable";
     }
   }
-
-  async function cleanupIdleSessions() {
-    const at = Number(now() || Date.now());
-    const keys = Array.from(sessionsByKey.keys());
-    for (const key of keys) {
-      const row = sessionsByKey.get(key);
-      if (!row) continue;
-      const ageMs = Math.max(0, at - Number(row.lastUsedAt || 0));
-      if (ageMs <= SESSION_IDLE_TTL_MS) continue;
-      await stopSessionByKey(key, "idle_timeout");
-    }
+  const certPath = resolveCa(options.rootDir || process.cwd());
+  function agent(c) {
+    return new https.Agent({
+      ...(certPath ? { ca: fs.readFileSync(certPath) } : {}),
+      ...(c.bridgeId ? { servername: c.bridgeId.toLowerCase() } : {}),
+    });
   }
-
-  async function ensureSession(config = {}) {
-    const key = buildSessionKey(config);
-    if (!key) {
-      return { ok: false, error: "hue_entertainment_config_incomplete" };
-    }
-    if (!HueSyncConstructor) {
-      return { ok: false, error: availabilityReason || "hue_sync_unavailable" };
-    }
-    const existing = sessionsByKey.get(key);
-    if (existing && existing.active === true) {
-      existing.lastUsedAt = Number(now() || Date.now());
-      return { ok: true, session: existing };
-    }
-    if (startPromiseByKey.has(key)) {
-      return startPromiseByKey.get(key);
-    }
-
-    const startPromise = (async () => {
-      const bridge = new HueSyncConstructor({
-        credentials: {
-          username: normalizeToken(config.username),
-          clientkey: normalizeToken(config.clientKey).toUpperCase(),
-        },
-        id: normalizeToken(config.bridgeId),
-        url: normalizeHost(config.bridgeIp),
+  async function request(c, version, resource, body, signal) {
+    const legacyHttp = version === 1 && c.forceHttp === true;
+    const url = legacyHttp
+      ? `http://${c.bridgeIp}/api/${c.username}/${resource}`
+      : version === 1
+        ? `https://${c.bridgeIp}/api/${c.username}/${resource}`
+        : `https://${c.bridgeIp}/${resource}`;
+    const transport = legacyHttp ? null : agent(c);
+    try {
+      const response = await http.request({
+        url,
+        method: body ? "PUT" : "GET",
+        data: body,
+        timeout: Math.min(timeoutMs, 2400),
+        signal,
+        httpsAgent: transport,
+        headers: { "hue-application-key": c.username },
       });
-      // [DEV] hue-sync constructor patches dns.lookup with a legacy callback shape.
-      // [DEV] Re-apply our Node-24-safe override immediately after construction.
-      registerHueDnsOverride(config.bridgeId, config.bridgeIp, log);
-      if (normalizeToken(config.bridgeId)) bridge.id = normalizeToken(config.bridgeId);
-      if (normalizeHost(config.bridgeIp)) bridge.url = normalizeHost(config.bridgeIp);
-
-      const areas = await Promise.resolve(bridge.getEntertainmentAreas?.() || []);
-      const selectedArea = matchArea(areas, config.entertainmentAreaId);
-      if (!selectedArea) {
-        return { ok: false, error: "hue_entertainment_area_unavailable" };
-      }
-      // [DEV] Guard against Node 24 + hue-sync start hanging when DTLS emits error
-      // [DEV] before hue-sync resolves the start promise. We always race start with
-      // [DEV] socket error and timeout to avoid deadlocks + unhandled events.
-      const startResult = await new Promise((resolve) => {
-        let settled = false;
-        let guardTimer = null;
-        const settle = (ok, error = "") => {
-          if (settled) return;
-          settled = true;
-          if (guardTimer) {
-            clearTimeout(guardTimer);
-            guardTimer = null;
-          }
-          resolve({
-            ok,
-            error: sanitizeError(error || ""),
-          });
-        };
-        const startCall = Promise.resolve(bridge.start(selectedArea, START_TIMEOUT_MS));
-        const dtlsSocket = bridge?.socket;
-        const onSocketError = (error) => {
-          settle(false, error || "dtls_socket_error");
-        };
-        if (dtlsSocket && typeof dtlsSocket.once === "function") {
-          dtlsSocket.once("error", onSocketError);
-        }
-        guardTimer = setTimeout(
-          () => {
-            settle(false, "hue_entertainment_start_timeout");
-          },
-          Math.max(START_TIMEOUT_MS + 1200, 2500),
-        );
-        startCall
-          .then(() => settle(true))
-          .catch((error) => settle(false, error || "hue_entertainment_start_failed"));
-      });
-      if (!startResult.ok) {
+      const data = response.data;
+      if (data?.errors?.length || (Array.isArray(data) && data.some((r) => r.error)))
+        throw fault("hue_entertainment_bridge_rejected");
+      return data;
+    } finally {
+      transport?.destroy();
+    }
+  }
+  async function stop(session) {
+    if (!session || session.stopping) return session?.stopping;
+    session.active = false;
+    clearTimeout(session.idleTimer);
+    if (sessions.get(session.key) === session) sessions.delete(session.key);
+    session.stopping = Promise.resolve()
+      .then(async () => {
+        session.controller.abort();
         try {
-          bridge?.abortionController?.abort?.();
-        } catch {
-          // best effort
+          session.socket?.close();
+        } catch {}
+        if (session.claimed) {
+          try {
+            await request(
+              session.config,
+              session.version,
+              session.resource,
+              session.version === 1 ? { stream: { active: false } } : { action: "stop" },
+            );
+          } catch {}
         }
-        try {
-          bridge?.socket?.close?.();
-        } catch {
-          // best effort
-        }
-        return {
-          ok: false,
-          error: startResult.error || "hue_entertainment_start_failed",
-        };
-      }
-
-      const areaId = normalizeToken(selectedArea?.id || selectedArea?.rid || "");
-      const session = {
-        key,
-        active: true,
-        bridge,
-        areaId,
-        areaName: normalizeToken(selectedArea?.name || selectedArea?.metadata?.name || areaId),
-        channelCount: Math.max(1, inferAreaChannelCount(selectedArea)),
-        lastUsedAt: Number(now() || Date.now()),
-        socketErrorHandler: null,
-      };
-      const socket = bridge?.socket;
-      if (socket && typeof socket.on === "function") {
-        const socketErrorHandler = (error) => {
-          lastError = sanitizeError(error || "hue_entertainment_socket_error");
-          lastErrorAt = Number(now() || Date.now());
-          void stopSessionByKey(key, "socket_error");
-        };
-        socket.on("error", socketErrorHandler);
-        session.socketErrorHandler = socketErrorHandler;
-      }
-      sessionsByKey.set(key, session);
-      return { ok: true, session };
-    })()
-      .catch((error) => {
-        lastError = sanitizeError(error);
-        lastErrorAt = Number(now() || Date.now());
-        return {
-          ok: false,
-          error: lastError,
-        };
       })
-      .finally(() => {
-        startPromiseByKey.delete(key);
-      });
-
-    startPromiseByKey.set(key, startPromise);
-    return startPromise;
+      .finally(() => stopping.delete(session.key));
+    stopping.set(session.key, session.stopping);
+    return session.stopping;
   }
-
-  function scaleRgbForBrightness(rgb = {}, bri = 254, on = true) {
-    if (on === false) {
-      return { r: 0, g: 0, b: 0 };
+  async function discover(c, signal) {
+    const requested = String(c.entertainmentAreaId || "");
+    // Pairing via API v1 returns numeric group IDs. UUIDs select v2 directly.
+    const version = /^\d+$/.test(requested) ? 1 : 2;
+    if (version === 1) {
+      const area = await request(c, 1, `groups/${requested}`, null, signal);
+      if (area.type !== "Entertainment" || !Array.isArray(area.lights) || !area.lights.length)
+        throw fault("hue_entertainment_area_unavailable");
+      if (area.stream?.active) throw fault("hue_entertainment_area_busy");
+      return {
+        version,
+        areaId: requested,
+        resource: `groups/${requested}`,
+        identity: c.username,
+        channels: area.lights.map((id) => ({ id: Number(id), lights: [String(id)] })),
+      };
     }
-    const gain = clampNumber(Number(bri) / 254, 0, 1, 1);
+    const response = await request(
+      c,
+      2,
+      `clip/v2/resource/entertainment_configuration/${requested}`,
+      null,
+      signal,
+    );
+    const area = response.data?.find((a) => a.id === requested);
+    if (!area?.channels?.length) throw fault("hue_entertainment_area_unavailable");
+    if (area.status === "active" || area.active_streamer)
+      throw fault("hue_entertainment_area_busy");
+    const lights = (await request(c, 2, "clip/v2/resource/light", null, signal)).data || [];
+    const services =
+      (await request(c, 2, "clip/v2/resource/entertainment", null, signal)).data || [];
+    const auth = await request(c, 2, "auth/v1", null, signal);
+    const identity = auth.application_id || auth["hue-application-id"];
+    if (!identity) throw fault("hue_entertainment_identity_missing");
     return {
-      r: clampNumber(Math.round(Number(rgb.r || 0) * gain), 0, 255, 0),
-      g: clampNumber(Math.round(Number(rgb.g || 0) * gain), 0, 255, 0),
-      b: clampNumber(Math.round(Number(rgb.b || 0) * gain), 0, 255, 0),
+      version,
+      areaId: area.id,
+      resource: `clip/v2/resource/entertainment_configuration/${area.id}`,
+      identity,
+      channels: area.channels.map((channel) => ({
+        id: channel.channel_id,
+        lights: [
+          ...new Set(
+            (channel.members || []).map((member) => {
+              const rid = member.service?.rid;
+              const service = services.find((s) => s.id === rid);
+              const light = lights.find(
+                (l) => l.id === rid || l.id === service?.renderer_reference?.rid,
+              );
+              return lightId(light?.id_v1);
+            }),
+          ),
+        ],
+      })),
     };
   }
-
-  async function sendFrame(config = {}, input = {}) {
-    await cleanupIdleSessions();
-    const ensured = await ensureSession(config);
+  async function ensureSession(c = {}) {
+    if (closed || !createSocket)
+      return { ok: false, error: unavailable || "hue_entertainment_closed" };
+    if (
+      !c.bridgeIp ||
+      !c.username ||
+      !/^[a-f\d]{32}$/i.test(c.clientKey || "") ||
+      !c.entertainmentAreaId
+    )
+      return { ok: false, error: "hue_entertainment_config_incomplete" };
+    const key = keyFor(c);
+    await stopping.get(key);
+    if (closed) return { ok: false, error: "hue_entertainment_closed" };
+    const existing = sessions.get(key);
+    if (existing?.active) return { ok: true, session: existing };
+    if (pending.has(key)) return pending.get(key);
+    if (sessions.size + pending.size >= 64)
+      return { ok: false, error: "hue_entertainment_session_limit" };
+    const generation = epoch;
+    const controller = new AbortController();
+    const session = {
+      key,
+      config: c,
+      controller,
+      active: false,
+      claimed: false,
+      sequence: 0,
+      lastUsedAt: now(),
+    };
+    const work = (async () => {
+      let timer;
+      try {
+        await Promise.race([
+          (async () => {
+            Object.assign(session, await discover(c, controller.signal));
+            if (generation !== epoch || controller.signal.aborted)
+              throw fault("hue_entertainment_cancelled");
+            // No other area on this bridge may be started concurrently by this runtime.
+            if (
+              [...sessions.values()].some((s) => s.config.bridgeIp === c.bridgeIp && s.key !== key)
+            )
+              throw fault("hue_entertainment_bridge_busy");
+            sessions.set(key, session);
+            session.claimed = true;
+            await request(
+              c,
+              session.version,
+              session.resource,
+              session.version === 1 ? { stream: { active: true } } : { action: "start" },
+              controller.signal,
+            );
+            if (controller.signal.aborted) throw fault("hue_entertainment_cancelled");
+            await new Promise((resolve, reject) => {
+              session.socket = createSocket({
+                address: c.bridgeIp,
+                port: 2100,
+                type: "udp4",
+                timeout: timeoutMs,
+                signal: controller.signal,
+                cipherSuites: ["TLS_PSK_WITH_AES_128_GCM_SHA256"],
+                psk: { [session.identity]: Buffer.from(c.clientKey, "hex") },
+              });
+              session.socket.on("error", () => {
+                lastError = "hue_entertainment_socket_error";
+                reject(fault(lastError));
+                void stop(session);
+              });
+              session.socket.once("close", () => {
+                reject(fault("hue_entertainment_session_closed"));
+                void stop(session);
+              });
+              session.socket.once("connected", resolve);
+            });
+            await new Promise((resolve) => setTimeout(resolve, settleMs));
+            if (generation !== epoch || controller.signal.aborted)
+              throw fault("hue_entertainment_cancelled");
+            session.active = true;
+            armIdle(session);
+          })(),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => {
+              controller.abort();
+              reject(fault("hue_entertainment_start_timeout"));
+            }, timeoutMs);
+          }),
+        ]);
+        return { ok: true, session };
+      } catch (error) {
+        lastError = error.code?.startsWith("hue_") ? error.code : "hue_entertainment_start_failed";
+        await stop(session);
+        return { ok: false, error: lastError };
+      } finally {
+        clearTimeout(timer);
+        pending.delete(key);
+      }
+    })();
+    pending.set(key, work);
+    return work;
+  }
+  function armIdle(session) {
+    clearTimeout(session.idleTimer);
+    session.idleTimer = setTimeout(() => {
+      void stop(session);
+    }, options.sessionIdleTtlMs ?? 30000);
+    session.idleTimer.unref?.();
+  }
+  async function sendFrame(c = {}, input = {}) {
+    const ensured = input.requireActive
+      ? {
+          ok: sessions.get(keyFor(c))?.active === true,
+          session: sessions.get(keyFor(c)),
+          error: "hue_entertainment_not_active",
+        }
+      : await ensureSession(c);
     if (!ensured.ok) return ensured;
     const session = ensured.session;
-    const rgbInput = input?.rgb && typeof input.rgb === "object" ? input.rgb : { r: 0, g: 0, b: 0 };
-    const rgb = scaleRgbForBrightness(rgbInput, input.bri, input.on !== false);
-    const requestedCount = Math.max(
-      1,
-      Math.round(Number(input.channelCount || input.fixtureCount || session.channelCount || 1)),
+    const requested = (input.lightIds || []).map(String);
+    const channels = requested.length
+      ? session.channels.filter(
+          (ch) => ch.lights.length && ch.lights.every((id) => requested.includes(id)),
+        )
+      : session.channels;
+    if (!channels.length || requested.some((id) => !channels.some((ch) => ch.lights.includes(id))))
+      return { ok: false, error: "hue_entertainment_channel_not_addressable" };
+    const gain = input.on === false ? 0 : Math.max(0, Math.min(1, (input.bri ?? 254) / 254));
+    const rgb = Object.fromEntries(
+      ["r", "g", "b"].map((k) => [
+        k,
+        Math.max(0, Math.min(255, Number(input.rgb?.[k]) || 0)) * gain,
+      ]),
     );
-    const frame = Array.from({ length: requestedCount }, () => [rgb.r, rgb.g, rgb.b]);
+    let timer;
     try {
-      await Promise.resolve(session.bridge.transition(frame));
-      session.lastUsedAt = Number(now() || Date.now());
-      return {
-        ok: true,
-        channelCount: requestedCount,
-      };
-    } catch (error) {
-      const detail = sanitizeError(error);
-      lastError = detail;
-      lastErrorAt = Number(now() || Date.now());
-      await stopSessionByKey(session.key, "transition_failed");
-      return {
-        ok: false,
-        error: detail,
-      };
+      await new Promise((resolve, reject) => {
+        timer = setTimeout(() => reject(fault("hue_entertainment_send_timeout")), 1000);
+        session.socket.send(
+          packet(
+            session.version,
+            session.areaId,
+            session.sequence++,
+            channels.map((ch) => ch.id),
+            rgb,
+          ),
+          (error) => {
+            clearTimeout(timer);
+            if (error) reject(error);
+            else resolve();
+          },
+        );
+      });
+      session.lastUsedAt = now();
+      armIdle(session);
+      sent++;
+      return { ok: true, channelCount: channels.length, version: session.version };
+    } catch {
+      lastError = "hue_entertainment_send_failed";
+      await stop(session);
+      return { ok: false, error: lastError };
+    } finally {
+      clearTimeout(timer);
     }
   }
-
   async function stopAll(reason = "shutdown") {
-    const keys = Array.from(sessionsByKey.keys());
-    for (const key of keys) {
-      await stopSessionByKey(key, reason);
-    }
-    return {
-      ok: true,
-      stopped: keys.length,
-    };
+    epoch++;
+    if (reason === "shutdown") closed = true;
+    await Promise.allSettled([...sessions.values()].map(stop));
+    await Promise.allSettled([...pending.values()]);
+    await Promise.allSettled([...sessions.values()].map(stop));
+    return { ok: true };
   }
-
-  async function reconcileConfigs(configs = []) {
-    const retained = new Set(
-      (Array.isArray(configs) ? configs : []).map(buildSessionKey).filter(Boolean),
-    );
-    const stale = [...sessionsByKey.keys()].filter((key) => !retained.has(key));
-    for (const key of stale) await stopSessionByKey(key, "fixture_removed");
-    return { ok: true, removed: stale.length, retained: retained.size };
-  }
-
-  function getStatus() {
-    return {
-      available: typeof HueSyncConstructor === "function",
-      reason: availabilityReason,
-      crossFetchEnabled,
-      caTrust,
-      dnsOverrideCount: hueDnsOverrides.size,
-      maximumDnsOverrides: MAX_HUE_DNS_OVERRIDES,
-      dnsOverrideEvictions: hueDnsOverrideEvictions,
-      activeSessions: sessionsByKey.size,
-      lastError,
-      lastErrorAt,
-    };
-  }
-
   return {
+    ensureSession,
     sendFrame,
     stopAll,
-    reconcileConfigs,
-    getStatus,
+    async stopConfig(c) {
+      await stop(sessions.get(keyFor(c)));
+    },
+    async reconcileConfigs(configs = []) {
+      const keep = new Set(configs.map(keyFor));
+      await Promise.allSettled([...sessions.values()].filter((s) => !keep.has(s.key)).map(stop));
+    },
+    getStatus: () => ({
+      available: !!createSocket,
+      reason: unavailable,
+      activeSessions: [...sessions.values()].filter((s) => s.active).length,
+      pendingSessions: pending.size,
+      supportedVersions: [1, 2],
+      maximumSessions: 64,
+      stoppingSessions: stopping.size,
+      preheatMs: settleMs,
+      sent,
+      lastError,
+      sessions: [...sessions.values()].map((s) => ({
+        version: s.version,
+        active: s.active,
+        channelCount: s.channels.length,
+      })),
+      caTrust: { installed: !!certPath, certPath },
+    }),
   };
 };
+module.exports.packet = packet;

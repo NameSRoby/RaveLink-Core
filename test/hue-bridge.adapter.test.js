@@ -6,6 +6,68 @@ const assert = require("node:assert/strict");
 
 const createHueBridgeAdapter = require("../src/adapters/brands/hue-bridge.adapter");
 
+test("Hue snapshot restoration preserves native power and color through REST", async () => {
+  const writes = [];
+  const adapter = createHueBridgeAdapter({
+    dryRun: false,
+    axios: {
+      put: async (_url, state) => {
+        writes.push(state);
+        return { status: 200 };
+      },
+    },
+    createHueEntertainmentRuntime: () => ({
+      getStatus: () => ({ available: true }),
+      sendFrame: async () => {
+        throw Error("snapshot_must_not_use_rgb_stream");
+      },
+      stopAll: async () => ({ ok: true }),
+    }),
+  });
+  const state = { on: false, bri: 120, xy: [0.4, 0.3], transitiontime: 0 };
+  const result = await adapter.restoreState(
+    [
+      {
+        brand: "hue",
+        bridgeIp: "192.0.2.5",
+        username: "fixture-user",
+        lightId: 1,
+        clientKey: "A".repeat(32),
+        entertainmentAreaId: "desk-area",
+        extras: { hueBridgeCapabilities: { supportsEntertainment: true, forceHttp: true } },
+      },
+    ],
+    state,
+  );
+  assert.equal(result.sent, 1);
+  assert.deepEqual(writes, [state]);
+  await adapter.shutdown();
+});
+
+test("Hue effect baseline reads preserve off, white and XY modes without read-only fields", async () => {
+  let raw = { on: false, bri: 0, ct: 350, colormode: "ct", reachable: true, alert: "none" };
+  const adapter = createHueBridgeAdapter({
+    axios: { get: async () => ({ data: { state: raw } }) },
+  });
+  const fixture = { bridgeIp: "192.0.2.5", username: "fixture-user", lightId: 1 };
+  assert.deepEqual((await adapter.readState(fixture)).state, {
+    on: false,
+    transitiontime: 0,
+    bri: 0,
+    ct: 350,
+  });
+  raw = { on: true, bri: 88, xy: [0.4, 0.3], colormode: "xy", ct: 250, reachable: true };
+  assert.deepEqual((await adapter.readState(fixture)).state, {
+    on: true,
+    transitiontime: 0,
+    bri: 88,
+    xy: [0.4, 0.3],
+  });
+  raw.reachable = false;
+  assert.equal((await adapter.readState(fixture)).ok, false);
+  await adapter.shutdown();
+});
+
 test("Hue discovery uses bounded mDNS fallback and destroys its request-scoped resources", async () => {
   let stopped = 0;
   let destroyed = 0;

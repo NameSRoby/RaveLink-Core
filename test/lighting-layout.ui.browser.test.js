@@ -84,13 +84,19 @@ test("room layout alpha places mixed-brand fixtures and explains segment capabil
     .filter({ hasText: "#ff0000 // 2 SENT // 0 FAILED" })
     .waitFor();
 
-  await page.locator('[data-light-tab="lab"]').click();
+  assert.equal(await page.locator('[data-light-tab="lab"]').count(), 0);
+  await page.locator('[data-light-tab="commands"]').click();
+  await page.locator("#lightingDiagnostics > summary").click();
   await page.locator("#lightingLabFixtures .labFixtureCard").first().waitFor();
   assert.equal(await page.locator("#lightingLabFixtures .labFixtureCard").count(), 2);
-  await page.locator("#labBrightnessLimit").fill("75");
   await page.locator('label:has([data-lab-excluded="hue-strip"])').click();
+  await page.locator("#saveLightingProtection").click();
+  await page.locator('[data-light-tab="viewer"]').click();
+  await page.locator("#labBrightnessLimit").fill("75");
   await page.locator("#saveLightingLab").click();
-  await page.locator("#lightingLabNotice").filter({ hasText: "LIGHT LAB SAVED" }).waitFor();
+  await page.locator("#lightingLabNotice").filter({ hasText: "EFFECT SETTINGS SAVED" }).waitFor();
+  assert.equal(await page.locator("[data-lab-latency]").count(), 0);
+  await page.locator('[data-light-tab="commands"]').click();
   await page.locator("#labPreviewCommand").fill("red");
   await page.locator("#runLabPreview").click();
   await page.locator("#labPreviewResult").filter({ hasText: "1 TARGETS" }).waitFor();

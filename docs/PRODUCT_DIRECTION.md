@@ -1,23 +1,30 @@
 # Product direction and JavaFX preparation
 
-Reviewed 2026-10-17 against the 0.7.1b implementation and repository health work.
+Updated for 0.7.2: Music-to-Light now includes first-party application capture,
+reactive looks, saved effects and fixture ownership. Hardware acceptance remains
+limited; see the current behavior and requirements in [README.md](../README.md).
 This is the current scope decision. Older dated designs describe history or
 research; their unfinished checkboxes do not automatically become release work.
 
 ## What is worth completing
 
-| Area | Decision | Reason and next useful outcome |
-| --- | --- | --- |
-| Hue, WiZ and Govee lighting | Keep and harden | This is Core's purpose. Verify cancellation, restoration, mixed-brand output and fixture recovery on hardware. Keep Govee's Alpha label until its acceptance warrants a change. |
-| Fixtures, groups, profiles, color language | Keep | Reuse the server owners from every client. Add native contracts for discovery/pairing and profile administration before building those JavaFX screens. |
-| StreamElements widget | Keep transport only | It remains a useful intake path. Chat policy and credentials stay with their optional owners; do not rebuild a second chatbot in the widget. |
-| Song Request and OBS overlays | Keep and stabilize | Preserve moderation, requester attribution, layout editing, artwork updates and scrolling. Browser playback and OBS remain browser surfaces where required. |
-| YouTube, Spotify, TIDAL and SoundCloud | Maintain existing paths | These are implemented workflows, not speculative roadmap entries. Preserve provider-specific limitations and degraded states. Desktop companions need compatibility checks when provider apps change. |
-| Playlists and transfers | Complete current workflow quality | Keep Spotify import/export, reviewed matching, multi-selection, select-all, backtracking, separate/merged destination choices, cancellation and verified write outcomes. Do not equate a matched local collection with a provider account write. |
-| Twitch Integration | Keep and harden | OAuth recovery, chat replies, reward ownership, duplicate suppression and settlement are existing product behavior. Prove reconnect/revocation and uncertain delivery on a real account. |
-| Feature and mod infrastructure | Keep with separate trust boundaries | Installation, supervision, contracts, permissions and rollback are shared infrastructure. Native management is useful; arbitrary native mod panels are not required for the first client. |
-| Updates, diagnostics and Windows supervision | Keep and reuse | JavaFX must use the same server/update owners. Preserve explicit stop, retained-data choices and recovery without Java. |
-| Resource limits and tests | Continue targeted work | Fix measured owner/cache/deadline gaps. Short automated measurements do not replace overnight idle, outage and reconnect evidence. |
+| Area                                         | Decision                            | Reason and next useful outcome                                                                                                                                                                                                                   |
+| -------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Hue, WiZ and Govee lighting                  | Keep and harden                     | This is Core's purpose. Verify cancellation, restoration, mixed-brand output and fixture recovery on hardware. Keep Govee's Alpha label until its acceptance warrants a change.                                                                  |
+| Fixtures, groups, profiles, color language   | Keep                                | Reuse the server owners from every client. Add native contracts for discovery/pairing and profile administration before building those JavaFX screens.                                                                                           |
+| StreamElements widget                        | Keep transport only                 | It remains a useful intake path. Chat policy and credentials stay with their optional owners; do not rebuild a second chatbot in the widget.                                                                                                     |
+| Song Request and OBS overlays                | Keep and stabilize                  | Preserve moderation, requester attribution, layout editing, artwork updates and scrolling. Browser playback and OBS remain browser surfaces where required.                                                                                      |
+| YouTube, Spotify, TIDAL and SoundCloud       | Maintain existing paths             | These are implemented workflows, not speculative roadmap entries. Preserve provider-specific limitations and degraded states. Desktop companions need compatibility checks when provider apps change.                                            |
+| Playlists and transfers                      | Complete current workflow quality   | Keep Spotify import/export, reviewed matching, multi-selection, select-all, backtracking, separate/merged destination choices, cancellation and verified write outcomes. Do not equate a matched local collection with a provider account write. |
+| Twitch Integration                           | Keep and harden                     | OAuth recovery, chat replies, reward ownership, duplicate suppression and settlement are existing product behavior. Prove reconnect/revocation and uncertain delivery on a real account.                                                         |
+| Feature and mod infrastructure               | Keep with separate trust boundaries | Installation, supervision, contracts, permissions and rollback are shared infrastructure. Native management is useful; arbitrary native mod panels are not required for the first client.                                                        |
+| Updates, diagnostics and Windows supervision | Keep and reuse                      | JavaFX must use the same server/update owners. Preserve explicit stop, retained-data choices and recovery without Java.                                                                                                                          |
+| Resource limits and tests                    | Continue targeted work              | Fix measured owner/cache/deadline gaps. Short automated measurements do not replace overnight idle, outage and reconnect evidence.                                                                                                               |
+
+Music-to-Light is an explicitly started Core workflow with its own capture and
+output permissions. Preserve native-state restoration, bounded analysis and
+fixture ownership. Song Request remains optional. Music-to-Light is not a
+JavaFX feasibility prerequisite.
 
 Provider support in this table describes source implementation. It does not
 certify service terms, general API access, every account tier, live acceptance or
@@ -26,15 +33,14 @@ unsupported account operations. No new provider is needed to start JavaFX.
 
 ## Work to stop carrying as active development
 
-| Area | Decision | Code and data treatment |
-| --- | --- | --- |
-| Clip Studio preview | Remove from the offered product | Remove the empty Projects package, contract, catalog entry, installer option and dedicated placeholder tests. Preserve the design notes. Existing installed packages and user data are not deleted by this source cleanup. |
-| Clip analysis/rendering/models | Shelve | No decoder/model dependency, worker, native view, file access or processing contract until a separate product decision defines a useful first version and its cost. |
-| Music-to-Light | Research only | Preserve the concept, but remove its automatic admission as the next major feature. First prove hardware cadence and a small metadata-only use case. No audio worker or UI scaffolding now. |
-| MIDI, Rave Engine, general Automation, Setup Doctor, donation/speech services | Remain retired | Do not recreate their routes, packages, compatibility shims or repair backlog. Existing bounded effects, diagnostics and manual profiles retain their own owners. |
-| External Luna plugin distribution and its operator page | Retire as superseded | The bundled TIDAL companion owns installation. Remove the old builder, launcher, assets, redundant adapter alias and legacy setup controls. Keep the authenticated bridge and existing capability IDs used by the current companion. |
-| Extra providers, liked-song adapters, SoundCloud account writes/native Next Up, advanced animation/Hype/composite actions | Defer | They add backend and acceptance work without helping native-client feasibility. No speculative server stubs or JavaFX navigation entries. Keep implemented shared primitives that current workflows use. |
-| Native third-party mod panel framework | Defer | First deliver native package management. Keep existing isolated browser contributions available through the recovery HUD; do not move untrusted code into the Java process. |
+| Area                                                                                                                      | Decision                        | Code and data treatment                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Clip Studio preview                                                                                                       | Remove from the offered product | Remove the empty Projects package, contract, catalog entry, installer option and dedicated placeholder tests. Preserve the design notes. Existing installed packages and user data are not deleted by this source cleanup.           |
+| Clip analysis/rendering/models                                                                                            | Shelve                          | No decoder/model dependency, worker, native view, file access or processing contract until a separate product decision defines a useful first version and its cost.                                                                  |
+| MIDI, Rave Engine, general Automation, Setup Doctor, donation/speech services                                             | Remain retired                  | Do not recreate their routes, packages, compatibility shims or repair backlog. Existing bounded effects, diagnostics and manual profiles retain their own owners.                                                                    |
+| External Luna plugin distribution and its operator page                                                                   | Retire as superseded            | The bundled TIDAL companion owns installation. Remove the old builder, launcher, assets, redundant adapter alias and legacy setup controls. Keep the authenticated bridge and existing capability IDs used by the current companion. |
+| Extra providers, liked-song adapters, SoundCloud account writes/native Next Up, advanced animation/Hype/composite actions | Defer                           | They add backend and acceptance work without helping native-client feasibility. No speculative server stubs or JavaFX navigation entries. Keep implemented shared primitives that current workflows use.                             |
+| Native third-party mod panel framework                                                                                    | Defer                           | First deliver native package management. Keep existing isolated browser contributions available through the recovery HUD; do not move untrusted code into the Java process.                                                          |
 
 Shelved design notes are inexpensive and retain useful decisions. An empty
 installable feature costs users setup time and adds catalog, packaging, tests and

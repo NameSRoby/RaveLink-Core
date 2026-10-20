@@ -11,6 +11,8 @@ module.exports = function createTaughtColorPreviewService(options = {}) {
     options;
   const delay = typeof options.setTimeout === "function" ? options.setTimeout : setTimeout;
   const durationMs = Math.max(500, Math.min(5000, Number(options.durationMs || 1400)));
+  if (options.outputOwnership)
+    return require("./taught-color-preview-output")({ ...options, durationMs, delay });
   const timers = new Set();
 
   function adapterFor(brand) {

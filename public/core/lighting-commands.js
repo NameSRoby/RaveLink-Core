@@ -17,7 +17,7 @@
   const describeRoute = (label, ids) =>
     `${label} (${ids.length}): ${fixtureNames(ids).join(", ") || "no fixtures"}`;
   const effectDescriptions = Object.freeze({
-    cycle: "Hard synchronized steps through two to twelve colors.",
+    cycle: "Hard steps through two to twelve colors; device latency is left unchanged.",
     fade: "Smoothly blends the whole selected route between two to twelve colors.",
     breathe: "Pulses the brightness of one color.",
     rainbow: "Moves a spread rainbow across saved fixture positions.",
@@ -25,6 +25,7 @@
     sweep: "Sends a directional bright pulse across saved fixture positions.",
     ripple: "Expands a bright pulse from the saved room origin.",
     chase: "Uses hard color steps with a configurable gap between fixtures.",
+    rave: "Starts audio-reactive lighting using the selected music source, Rave settings and allowed fixtures. Requires Rave to be enabled in Music.",
     stop: "Stops the effect on the selected dynamic route.",
   });
 
@@ -69,12 +70,14 @@
         "EFFECTS (unprefixed = every dynamic-routed fixture)",
         "cycle <colors> | fade <colors> | breathe <color>",
         "rainbow | wave [colors] | sweep <colors> | ripple <colors> | chase <colors>",
+        "rave [colors] [slow|normal|fast|aggressive] | rave stop",
+        "Rave requires the broadcaster to enable it and select an audio source in Music.",
         "Add fast, normal, or slow at the end. Separate colors with commas. Use stop to end effects.",
       );
       for (const prefix of Object.keys(dynamicPrefixes))
         compact.push(`Dynamic subset: ${prefix} <effect>`);
       compact.push(
-        "Examples: cycle red, green, blue | fade purple, cyan slow | breathe deep blue | rainbow | stop",
+        "Examples: cycle red, green, blue | fade purple, cyan slow | rave | rave red, blue aggressive | rave stop",
       );
     } else compact.push("", "Dynamic viewer effects are currently off or have no routed fixtures.");
 
@@ -151,6 +154,10 @@
         "sweep cyan, purple [fast|normal|slow]",
         "ripple white, blue [fast|normal|slow]",
         "chase red, green, blue [fast|normal|slow]",
+        "rave [slow|normal|fast|aggressive]",
+        "rave red, green, blue [slow|normal|fast|aggressive]",
+        "rave stop                       End Rave; restore the previous lighting.",
+        "Rave uses the configured Music source, fixture roles, brightness limit and duration. Enable Allow rave in Music first. Other viewer light commands are refused while Rave is active; use rave stop or stop to end it.",
         "stop",
         "all <effect>                    Explicitly select the entire dynamic route.",
         "",

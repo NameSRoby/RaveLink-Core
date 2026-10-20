@@ -150,21 +150,27 @@ module.exports = function createWizBridgeAdapter(options = {}) {
   function buildWizPilotPayload(rawState = {}) {
     const source = rawState && typeof rawState === "object" ? rawState : {};
     const on = source.on !== false;
+    // Restoration must carry native color/scene fields even for an off bulb.
+    // Dropping them restores power alone and leaves the effect's color behind.
+    const restoringNative = source.__restoreNative === true;
+    const includeMode = on || restoringNative;
     const params = {
       state: on,
     };
     if (Number.isFinite(Number(source.dimming))) {
-      params.dimming = toRoundedInt(source.dimming, 10, 100, 100);
+      params.dimming = toRoundedInt(source.dimming, restoringNative ? 1 : 10, 100, 100);
     } else {
       params.dimming = on ? 100 : 10;
     }
-    if (on && Number.isFinite(Number(source.speed))) {
+    if (includeMode && Number.isFinite(Number(source.speed))) {
       params.speed = toRoundedInt(source.speed, 20, 200, 80);
     }
-    if (on && Number.isFinite(Number(source.temp))) {
+    if (includeMode && Number.isInteger(source.sceneId) && source.sceneId > 0) {
+      params.sceneId = source.sceneId;
+    } else if (includeMode && Number.isFinite(Number(source.temp))) {
       params.temp = toRoundedInt(source.temp, 2200, 6500, 3500);
     } else if (
-      on &&
+      includeMode &&
       Number.isFinite(Number(source.r)) &&
       Number.isFinite(Number(source.g)) &&
       Number.isFinite(Number(source.b))
@@ -508,7 +514,9 @@ module.exports = function createWizBridgeAdapter(options = {}) {
           finish({
             ok: true,
             reachable: true,
-            state: normalizeTelemetryWizState(message.result || {}),
+            state: input.forRestore
+              ? require("./wiz-light-state")(message.result)
+              : normalizeTelemetryWizState({ ...message.result, on: message.result?.state }),
           });
         } catch {}
       });
@@ -538,8 +546,10 @@ module.exports = function createWizBridgeAdapter(options = {}) {
 
   return {
     sendState,
+    restoreState: (fixtures, state) => sendState(fixtures, { ...state, __restoreNative: true }),
     discoverDevices,
     probeDevice,
+    readState: (fixture) => probeDevice(fixture, { timeoutMs: 1500, forRestore: true }),
     getTelemetry() {
       return {
         ...getTelemetry(),
