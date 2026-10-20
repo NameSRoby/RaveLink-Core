@@ -102,7 +102,7 @@
     function sourceStatus(view) {
       $("sourceStatus").textContent = view.status.sourceSelected
         ? view.bindings.source?.id === "fullscreen-app"
-          ? "Start, then focus the fullscreen or borderless app within five seconds. Capture stops when it loses fullscreen focus."
+          ? "Start, then focus the fullscreen or borderless app within five seconds. Capture stays with that app when you Alt+Tab away, until you stop it or the app exits."
           : "Saved. Each new lighting session uses the first available app in this order. Running sessions keep their source."
         : "Choose a main app or a fallback. Unused slots can stay None.";
     }

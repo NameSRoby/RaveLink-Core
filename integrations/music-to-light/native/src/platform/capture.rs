@@ -43,8 +43,10 @@ pub fn run(source: Source, seconds: u32, generation: String) -> Result<(), Failu
     emit(
         json!({"v":2,"type":"hello","generation":generation,"scope":if matches!(source,Source::Process{..}|Source::FullscreenApp){"process_tree"}else{"entire_endpoint"},"max_seconds":seconds}),
     )?;
-    let fullscreen = matches!(source, Source::FullscreenApp);
-    let source = if fullscreen {
+    // Fullscreen is a one-time selection gesture. Once selected, pin the exact
+    // process identity just like named-app capture. Alt+Tab, minimization and
+    // another fullscreen window must neither stop nor retarget this capture.
+    let source = if matches!(source, Source::FullscreenApp) {
         let waiting = Instant::now();
         let selected = loop {
             if let Ok(pid) = super::fullscreen::foreground_pid() {
@@ -190,12 +192,6 @@ pub fn run(source: Source, seconds: u32, generation: String) -> Result<(), Failu
             }
         }
         if last_status.elapsed() >= Duration::from_millis(250) {
-            if fullscreen
-                && super::fullscreen::foreground_pid().ok() != process.as_ref().map(|p| p.pid)
-            {
-                reason = "source_exited";
-                break;
-            }
             let age = last_sample.map(|at: Instant| at.elapsed().as_millis() as u64);
             emit(
                 json!({"v":2,"type":"status","generation":generation,"signal":match age{None=>"waiting",Some(ms)if ms>750=>"stale",_=>"receiving"},"last_sample_age_ms":age}),

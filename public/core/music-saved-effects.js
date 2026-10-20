@@ -2,7 +2,7 @@
 window.RaveLinkSavedEffects = {
   errors: {
     fullscreen_app_unavailable:
-      "Waiting for a fullscreen or borderless app. Start again, then focus the app within five seconds. Alt-tabbing away stops its capture.",
+      "Waiting for a fullscreen or borderless app. Start again, then focus the app within five seconds. Capture stays with that app when you Alt+Tab away.",
     music_effect_not_running: "Start a preview or live effect before saving its combination.",
     invalid_music_effect_policy:
       "Choose one saved effect, or at least one effect for the random pool.",

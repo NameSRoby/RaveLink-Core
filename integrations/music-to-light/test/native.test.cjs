@@ -7,8 +7,85 @@ const assert = require("node:assert/strict");
 const { fork } = require("node:child_process");
 const path = require("node:path");
 const { capture, identify } = require("../probe.cjs");
+const fs = require("node:fs");
+const os = require("node:os");
+const { spawn, spawnSync } = require("node:child_process");
 const enabled =
   process.platform === "win32" && process.env.RAVELINK_AUDIO_NATIVE_ACCEPTANCE === "1";
+
+test(
+  "fullscreen capture remains pinned and receiving after its source loses focus",
+  { skip: !enabled || process.env.RAVELINK_AUDIO_FOCUS_ACCEPTANCE !== "1", timeout: 15000 },
+  async (t) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-fullscreen-test-"));
+    const executable = path.join(root, "fullscreen-source.exe");
+    const compiler = path.join(process.env.WINDIR, "Microsoft.NET/Framework64/v4.0.30319/csc.exe");
+    const compiled = spawnSync(
+      compiler,
+      [
+        "/nologo",
+        "/target:exe",
+        `/out:${executable}`,
+        "/reference:System.Drawing.dll",
+        "/reference:System.Windows.Forms.dll",
+        path.join(__dirname, "support/fullscreen-source.cs"),
+      ],
+      { encoding: "utf8", windowsHide: true },
+    );
+    assert.equal(compiled.status, 0, compiled.stdout + compiled.stderr);
+    const source = spawn(executable, [], { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+    let session;
+    const exited = new Promise((resolve) => source.once("exit", resolve));
+    t.after(async () => {
+      session?.stop();
+      if (session) await session.done.catch(() => {});
+      source.stdin.end("stop\n");
+      source.kill();
+      await exited;
+      fs.rmSync(root, { recursive: true, force: true });
+    });
+    let output = "";
+    source.stdout.on("data", (chunk) => {
+      output += chunk;
+    });
+    const waitFor = async (check) => {
+      const until = Date.now() + 5000;
+      while (!check()) {
+        if (Date.now() > until)
+          assert.fail("owned fullscreen fixture did not become ready: " + output);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    };
+    await waitFor(() => /FULLSCREEN_READY|FOCUS_UNAVAILABLE/.test(output));
+    if (output.includes("FOCUS_UNAVAILABLE")) {
+      t.skip("Windows denied foreground activation; an interactive desktop is required");
+      return;
+    }
+    session = capture("fullscreen-app", { seconds: 0 });
+    let levels = 0,
+      ended = false;
+    session.events.on("update", (event) => {
+      if (event.type === "level") levels++;
+    });
+    session.done.then(
+      () => {
+        ended = true;
+      },
+      () => {
+        ended = true;
+      },
+    );
+    await waitFor(() => levels >= 10);
+    source.stdin.write("background\n");
+    await waitFor(() => output.includes("SOURCE_BACKGROUNDED"));
+    const before = levels;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    assert.equal(ended, false, "focus loss was incorrectly treated as process exit");
+    assert(levels > before + 20, "capture must continue measured windows in the background");
+    session.stop();
+    assert.equal((await session.done).reason, "parent_stop");
+  },
+);
 
 test(
   "continuous native capture survives its former deadline and stops on the parent pipe",
