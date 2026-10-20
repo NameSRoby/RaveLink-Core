@@ -225,6 +225,32 @@ test("StreamElements reward input normalizes color and routes active versus pref
   }).then((response) => response.json());
   assert.deepEqual(direct.targets, ["right"]);
   assert.equal((await fetch(`${base}/light-groups`)).status, 404);
+  const raveStarts = [];
+  let raveIds = [];
+  core.twitchLightEffects.save({ revision: 0, enabled: true, fixtureIds: ["left", "right"] });
+  core.twitchLightEffects.setMusicHandler({
+    check: async () => {},
+    start: async (request) => {
+      raveStarts.push(request);
+      raveIds = request.fixtureIds;
+      return { ok: true, targets: raveIds, seconds: 30 };
+    },
+    ids: () => raveIds,
+    stop: async () => {
+      raveIds = [];
+    },
+  });
+  const rave = await send("rave-one", "rave red, blue aggressive");
+  assert.equal(rave.result.ok, true);
+  assert.equal(rave.result.effect, "rave");
+  assert.deepEqual(rave.result.targets, ["left", "right"]);
+  assert.equal(raveStarts[0].feel, "aggressive");
+  assert.deepEqual(raveStarts[0].palette, ["#ff0000", "#0000ff"]);
+  assert.equal((await send("rave-one", "rave red, blue aggressive")).duplicate, true);
+  assert.equal(raveStarts.length, 1);
+  const stoppedRave = await send("rave-stop", "rave stop");
+  assert.equal(stoppedRave.result.ok, true);
+  assert.deepEqual(raveIds, []);
 });
 test("a taught color is immediately usable by the next redemption and cannot be overwritten", async (t) => {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "twitch-teach-color-"));

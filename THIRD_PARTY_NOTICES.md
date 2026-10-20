@@ -41,8 +41,9 @@ Transitive production packages currently use MIT, ISC, BSD-2-Clause, BSD-3-Claus
 
 ## Optional Feature Packages
 
-
 ## Protocol References
+
+- **Music-to-Light native capture helper** — `integrations/music-to-light/native` uses Microsoft's `windows` / `windows-core` Win32 bindings and support crates (MIT OR Apache-2.0), and Serde/serde_json (MIT OR Apache-2.0). Transitive source-build dependencies include `itoa`, `proc-macro2`, `quote`, `syn` (MIT OR Apache-2.0), `memchr` (Unlicense OR MIT), `unicode-ident` ((MIT OR Apache-2.0) AND Unicode-3.0), and `zmij` (MIT). Exact versions/checksums are retained in `native/Cargo.lock`; upstream package source includes license texts. API references: [Microsoft process-loopback sample](https://learn.microsoft.com/en-us/samples/microsoft/windows-classic-samples/applicationloopbackaudio-sample/) and [WASAPI capture packets](https://learn.microsoft.com/en-us/windows/win32/api/audioclient/nn-audioclient-iaudiocaptureclient). The first-party helper is bundled in the Windows installer and portable archives. Complete dependency license texts and a locked version/source inventory are retained under `integrations/music-to-light/licenses`; source and the Cargo lockfile are published under `integrations/music-to-light/native`.
 
 - **Spicetify contributors** — LGPL-2.1. The optional Spotify desktop companion contains a reduced, modified platform-capture hook and native Player/Queue facade based on Spicetify v2.45.3. Its separate license, attribution, editable sources and build script are retained under `integrations/spotify-desktop/vendor/spicetify` and the generated companion bundle. The Spicetify CLI, marketplace, themes and extensions are not bundled. The companion is prepared locally from Setup; no Spotify executable, proprietary Spotify assets or account credentials are distributed.
 

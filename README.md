@@ -4,75 +4,30 @@
 
 RaveLink Core is a local Windows app for streamer lighting, music requests and optional Twitch integration. It runs in the tray and opens at `http://127.0.0.1:5050`.
 
-## 0.7.1d feature expansion
+## New in 0.7.2
 
-### Updated 0.7.1d package
+- **Lights > Music:** first-party Windows audio capture drives Hue and WiZ lights. Select an application or explicitly select an output device, choose lights and a look, then start Preview or Live. Capture starts only on request; raw audio is not recorded or sent to a service.
+- **Expressive Mix** and Smooth Pulse offer reactive palettes, spatial patterns, independent fixture roles, optional opening/ending animations and saved effects. Random choices are made at activation; intensity, output pacing and calibration remain bounded.
+- Song-aware Rave timing and viewer lighting admission share fixture ownership with manual controls. Stop and manual takeover cancel the active program; normal shutdown attempts to restore the original light state. A process crash or power loss cannot guarantee restoration.
+- Application selection is stored privately and resolved again after restarts. Capture fails visibly when the source is unavailable rather than switching to desktop audio.
+- Existing song requests, playlist transfers, chat commands and OBS overlays remain available through optional packages.
 
-- `!queue` now includes your requested song, its queue position and estimated time until playback. `!songqueue` includes an estimate for each of the next five requests. Estimates account for the current track and preceding songs; paused playback is qualified and missing or uncertain timing is reported as unavailable.
-- Startup restores the saved music player and automatically starts its desktop now-playing observer for TIDAL or Spotify, even when the playback snapshot is absent or older than the selection.
-- A stopped Song Request worker leaves a visible recovery notice with access to Packages instead of silently losing its tab. Worker exits and resource-limit stops leave bounded local diagnostic entries. The cause of the reported isolated stop has not been confirmed.
+**Updating from 0.7.1d or earlier:** use the 0.7.2 installer, or stop Core and extract the complete portable archive into your installation folder. Earlier built-in updaters do not copy the new Music-to-Light components. Keep your local data, restart Core and refresh the dashboard. Check **Packages** for Song Request and Twitch Integration updates. The capture helper, Node runtime and production dependencies are bundled; end users do not need Rust or Node installed.
 
-Update **Song Request** to **0.45.3** under **Packages** after replacing the application. Restart Core to load the updated host and navigation code. Existing local settings and account data are retained.
+Music-to-Light process capture requires a supported Windows build (build 20348 or later; Windows 11 recommended). Protected content may be unavailable. Application capture includes its process tree; browser capture does not promise isolation of one tab. TIDAL capture and Hue/WiZ output have had limited hardware validation; automated coverage uses synthetic signals and fixtures. Govee remains Alpha for direct control and is excluded from Music-to-Light restoration.
 
-- Added **!song** to report the selected player's current song and artist, including a paused label when applicable.
-- Added **!songqueue** to list up to five upcoming RaveLink song requests, excluding the currently playing song. Requests already delivered to Spotify or TIDAL are included before locally waiting requests, in the observed request order.
-- Added **!queue** to tell the chatter their next request's position, how many requests are ahead, whether their song is playing, and whether they have more requests waiting. With no pending requests, it says so explicitly.
-- Added separate Moderator, VIP and Viewer permission toggles for all three commands under **Song Request > Player > Moderation > Chat commands & permissions**. These read-only commands default to enabled for every role and work with either reward intake mode. Existing moderation permissions are preserved.
-- Replies stay within chat message limits, sanitize song metadata and suppress replayed events. Unconfirmed desktop deliveries report that their position is pending instead of guessing. These queries do not change playback or the queue, and work independently of automatic chat-announcement toggles.
-- Hardened chat metadata cleanup against nested and unfinished markup; Song Request 0.45.2 includes the CodeQL sanitizer fix.
+Earlier changes are recorded in the [release history](https://github.com/NameSRoby/RaveLink-Core/releases).
 
-**Updating:** install 0.7.1d, update **Song Request to 0.45.3** and **Twitch Integration to 0.12.5** under **Packages**, restart Core and refresh the dashboard. Keep existing local data; saved accounts, playlists, overlay profiles and permissions are preserved. No new Twitch scopes or companion restart are required for these information commands when the existing connection is working. The original 0.7.1 updater needs a manual upgrade to recognize letter-suffixed releases.
+## Install 0.7.2
 
-## 0.7.1c patch notes
-
-This replacement build adds the Moderation command editor and fixes silently rejected skips. If you already installed 0.7.1c, reinstall the current download, update the optional features under Packages, and restart Core.
-
-- Fixed Twitch chat controls reaching the selected YouTube, SoundCloud, Spotify or TIDAL player. Volume respects the configured output range; chat pause/resume controls playback separately from request intake.
-- Added Moderator, VIP and Viewer command permissions under **Song Request > Player > Moderation > Chat commands & permissions**. Moderators can manage all requests by default; viewers and VIPs can skip their own playing request or remove their own pending request with **!remove song title**. Separate anyone's-song permissions remain off for viewers and VIPs by default. Ambiguous titles and stale request IDs cannot silently target a different song.
-- Fixed silently rejected moderator/broadcaster skips and named removals. Distinct skips on successive songs have no artificial cooldown; duplicate event protection and ownership checks remain in place.
-- Kept authorized native chat controls available when StreamElements handles reward intake. Repeated Twitch control events do not execute twice.
-- Improved Overlay Designer selection, segment resizing, snapping, measurements, size and aspect-ratio locks, and proportional content scaling. Compact Countdown includes artwork, song, artist, progress and remaining time; refreshed presets improve text and progress visibility.
-- Added overlay accent choices for the server theme, a custom color, provider or artwork, with glass/fade treatments and independent long-artist scrolling.
-- Included Spotify companion heartbeat recovery and clearer transfer-pause recovery from the maintenance updates since 0.7.1b.
-
-**Updating:** install 0.7.1c or stop Core and extract the portable update into the installation folder, preserving local data. Update **Song Request to 0.44.12** and **Twitch Integration to 0.12.4** under **Packages**, then restart Core and reload the dashboard and OBS browser sources. For updated Spotify desktop controls, prepare the companion in **Player > Spotify > Setup**, fully quit Spotify, then choose **Open Spotify with RaveLink**. Existing accounts, playlists and overlay profiles are preserved. The original 0.7.1 updater needs a manual upgrade to recognize letter-suffixed releases.
-
-## 0.7.1b patch notes
-
-- Spotify is available as both a playlist source and destination. Import account playlists or playlist links, review matches from other services, then create verified Spotify account playlists through the desktop companion. Order and repeated tracks are preserved; split and grouped destinations are supported.
-- Long playlist metadata is paged within bounded companion messages. Interrupted writes require checking the destination before resuming, so tracks are not automatically sent twice. If playlist creation was not confirmed, paste the created Spotify playlist's link into the recovery field.
-- Theme and navigation saves are rate limited and unchanged settings are not rewritten. Spotify companion requests also have a rate limit, with room for normal polling.
-- Select multiple loaded playlists, select all across search results and pages, or clear the selection. Choose **Keep playlists separate** or **Merge into one playlist** before saving; separate transfers retain their source playlist names. Up to 100 playlists and the configured total track capacity are supported per transfer.
-- Back and Continue controls keep selections available while moving between steps. Returning to the current destination preserves reviewed matches, and completed sources can be transferred again without importing them again.
-
-After installing this patch, update **Song Request** to **0.44.9** under **Packages**. In **Song Request → Player → Spotify → Setup**, prepare the updated companion, fully quit Spotify, then choose **Open Spotify with RaveLink**. Premium OAuth is optional; these transfers use the desktop companion. Start under **Playlists & Transfers → Transfers**, choose a source, choose Spotify as the destination, review the matches, then select **Create Spotify playlist**. Automated tests cover the transfer flow; live compatibility depends on the installed Spotify client.
-
-## 0.7.1a patch notes
-
-This patch fixes problems in 0.7.1 while retaining its existing lighting, music, playlist and Twitch features.
-
-- Fixed duplicate chat replies for **Add to playlist** requests and misleading failure reports after a song was already accepted.
-- Fixed Twitch chat-response settings and request announcements across YouTube, TIDAL, Spotify and SoundCloud. Desktop announcements wait for confirmed playback and are not repeated by polling or pause/resume.
-- Fixed request positions to include songs already delivered to the desktop player's queue.
-- Fixed YouTube, Spotify and TIDAL track-link handling across the supported request players. Cross-provider requests read the source song's metadata before searching the selected player. Availability and matching filters still apply.
-- Fixed stale or missing Windows media artwork, including delayed thumbnail updates after a title change. Detailed covers are compressed to fit the existing transport limit.
-- Fixed overlay layout manipulation: choose **Edit on canvas** to select, drag, resize and layer shapes and information. Snapping guides, alignment buttons, exact X/Y controls, arrow-key nudging and visible overlay dimensions make compact layouts easier to adjust.
-- Fixed long-title scrolling and remeasurement after resizing, including when Windows reduced-motion settings are enabled.
-- Fixed false TIDAL connection errors caused by optional installation-detail refreshes, and increased request timeouts for desktop lookups.
-- Fixed rapidly redeemed lighting effects interleaving writes to the same light. Only the latest pending effect frame is retained for each fixture.
-
-**Updating from 0.7.1:** use the installer below, or stop Core and extract the portable update into your installation folder. Keep your existing local data. The 0.7.1 updater does not recognize letter-suffixed releases; 0.7.1a adds support for them. After upgrading Core, update **Song Request** under **Packages** to receive the feature fixes. Restart Core, then reload the dashboard and refresh OBS browser sources. There is no need to reconnect accounts or erase playlists.
-
-## Install 0.7.1d
-
-1. Download **RaveLink-Core-Windows-v0.7.1d-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
+1. Download **RaveLink-Core-Windows-v0.7.2-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
 2. Choose an installation folder and optional features. Setup downloads and verifies only your selected features from this repository.
 3. Choose **Main**, **More** or **Hidden** placement for tabs. Change this later from the settings gear → **Choose tabs**.
 4. Launch from the Start menu or desktop shortcut. Use the tray icon to reopen, restart or exit.
 
 Windows 10 or 11, 64-bit, is required. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-For portable use, extract **RaveLink-Core-Windows-v0.7.1d-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
+For portable use, extract **RaveLink-Core-Windows-v0.7.2-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
 
 ## Lighting
 

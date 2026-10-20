@@ -45,6 +45,16 @@ module.exports = function createColorCommandService(options = {}) {
   }
   async function applyColorText(rawText, requestOptions = {}) {
     const direct = requestOptions.mode === "direct";
+    const raveBlocked = () =>
+      !direct && twitchLightEffects?.isRaveActive?.() && !twitchLightEffects?.isRaveStop?.(rawText);
+    const refused = () => ({
+      ok: false,
+      error: "music_rave_active",
+      refundRecommended: true,
+      sent: 0,
+      failed: 0,
+    });
+    if (raveBlocked()) return refused();
     if (!direct && twitchLightEffects?.resolve && twitchLightEffects?.handle) {
       const effectRoute = twitchLightEffects.resolve(rawText);
       if (effectRoute.matched)
@@ -301,7 +311,9 @@ module.exports = function createColorCommandService(options = {}) {
       if (twitchLightEffects?.cancelForStaticTargets)
         twitchLightEffects.cancelForStaticTargets(result.targets);
       else twitchLightEffects?.cancelFixtureIds?.(result.targets);
+      await twitchLightEffects?.waitForFixtureWrites?.(result.targets);
     }
+    if (raveBlocked()) return refused();
     await Promise.all(deliveries.map((deliver) => deliver()));
     result.skippedTargets = selectedIds
       ? Math.max(0, selectedIds.size - result.hueTargets - result.wizTargets - result.goveeTargets)

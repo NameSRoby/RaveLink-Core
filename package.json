@@ -1,7 +1,7 @@
 {
   "name": "ravelink-core",
-  "version": "0.7.1-d",
-  "releaseVersion": "0.7.1d",
+  "version": "0.7.2",
+  "releaseVersion": "0.7.2",
   "description": "RaveLink Core for modular local lighting, Twitch, and creator features on Windows",
   "license": "Apache-2.0",
   "homepage": "https://github.com/NameSRoby/RaveLink-Core#readme",
@@ -19,11 +19,11 @@
     "start:core": "node src/app/core/index.js",
     "start:mods": "node src/app/optional/combined-enabled-server.js",
     "tidal:companion": "node scripts/manage-tidal-desktop.js",
-    "test": "node --test --test-concurrency=1 \"test/**/*.test.js\"",
+    "test": "node --test --test-concurrency=1 \"test/**/*.test.js\" \"integrations/music-to-light/test/*.test.cjs\"",
     "format": "node scripts/format-source.js --write",
     "format:check": "node scripts/format-source.js",
     "lint": "eslint src features public/core integrations scripts packages && node scripts/lint-html-scripts.js",
-    "build:generated": "node scripts/build-song-overlay-ui.js && node scripts/build-song-player-providers.js && node scripts/build-playlist-transfers.js && node scripts/build-spotify-desktop.js && node scripts/build-tidal-desktop.js && node scripts/refresh-feature-integrity.js",
+    "build:generated": "node scripts/build-song-overlay-ui.js && node scripts/build-song-player-providers.js && node scripts/build-playlist-transfers.js && node scripts/build-spotify-desktop.js && node scripts/build-tidal-desktop.js && node scripts/build-music-to-light-ui.js && node scripts/refresh-feature-integrity.js",
     "verify:generated": "node scripts/verify-generated.js",
     "verify:health": "npm run format:check && npm run lint && node scripts/audit-repository-health.js && node scripts/verify-source-structure.js && npm run verify:generated"
   },

@@ -3,6 +3,46 @@ const assert = require("node:assert/strict");
 
 const createColorCommandService = require("../src/domains/twitch/color-command.service");
 
+test("active Rave blocks static viewer changes and teaching previews before parsing or writes", async () => {
+  let directReads = 0;
+  const service = createColorCommandService({
+    twitchColorConfig: {},
+    fixtureRegistry: {},
+    directiveService: {
+      parseTwitchColorDirective: () => assert.fail("blocked text cannot reach output"),
+    },
+    twitchLightEffects: { isRaveActive: () => true, isRaveStop: () => false },
+  });
+  for (const text of ["red", "#ff0000", "all blue", "rainbow", "rave"]) {
+    const result = await service.applyColorText(text);
+    assert.equal(result.error, "music_rave_active");
+    assert.equal(result.refundRecommended, true);
+    assert.equal(result.sent, 0);
+  }
+  assert.equal(
+    (await service.applyColorText("#ff0000", { preview: true })).error,
+    "music_rave_active",
+  );
+  // Manual mode passes this admission gate; this deliberately minimal fixture
+  // mock stops at configuration lookup, before a real adapter could be called.
+  const manual = createColorCommandService({
+    twitchColorConfig: {
+      getSnapshot: () => {
+        directReads++;
+        throw Error("manual reached configuration");
+      },
+    },
+    fixtureRegistry: {},
+    directiveService: { parseTwitchColorDirective: () => ({ ok: false }) },
+    twitchLightEffects: { isRaveActive: () => true, isRaveStop: () => false },
+  });
+  await assert.rejects(
+    manual.applyColorText("red", { mode: "direct" }),
+    /manual reached configuration/,
+  );
+  assert.equal(directReads, 1);
+});
+
 test("incomplete or malformed adapter counts cannot claim delivery or overwrite restore state", async () => {
   const fixtures = [
     { id: "one", brand: "hue" },

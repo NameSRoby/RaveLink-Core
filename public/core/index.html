@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/core.css" />
     <link rel="stylesheet" href="/usability.css" />
     <link rel="stylesheet" href="/lighting.css" />
+    <link rel="stylesheet" href="/music-to-light.css" />
     <link rel="stylesheet" href="/mods.css" />
     <link rel="stylesheet" href="/navigation-settings.css" />
   </head>
@@ -95,12 +96,12 @@
         <div class="actions lightSubtabs" role="tablist" aria-label="Lights workspaces">
           <button class="active" data-light-tab="control" type="button">DIRECT CONTROL</button>
           <button data-light-tab="viewer" type="button">VIEWER CONTROLS</button>
+          <button data-light-tab="music" type="button">MUSIC-TO-LIGHT</button>
           <button data-light-tab="profiles" type="button">LIGHT PROFILES</button>
           <button data-light-tab="commands" type="button">LIGHT COMMANDS</button>
           <button data-light-tab="layout" type="button">
             ROOM LAYOUT <span class="alphaBadge">ALPHA</span>
           </button>
-          <button data-light-tab="lab" type="button">LIGHT LAB</button>
         </div>
         <div data-light-panel="control">
           <div class="panelTitle">
@@ -279,12 +280,17 @@
               <section class="effectProgram" id="twitchEffectProgram">
                 <h3>DYNAMIC COLOR COMMANDS</h3>
                 <p>
-                  Let viewers run distinct synchronized and spatial effects with
+                  Let viewers run color patterns and spatial effects with
                   <strong>cycle</strong>, <strong>fade</strong>, <strong>breathe</strong>,
                   <strong>rainbow</strong>, <strong>wave</strong>, <strong>sweep</strong>,
-                  <strong>ripple</strong>, or <strong>chase</strong>. Spatial commands use saved
-                  room positions. A new static color ends that effect session: selected fixtures
-                  take the new color and its other fixtures return to their previous lighting.
+                  <strong>ripple</strong>, <strong>chase</strong>, or audio-reactive
+                  <strong>rave</strong>. Spatial commands use saved room positions. Enable Allow
+                  rave and select an audio source in Music to let viewers start Rave through the
+                  Change Lights channel-points reward. Use <code>rave</code>,
+                  <code>rave red, blue aggressive</code>, or <code>rave stop</code>. Other viewer
+                  light changes are refused while Rave is active. For other effects, a new static
+                  color ends the session: selected fixtures take the new color and its other
+                  fixtures return to their previous lighting.
                 </p>
                 <label
                   class="switchLabel"
@@ -324,9 +330,9 @@
                   <div id="twitchEffectRouteSummary" class="notice" role="status"></div>
                 </div>
                 <div class="effectGuide">
-                  <span><strong>CYCLE</strong>synchronized hard color steps</span
+                  <span><strong>CYCLE</strong>hard color steps</span
                   ><span><strong>FADE</strong>whole-room smooth blends</span
-                  ><span><strong>BREATHE</strong>synchronized brightness pulse</span
+                  ><span><strong>BREATHE</strong>brightness pulse</span
                   ><span><strong>RAINBOW</strong>spatially spread spectrum</span
                   ><span><strong>WAVE</strong>moving spatial color gradient</span
                   ><span><strong>SWEEP</strong>directional bright pulse</span
@@ -338,7 +344,8 @@
                   ><code>all fade purple, cyan slow</code><code>breathe deep blue</code
                   ><code>rainbow</code><code>wave red, green, blue</code
                   ><code>sweep cyan, purple</code><code>ripple white, blue</code
-                  ><code>chase red, green, blue</code><code>stop</code>
+                  ><code>chase red, green, blue</code><code>rave</code
+                  ><code>rave red, blue aggressive</code><code>rave stop</code><code>stop</code>
                 </div>
                 <div class="actions">
                   <button id="saveTwitchEffects" type="button">SAVE DYNAMIC COMMANDS</button>
@@ -358,6 +365,91 @@
               </div>
             </fieldset>
             <div id="twitchProgramNotice" class="notice" role="status"></div>
+          </section>
+          <section id="dynamicEffectSettings">
+            <p>
+              Effects send current colors directly to each brand. Natural network latency is left
+              unchanged. Return settings restore each bulb’s actual state from before the effect.
+            </p>
+            <div class="cluster">
+              <div class="sectionHead">
+                <div>
+                  <h3>EFFECT BEHAVIOR</h3>
+                  <p>
+                    These limits apply to viewer-run dynamic effects. Zero duration and repeat count
+                    allow an effect to continue until stopped.
+                  </p>
+                </div>
+              </div>
+              <div class="labSettingsGrid">
+                <label
+                  >MAXIMUM BRIGHTNESS<input
+                    id="labBrightnessLimit"
+                    type="range"
+                    min="10"
+                    max="100"
+                    value="100"
+                  /><output id="labBrightnessLimitValue">100%</output></label
+                >
+                <label
+                  >DURATION SECONDS<input
+                    id="labDurationSeconds"
+                    type="number"
+                    min="0"
+                    max="3600"
+                    value="0"
+                /></label>
+                <label
+                  >REPEAT COUNT<input id="labRepeatCount" type="number" min="0" max="100" value="0"
+                /></label>
+                <label
+                  >COOLDOWN SECONDS<input
+                    id="labCooldownSeconds"
+                    type="number"
+                    min="0"
+                    max="600"
+                    value="0"
+                /></label>
+                <label
+                  >CHASE GAP MS<input
+                    id="labChaseGap"
+                    type="number"
+                    min="50"
+                    max="2000"
+                    step="25"
+                    value="250"
+                /></label>
+                <label
+                  >SPATIAL DIRECTION<select id="labSpatialDirection">
+                    <option value="left-right">LEFT TO RIGHT</option>
+                    <option value="right-left">RIGHT TO LEFT</option>
+                    <option value="front-rear">FRONT TO REAR</option>
+                    <option value="rear-front">REAR TO FRONT</option>
+                    <option value="clockwise">CLOCKWISE</option>
+                    <option value="from-fixture">OUTWARD FROM FIXTURE</option>
+                  </select></label
+                >
+                <label
+                  >SPATIAL ORIGIN<select id="labSpatialOrigin">
+                    <option value="">ROOM CENTER</option>
+                  </select></label
+                >
+                <label
+                  class="switchLabel"
+                  title="Restore the last state immediately when the main Dynamic Commands animated-return option is off."
+                  ><input id="labRestorePrevious" type="checkbox" /><span
+                    class="toggleSwitch"
+                    aria-hidden="true"
+                  ></span
+                  ><span>IMMEDIATE RESTORE WHEN RETURN ANIMATION IS OFF</span></label
+                >
+              </div>
+              <div class="actions">
+                <button id="saveLightingLab" type="button">SAVE EFFECT SETTINGS</button>
+              </div>
+              <button id="refreshLightingLab" type="button">REFRESH SETTINGS</button>
+              <div id="lightingLabNotice" class="notice" role="status"></div>
+            </div>
           </section>
         </div>
         <div data-light-panel="profiles" hidden>
@@ -477,7 +569,669 @@
               ></pre>
             </section>
           </div>
+          <details id="lightingDiagnostics">
+            <summary>Routing diagnostics, fixture protection and command presets</summary>
+            <button id="saveLightingProtection" type="button">SAVE FIXTURE PROTECTION</button>
+            <div class="cluster">
+              <div class="sectionHead">
+                <div>
+                  <h3>FIXTURE HEALTH + PROTECTION</h3>
+                  <p>
+                    Check whether fixtures respond and temporarily exclude them from viewer
+                    commands. Connection tests do not change effect timing or delay other lights.
+                  </p>
+                </div>
+                <button id="calibrateLightingLatency" type="button">TEST ALL CONNECTIONS</button>
+              </div>
+              <div id="lightingLabFixtures" class="labFixtureGrid"></div>
+            </div>
+            <div class="cluster labPreviewWorkspace">
+              <div>
+                <div class="sectionHead">
+                  <div>
+                    <h3>ROUTING PREVIEW</h3>
+                    <p>
+                      Resolve a command and highlight its fixtures without sending anything to
+                      hardware.
+                    </p>
+                  </div>
+                </div>
+                <div class="commandRow">
+                  <label
+                    >VIEWER COMMAND<input
+                      id="labPreviewCommand"
+                      maxlength="96"
+                      placeholder="desk sweep red, blue slow" /></label
+                  ><button id="runLabPreview" type="button">PREVIEW ROUTE</button>
+                </div>
+                <pre id="labPreviewResult" class="result" hidden></pre>
+              </div>
+              <div
+                id="lightingLabMap"
+                class="lightingRoomMap labMap"
+                aria-label="Lighting route preview"
+              >
+                <span class="roomFrontLabel">FRONT</span>
+              </div>
+            </div>
+            <div class="cluster">
+              <div class="sectionHead">
+                <div>
+                  <h3>COMMAND PRESETS</h3>
+                  <p>
+                    Save favorite palettes and effect commands, then load or run them through
+                    current routing.
+                  </p>
+                </div>
+              </div>
+              <div class="commandRow">
+                <label
+                  >PRESET NAME<input
+                    id="labPresetName"
+                    maxlength="48"
+                    placeholder="Neon sweep" /></label
+                ><label
+                  >COMMAND<input
+                    id="labPresetCommand"
+                    maxlength="96"
+                    placeholder="sweep cyan, purple slow" /></label
+                ><button id="addLabPreset" type="button">ADD PRESET</button>
+              </div>
+              <div id="lightingLabPresets" class="labPresetGrid"></div>
+            </div>
+            <div class="cluster">
+              <div class="sectionHead">
+                <div>
+                  <h3>RECENT LIGHT COMMANDS</h3>
+                  <p>Shows the bounded in-memory delivery history for this server session.</p>
+                </div>
+                <button id="clearLightingHistory" type="button">CLEAR HISTORY</button>
+              </div>
+              <div class="tableWrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>TIME</th>
+                      <th>SOURCE</th>
+                      <th>COMMAND</th>
+                      <th>TARGETS</th>
+                      <th>RESULT</th>
+                    </tr>
+                  </thead>
+                  <tbody id="lightingLabHistory">
+                    <tr>
+                      <td colspan="5">NO COMMANDS RECORDED</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </details>
         </div>
+        <!-- MUSIC-TO-LIGHT:START -->
+        <div data-light-panel="music" hidden>
+          <div class="musicWorkspace" data-music-controls>
+            <header>
+              <h2>Music-to-Light</h2>
+              <p class="muted">Pick a look. Choose your colors. Let the music move your lights.</p>
+            </header>
+            <p id="music-notice" role="status" aria-live="polite">Loading controls…</p>
+
+            <nav class="musicNavigation" aria-label="Music lighting workspace">
+              <button type="button" data-music-view-target="play" aria-pressed="true">Play</button>
+              <button type="button" data-music-view-target="customize" aria-pressed="false">
+                Customize
+              </button>
+              <button type="button" data-music-view-target="setup" aria-pressed="false">
+                Setup
+              </button>
+            </nav>
+            <div class="musicConnectionBar">
+              <span id="music-readySummary">Checking source and lights…</span>
+              <button type="button" data-music-view-target="setup">Change source or lights</button>
+            </div>
+            <div class="musicRunBar">
+              <div>
+                <strong id="music-sessionStatus" role="status">Ready</strong>
+                <output id="music-animationStatus"></output>
+                <p class="muted">Preview on screen, or start on your lights.</p>
+              </div>
+              <div class="actions">
+                <button id="music-preview" type="button">Preview</button
+                ><button id="music-live" type="button">Start lights</button
+                ><button id="music-stop" type="button">Stop &amp; restore</button>
+              </div>
+            </div>
+            <div data-music-view="play">
+              <section class="musicSurface musicMain">
+                <div class="musicPlayGrid">
+                  <div class="musicPlayControls">
+                    <h3>Choose a look</h3>
+                    <select id="music-look" hidden aria-hidden="true" tabindex="-1">
+                      <option value="">Custom settings</option>
+                    </select>
+                    <div
+                      id="music-lookCards"
+                      class="musicLookCards"
+                      role="group"
+                      aria-label="Lighting looks"
+                    >
+                      <details id="music-moreLooks">
+                        <summary>More looks</summary>
+                        <div id="music-extraLookCards" class="musicLookCards"></div>
+                      </details>
+                    </div>
+                    <p id="music-lookHelp" class="muted">Choose a look, then make it yours.</p>
+                    <div class="musicColorHeading">
+                      <h3>Your colors</h3>
+                      <button id="music-addColor" type="button">+ Color</button>
+                    </div>
+                    <div id="music-palette" class="musicPalette" aria-label="Effect palette"></div>
+                    <label class="musicIntensity"
+                      >Intensity <output id="music-intensityValue">60%</output
+                      ><input id="music-intensity" type="range" min="0" max="100" value="60"
+                    /></label>
+                    <p class="musicSmallHint">Colors cycle. Each start locks one composition.</p>
+                  </div>
+                  <div class="musicLiveMonitor">
+                    <div class="musicScopeHead">
+                      <h3>Light response</h3>
+                      <span id="music-responseSummary">Start a preview to see the response.</span>
+                    </div>
+                    <div
+                      id="music-mappedPreview"
+                      class="musicPreview"
+                      aria-label="Mapped light preview"
+                    ></div>
+                    <div class="musicInputLevel">
+                      <span>Audio</span
+                      ><meter
+                        id="music-inputLevel"
+                        min="-80"
+                        max="0"
+                        value="-80"
+                        aria-label="Measured audio level in dBFS"
+                      ></meter
+                      ><output id="music-inputDb">No capture</output>
+                    </div>
+                    <p class="musicSmallHint">
+                      Preview uses virtual lights. Stop restores your lights.
+                    </p>
+                    <p class="musicSmallHint">
+                      Runs until you stop it. Viewer effects use their own song or timer limit.
+                    </p>
+                    <button type="button" data-music-view-target="customize" class="musicEditLink">
+                      Customize movement &amp; viewer commands →
+                    </button>
+                  </div>
+                </div>
+              </section>
+              <section class="musicSurface" aria-labelledby="music-savedEffectsTitle">
+                <h2 id="music-savedEffectsTitle">Saved effects</h2>
+                <p class="musicSmallHint">
+                  Keep a favourite, or choose what can play on the next start.
+                </p>
+                <div class="musicSavedGrid">
+                  <div class="musicSavedCard">
+                    <h3>Keep this combination</h3>
+                    <p class="musicSmallHint">
+                      Save during a preview or while your lights are playing.
+                    </p>
+                    <label
+                      >Combination name<input
+                        id="music-savedEffectName"
+                        maxlength="80"
+                        placeholder="My favourite wave"
+                    /></label>
+                    <button id="music-saveCurrentEffect" type="button">Save current effect</button>
+                    <p class="musicSmallHint">
+                      Saves movement, colors, feel and light roles. Your current brightness limits
+                      and calibration still apply.
+                    </p>
+                  </div>
+                  <div class="musicSavedCard">
+                    <h3>Playback selection</h3>
+                    <label
+                      >Playback mode<select
+                        id="music-savedEffectMode"
+                        aria-describedby="music-savedEffectModeHelp"
+                      >
+                        <option value="full-random">Full random</option>
+                        <option value="single">Only one saved effect</option>
+                        <option value="saved-random">Random from selected saved effects</option>
+                      </select></label
+                    >
+                    <p id="music-savedEffectModeHelp" class="musicSmallHint"></p>
+                    <label id="music-savedEffectSingleField" hidden
+                      ><span id="music-savedEffectSingleLabel">Saved effect</span
+                      ><select id="music-savedEffectSingle"></select
+                    ></label>
+                    <div
+                      id="music-savedEffectPool"
+                      class="musicRecipeChoices"
+                      hidden
+                      aria-label="Allowed saved effects"
+                    ></div>
+                    <div class="actions">
+                      <button id="music-applySavedEffectPolicy" type="button">
+                        Apply playback mode
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <p id="music-savedEffectsStatus" class="musicSmallHint" role="status"></p>
+                <details class="musicSavedManage">
+                  <summary>Manage saved effects</summary>
+                  <p id="music-savedEffectDeleteHelp" class="musicSmallHint">
+                    Choose a saved effect above to remove it from your library.
+                  </p>
+                  <button
+                    id="music-deleteSavedEffect"
+                    type="button"
+                    aria-describedby="music-savedEffectDeleteHelp"
+                  >
+                    Delete selected saved effect
+                  </button>
+                </details>
+                <p class="musicSmallHint">
+                  Saved-only modes also apply to channel-points Rave. A saved combination stays
+                  fixed; the audio still drives its response.
+                </p>
+              </section>
+              <details class="musicSurface" id="music-transitions">
+                <summary>Opening &amp; ending animations</summary>
+                <p class="muted">
+                  A short room introduction, then your music. Random draws once per activation.
+                  Changes apply on the next start. Scene roles keep their own behavior.
+                </p>
+                <div class="musicEditor" id="music-transitionControls"></div>
+                <button id="music-applyTransitions" type="button">Apply animations</button>
+              </details>
+            </div>
+            <div data-music-view="customize" hidden>
+              <details
+                class="musicSurface"
+                id="music-catalogPanel"
+                open
+                aria-label="Scenarios and live pipeline"
+              >
+                <summary>Movement, randomness &amp; viewer commands</summary>
+                <div class="musicPresetCards" role="group" aria-label="Response preset">
+                  <button type="button" data-music-preset="ambient">
+                    <span class="musicPresetIcon"
+                      ><svg viewBox="0 0 120 32" aria-hidden="true">
+                        <path
+                          d="M2 18 C20 18 20 7 40 7 S60 24 80 24 S100 10 118 10"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="3"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        /></svg></span
+                    ><strong>Ambient</strong><small>Spatial swells driven by energy</small></button
+                  ><button type="button" data-music-preset="pulse">
+                    <span class="musicPresetIcon"
+                      ><svg viewBox="0 0 120 32" aria-hidden="true">
+                        <path
+                          d="M2 23 H24 L34 5 L43 27 L51 14 L62 23 H118"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="3"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        /></svg></span
+                    ><strong>Pulse</strong
+                    ><small>Measured attacks with room to breathe</small></button
+                  ><button type="button" data-music-preset="bands">
+                    <span class="musicPresetIcon"
+                      ><svg viewBox="0 0 120 32" aria-hidden="true">
+                        <path
+                          d="M8 27 V17 M28 27 V6 M48 27 V13 M68 27 V3 M88 27 V10 M108 27 V20"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="3"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        /></svg></span
+                    ><strong>Bands</strong><small>Competing low, mid and high zones</small>
+                  </button>
+                </div>
+
+                <details>
+                  <summary>What changes each time?</summary>
+                  <p class="muted">
+                    Use saved settings, choose one, or let Random pick from the choices you allow.
+                    Each start locks its choices until Stop.
+                  </p>
+                  <div id="music-recipeAxes" class="musicRecipeAxes"></div>
+                  <details>
+                    <summary>Randomize parameter ranges</summary>
+                    <p class="muted">
+                      Checked parameters draw one value inside your bounds at activation. Brightness
+                      limits and transport budgets remain fixed.
+                    </p>
+                    <div id="music-randomRanges"></div>
+                  </details>
+                  <button id="music-applyRecipe" type="button">Save recipe choices</button>
+                </details>
+                <h3>Effect pipeline</h3>
+                <p id="music-pipelineTitle" class="muted">Waiting for the scenario controls.</p>
+                <p id="music-recipeValues" class="muted">
+                  Randomized parameter values appear when a recipe activates.
+                </p>
+                <p id="music-durationStatus" class="musicDurationStatus" role="status">
+                  No active effect.
+                </p>
+                <details id="music-recipeEditor">
+                  <summary>Recipe, color roles &amp; timing</summary>
+                  <div class="musicEditor">
+                    <label
+                      >Preview / Go Live mode<select id="music-scenarioMode">
+                        <option value="manual">Use my preset</option>
+                        <option value="random">Pick once from allowed scenarios</option>
+                      </select></label
+                    >
+                    <label
+                      >Response smoothing <output id="music-smoothingValue">30%</output
+                      ><input id="music-smoothing" type="range" min="0" max="100" value="30"
+                    /></label>
+                    <label class="musicCheck"
+                      ><input id="music-raveEnabled" type="checkbox" /> Allow rave in Change my
+                      lights</label
+                    >
+                    <label
+                      >Rave scenario<select id="music-raveScenario">
+                        <option value="random">Draw from allowed scenarios</option>
+                        <option value="wash">Pin: Swell wash</option>
+                        <option value="pulse">Pin: Attack pulse</option>
+                        <option value="bands">Pin: Band conversation</option>
+                        <option value="wave">Pin: Attack wave</option>
+                        <option value="bounce">Pin: Room bounce</option>
+                        <option value="handoff">Pin: Call &amp; response</option>
+                      </select></label
+                    >
+                    <label
+                      >Rave layers<select id="music-raveLayerMode">
+                        <option value="random">Draw a responsive combination</option>
+                        <option value="fixed">Use every layer I allow</option>
+                      </select></label
+                    >
+                    <label
+                      >Rave duration<select id="music-raveDurationMode">
+                        <option value="song">Follow song; otherwise dynamic timer</option>
+                        <option value="dynamic">Always use dynamic-effect timer</option>
+                        <option value="separate">Use separate music timer</option>
+                      </select></label
+                    >
+                    <label
+                      >Rave color roles<select id="music-raveColorPlan">
+                        <option value="configured">Use my color movement</option>
+                        <option value="frequency">Palette colors → low / mid / high roles</option>
+                        <option value="energy">Palette colors → quiet / loud energy</option>
+                      </select></label
+                    >
+                    <label
+                      >Default rave length (seconds)<input
+                        id="music-raveSeconds"
+                        type="number"
+                        min="1"
+                        max="3600"
+                        value="30"
+                    /></label>
+                  </div>
+                  <p class="muted">
+                    One complete recipe is chosen and locked when activated. Audio drives its
+                    response; it never chooses or changes the recipe. Artistic edits apply to the
+                    next activation. Blocking a selected layer or scenario ends the current recipe
+                    and restores its lights. Rave also needs granted audio access, a selected source
+                    and allowed music lights. Rave draws one scenario and optional layers once per
+                    request, or follows your pinned choices. Blocked layers are never drawn. The
+                    Preview / Go Live mode is separate. Song timing ends at the current song's end;
+                    with one minute or less remaining, it covers the following song too. Pauses hold
+                    the song timer. Missing timing uses the dynamic-effect timer (or the default
+                    above when unset). Separate music timer uses the seconds above instead. Lost
+                    song timing falls back to a finite timer. Every song effect has a 30-minute
+                    safety limit.
+                  </p>
+                </details>
+                <div id="music-pipeline" class="musicPipeline" aria-label="Signal pipeline"></div>
+                <p id="music-metrics" class="muted">
+                  Measured levels will appear during Preview or Live.
+                </p>
+                <div id="music-layerControls" class="musicLayerControls"></div>
+                <details id="music-scenarioEditor">
+                  <summary>Allowed scenarios &amp; chances</summary>
+                  <p class="muted">
+                    Uncheck a scenario to forbid it. Weights alone set the draw; audio never
+                    influences the choice. Equal weights give equal chances. The displayed draw
+                    stays fixed for this request. New weights affect the next request; blocking the
+                    active scenario ends it and restores the previous lighting owner.
+                  </p>
+                  <div id="music-scenarioChoices" class="musicScenarioChoices"></div>
+                </details>
+                <details id="music-fineControls">
+                  <summary>Fine controls by pipeline stage</summary>
+                  <div id="music-behaviorControls"></div>
+                  <button id="music-applyBehaviors" type="button">Apply fine controls</button>
+                  <button id="music-baseline" type="button">Use accepted baseline</button>
+                </details>
+              </details>
+              <details class="musicSurface" id="music-responseEditor">
+                <summary>Manual response settings</summary>
+                <label class="musicPresetSelect"
+                  >Preset<select id="music-preset">
+                    <option value="ambient">Ambient</option>
+                    <option value="pulse">Pulse</option>
+                    <option value="bands">Bands</option>
+                  </select></label
+                >
+
+                <div class="musicEditor">
+                  <label
+                    >Response range<select id="music-responseRange">
+                      <option value="normal">Normal output</option>
+                      <option value="quiet">Quiet player output</option>
+                      <option value="loud">Loud player output</option>
+                      <option value="custom">Custom dBFS range</option>
+                    </select></label
+                  >
+                  <label
+                    >Interpretation<select id="music-interpretation">
+                      <option value="musical">Musical</option>
+                      <option value="literal">Literal</option>
+                    </select></label
+                  >
+                  <label
+                    >Arrangement<select id="music-arrangement">
+                      <option value="unified">Together</option>
+                      <option value="roles">Frequency roles</option>
+                      <option value="spatial">Palette positions</option>
+                    </select></label
+                  >
+                  <label
+                    >Feel<select id="music-feel">
+                      <option value="slow">Slow</option>
+                      <option value="normal">Normal</option>
+                      <option value="fast">Fast</option>
+                      <option value="aggressive">Aggressive</option>
+                    </select></label
+                  >
+                  <label
+                    >Color movement<select id="music-colorMode">
+                      <option value="fixed">Cycle together</option>
+                      <option value="travel">Travel</option>
+                      <option value="onsets">Attacks with gentle cycling</option>
+                      <option value="roles">Cycle with role offsets</option>
+                      <option value="energy">Energy-driven cycling</option>
+                    </select></label
+                  >
+                  <label
+                    >Minimum brightness (%)<input
+                      id="music-minimumBrightness"
+                      type="number"
+                      min="1"
+                      max="100"
+                  /></label>
+                  <label
+                    >Maximum brightness (%)<input
+                      id="music-maximumBrightness"
+                      type="number"
+                      min="1"
+                      max="100"
+                  /></label>
+                  <label
+                    >Color step time (seconds)<input
+                      id="music-colorSeconds"
+                      type="number"
+                      min="2"
+                      max="60"
+                  /></label>
+                  <label
+                    >Quiet level (dBFS)<input id="music-floorDb" type="number" min="-100" max="-20"
+                  /></label>
+                  <label
+                    >Loud level (dBFS)<input id="music-ceilingDb" type="number" min="-60" max="0"
+                  /></label>
+                </div>
+
+                <p class="muted">
+                  Brightness follows measured loudness independently of color. WiZ requires a
+                  minimum of 10%. Feel changes response and color motion, never the output rate or
+                  brightness limits.
+                </p>
+                <button id="music-applyDesign" type="button">Apply response</button>
+              </details>
+            </div>
+            <div data-music-view="setup" hidden>
+              <details class="musicSurface" id="music-setup" open>
+                <summary>Music sources &amp; lights</summary>
+                <p class="muted">
+                  Sources are remembered. Each new lighting session checks Main, then Fallback 1,
+                  then Fallback 2. Quiet audio does not trigger a switch.
+                </p>
+                <label class="musicCheck"
+                  ><input id="music-capturePermission" type="checkbox" /> Allow audio capture</label
+                >
+                <p id="music-helperStatus" class="muted"></p>
+                <div class="musicSource">
+                  <label
+                    >Main app<select id="music-source">
+                      <option value="">None</option>
+                    </select></label
+                  >
+                  <label
+                    >Fallback 1<select id="music-sourceFallback1">
+                      <option value="">None</option>
+                    </select></label
+                  >
+                  <label
+                    >Fallback 2<select id="music-sourceFallback2">
+                      <option value="">None</option>
+                    </select></label
+                  >
+                </div>
+                <div class="actions">
+                  <button id="music-refreshSources" type="button">Find apps</button
+                  ><button id="music-selectSource" type="button">Save sources</button
+                  ><button id="music-forgetSource" type="button">Clear choices</button>
+                </div>
+                <p id="music-sourceStatus" class="muted">No source selected.</p>
+                <label class="musicCheck"
+                  ><input id="music-outputPermission" type="checkbox" /> Allow Live lighting on the
+                  selected music lights</label
+                >
+                <fieldset>
+                  <legend>Music lights</legend>
+                  <p class="muted">
+                    Choose each light’s job below. Dim &amp; hold preserves its color and never
+                    turns on an off light. Stop restores the previous state.
+                  </p>
+                  <div id="music-fixtureChoices"></div>
+                  <button id="music-saveFixtures" type="button">Apply light selection</button>
+                </fieldset>
+              </details>
+              <details class="musicSurface" id="music-tuning">
+                <summary>Calibration &amp; output settings</summary>
+                <label class="musicIntensity"
+                  >Brightness limit <output id="music-outputCeilingValue">35%</output
+                  ><input id="music-outputCeiling" type="range" min="10" max="100" value="35"
+                /></label>
+                <p class="muted">
+                  The highest output your lights may use. Intensity stays within this limit.
+                </p>
+                <button id="music-calibrate" type="button">
+                  Calibrate current listening level
+                </button>
+                <p class="muted">
+                  Play a representative passage at your usual comfortable volume. Calibration
+                  captures the selected source in Preview, never changes playback volume and never
+                  controls lights. It sets a fixed reference; quiet passages stay quiet.
+                </p>
+                <details>
+                  <summary id="music-calibrationSummary">
+                    Calibration options · 30 seconds with 3 dB headroom
+                  </summary>
+                  <div class="musicEditor">
+                    <label
+                      >Sample length<select id="music-calibrationSeconds">
+                        <option value="10">10 seconds · quick check</option>
+                        <option value="30" selected>30 seconds · recommended</option>
+                        <option value="60">60 seconds · varied passages</option>
+                      </select></label
+                    >
+                    <label
+                      >Room for louder passages<select id="music-calibrationHeadroom">
+                        <option value="0">0 dB · sampled peaks reach the ceiling</option>
+                        <option value="3" selected>3 dB · recommended</option>
+                        <option value="6">6 dB · more headroom</option>
+                      </select></label
+                    >
+                  </div>
+                  <p class="muted">
+                    Include both quieter and louder passages. A short quiet sample can make later
+                    music sit at the ceiling and lose detail. If calibrated loudness stays at 100%,
+                    use a longer sample or more headroom. The reference stays fixed after
+                    calibration.
+                  </p>
+                </details>
+                <p id="music-calibrationStatus" class="muted"></p>
+                <p class="muted">
+                  If changing app volume changes the captured meter, recalibrate. Automatic volume
+                  compensation requires a verified gain reading; headphone loudness cannot be
+                  inferred from a volume percentage.
+                </p>
+                <div class="musicEditor">
+                  <label
+                    >Output rate<select id="music-outputRateMode">
+                      <option value="fixed">Cycle together</option>
+                      <option value="adaptive">Adaptive · energy, rises and attacks</option>
+                    </select></label
+                  >
+                  <label
+                    >Maximum updates / second<select id="music-outputHz">
+                      <option value="2">2 Hz</option>
+                      <option value="4">4 Hz</option>
+                      <option value="6">6 Hz</option>
+                      <option value="8">8 Hz · experimental</option>
+                      <option value="12">12 Hz · experimental</option>
+                      <option value="16">16 Hz · experimental</option>
+                    </select></label
+                  >
+                </div>
+                <p class="muted">
+                  Hue Entertainment uses the selected rate after connection preheat. Hue REST shares
+                  an 8-command/second budget. WiZ can update independently up to the selected rate.
+                  Adaptive output uses 2–8 Hz for calibrated energy, 12 Hz for rises and up to 16 Hz
+                  for strong rises or attacks, capped by your selection. The fast-rate hold prevents
+                  chatter. Slow writes drop intermediate frames instead of building a backlog. These
+                  are requested rates, not guaranteed physical bulb refresh rates.
+                </p>
+                <p id="music-presetHelp" class="muted">A gentle response to measured loudness.</p>
+              </details>
+            </div>
+          </div>
+        </div>
+        <!-- MUSIC-TO-LIGHT:END -->
         <div data-light-panel="layout" hidden>
           <div class="panelTitle">
             <div>
@@ -620,193 +1374,6 @@
               When a segment-capable transport is added, sections can be grouped, locked together,
               and routed through the same chat-prefix system.
             </p>
-          </div>
-        </div>
-        <div data-light-panel="lab" hidden>
-          <div class="panelTitle">
-            <div>
-              <span>CALIBRATION + SAFETY</span>
-              <h2>LIGHT LAB</h2>
-            </div>
-            <button id="refreshLightingLab" type="button">REFRESH</button>
-          </div>
-          <p class="profileIntro">
-            Tune mixed-brand effects, temporarily protect fixtures, inspect capabilities, preview
-            routing, and review recent commands.
-          </p>
-          <div class="cluster">
-            <div class="sectionHead">
-              <div>
-                <h3>EFFECT BEHAVIOR</h3>
-                <p>
-                  These limits apply to viewer-run dynamic effects. Zero duration and repeat count
-                  allow an effect to continue until stopped.
-                </p>
-              </div>
-            </div>
-            <div class="labSettingsGrid">
-              <label
-                >MAXIMUM BRIGHTNESS<input
-                  id="labBrightnessLimit"
-                  type="range"
-                  min="10"
-                  max="100"
-                  value="100"
-                /><output id="labBrightnessLimitValue">100%</output></label
-              >
-              <label
-                >DURATION SECONDS<input
-                  id="labDurationSeconds"
-                  type="number"
-                  min="0"
-                  max="3600"
-                  value="0"
-              /></label>
-              <label
-                >REPEAT COUNT<input id="labRepeatCount" type="number" min="0" max="100" value="0"
-              /></label>
-              <label
-                >COOLDOWN SECONDS<input
-                  id="labCooldownSeconds"
-                  type="number"
-                  min="0"
-                  max="600"
-                  value="0"
-              /></label>
-              <label
-                >CHASE GAP MS<input
-                  id="labChaseGap"
-                  type="number"
-                  min="50"
-                  max="2000"
-                  step="25"
-                  value="250"
-              /></label>
-              <label
-                >SPATIAL DIRECTION<select id="labSpatialDirection">
-                  <option value="left-right">LEFT TO RIGHT</option>
-                  <option value="right-left">RIGHT TO LEFT</option>
-                  <option value="front-rear">FRONT TO REAR</option>
-                  <option value="rear-front">REAR TO FRONT</option>
-                  <option value="clockwise">CLOCKWISE</option>
-                  <option value="from-fixture">OUTWARD FROM FIXTURE</option>
-                </select></label
-              >
-              <label
-                >SPATIAL ORIGIN<select id="labSpatialOrigin">
-                  <option value="">ROOM CENTER</option>
-                </select></label
-              >
-              <label
-                class="switchLabel"
-                title="Restore the last state immediately when the main Dynamic Commands animated-return option is off."
-                ><input id="labRestorePrevious" type="checkbox" /><span
-                  class="toggleSwitch"
-                  aria-hidden="true"
-                ></span
-                ><span>IMMEDIATE RESTORE WHEN RETURN ANIMATION IS OFF</span></label
-              >
-            </div>
-            <div class="actions">
-              <button id="saveLightingLab" type="button">SAVE LIGHT LAB</button>
-            </div>
-            <div id="lightingLabNotice" class="notice" role="status"></div>
-          </div>
-          <div class="cluster">
-            <div class="sectionHead">
-              <div>
-                <h3>FIXTURE HEALTH + MANUAL TIMING</h3>
-                <p>
-                  Connection tests measure network round trips, not when a light visibly changes, so
-                  they never alter synchronization automatically. If one fixture consistently leads
-                  or trails, use a small visual adjustment: positive advances a slow fixture and
-                  negative delays a fast fixture.
-                </p>
-              </div>
-              <button id="calibrateLightingLatency" type="button">TEST ALL CONNECTIONS</button>
-            </div>
-            <div id="lightingLabFixtures" class="labFixtureGrid"></div>
-          </div>
-          <div class="cluster labPreviewWorkspace">
-            <div>
-              <div class="sectionHead">
-                <div>
-                  <h3>ROUTING PREVIEW</h3>
-                  <p>
-                    Resolve a command and highlight its fixtures without sending anything to
-                    hardware.
-                  </p>
-                </div>
-              </div>
-              <div class="commandRow">
-                <label
-                  >VIEWER COMMAND<input
-                    id="labPreviewCommand"
-                    maxlength="96"
-                    placeholder="desk sweep red, blue slow" /></label
-                ><button id="runLabPreview" type="button">PREVIEW ROUTE</button>
-              </div>
-              <pre id="labPreviewResult" class="result" hidden></pre>
-            </div>
-            <div
-              id="lightingLabMap"
-              class="lightingRoomMap labMap"
-              aria-label="Lighting route preview"
-            >
-              <span class="roomFrontLabel">FRONT</span>
-            </div>
-          </div>
-          <div class="cluster">
-            <div class="sectionHead">
-              <div>
-                <h3>COMMAND PRESETS</h3>
-                <p>
-                  Save favorite palettes and effect commands, then load or run them through current
-                  routing.
-                </p>
-              </div>
-            </div>
-            <div class="commandRow">
-              <label
-                >PRESET NAME<input
-                  id="labPresetName"
-                  maxlength="48"
-                  placeholder="Neon sweep" /></label
-              ><label
-                >COMMAND<input
-                  id="labPresetCommand"
-                  maxlength="96"
-                  placeholder="sweep cyan, purple slow" /></label
-              ><button id="addLabPreset" type="button">ADD PRESET</button>
-            </div>
-            <div id="lightingLabPresets" class="labPresetGrid"></div>
-          </div>
-          <div class="cluster">
-            <div class="sectionHead">
-              <div>
-                <h3>RECENT LIGHT COMMANDS</h3>
-                <p>Shows the bounded in-memory delivery history for this server session.</p>
-              </div>
-              <button id="clearLightingHistory" type="button">CLEAR HISTORY</button>
-            </div>
-            <div class="tableWrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>TIME</th>
-                    <th>SOURCE</th>
-                    <th>COMMAND</th>
-                    <th>TARGETS</th>
-                    <th>RESULT</th>
-                  </tr>
-                </thead>
-                <tbody id="lightingLabHistory">
-                  <tr>
-                    <td colspan="5">NO COMMANDS RECORDED</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
           </div>
         </div>
       </section>
@@ -1248,6 +1815,12 @@
     <script src="/core.js"></script>
     <script src="/usability-tooltips.js"></script>
     <script src="/lighting-profiles.js"></script>
+    <script src="/music-workspace.js"></script>
+    <script src="/music-fixture-controls.js"></script>
+    <script src="/music-pipeline.js"></script>
+    <script src="/music-recipe-controls.js"></script>
+    <script src="/music-saved-effects.js"></script>
+    <script src="/music-to-light.js"></script>
     <script src="/lighting-commands.js"></script>
     <script src="/workspace-navigation.js"></script>
     <script src="/navigation-settings.js"></script>

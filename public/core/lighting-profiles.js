@@ -318,7 +318,7 @@
           element("lightingLayoutResult").textContent = error.message;
         });
       }
-      if (button.dataset.lightTab === "lab") {
+      if (["viewer", "commands"].includes(button.dataset.lightTab)) {
         labLoader ||= import("/lighting-lab.js").then((module) => module.initLightingLab());
         labLoader.catch((error) => {
           element("lightingLabNotice").textContent = error.message;

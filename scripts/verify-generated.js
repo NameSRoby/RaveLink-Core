@@ -7,6 +7,7 @@ for (const script of [
   "build-playlist-transfers.js",
   "build-spotify-desktop.js",
   "build-tidal-desktop.js",
+  "build-music-to-light-ui.js",
   "refresh-feature-integrity.js",
 ]) {
   const result = spawnSync(process.execPath, [path.join(__dirname, script), "--check"], {

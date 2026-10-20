@@ -77,6 +77,16 @@ test("Twitch fixture board moves exclusive members and previews request-local de
   assert.deepEqual(effectSettings.fixtureIds, ["effect-only"]);
   assert.deepEqual(effectSettings.prefixes, { "effect-only": "fx" });
   assert.equal(effectSettings.returnEffect, true);
+  assert.match(await page.locator("#twitchEffectProgram").innerText(), /rave red, blue aggressive/);
+  await page.locator('[data-light-tab="commands"]').click();
+  await page.locator("#refreshLightCommands").click();
+  await page.locator("#lightCommandsStatus").filter({ hasText: "GUIDE READY" }).waitFor();
+  assert.match(await page.locator("#compactLightCommands").textContent(), /rave \[colors\]/);
+  assert.match(
+    await page.locator("#detailedLightCommands").textContent(),
+    /RAVE: Starts audio-reactive lighting/,
+  );
+  await page.locator('[data-light-tab="viewer"]').click();
   await page.locator("#twitchColorExample").fill("fx fade red, blue slow");
   await page.locator("#previewTwitchColor").click();
   await page

@@ -26,7 +26,7 @@ function sourceFiles(roots = SOURCE_ROOTS, root = ROOT) {
     const absolute = path.join(root, relative);
     if (!fs.existsSync(absolute)) return;
     for (const entry of fs.readdirSync(absolute, { withFileTypes: true })) {
-      if (["node_modules", "vendor", "bin", "obj"].includes(entry.name)) continue;
+      if (["node_modules", "vendor", "bin", "obj", "target"].includes(entry.name)) continue;
       const file = `${relative}/${entry.name}`;
       if (/^integrations\/[^/]+\/dist(?:\/|$)/.test(file)) continue;
       if (entry.isDirectory()) walk(file);

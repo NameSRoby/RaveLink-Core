@@ -40,12 +40,9 @@ test("lighting lab persists bounded calibration, exclusions, presets, and sessio
   });
   assert.equal(saved.ok, true);
   assert.deepEqual(saved.excludedFixtureIds, ["desk-hue"]);
-  assert.deepEqual(saved.latencyOffsets, {
-    "desk-hue": -125,
-    "shelf-wiz": 2000,
-  });
+  assert.deepEqual(saved.latencyOffsets, {}, "legacy compensation is no longer applied");
   assert.equal(service.isExcluded("desk-hue"), true);
-  assert.equal(service.latencyFor("desk-hue"), -125);
+  assert.equal(service.snapshot().limits.maximumLatencyMs, 0);
   assert.deepEqual(service.resolveChaseRoute("deskfx chase red, blue"), {
     managed: true,
     prefix: "deskfx",

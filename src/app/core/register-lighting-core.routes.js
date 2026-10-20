@@ -283,6 +283,7 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
                 hardwareOnboarding: hardwareOnboarding?.getDiagnostics?.() || null,
                 lightingTransports: {
                   owner: "lighting.transports",
+                  fixtureOutput: core.fixtureOutput?.diagnostics?.() || null,
                   hue: hueTelemetry.resources || null,
                   hueEntertainment: {
                     available: hueEntertainment.available === true,
@@ -378,7 +379,6 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
       brand: row.brand,
       enabled: row.enabled,
       connectivity: connectivity.get(row.id)?.status || "unknown",
-      latencyOffsetMs: Number(settings.latencyOffsets?.[row.id] || 0),
       excluded: settings.excludedFixtureIds.includes(row.id),
       rgb: ["hue", "wiz", "govee"].includes(row.brand),
       tunableWhite: ["hue", "wiz"].includes(row.brand),

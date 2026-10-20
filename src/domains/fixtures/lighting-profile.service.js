@@ -181,6 +181,7 @@ module.exports = function createLightingProfileService(options = {}) {
     if (twitchLightEffects?.cancelForStaticTargets)
       twitchLightEffects.cancelForStaticTargets(entries.map(([fixtureId]) => fixtureId));
     else twitchLightEffects?.cancelFixtureIds?.(entries.map(([fixtureId]) => fixtureId));
+    await twitchLightEffects?.waitForFixtureWrites?.(entries.map(([fixtureId]) => fixtureId));
     const deliveries = await Promise.all(
       entries.map(async ([fixtureId, individualTarget]) => {
         const fixture = available.get(fixtureId);

@@ -86,6 +86,32 @@ test("partial lighting fulfills once with an explicit degraded outcome while tot
   assert.equal(settlements[1].status, "CANCELED");
 });
 
+test("Rave-busy redemptions are canceled for refund once, including duplicate delivery", async () => {
+  const settlements = [];
+  const controller = createSystemWidgetEventController({
+    getTwitchIntakeMode: () => "native",
+    colorApply: async () => ({
+      status: 400,
+      body: { ok: false, error: "music_rave_active", refundRecommended: true, sent: 0, failed: 0 },
+    }),
+    settleRedemption: async (payload) => {
+      settlements.push(payload);
+      return { ok: true, status: payload.status };
+    },
+  });
+  const payload = {
+    transport: "native",
+    widgetConfig: { colorRewardId: "lights" },
+    eventEnvelope: event("rave-busy", "lights", "red"),
+  };
+  const result = await controller.handleWidgetEvent(payload);
+  assert.equal(result.body.desiredStatus, "CANCELED");
+  assert.equal(settlements.length, 1);
+  assert.equal(settlements[0].status, "CANCELED");
+  assert.equal((await controller.handleWidgetEvent(payload)).body.duplicate, true);
+  assert.equal(settlements.length, 1);
+});
+
 test("only the selected Twitch intake transport reaches reward handling", async () => {
   let applied = 0;
   const controller = createSystemWidgetEventController({
@@ -397,6 +423,36 @@ test("native unsupported light power commands are canceled for a channel-points 
   assert.equal(result.body.status, "CANCELED");
   assert.equal(result.body.settlement.refunded, true);
   assert.equal(settled.status, "CANCELED");
+});
+
+test("native Rave rewards fulfill accepted starts and refund rejected starts", async () => {
+  for (const accepted of [true, false]) {
+    const settlements = [];
+    const controller = createSystemWidgetEventController({
+      getTwitchIntakeMode: () => "native",
+      colorApply: async () => ({
+        status: accepted ? 200 : 400,
+        body: accepted
+          ? { ok: true, effect: "rave", targets: ["light"], sent: 0, failed: 0 }
+          : { ok: false, error: "music_rave_disabled" },
+      }),
+      settleRedemption: async (payload) => {
+        settlements.push(payload);
+        return { ok: true, status: payload.status, refunded: payload.status === "CANCELED" };
+      },
+      dedupeStore: new Map(),
+    });
+    const request = {
+      transport: "native",
+      widgetConfig: { colorRewardId: "reward-color" },
+      eventEnvelope: event("rave-redemption", "reward-color", "rave", "viewer", "broadcaster-1"),
+    };
+    const result = await controller.handleWidgetEvent(request);
+    assert.equal(result.body.desiredStatus, accepted ? "FULFILLED" : "CANCELED");
+    assert.equal(result.body.settlement.refunded, !accepted);
+    assert.equal((await controller.handleWidgetEvent(request)).body.duplicate, true);
+    assert.equal(settlements.length, 1);
+  }
 });
 
 test("StreamElements conveys Song Request input to the native resolver with no Helix settlement", async () => {

@@ -27,6 +27,24 @@ module.exports = function createFeatureHostRegistry(options = {}) {
   );
   const supervisorFactory = options.supervisorFactory || createFeatureProcessSupervisor;
   const providers = new Map(Object.entries(options.providers || {}));
+  const mutations = new Map();
+  let closing = false;
+  function serialize(operation) {
+    return (featureId, ...args) => {
+      if (closing) return Promise.resolve({ ok: false, error: "feature_platform_stopping" });
+      const id = String(featureId || "");
+      const task = (mutations.get(id) || Promise.resolve())
+        .catch(() => {})
+        .then(() => operation(id, ...args));
+      mutations.set(id, task);
+      void task
+        .finally(() => {
+          if (mutations.get(id) === task) mutations.delete(id);
+        })
+        .catch(() => {});
+      return task;
+    };
+  }
   // Up to 21 library collections (250 pages each), one 2,000-page transfer,
   // and feature metadata fit within 8,192 keys. The byte quota still applies.
   const storage = createQuotaJsonStorage({
@@ -98,7 +116,7 @@ module.exports = function createFeatureHostRegistry(options = {}) {
         60000,
       onViolation: async (featureId, violation) => {
         console.warn(`[FEATURE] ${featureId} stopped: ${violation.code}`);
-        await disable(featureId, { reason: violation.code });
+        await serialize(disable)(featureId, { reason: violation.code });
       },
     });
   let discoveryErrors = [];
@@ -413,7 +431,7 @@ module.exports = function createFeatureHostRegistry(options = {}) {
     return Promise.all(
       [...catalog.keys()]
         .filter((id) => stateStore.get(id).enabled)
-        .map((id) => enable(id, { persist: false, reason: "startup" })),
+        .map((id) => serialize(enable)(id, { persist: false, reason: "startup" })),
     );
   }
 
@@ -589,6 +607,8 @@ module.exports = function createFeatureHostRegistry(options = {}) {
   }
 
   async function shutdown() {
+    closing = true;
+    await Promise.allSettled([...mutations.values()]);
     await Promise.allSettled([...supervisors.values()].map((supervisor) => supervisor.stop()));
     resourceMonitor.shutdown();
     lastActivity.clear();
@@ -609,15 +629,15 @@ module.exports = function createFeatureHostRegistry(options = {}) {
   }
 
   return Object.freeze({
-    disable,
+    disable: serialize(disable),
     discover,
-    enable,
-    install,
+    enable: serialize(enable),
+    install: serialize(install),
     listAvailable: packageManager.listAvailable,
-    restart,
-    rollback,
-    uninstall,
-    update,
+    restart: serialize(restart),
+    rollback: serialize(rollback),
+    uninstall: serialize(uninstall),
+    update: serialize(update),
     getResourceStatus: resourceMonitor.getStatus,
     list,
     readUiContribution,

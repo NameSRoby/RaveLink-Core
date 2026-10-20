@@ -1,0 +1,2005 @@
+{
+  "schemaVersion": 1,
+  "protocol": "ravelink.core.client",
+  "apiVersion": {
+    "major": 1,
+    "minor": 0
+  },
+  "limits": {
+    "requestBytes": 65536,
+    "responseBytes": 524288,
+    "jsonDepth": 12,
+    "jsonNodes": 16384
+  },
+  "error": {
+    "type": "object",
+    "properties": {
+      "ok": {
+        "const": false
+      },
+      "error": {
+        "type": "string",
+        "maxLength": 2048
+      },
+      "code": {
+        "type": "string",
+        "maxLength": 128
+      }
+    },
+    "required": [
+      "ok"
+    ],
+    "additionalProperties": true
+  },
+  "operations": [
+    {
+      "id": "health",
+      "method": "GET",
+      "path": "/api/core/v1/health",
+      "legacyPath": "/health",
+      "request": {
+        "type": "null"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "version": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "profile": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "lightingCore": {
+                "type": "boolean"
+              },
+              "features": {
+                "type": "boolean"
+              },
+              "mods": {
+                "type": "boolean"
+              },
+              "widget": {
+                "type": "boolean"
+              },
+              "songRequest": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "lightingCore"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "ok",
+          "version",
+          "profile",
+          "capabilities"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": true,
+      "deadlineMs": 2000,
+      "automaticRetry": "read-only"
+    },
+    {
+      "id": "fixtures.list",
+      "method": "GET",
+      "path": "/api/core/v1/fixtures.list",
+      "legacyPath": "/fixtures",
+      "request": {
+        "type": "null"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "fixtures": {
+            "type": "array",
+            "maxItems": 256,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "maxLength": 256,
+                  "minLength": 1
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                "brand": {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                "zone": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "engineEnabled": {
+                  "type": "boolean"
+                },
+                "twitchEnabled": {
+                  "type": "boolean"
+                },
+                "customEnabled": {
+                  "type": "boolean"
+                },
+                "lightId": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "bridgeIpConfigured": {
+                  "type": "boolean"
+                },
+                "deviceIpConfigured": {
+                  "type": "boolean"
+                },
+                "credentialsConfigured": {
+                  "type": "boolean"
+                },
+                "entertainmentConfigured": {
+                  "type": "boolean"
+                },
+                "temperatureRange": {
+                  "type": "object",
+                  "properties": {
+                    "minimumKelvin": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "maximumKelvin": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "minimumKelvin",
+                    "maximumKelvin"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "brand",
+                "enabled",
+                "credentialsConfigured"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "connectivity": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "ok",
+          "version",
+          "fixtures",
+          "connectivity"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": true,
+      "deadlineMs": 5000,
+      "automaticRetry": "read-only"
+    },
+    {
+      "id": "fixtures.edit",
+      "method": "POST",
+      "path": "/api/core/v1/fixtures.edit",
+      "legacyPath": "/fixtures/:id/edit",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "fixture": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "brand": {
+                "type": "string",
+                "maxLength": 32
+              },
+              "zone": {
+                "type": "string",
+                "maxLength": 256
+              },
+              "ip": {
+                "type": "string",
+                "maxLength": 256
+              },
+              "bridgeIp": {
+                "type": "string",
+                "maxLength": 256
+              },
+              "lightId": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "engineEnabled": {
+                "type": "boolean"
+              },
+              "twitchEnabled": {
+                "type": "boolean"
+              },
+              "customEnabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "brand"
+            ],
+            "additionalProperties": true
+          },
+          "oneTimeReveal": {
+            "const": true
+          }
+        },
+        "required": [
+          "ok",
+          "fixture",
+          "oneTimeReveal"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": true,
+      "deadlineMs": 5000,
+      "automaticRetry": "read-only"
+    },
+    {
+      "id": "fixtures.upsert",
+      "method": "POST",
+      "path": "/api/core/v1/fixtures.upsert",
+      "legacyPath": "/fixtures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "brand": {
+            "enum": [
+              "hue",
+              "wiz",
+              "govee"
+            ]
+          },
+          "zone": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "engineEnabled": {
+            "type": "boolean"
+          },
+          "twitchEnabled": {
+            "type": "boolean"
+          },
+          "customEnabled": {
+            "type": "boolean"
+          },
+          "ip": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "bridgeIp": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "lightId": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "clientKey": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "bridgeId": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "entertainmentAreaId": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "id",
+          "brand"
+        ],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "fixture": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "brand": {
+                "type": "string",
+                "maxLength": 32
+              },
+              "zone": {
+                "type": "string",
+                "maxLength": 256
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "engineEnabled": {
+                "type": "boolean"
+              },
+              "twitchEnabled": {
+                "type": "boolean"
+              },
+              "customEnabled": {
+                "type": "boolean"
+              },
+              "lightId": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "bridgeIpConfigured": {
+                "type": "boolean"
+              },
+              "deviceIpConfigured": {
+                "type": "boolean"
+              },
+              "credentialsConfigured": {
+                "type": "boolean"
+              },
+              "entertainmentConfigured": {
+                "type": "boolean"
+              },
+              "temperatureRange": {
+                "type": "object",
+                "properties": {
+                  "minimumKelvin": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "maximumKelvin": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "minimumKelvin",
+                  "maximumKelvin"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "brand",
+              "enabled",
+              "credentialsConfigured"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "ok",
+          "fixture"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": false,
+      "deadlineMs": 5000,
+      "automaticRetry": "never"
+    },
+    {
+      "id": "fixtures.delete",
+      "method": "POST",
+      "path": "/api/core/v1/fixtures.delete",
+      "legacyPath": "/fixtures/:id",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "deleted": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "ok",
+          "deleted"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": false,
+      "deadlineMs": 5000,
+      "automaticRetry": "never"
+    },
+    {
+      "id": "fixtures.test",
+      "method": "POST",
+      "path": "/api/core/v1/fixtures.test",
+      "legacyPath": "/fixtures/:id/test",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "reachable": {
+            "type": "boolean"
+          },
+          "fixture": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "brand": {
+                "type": "string",
+                "maxLength": 32
+              }
+            },
+            "required": [
+              "id",
+              "brand"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": true,
+      "deadlineMs": 15000,
+      "automaticRetry": "read-only"
+    },
+    {
+      "id": "lights.apply",
+      "method": "POST",
+      "path": "/api/core/v1/lights.apply",
+      "legacyPath": "/color",
+      "request": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1
+          },
+          "target": {
+            "enum": [
+              "hue",
+              "wiz",
+              "govee",
+              "both"
+            ]
+          },
+          "fixtureId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "fixtureIds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "maxLength": 256,
+              "minLength": 1
+            }
+          },
+          "groupId": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "zone": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "hueZone": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "wizZone": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "goveeZone": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "sent": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "failed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "hueDelivery": {
+            "type": "object",
+            "properties": {
+              "sent": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "failed": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "sent",
+              "failed"
+            ],
+            "additionalProperties": true
+          },
+          "wizDelivery": {
+            "type": "object",
+            "properties": {
+              "sent": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "failed": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "sent",
+              "failed"
+            ],
+            "additionalProperties": true
+          },
+          "goveeDelivery": {
+            "type": "object",
+            "properties": {
+              "sent": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "failed": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "sent",
+              "failed"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "ok",
+          "sent",
+          "failed",
+          "partial"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": false,
+      "deadlineMs": 15000,
+      "automaticRetry": "never"
+    },
+    {
+      "id": "widget.status",
+      "method": "GET",
+      "path": "/api/core/v1/widget.status",
+      "legacyPath": "/system/status",
+      "request": {
+        "type": "null"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "widgetSecurity": {
+            "type": "object",
+            "properties": {
+              "contract": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "configured": {
+                "type": "boolean"
+              },
+              "scopedTokenConfigured": {
+                "type": "boolean"
+              },
+              "crossOriginEnabled": {
+                "type": "boolean"
+              },
+              "allowedOrigins": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "string",
+                  "maxLength": 2048
+                }
+              },
+              "source": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 256
+              }
+            },
+            "required": [
+              "configured"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "ok",
+          "widgetSecurity"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": true,
+      "deadlineMs": 5000,
+      "automaticRetry": "read-only"
+    },
+    {
+      "id": "widget.get",
+      "method": "POST",
+      "path": "/api/core/v1/widget.get",
+      "legacyPath": "/system/widget-template-get",
+      "request": {
+        "type": "object",
+        "properties": {
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "colorRewardId": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "teachRewardId": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "songRewardId": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "playlistRewardId": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "widgetIntakeToken": {
+            "type": "string",
+            "maxLength": 512
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "script": {
+            "type": "string",
+            "maxLength": 131072
+          },
+          "active": {
+            "type": "object",
+            "properties": {
+              "baseUrl": {
+                "type": "string",
+                "maxLength": 2048
+              },
+              "colorRewardId": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "teachRewardId": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "songRewardId": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "playlistRewardId": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "widgetIntakeToken": {
+                "type": "string",
+                "maxLength": 512
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
+          "warnings": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "severity": {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                "message": {
+                  "type": "string",
+                  "maxLength": 2048
+                }
+              },
+              "required": [
+                "code",
+                "message"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "oneTimeReveal": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "script",
+          "active",
+          "warnings"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": true,
+      "deadlineMs": 5000,
+      "automaticRetry": "read-only"
+    },
+    {
+      "id": "widget.rebuild",
+      "method": "POST",
+      "path": "/api/core/v1/widget.rebuild",
+      "legacyPath": "/system/widget-template-rebuild",
+      "request": {
+        "type": "object",
+        "properties": {
+          "baseUrl": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "colorRewardId": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "teachRewardId": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "songRewardId": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "playlistRewardId": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "widgetIntakeToken": {
+            "type": "string",
+            "maxLength": 512
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "script": {
+            "type": "string",
+            "maxLength": 131072
+          },
+          "active": {
+            "type": "object",
+            "properties": {
+              "baseUrl": {
+                "type": "string",
+                "maxLength": 2048
+              },
+              "colorRewardId": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "teachRewardId": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "songRewardId": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "playlistRewardId": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "widgetIntakeToken": {
+                "type": "string",
+                "maxLength": 512
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
+          "warnings": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "severity": {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                "message": {
+                  "type": "string",
+                  "maxLength": 2048
+                }
+              },
+              "required": [
+                "code",
+                "message"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "oneTimeReveal": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "script",
+          "active",
+          "warnings"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": false,
+      "deadlineMs": 5000,
+      "automaticRetry": "never"
+    },
+    {
+      "id": "widget.clear-token",
+      "method": "POST",
+      "path": "/api/core/v1/widget.clear-token",
+      "legacyPath": "/system/widget-token/clear",
+      "request": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "widgetSecurity": {
+            "type": "object",
+            "properties": {
+              "contract": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "configured": {
+                "type": "boolean"
+              },
+              "scopedTokenConfigured": {
+                "type": "boolean"
+              },
+              "crossOriginEnabled": {
+                "type": "boolean"
+              },
+              "allowedOrigins": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "string",
+                  "maxLength": 2048
+                }
+              },
+              "source": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "error": {
+                "type": "string",
+                "maxLength": 256
+              }
+            },
+            "required": [
+              "configured"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "ok",
+          "widgetSecurity"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": false,
+      "deadlineMs": 5000,
+      "automaticRetry": "never"
+    },
+    {
+      "id": "updates.status",
+      "method": "GET",
+      "path": "/api/core/v1/updates.status",
+      "legacyPath": "/system/update/status",
+      "request": {
+        "type": "null"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "currentVersion": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "checkOnLaunch": {
+            "type": "boolean"
+          },
+          "checking": {
+            "type": "boolean"
+          },
+          "downloading": {
+            "type": "boolean"
+          },
+          "latest": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "publishedAt": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "available": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "version",
+              "name",
+              "publishedAt",
+              "available"
+            ],
+            "additionalProperties": false
+          },
+          "staged": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "verified": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "version",
+              "verified"
+            ],
+            "additionalProperties": false
+          },
+          "rollback": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              }
+            },
+            "required": [
+              "version"
+            ],
+            "additionalProperties": false
+          },
+          "hosted": {
+            "type": "boolean"
+          },
+          "lastError": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "ok",
+          "currentVersion",
+          "checkOnLaunch",
+          "checking",
+          "downloading",
+          "latest",
+          "staged",
+          "rollback",
+          "hosted",
+          "lastError"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": true,
+      "deadlineMs": 5000,
+      "automaticRetry": "read-only"
+    },
+    {
+      "id": "updates.configure",
+      "method": "POST",
+      "path": "/api/core/v1/updates.configure",
+      "legacyPath": "/system/update/configure",
+      "request": {
+        "type": "object",
+        "properties": {
+          "checkOnLaunch": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "checkOnLaunch"
+        ],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "currentVersion": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "checkOnLaunch": {
+            "type": "boolean"
+          },
+          "checking": {
+            "type": "boolean"
+          },
+          "downloading": {
+            "type": "boolean"
+          },
+          "latest": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "publishedAt": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "available": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "version",
+              "name",
+              "publishedAt",
+              "available"
+            ],
+            "additionalProperties": false
+          },
+          "staged": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "verified": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "version",
+              "verified"
+            ],
+            "additionalProperties": false
+          },
+          "rollback": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              }
+            },
+            "required": [
+              "version"
+            ],
+            "additionalProperties": false
+          },
+          "hosted": {
+            "type": "boolean"
+          },
+          "lastError": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "ok",
+          "currentVersion",
+          "checkOnLaunch",
+          "checking",
+          "downloading",
+          "latest",
+          "staged",
+          "rollback",
+          "hosted",
+          "lastError"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": false,
+      "deadlineMs": 5000,
+      "automaticRetry": "never"
+    },
+    {
+      "id": "updates.check",
+      "method": "POST",
+      "path": "/api/core/v1/updates.check",
+      "legacyPath": "/system/update/check",
+      "request": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "currentVersion": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "checkOnLaunch": {
+            "type": "boolean"
+          },
+          "checking": {
+            "type": "boolean"
+          },
+          "downloading": {
+            "type": "boolean"
+          },
+          "latest": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "publishedAt": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "available": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "version",
+              "name",
+              "publishedAt",
+              "available"
+            ],
+            "additionalProperties": false
+          },
+          "staged": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "verified": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "version",
+              "verified"
+            ],
+            "additionalProperties": false
+          },
+          "rollback": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              }
+            },
+            "required": [
+              "version"
+            ],
+            "additionalProperties": false
+          },
+          "hosted": {
+            "type": "boolean"
+          },
+          "lastError": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "ok",
+          "currentVersion",
+          "checkOnLaunch",
+          "checking",
+          "downloading",
+          "latest",
+          "staged",
+          "rollback",
+          "hosted",
+          "lastError"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": false,
+      "deadlineMs": 15000,
+      "automaticRetry": "never"
+    },
+    {
+      "id": "updates.download",
+      "method": "POST",
+      "path": "/api/core/v1/updates.download",
+      "legacyPath": "/system/update/download",
+      "request": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "currentVersion": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "checkOnLaunch": {
+            "type": "boolean"
+          },
+          "checking": {
+            "type": "boolean"
+          },
+          "downloading": {
+            "type": "boolean"
+          },
+          "latest": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "publishedAt": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "available": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "version",
+              "name",
+              "publishedAt",
+              "available"
+            ],
+            "additionalProperties": false
+          },
+          "staged": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "verified": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "version",
+              "verified"
+            ],
+            "additionalProperties": false
+          },
+          "rollback": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              }
+            },
+            "required": [
+              "version"
+            ],
+            "additionalProperties": false
+          },
+          "hosted": {
+            "type": "boolean"
+          },
+          "lastError": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "ok",
+          "currentVersion",
+          "checkOnLaunch",
+          "checking",
+          "downloading",
+          "latest",
+          "staged",
+          "rollback",
+          "hosted",
+          "lastError"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": false,
+      "deadlineMs": 180000,
+      "automaticRetry": "never"
+    },
+    {
+      "id": "updates.apply",
+      "method": "POST",
+      "path": "/api/core/v1/updates.apply",
+      "legacyPath": "/system/update/apply",
+      "request": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "action": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "stopping": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "action",
+          "stopping"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": false,
+      "deadlineMs": 5000,
+      "automaticRetry": "never"
+    },
+    {
+      "id": "updates.rollback",
+      "method": "POST",
+      "path": "/api/core/v1/updates.rollback",
+      "legacyPath": "/system/update/rollback",
+      "request": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "action": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "stopping": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "action",
+          "stopping"
+        ],
+        "additionalProperties": true
+      },
+      "readOnly": false,
+      "deadlineMs": 5000,
+      "automaticRetry": "never"
+    }
+  ],
+  "handshake": {
+    "get": {
+      "method": "GET",
+      "path": "/system/client-api",
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "protocol": {
+            "const": "ravelink.core.client"
+          },
+          "apiVersion": {
+            "type": "object",
+            "properties": {
+              "major": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "minor": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "major",
+              "minor"
+            ],
+            "additionalProperties": false
+          },
+          "contractRevision": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 64
+          },
+          "serverInstanceId": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "server": {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "const": true
+              },
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "profile": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "capabilities": {
+                "type": "object",
+                "properties": {
+                  "lightingCore": {
+                    "type": "boolean"
+                  },
+                  "features": {
+                    "type": "boolean"
+                  },
+                  "mods": {
+                    "type": "boolean"
+                  },
+                  "widget": {
+                    "type": "boolean"
+                  },
+                  "songRequest": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "lightingCore"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "required": [
+              "ok",
+              "version",
+              "profile",
+              "capabilities"
+            ],
+            "additionalProperties": true
+          },
+          "contractsUrl": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "operations": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "requestBytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "responseBytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "jsonDepth": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "jsonNodes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "requestBytes",
+              "responseBytes",
+              "jsonDepth",
+              "jsonNodes"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "protocol",
+          "apiVersion",
+          "contractRevision",
+          "serverInstanceId",
+          "server",
+          "contractsUrl",
+          "operations",
+          "limits"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "negotiate": {
+      "method": "POST",
+      "path": "/system/client-api/negotiate",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apiMajor": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "minimumMinor": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "requiredOperations": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "maxLength": 80
+            }
+          }
+        },
+        "required": [
+          "apiMajor"
+        ],
+        "additionalProperties": false
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "protocol": {
+            "const": "ravelink.core.client"
+          },
+          "apiVersion": {
+            "type": "object",
+            "properties": {
+              "major": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "minor": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "major",
+              "minor"
+            ],
+            "additionalProperties": false
+          },
+          "contractRevision": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 64
+          },
+          "serverInstanceId": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "server": {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "const": true
+              },
+              "version": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "profile": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "capabilities": {
+                "type": "object",
+                "properties": {
+                  "lightingCore": {
+                    "type": "boolean"
+                  },
+                  "features": {
+                    "type": "boolean"
+                  },
+                  "mods": {
+                    "type": "boolean"
+                  },
+                  "widget": {
+                    "type": "boolean"
+                  },
+                  "songRequest": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "lightingCore"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "required": [
+              "ok",
+              "version",
+              "profile",
+              "capabilities"
+            ],
+            "additionalProperties": true
+          },
+          "contractsUrl": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "operations": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "requestBytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "responseBytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "jsonDepth": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "jsonNodes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "requestBytes",
+              "responseBytes",
+              "jsonDepth",
+              "jsonNodes"
+            ],
+            "additionalProperties": false
+          },
+          "compatible": {
+            "type": "boolean"
+          },
+          "missingOperations": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "error": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "ok",
+          "protocol",
+          "apiVersion",
+          "contractRevision",
+          "serverInstanceId",
+          "server",
+          "contractsUrl",
+          "operations",
+          "limits",
+          "compatible",
+          "missingOperations"
+        ],
+        "additionalProperties": true
+      }
+    }
+  },
+  "contractRevision": "a4c47c67f9e95c39260b5c51bbadf19ab5dd398af3d4ab9f58849cb09ed3bad9"
+}

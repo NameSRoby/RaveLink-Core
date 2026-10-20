@@ -18,5 +18,6 @@ config/*.enabled
 .idea/
 desktop/windows-host/bin/
 desktop/windows-host/obj/
+integrations/music-to-light/native/target/
 Thumbs.db
 Desktop.ini

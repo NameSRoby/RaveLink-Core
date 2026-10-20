@@ -6,6 +6,48 @@ the implementation. The installation instructions and feature list remain in
 [README.md](../README.md). The maintenance findings are recorded in
 [REPOSITORY_HEALTH.md](REPOSITORY_HEALTH.md).
 
+## Fixture output ownership
+
+`src/domains/fixtures/fixture-output-runtime.js` composes the lease broker into
+Core. Static commands, profiles, dynamic effects and taught-color previews all
+share its fixture lanes. Core exposes governed adapter facades; keep raw state
+writers private to composition. A server restart is needed to load source changes.
+The fixture ownership tests record the implementation contract; hardware
+acceptance remains separate from synthetic regression coverage.
+
+Adapters must read actual state, report delivery/failure honestly and restore
+native power/color modes. Each fixture's queue keeps an actual operation in
+flight after a caller timeout; releasing it early permits a late frame to
+overwrite restoration. Pending intents are replaceable and rechecked at
+dispatch. Manual takeover invalidates tokens before entering this same lane.
+Never add a second transport queue around the broker without verifying those
+ordering guarantees. Governed Hue output defaults to fixture-scoped REST;
+explicit Entertainment sessions require a server-owned area lifetime, reject
+overlapping bridge claims and address only verified selected channels. Hue
+HTTP 200 replies containing API errors or missing field acknowledgements count
+as failures. WiZ UDP submission remains transport submission, not a bulb receipt.
+Core disables delayed WiZ retransmissions so adapter timers cannot outlive frame
+ownership. Native WiZ restoration retains off-bulb color/scene fields and measured
+low brightness rather than applying the artistic minimum. Physical application
+of those fields still needs device acceptance. Duplicate registry IDs resolving
+to one physical bulb are blocked and counted in diagnostics, rather than getting
+independent ownership lanes.
+
+Temporary programs use native reads, including dynamic-only fixtures; command
+caches do not supply baselines. Govee's alpha adapter lacks a trustworthy native
+restoration reader, so temporary ownership fails closed there while manual
+commands remain available. Effects and taught previews share Core's trusted
+`core.effects` replacement namespace; external features must use bounded owner
+admission and opaque tokens, not `replaceOwned`. Native-state changes, route-mode
+changes and removal invalidate outstanding ownership. Shutdown closes admission,
+restores through the same lanes, then closes transports. Hard process termination
+cannot guarantee restoration.
+
+`test/fixture-output-runtime.test.js` exercises composition with controlled device
+adapters, including profile takeover during an in-flight frame, rapid replacement,
+stale preview timers, native-mode restoration, transport changes, failed starts
+and Hue area isolation. These are not physical hardware acceptance results.
+
 ## Source ownership and generated files
 
 | Directory                             | Responsibility                                                           | Important boundary                                                        |
@@ -238,6 +280,27 @@ boundary. Checking a cancellation flag is insufficient if an earlier asynchronou
 hardware write is still running. Preserve restoration behavior after completion
 and shutdown, and do not let two timers independently own the same fixtures.
 
+Capture a bulb's actual state before its first effect frame, including power and
+the active color mode. Hue reads use the per-light state endpoint; WiZ reads use
+`getPilot` and translate its `state` boolean to the adapter's `on` field. A bulb
+excluded from the normal active route still needs its own baseline. Do not assume
+that the last direct color command touched it. If a required physical baseline
+cannot be read, leave that bulb unchanged and report the unavailable baseline.
+
+Frames and restoration share one per-fixture transport queue. A return waits for
+an in-flight frame and checks ownership again before writing. Preserve the first
+baseline across rapid replacements and while an animated return is pending;
+otherwise an intermediate effect color becomes the supposed previous state.
+Static colors and profiles drain superseded frames before sending their writes.
+
+Effects sample the current program time for every brand. Do not add a start lead,
+per-fixture latency offsets or a future Hue target to compensate for a different
+transport. Natural network/device latency is accepted. Spatial phase offsets and
+chase gaps are intentional program behavior and remain independent of transport
+latency. Legacy saved latency offsets are ignored. Effect behavior controls live
+under Viewer Controls; read-only routing diagnostics, protection and presets live
+under Light Commands, without a separate Light Lab workspace.
+
 Twitch settlement is journaled separately from the lighting action. An interrupted
 action is reviewed, never blindly replayed after restart. Persist the first decision
 before sending fulfillment/cancellation, deduplicate in-flight operations, and require
@@ -289,6 +352,38 @@ imports, and whole-file token duplicates. They cannot prove that a dynamic
 capability is unused, detect every similar algorithm, validate hardware behavior,
 or replace a review of cancellation and recovery logic. Delete an exported path
 only after checking its runtime registrations, manifests, builders, and tests.
+
+## Native Music-to-Light controls
+
+Music-to-Light lives under Lights and works in Core-only mode. The native
+service starts no capture or output until explicitly granted and started.
+Core's lifecycle drains its session before the shared fixture broker and
+transports. No optional feature worker or package is needed.
+
+Core-owned same-origin routes handle capture/output grants, exact source
+selection and independent music fixture selection. Null/external origins are
+denied. Session/styles/source DTOs remain versioned and schema validated for
+future JavaFX parity; they carry no PCM, credentials or transport details.
+Portable designs persist separately from private remembered app identity, grants
+and fixture roles. Restoring preferences never starts capture. Each command
+resolves fresh native process identity before using the selected app.
+
+The native DOM region in index.html is built from music-to-light.html with
+node scripts/build-music-to-light-ui.js. No iframe is mounted. The UI renders
+actual mapped values and bounded history, plus the measured dBFS input level.
+It pauses polling when the tab is hidden. Keep preset role/color defaults useful
+and keep calibration explicit rather than normalizing each song automatically.
+`music-pipeline.js` presents authoritative pipeline choices and duration;
+`music-fixture-controls.js` edits reactive/theatre/steady/off roles. Neither helper
+has audio or fixture-output authority. See the scenario architecture document for
+shared capture leases, song-clock fallback and non-reactive scene restoration.
+
+Run npm run test:music-probe and test/music-to-light.native.test.js. Browser and
+lifecycle tests use synthetic capture and fixture states. Physical camera/audio
+checks are operator-authorized, bounded, local-only experiments; never include
+footage, source identities or native recovery state in a publication. Native
+artifact provenance/license distribution and long listening/resource acceptance
+remain release gates.
 
 ## Chat command permissions and player controls
 

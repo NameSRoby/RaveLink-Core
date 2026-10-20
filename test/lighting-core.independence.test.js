@@ -99,6 +99,7 @@ test("core HTTP server declares absent capabilities and applies color independen
   assert.equal(health.capabilities.mods, false);
   assert.deepEqual(Object.keys(services), [
     "lightingCore",
+    "musicToLight",
     "hardwareOnboarding",
     "coreUpdates",
     "widgetController",
@@ -237,6 +238,7 @@ test("core HTTP server declares absent capabilities and applies color independen
       "core:egress-governor",
       "lighting.transports:hue-wiz-adapters",
       "core:taught-color-preview",
+      "core:music-to-light",
     ],
   );
   assert.equal(
@@ -251,7 +253,7 @@ test("core HTTP server declares absent capabilities and applies color independen
   assert.equal(diagnostics.domains.egress.active, 0);
   assert.equal(diagnostics.domains.egress.queued, 0);
   assert.equal(diagnostics.domains.lightingTransports.owner, "lighting.transports");
-  assert.equal(diagnostics.domains.lightingTransports.hueEntertainment.maximumDnsOverrides, 768);
+  assert.equal(diagnostics.domains.lightingTransports.hueEntertainment.maximumDnsOverrides, 0);
   assert.equal(JSON.stringify(diagnostics).includes("signify.pem"), false);
 
   const oversizedResponse = await fetch(`${base}/teach`, {

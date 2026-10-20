@@ -19,6 +19,7 @@ const createFixtureSecretVault = require("../../domains/fixtures/fixture-secret-
 const createLightingProfileService = require("../../domains/fixtures/lighting-profile.service");
 const createLightingLayoutService = require("../../domains/fixtures/lighting-layout.service");
 const createLightingLabService = require("../../domains/fixtures/lighting-lab.service");
+const createFixtureOutputRuntime = require("../../domains/fixtures/fixture-output-runtime");
 const createTwitchLightRouting = require("../../domains/twitch/twitch-light-routing");
 const createTwitchLightEffectsService = require("../../domains/twitch/twitch-light-effects.service");
 const path = require("node:path");
@@ -133,18 +134,21 @@ module.exports = function createLightingCore(options = {}) {
     getParserOptions: twitchLightRouting.parserOptions,
     sanitizeText: twitchColorConfig.sanitizeCommandText,
   });
-  const hueBridge = createHueBridgeAdapter({
+  const rawHueBridge = createHueBridgeAdapter({
     axios: options.axios,
     dryRun: options.dryRun === true,
     rootDir: String(options.rootDir || "").trim(),
     egressGovernor: options.egressGovernor,
     log: options.log || console,
+    fixtureScoped: true,
   });
-  const wizBridge = createWizBridgeAdapter({
+  const rawWizBridge = createWizBridgeAdapter({
     dryRun: options.dryRun === true,
     log: options.log || console,
+    // Retransmissions must not outlive the broker operation that owns a frame.
+    sendRepeats: 1,
   });
-  const goveeBridge = createGoveeLanAdapter({
+  const rawGoveeBridge = createGoveeLanAdapter({
     dryRun: options.dryRun === true,
     log: options.log || console,
   });
@@ -156,6 +160,11 @@ module.exports = function createLightingCore(options = {}) {
     storePath: path.join(path.dirname(paths.fixturesStorePath), "lighting-lab.json"),
     fixtureRegistry,
   });
+  const fixtureOutput = createFixtureOutputRuntime({
+    fixtureRegistry,
+    adapters: { hue: rawHueBridge, wiz: rawWizBridge, govee: rawGoveeBridge },
+  });
+  const { hue: hueBridge, wiz: wizBridge, govee: goveeBridge } = fixtureOutput.adapters;
   const twitchLightEffects = createTwitchLightEffectsService({
     storePath: path.join(path.dirname(paths.twitchConfigPath), "twitch-light-effects.json"),
     fixtureRegistry,
@@ -163,6 +172,7 @@ module.exports = function createLightingCore(options = {}) {
     adapters: { hue: hueBridge, wiz: wizBridge, govee: goveeBridge },
     lightingLayout,
     lightingLab,
+    outputOwnership: fixtureOutput.ownership,
   });
   const lightingProfiles = createLightingProfileService({
     storePath: path.join(path.dirname(paths.fixturesStorePath), "lighting-profiles.json"),
@@ -188,8 +198,10 @@ module.exports = function createLightingCore(options = {}) {
   const unsubscribeFixtures = fixtureRegistry.subscribe(reconcileTransports);
   void reconcileTransports(fixtureRegistry.getFixtures());
   async function shutdown() {
+    fixtureOutput.closeAdmission();
     unsubscribeFixtures();
     await twitchLightEffects.shutdown();
+    await fixtureOutput.shutdown();
     await reconcilePromise;
     await Promise.allSettled([
       hueBridge.shutdown(),
@@ -224,6 +236,7 @@ module.exports = function createLightingCore(options = {}) {
     lightingProfiles,
     lightingLayout,
     lightingLab,
+    fixtureOutput,
     shutdown,
   });
 };
