@@ -6,7 +6,16 @@
     // Navigation changes presentation only. Hidden editors keep their existing
     // controls and bindings; switching views never starts capture or stops a run.
     function showWorkspace(name) {
-      if (!["play", "customize", "setup"].includes(name)) return;
+      if (!["play", "library", "customize", "setup"].includes(name)) return;
+      $("workspaceHelp").textContent = {
+        play: "Main: live playback, looks and everyday controls. Changes are saved as you use them.",
+        library:
+          "Library: edit songs, manage saved looks and review viewer submissions. Playback selection needs Apply.",
+        customize:
+          "Advanced: build movement recipes and inspect the live pipeline. Use Main for everyday adjustments.",
+        setup:
+          "Setup: choose capture apps, light roles and output limits. Sources and light selection need Save; calibration runs only when requested.",
+      }[name];
       workspace.querySelectorAll("[data-music-view]").forEach((panel) => {
         panel.hidden = panel.dataset.musicView !== name;
       });
@@ -42,6 +51,72 @@
           );
         $(id).value = selected;
       });
+    }
+
+    function paletteControls(design, busy, ready) {
+      if (!busy) $("warmCoolColors").checked = !!design?.warmCoolColors;
+      const option = design?.recipeOptions.palette;
+      const generated =
+        option &&
+        ((option.mode === "random" &&
+          option.allowed.length === 1 &&
+          option.allowed[0] === "generated") ||
+          (option.mode === "fixed" && option.value === "generated"));
+      const custom =
+        !option ||
+        option.mode === "configured" ||
+        (option.mode === "fixed" && option.value === "configured");
+      if (!busy)
+        $("paletteSource").value = generated ? "generated" : custom ? "custom" : "advanced";
+      $("palette").hidden = !custom;
+      $("addColor").disabled = busy || !ready || !custom || $("palette").children.length >= 8;
+      $("paletteHint").textContent = generated
+        ? "A fresh palette of 3-7 distinct colors at each start. Balanced color strength, no near-duplicate stops. Your custom colors stay saved."
+        : custom
+          ? "Choose 2-8 colors, or let Random build a contrasting palette."
+          : "The look or Advanced settings choose the palette. Select Your colors to edit it yourself.";
+    }
+    function renderRandomPalette(pipeline) {
+      const colors = pipeline?.effective?.palette || [];
+      const random = pipeline?.recipe?.palette === "generated";
+      $("randomPalette").hidden = !random;
+      $("randomPalette").replaceChildren(
+        ...(random ? colors : []).map((color, i) => {
+          const swatch = document.createElement("span");
+          swatch.style.backgroundColor = color;
+          swatch.title = `Session color ${i + 1}: ${color}`;
+          swatch.setAttribute("role", "img");
+          swatch.setAttribute("aria-label", swatch.title);
+          return swatch;
+        }),
+      );
+    }
+
+    function renderPalette(colors, save) {
+      colors = [...new Set(colors)];
+      if (colors.length === 1) colors.push(colors[0] === "#ff075b" ? "#008cff" : "#ff075b");
+      $("palette").replaceChildren(
+        ...colors.map((color, index) => {
+          const row = document.createElement("div"),
+            input = document.createElement("input"),
+            remove = document.createElement("button");
+          input.type = "color";
+          input.value = color;
+          input.onchange = save;
+          input.setAttribute("aria-label", `Palette color ${index + 1}`);
+          remove.type = "button";
+          remove.textContent = "×";
+          remove.setAttribute("aria-label", `Remove color ${index + 1}`);
+          remove.onclick = () => {
+            if ($("palette").children.length > 2) {
+              row.remove();
+              save();
+            }
+          };
+          row.append(input, remove);
+          return row;
+        }),
+      );
     }
 
     function addLook(look) {
@@ -86,7 +161,7 @@
           input.disabled =
             busy || !ready || (input.tagName === "BUTTON" && $("palette").children.length <= 2);
         });
-      $("addColor").disabled = busy || !ready || $("palette").children.length >= 5;
+      $("addColor").disabled = busy || !ready || $("palette").children.length >= 8;
     }
     function status(source, state) {
       const transition = state.session?.transition;
@@ -117,7 +192,7 @@
       const message =
         error.message === "music_restart_required"
           ? "Core is running older music code. Use the tray's Restart server, then refresh this page."
-          : "Music controls could not load. Refresh this page to retry.";
+          : "Music controls could not load. Retrying automatically; check that Core is running.";
       $("pipelineTitle").textContent = message;
       $("notice").textContent = message;
       $("notice").dataset.error = "true";
@@ -141,7 +216,71 @@
     function placeEditor(field, row, group) {
       (/^(opening|ending)/.test(field.id) ? $("transitionControls") : group).append(row);
     }
+    const labels = { all: "Overall", low: "Low", mid: "Mid", high: "High" };
+    const presetHelp = {
+      ambient: "Loudness and swells, with a gentle sustained glow.",
+      pulse: "Distinct measured attacks and decay; held notes settle to a dimmer bed.",
+      bands: "Each role follows energy and new rises within its own frequency band.",
+    };
+    const errors = {
+      ...window.RaveLinkSavedEffects.errors,
+      invalid_music_contract_response:
+        "Lighting status could not update. Your lights may still be running; retrying the connection.",
+      invalid_music_source_priorities:
+        "Choose each app only once. Leave unused source slots set to None.",
+      invalid_music_recipe_options:
+        "Check recipe choices: pinned values must be among the allowed choices.",
+      invalid_music_parameter_ranges:
+        "Check randomized ranges against the displayed parameter limits and steps.",
+      music_no_recipe_choices: "Allow at least one choice for each randomized recipe axis.",
+      music_calibration_superseded:
+        "Calibration stopped or settings changed; the previous reference was kept.",
+      music_calibration_insufficient_audio:
+        "Not enough fresh audio to calibrate. Play music in the selected source and try again.",
+      music_calibration_too_quiet:
+        "The measured audio is too quiet for a useful reference. Keep a comfortable listening level and check the selected source.",
+      music_selected_app_not_running:
+        "No saved source is available. Open one of your selected apps and try again. Your choices are still saved.",
+      music_selected_app_multiple_roots:
+        "This app has multiple independent audio processes. Close extra app instances and try again. Core has not switched to desktop audio.",
+      music_operator_save_failed:
+        "The change could not be saved on this computer. Check Core's runtime folder access before restarting.",
+      audio_probe_not_built:
+        "The audio helper is not built. Build it in the developer checkout first.",
+      music_source_not_in_current_catalog:
+        "That source list expired. Refresh sources, then select again.",
+      invalid_music_settings:
+        "Check the response values: quiet/loud levels need at least 12 dB separation and minimum brightness cannot exceed maximum.",
+      music_brightness_limits_unrepresentable:
+        "The chosen brightness range cannot be represented by these lights. WiZ needs a minimum of 10%.",
+      music_feature_inactive: "Music lighting has stopped. Restart Core to start a new session.",
+      music_response_too_large:
+        "The source list exceeds this preview’s display limit. Close unused audio applications or endpoints, then refresh.",
+    };
+    function notice(text, error = false, origin = "action") {
+      $("notice").textContent = text;
+      $("notice").dataset.error = String(error);
+      $("notice").dataset.origin = origin;
+    }
     return {
+      sessionStates: {
+        idle: "Ready",
+        waiting: "Waiting for verified audio",
+        preview: "Preview running · lights untouched",
+        preheating: "Connecting Hue Entertainment",
+        acquiring: "Reading prior light states",
+        running: "Live lighting",
+        stopping: "Stopping & restoring",
+        stopped: "Stopped",
+        failed: "Stopped after a session error",
+      },
+      errors,
+      paletteControls,
+      palette: renderPalette,
+      randomPalette: renderRandomPalette,
+      notice,
+      labels,
+      presetHelp,
       responseRanges: { normal: [-42, -18], quiet: [-48, -24], loud: [-36, -12] },
       show: showWorkspace,
       sources: renderSources,

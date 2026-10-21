@@ -300,11 +300,49 @@
     }
   };
 
-  document.querySelectorAll("[data-light-tab]").forEach((button) =>
+  const lightTabs = [...document.querySelectorAll("[data-light-tab]")];
+  const workspaceHelp = {
+    control:
+      "Direct control: set lights yourself or test a saved viewer route. Tests send real light commands.",
+    viewer:
+      "Viewer controls: enable Rave, choose which lights viewers can use, and set command permissions. Connect the Channel Points reward through Twitch Integration.",
+    music:
+      "Music-to-Light: use Main for playback, Library for songs and saved looks, Advanced for recipes, and Setup for capture and lights.",
+    profiles: "Light profiles: save and recall a room's colors, brightness and power states.",
+    commands:
+      "Light commands: copy instructions for viewers based on your saved routes and permissions.",
+    layout: "Room layout: place fixtures in your room for spatial effects. This editor is Alpha.",
+  };
+  lightTabs.forEach((button, index) => {
+    const key = button.dataset.lightTab;
+    button.id = "light-tab-" + key;
+    button.setAttribute("role", "tab");
+    button.setAttribute("aria-controls", "light-panel-" + key);
+    button.setAttribute("aria-selected", String(index === 0));
+    button.tabIndex = index === 0 ? 0 : -1;
+    const panel = document.querySelector(`[data-light-panel="${key}"]`);
+    panel.id = "light-panel-" + key;
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", button.id);
+    button.addEventListener("keydown", (event) => {
+      const next = {
+        ArrowRight: (index + 1) % lightTabs.length,
+        ArrowLeft: (index + lightTabs.length - 1) % lightTabs.length,
+        Home: 0,
+        End: lightTabs.length - 1,
+      }[event.key];
+      if (next === undefined) return;
+      event.preventDefault();
+      lightTabs[next].focus();
+      lightTabs[next].click();
+    });
     button.addEventListener("click", () => {
-      document
-        .querySelectorAll("[data-light-tab]")
-        .forEach((row) => row.classList.toggle("active", row === button));
+      document.querySelectorAll("[data-light-tab]").forEach((row) => {
+        row.classList.toggle("active", row === button);
+        row.setAttribute("aria-selected", String(row === button));
+        row.tabIndex = row === button ? 0 : -1;
+      });
+      element("lightWorkspaceHelp").textContent = workspaceHelp[key];
       document.querySelectorAll("[data-light-panel]").forEach((panel) => {
         panel.hidden = panel.dataset.lightPanel !== button.dataset.lightTab;
       });
@@ -324,8 +362,8 @@
           element("lightingLabNotice").textContent = error.message;
         });
       }
-    }),
-  );
+    });
+  });
   populateSelect();
   render();
   void load().catch((error) => {

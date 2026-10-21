@@ -128,7 +128,7 @@ module.exports = function createSavedEffects({ storePath, random = Math.random }
   function snapshot() {
     return { ...structuredClone(state), recovered };
   }
-  function save({ name }, pipeline, transition) {
+  function draft({ name }, pipeline, transition) {
     if (typeof name !== "string" || !name.trim() || name.length > 80)
       throw fault("invalid_music_effect_name");
     const profile = {
@@ -138,24 +138,50 @@ module.exports = function createSavedEffects({ storePath, random = Math.random }
       assignments: (pipeline.assignments || [])
         .filter((a) => typeof a.id === "string")
         .map(
-          ({ id, role, raveBehavior = "reactive", sceneBrightness, sceneFadeMs, colorSlot }) => ({
+          ({
+            id,
+            role,
+            raveBehavior = "reactive",
+            sceneBrightness,
+            sceneFadeMs,
+            colorSlot,
+            outOfSync,
+          }) => ({
             id,
             role,
             raveBehavior,
             ...(sceneBrightness === undefined ? {} : { sceneBrightness }),
             ...(sceneFadeMs === undefined ? {} : { sceneFadeMs }),
             ...(colorSlot === undefined ? {} : { colorSlot }),
+            ...(outOfSync === undefined ? {} : { outOfSync }),
           }),
         ),
     };
+    return profile;
+  }
+  function add(profile) {
     const next = structuredClone(state);
     next.profiles.push(profile);
     commit(next);
     return profile;
   }
+  function save(value, pipeline, transition) {
+    return add(draft(value, pipeline, transition));
+  }
   return {
     snapshot,
     save,
+    draft,
+    add,
+    rename({ id, name }) {
+      if (typeof name !== "string" || !name.trim() || name.length > 80)
+        throw fault("invalid_music_effect_name");
+      const next = structuredClone(state);
+      const profile = next.profiles.find((p) => p.id === id);
+      if (!profile) throw fault("music_effect_not_found");
+      profile.name = name.trim();
+      return commit(next);
+    },
     restricted: () => state.policy.mode !== "full-random",
     policy(value) {
       return commit({ ...state, policy: value });
@@ -170,10 +196,12 @@ module.exports = function createSavedEffects({ storePath, random = Math.random }
         policy: { ...state.policy, ids: state.policy.ids.filter((p) => p !== id) },
       });
     },
-    choose(base, fixtures) {
+    choose(base, fixtures, override) {
       if (recovered) throw fault("music_effect_library_unavailable");
-      if (state.policy.mode === "full-random") return { design: base, fixtures, profile: null };
-      const allowed = state.profiles.filter((p) => state.policy.ids.includes(p.id));
+      const policy = override || state.policy;
+      validate({ ...state, policy });
+      if (policy.mode === "full-random") return { design: base, fixtures, profile: null };
+      const allowed = state.profiles.filter((p) => policy.ids.includes(p.id));
       if (!allowed.length) throw fault("music_no_saved_effects");
       const pool = allowed.length > 1 ? allowed.filter((p) => p.id !== lastId) : allowed;
       const roll = random();

@@ -196,10 +196,14 @@ looks.push({
     behaviors: {
       ...looks.find((look) => look.id === "rave-mix").design.behaviors,
       expressiveEnabled: true,
+      loudnessBrightness: true,
+      pulseBed: 0,
+      pulseDecayMs: 160,
       spatialAccentShare: 0.15,
     },
     parameterRanges: {
       ...looks.find((look) => look.id === "rave-mix").design.parameterRanges,
+      pulseDecayMs: { min: 100, max: 220 },
       spatialAccentShare: { min: 0.05, max: 0.3 },
     },
   },

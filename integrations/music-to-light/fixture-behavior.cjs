@@ -17,6 +17,7 @@ function validate(row) {
     ["sceneBrightness", 1, 100],
     ["sceneFadeMs", 0, 10000],
     ["colorSlot", 0, 7],
+    ["outOfSync", 0, 100],
   ])
     if (row[key] !== undefined && (!Number.isInteger(row[key]) || row[key] < min || row[key] > max))
       throw fault();

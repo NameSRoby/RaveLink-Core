@@ -31,6 +31,21 @@ impl Drop for Apartment {
 pub fn run(command: Command) -> Result<(), Failure> {
     let _apartment = Apartment::enter()?;
     match command {
+        Command::Fullscreen => {
+            let waiting = std::time::Instant::now();
+            let selected = loop {
+                match fullscreen::foreground_pid() {
+                    Ok(pid) => break vec![sources::Process::open(pid)?.description()?],
+                    Err(error) if error.code == "fullscreen_app_unavailable" => {}
+                    Err(error) => return Err(error),
+                }
+                if waiting.elapsed() >= std::time::Duration::from_secs(5) {
+                    break vec![];
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            };
+            emit(json!({"v":2,"type":"sources","sources":selected}))
+        }
         Command::Apps => emit(app_sources::catalog()?),
         Command::Sources => emit(
             json!({"v":2,"type":"sources","sources":sources::catalog()?,"process_loopback":"probed_on_start","minimum_process_build":20348}),

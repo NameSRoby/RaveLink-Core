@@ -67,6 +67,9 @@ function perceptual(a, b, t) {
   const light = from[0] + (to[0] - from[0]) * t,
     hue = from[2] + arc * t;
   const chroma = from[1] + (to[1] - from[1]) * t;
+  return fromOklch([light, chroma, hue]);
+}
+function fromOklch([light, chroma, hue]) {
   const valid = (values) => values.every((v) => v >= -1e-7 && v <= 1 + 1e-7);
   let result = linear([light, chroma, hue]);
   if (!valid(result)) {
@@ -97,4 +100,4 @@ function blend(a, b, t, vibrance = 0, expressive = false) {
   ]);
   return result.map((n, i) => Math.round(n + (vivid[i] - n) * vibrance));
 }
-module.exports = { rgb, hsv, fromHsv, blend, oklch, perceptual };
+module.exports = { rgb, hsv, fromHsv, blend, oklch, perceptual, fromOklch };

@@ -92,6 +92,7 @@
                   "closed",
                   "waiting",
                   "preview",
+                  "preheating",
                   "acquiring",
                   "running",
                   "stopping",
@@ -109,6 +110,7 @@
                       "idle",
                       "waiting",
                       "preview",
+                      "preheating",
                       "acquiring",
                       "running",
                       "stopping",
@@ -475,6 +477,7 @@
                   "closed",
                   "waiting",
                   "preview",
+                  "preheating",
                   "acquiring",
                   "running",
                   "stopping",
@@ -492,6 +495,7 @@
                       "idle",
                       "waiting",
                       "preview",
+                      "preheating",
                       "acquiring",
                       "running",
                       "stopping",
@@ -848,6 +852,7 @@
                   "closed",
                   "waiting",
                   "preview",
+                  "preheating",
                   "acquiring",
                   "running",
                   "stopping",
@@ -865,6 +870,7 @@
                       "idle",
                       "waiting",
                       "preview",
+                      "preheating",
                       "acquiring",
                       "running",
                       "stopping",
@@ -1561,6 +1567,32 @@
                     "type": "number",
                     "minimum": 0,
                     "maximum": 500
+                  },
+                  "steadyBrightness": {
+                    "type": "boolean"
+                  },
+                  "accentDepth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "bodyAttackMs": {
+                    "type": "number",
+                    "minimum": 20,
+                    "maximum": 1000
+                  },
+                  "bodyReleaseMs": {
+                    "type": "number",
+                    "minimum": 50,
+                    "maximum": 1500
+                  },
+                  "loudnessBrightness": {
+                    "type": "boolean"
+                  },
+                  "impactDepth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
                   }
                 }
               },
@@ -1698,12 +1730,13 @@
                           "electric-pulse",
                           "ember-pulse",
                           "aurora-swell",
-                          "prism-bands"
+                          "prism-bands",
+                          "generated"
                         ]
                       },
                       "allowed": {
                         "type": "array",
-                        "maxItems": 5,
+                        "maxItems": 6,
                         "items": {
                           "type": "string",
                           "enum": [
@@ -1711,7 +1744,8 @@
                             "electric-pulse",
                             "ember-pulse",
                             "aurora-swell",
-                            "prism-bands"
+                            "prism-bands",
+                            "generated"
                           ]
                         }
                       }
@@ -2362,6 +2396,9 @@
               "outputRateMode": {
                 "type": "string",
                 "enum": ["fixed", "adaptive"]
+              },
+              "warmCoolColors": {
+                "type": "boolean"
               }
             },
             "required": []
@@ -2684,6 +2721,32 @@
                     "type": "number",
                     "minimum": 0,
                     "maximum": 500
+                  },
+                  "steadyBrightness": {
+                    "type": "boolean"
+                  },
+                  "accentDepth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "bodyAttackMs": {
+                    "type": "number",
+                    "minimum": 20,
+                    "maximum": 1000
+                  },
+                  "bodyReleaseMs": {
+                    "type": "number",
+                    "minimum": 50,
+                    "maximum": 1500
+                  },
+                  "loudnessBrightness": {
+                    "type": "boolean"
+                  },
+                  "impactDepth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
                   }
                 }
               },
@@ -2821,12 +2884,13 @@
                           "electric-pulse",
                           "ember-pulse",
                           "aurora-swell",
-                          "prism-bands"
+                          "prism-bands",
+                          "generated"
                         ]
                       },
                       "allowed": {
                         "type": "array",
-                        "maxItems": 5,
+                        "maxItems": 6,
                         "items": {
                           "type": "string",
                           "enum": [
@@ -2834,7 +2898,8 @@
                             "electric-pulse",
                             "ember-pulse",
                             "aurora-swell",
-                            "prism-bands"
+                            "prism-bands",
+                            "generated"
                           ]
                         }
                       }
@@ -3485,6 +3550,9 @@
               "outputRateMode": {
                 "type": "string",
                 "enum": ["fixed", "adaptive"]
+              },
+              "warmCoolColors": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -3829,6 +3897,32 @@
                     "type": "number",
                     "minimum": 0,
                     "maximum": 500
+                  },
+                  "steadyBrightness": {
+                    "type": "boolean"
+                  },
+                  "accentDepth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "bodyAttackMs": {
+                    "type": "number",
+                    "minimum": 20,
+                    "maximum": 1000
+                  },
+                  "bodyReleaseMs": {
+                    "type": "number",
+                    "minimum": 50,
+                    "maximum": 1500
+                  },
+                  "loudnessBrightness": {
+                    "type": "boolean"
+                  },
+                  "impactDepth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
                   }
                 }
               },
@@ -3966,12 +4060,13 @@
                           "electric-pulse",
                           "ember-pulse",
                           "aurora-swell",
-                          "prism-bands"
+                          "prism-bands",
+                          "generated"
                         ]
                       },
                       "allowed": {
                         "type": "array",
-                        "maxItems": 5,
+                        "maxItems": 6,
                         "items": {
                           "type": "string",
                           "enum": [
@@ -3979,7 +4074,8 @@
                             "electric-pulse",
                             "ember-pulse",
                             "aurora-swell",
-                            "prism-bands"
+                            "prism-bands",
+                            "generated"
                           ]
                         }
                       }
@@ -4630,6 +4726,9 @@
               "outputRateMode": {
                 "type": "string",
                 "enum": ["fixed", "adaptive"]
+              },
+              "warmCoolColors": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -4983,6 +5082,32 @@
                     "type": "number",
                     "minimum": 0,
                     "maximum": 500
+                  },
+                  "steadyBrightness": {
+                    "type": "boolean"
+                  },
+                  "accentDepth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "bodyAttackMs": {
+                    "type": "number",
+                    "minimum": 20,
+                    "maximum": 1000
+                  },
+                  "bodyReleaseMs": {
+                    "type": "number",
+                    "minimum": 50,
+                    "maximum": 1500
+                  },
+                  "loudnessBrightness": {
+                    "type": "boolean"
+                  },
+                  "impactDepth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
                   }
                 }
               },
@@ -5120,12 +5245,13 @@
                           "electric-pulse",
                           "ember-pulse",
                           "aurora-swell",
-                          "prism-bands"
+                          "prism-bands",
+                          "generated"
                         ]
                       },
                       "allowed": {
                         "type": "array",
-                        "maxItems": 5,
+                        "maxItems": 6,
                         "items": {
                           "type": "string",
                           "enum": [
@@ -5133,7 +5259,8 @@
                             "electric-pulse",
                             "ember-pulse",
                             "aurora-swell",
-                            "prism-bands"
+                            "prism-bands",
+                            "generated"
                           ]
                         }
                       }
@@ -5784,6 +5911,9 @@
               "outputRateMode": {
                 "type": "string",
                 "enum": ["fixed", "adaptive"]
+              },
+              "warmCoolColors": {
+                "type": "boolean"
               }
             },
             "required": [

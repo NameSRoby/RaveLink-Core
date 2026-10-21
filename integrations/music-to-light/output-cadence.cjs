@@ -20,10 +20,27 @@ module.exports = function createCadence(fixtures = []) {
         return 2;
       }
       const level = Math.max(0, Math.min(1, m.level)),
-        rise = Math.max(0, m.rise),
+        // Artistic riseGain must not turn a small measured change into
+        // permission for maximum transport speed.
+        rise = Math.max(0, Number.isFinite(m.energyRise) ? m.energyRise : m.rise),
         energyRate = level >= 0.8 ? 8 : level >= 0.5 ? 6 : level >= 0.2 ? 4 : 2,
         riseRate = rise >= b.rateRiseThreshold * 2 ? 16 : rise >= b.rateRiseThreshold ? 12 : 2,
-        requested = Math.min(config.outputHz, m.attack ? 16 : Math.max(energyRate, riseRate));
+        attackRate = Number.isFinite(m.attackStrength)
+          ? m.attackStrength >= 0.8 && level >= 0.5
+            ? 16
+            : m.attackStrength >= 0.5 && level >= 0.3
+              ? 12
+              : 2
+          : m.attack
+            ? 16
+            : 2,
+        // Rendering frequency is interpolation quality, not effect intensity.
+        // Color movement must not become a staircase between loud attacks.
+        motionRate = m.colorMotion ? config.outputHz : 2,
+        requested = Math.min(
+          config.outputHz,
+          Math.max(motionRate, attackRate, energyRate, riseRate),
+        );
       // Rise immediately; hold the most demanding rate through short gaps.
       // Sustained lower demand replaces it only after the operator's hold time.
       // There is no song classification, tempo guess or artistic redraw here.

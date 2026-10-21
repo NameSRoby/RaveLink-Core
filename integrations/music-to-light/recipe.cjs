@@ -19,7 +19,14 @@ const axes = [
   {
     id: "palette",
     label: "Palette",
-    choices: ["configured", "electric-pulse", "ember-pulse", "aurora-swell", "prism-bands"],
+    choices: [
+      "configured",
+      "generated",
+      "electric-pulse",
+      "ember-pulse",
+      "aurora-swell",
+      "prism-bands",
+    ],
   },
   { id: "feel", label: "Response feel", choices: ["slow", "normal", "fast", "aggressive"] },
   {
@@ -103,7 +110,8 @@ function resolve(config, scenario, random, history = null) {
   config.colorMode = pick("color", config.colorMode, config, random, history);
   config.feel = pick("feel", config.feel, config, random, history);
   const palette = pick("palette", "configured", config, random, history);
-  if (palette !== "configured")
+  if (palette === "generated") config.palette = require("./random-palette.cjs")(random);
+  else if (palette !== "configured")
     config.palette = [...looks.find((l) => l.id === palette).design.palette];
   const parameters = {};
   for (const [id, range] of Object.entries(config.parameterRanges)) {

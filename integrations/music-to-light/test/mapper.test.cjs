@@ -17,6 +17,23 @@ function feed(mapper, start, count, rms, bands) {
   return mapper.render((start + count - 1) * 20);
 }
 module.exports = { sample };
+
+test("steady brightness keeps a bounded intensity level while colors move and silence still settles", () => {
+  const mapper = createMapper({
+    maximumBrightness: 35,
+    intensity: 0.6,
+    colorMode: "travel",
+    colorSeconds: 2,
+    palette: ["#ff0000", "#0000ff"],
+    behaviors: { steadyBrightness: true },
+  });
+  const first = feed(mapper, 1, 100, 0.04);
+  const louder = feed(mapper, 101, 100, 0.4);
+  assert.equal(first.brightness, 25);
+  assert.equal(louder.brightness, first.brightness);
+  assert.notDeepEqual(first.rgb, louder.rgb);
+  assert.equal(feed(mapper, 201, 150, 0).brightness, 10);
+});
 test("fixed calibration preserves quiet/loud ordering without recoloring or adaptive gain", () => {
   const mapper = createMapper({
     palette: ["#225588"],

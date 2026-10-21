@@ -17,8 +17,14 @@ const {
 } = require("../../src/domains/colors/color-space");
 const CADENCE_MS = 250,
   WATCHDOG_MS = 25;
-function targets(output) {
-  if (!output) return ["all", "low", "mid", "high"].map((role, i) => ({ role, position: i / 3 }));
+function targets(output, previewFixtures) {
+  if (!output)
+    return ["all", "low", "mid", "high"].map((role, i) => ({
+      role,
+      position: i / 3,
+      outOfSync: previewFixtures[i % previewFixtures.length]?.outOfSync || 0,
+      contrastSourceId: previewFixtures[i % previewFixtures.length]?.id,
+    }));
   if (
     !output.ownership ||
     ["acquire", "write", "release", "releaseOwner", "has"].some(
@@ -52,6 +58,7 @@ module.exports = function createMusicSession({
   settings,
   recipeHistory = null,
   output = null,
+  previewFixtures = [],
   onFrame = () => {},
   now = () => performance.now(),
   setTimeout: schedule = setTimeout,
@@ -64,15 +71,17 @@ module.exports = function createMusicSession({
       Math.random,
       mapper.settings().behaviors.shuffleChoicesEnabled ? recipeHistory : null,
     ),
-    selected = recipe.fixtures(
-      targets(output),
-      mapper.settings(),
-      output?.kind === "effect",
-      Math.random,
-      mapper.settings().behaviors.expressiveEnabled &&
-        mapper.settings().behaviors.shuffleChoicesEnabled
-        ? recipeHistory
-        : null,
+    selected = require("./fixture-contrast.cjs").plan(
+      recipe.fixtures(
+        targets(output, previewFixtures),
+        mapper.settings(),
+        output?.kind === "effect",
+        Math.random,
+        mapper.settings().behaviors.expressiveEnabled &&
+          mapper.settings().behaviors.shuffleChoicesEnabled
+          ? recipeHistory
+          : null,
+      ),
     ),
     cadence = createCadence(selected),
     motion = createOutputMotion(),
@@ -334,11 +343,15 @@ module.exports = function createMusicSession({
             // Only falling Pulse/Bands targets get the optional native glide.
             // Rising accents remain immediate; no brand-sync delay is added.
             transitiontime:
-              falling && config.behaviors.hueGlideMs > 0
-                ? Math.round(config.behaviors.hueGlideMs / 100)
-                : config.interpretation === "musical" && mapper.preset() === "ambient"
-                  ? 1
-                  : 0,
+              config.interpretation === "musical" &&
+              config.behaviors.loudnessBrightness &&
+              !config.behaviors.steadyBrightness
+                ? 0
+                : falling && config.behaviors.hueGlideMs > 0
+                  ? Math.round(config.behaviors.hueGlideMs / 100)
+                  : config.interpretation === "musical" && mapper.preset() === "ambient"
+                    ? 1
+                    : 0,
           })
         : createWizStateFromRgb(frame.rgb, { dimming: frame.brightness }));
     if (frame.entranceMix !== undefined && baselines.has(fixture.id)) {
@@ -355,14 +368,24 @@ module.exports = function createMusicSession({
         frame.entranceMix,
       );
     }
-    if (fixture.entertainmentActive) native.__entertainment = true;
+    if (fixture.entertainmentActive) {
+      native.__entertainment = true;
+      // Keep the mapped RGB through streaming; an xy round trip normalizes
+      // lightness and can alter the same color sent directly to WiZ.
+      if (!frame.sceneNative && (frame.entranceMix === undefined || frame.entranceMix >= 1))
+        native.__rgb = { ...frame.rgb };
+    }
     const task = Promise.resolve()
       .then(() => {
         if (closed) return;
         delivery.attempted++;
         delivery.lastCommand = {
           atMs: Math.max(0, at - startedAt),
-          state: structuredClone(native),
+          // Transport markers authorize adapter behavior; they are not part of
+          // the public, contract-validated native light-state diagnostics.
+          state: Object.fromEntries(
+            Object.entries(structuredClone(native)).filter(([key]) => !key.startsWith("__")),
+          ),
         };
         delivery.lastBrightness = frame.brightness;
         return output.ownership.write(token, native, { sampledAt: frame.sampledAt });
@@ -601,6 +624,17 @@ module.exports = function createMusicSession({
       arm();
       return snapshot();
     },
+    setContrast(ids, percent) {
+      if (closed) throw fault("music_session_closed");
+      if (!Number.isInteger(percent) || percent < 0 || percent > 100)
+        throw fault("invalid_music_fixture_selection");
+      for (const f of selected)
+        if (
+          (!f.raveBehavior || f.raveBehavior === "reactive") &&
+          (ids === null || ids.includes(f.id || f.contrastSourceId))
+        )
+          f.outOfSync = percent;
+    },
     stop,
     done,
     snapshot,
@@ -611,13 +645,24 @@ module.exports = function createMusicSession({
             ...mapper.inspect(now()),
             outputCadence: snapshot().outputCadence,
             assignments: selected.map(
-              ({ id, role, position, raveBehavior, sceneBrightness, colorSlot }) => ({
+              ({
                 id,
                 role,
                 position,
                 raveBehavior,
                 sceneBrightness,
+                sceneFadeMs,
                 colorSlot,
+                outOfSync = 0,
+              }) => ({
+                id,
+                role,
+                position,
+                raveBehavior,
+                sceneBrightness,
+                sceneFadeMs,
+                colorSlot,
+                outOfSync,
               }),
             ),
           },

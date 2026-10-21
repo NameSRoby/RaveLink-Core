@@ -23,6 +23,10 @@ function environment(t, overrides = {}) {
   const state = new Map([["bulb", { on: false, bri: 100, ct: 350 }]]),
     writes = [],
     intervals = new Set();
+  if (overrides.sceneFixture) {
+    state.set("scene", { on: !overrides.sceneStartsOff, dimming: 80, temp: 2700 });
+    state.set("unrouted", { on: true, bri: 150, ct: 400 });
+  }
   const broker = createBroker({
     now: () => at,
     isEligible: (id) => state.has(id),
@@ -38,12 +42,23 @@ function environment(t, overrides = {}) {
     },
   });
   let available = [{ id: "bulb", brand: "hue", enabled: true }];
+  if (overrides.sceneFixture)
+    available.push(
+      { id: "scene", brand: "wiz", enabled: true },
+      { id: "unrouted", brand: "hue", enabled: true },
+    );
   const controller = createController({
     savedEffects: overrides.savedEffects,
     now: () => at,
     wallNow: () => 100000 + at,
     readPlayback: overrides.readPlayback,
-    output: { ownership: broker, resolveFixtures: () => available },
+    output: {
+      ownership: broker,
+      resolveFixtures: () => available,
+      ...(overrides.sceneFixture
+        ? { isRaveAllowed: (id) => id === "bulb", isAutoAllowed: () => !overrides.sceneExcluded }
+        : {}),
+    },
     probeApi: {
       listSources: async (options) => {
         queries++;
@@ -742,4 +757,153 @@ test("saved-only policy controls manual and channel-points starts and preserves 
   assert.equal(e.operator.pipeline().savedEffect.id, p.id);
   assert.equal(e.operator.pipeline().recipe.shape, "wave");
   assert.equal(e.operator.pipeline().effective.feel, "fast");
+});
+
+test("contrast validates atomically, persists bindings and edits live or preview without restarting", async (t) => {
+  const e = environment(t);
+  await authorizeRave(e);
+  e.operator.contrast({ percent: 40, fixtures: null });
+  assert.equal(e.operator.bindings().fixtures[0].outOfSync, 40);
+  await e.client.start({ mode: "preview" });
+  await e.pump();
+  assert(e.operator.pipeline().assignments.every((f) => f.outOfSync === 40));
+  e.operator.contrast({ percent: 75, fixtures: ["bulb"] });
+  assert(e.operator.pipeline().assignments.every((f) => f.outOfSync === 75));
+  assert.equal(e.captures, 1);
+  assert.equal(e.stops, 0);
+  for (const value of [
+    { percent: 101, fixtures: null },
+    { percent: 50, fixtures: [] },
+    { percent: 50, fixtures: ["missing"] },
+    { percent: 50, fixtures: ["bulb", "bulb"] },
+    { percent: 50, fixtures: null, delay: 500 },
+  ])
+    assert.throws(() => e.operator.contrast(value));
+  assert.equal(e.operator.bindings().fixtures[0].outOfSync, 75);
+  await e.client.stop();
+  await e.client.start({ mode: "live" });
+  await e.pump();
+  e.operator.contrast({ percent: 90, fixtures: ["bulb"] });
+  assert.equal(e.operator.pipeline().assignments[0].outOfSync, 90);
+  assert.equal(e.captures, 2);
+  assert.equal(e.stops, 1);
+  await e.client.stop();
+  assert.equal(e.state.get("bulb").ct, 350);
+});
+
+async function sceneRave(e, start = true) {
+  await authorizeRave(e);
+  e.client.configure({ ...e.client.exportDesign(), maximumBrightness: 100 });
+  await e.operator.selectFixtures([
+    { id: "bulb", role: "all", position: 0 },
+    {
+      id: "scene",
+      role: "low",
+      position: 1,
+      raveBehavior: "dim",
+      sceneBrightness: 50,
+      sceneFadeMs: 200,
+    },
+    { id: "unrouted", role: "all", position: 0.5 },
+  ]);
+  return start ? e.operator.rave({ fixtureIds: ["bulb"], origin: "viewer" }) : null;
+}
+
+test("viewer Rave applies configured dim companions without admitting extra reactive targets and restores both", async (t) => {
+  const e = environment(t, { sceneFixture: true });
+  const result = await sceneRave(e);
+  assert.deepEqual(result.targets, ["bulb", "scene"]);
+  await e.pump(800);
+  assert.equal(e.state.get("scene").dimming, 50);
+  assert.equal(e.state.get("scene").on, true);
+  assert.equal(e.state.get("unrouted").bri, 150);
+  assert.deepEqual(e.operator.raveRouteIds(), ["bulb"]);
+  assert.deepEqual(e.operator.raveIds(), ["bulb", "scene"]);
+  assert.equal(e.client.status().session.ownedFixtures, 2);
+  await e.operator.stopRave(["bulb"]);
+  assert.deepEqual(e.state.get("scene"), { on: true, dimming: 80, temp: 2700 });
+  assert.equal(e.state.get("bulb").on, false);
+});
+
+test("dim companions respect lab exclusions and an off baseline, and need a real admitted route", async (t) => {
+  for (const options of [{ sceneExcluded: true }, { sceneStartsOff: true }]) {
+    const e = environment(t, { sceneFixture: true, ...options });
+    await sceneRave(e);
+    await e.pump(800);
+    assert.equal(e.state.get("scene").on, !options.sceneStartsOff);
+    if (options.sceneExcluded) assert.equal(e.state.get("scene").dimming, 80);
+    await e.operator.stopRave();
+    await assert.rejects(
+      e.operator.rave({ fixtureIds: ["not-selected"] }),
+      /invalid_music_fixture_selection/,
+    );
+    await assert.rejects(
+      e.operator.rave({ fixtureIds: ["unrouted"] }),
+      /invalid_music_fixture_selection/,
+    );
+  }
+});
+
+test("saved looks cannot promote an unrouted dim companion to a reactive fixture", async (t) => {
+  const e = environment(t, {
+    sceneFixture: true,
+    savedEffects: {
+      choose: (design, fixtures) => ({
+        design,
+        fixtures: fixtures.map((f) =>
+          f.id === "scene" ? { ...f, raveBehavior: "reactive", sceneBrightness: 100 } : f,
+        ),
+        profile: { id: "look", name: "Saved look" },
+      }),
+    },
+  });
+  await sceneRave(e);
+  await e.pump(800);
+  assert.equal(e.operator.pipeline().routing.find((f) => f.id === "scene").behavior, "dim");
+  assert.equal(e.state.get("scene").dimming, 50);
+});
+
+test("channel-points Rave dims its operator scene companion and an unchanged route save does not stop it", async (t) => {
+  const fs = require("node:fs"),
+    os = require("node:os"),
+    path = require("node:path");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-scene-reward-"));
+  const e = environment(t, { sceneFixture: true });
+  await sceneRave(e, false);
+  const effects = require("../../../src/domains/twitch/twitch-light-effects.service")({
+    storePath: path.join(dir, "effects.json"),
+    fixtureRegistry: { listTwitchBy: () => [{ id: "bulb", brand: "hue", twitchEnabled: true }] },
+    directiveService: { parseTwitchColorDirective: () => ({ ok: false }) },
+  });
+  t.after(async () => {
+    await effects.shutdown();
+    const relative = path.relative(os.tmpdir(), dir);
+    assert(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  assert.equal(
+    effects.save({ revision: 0, enabled: true, fixtureIds: ["bulb"], prefixes: {} }).ok,
+    true,
+  );
+  effects.setMusicHandler({
+    check: e.operator.checkRave,
+    start: e.operator.rave,
+    stop: e.operator.stopRave,
+    ids: e.operator.raveIds,
+    routedIds: e.operator.raveRouteIds,
+  });
+  const result = await effects.handle("rave", { fixtureIds: ["bulb"] });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.targets, ["bulb", "scene"]);
+  await e.pump(800);
+  assert.equal(e.state.get("scene").dimming, 50);
+  assert.equal(e.state.get("unrouted").bri, 150);
+  assert.equal(
+    effects.save({ revision: 1, enabled: true, fixtureIds: ["bulb"], prefixes: {} }).ok,
+    true,
+  );
+  await flush();
+  assert.equal(e.operator.raveIds().length, 2);
+  await effects.handle("rave stop", { fixtureIds: ["bulb"] });
+  assert.deepEqual(e.state.get("scene"), { on: true, dimming: 80, temp: 2700 });
 });

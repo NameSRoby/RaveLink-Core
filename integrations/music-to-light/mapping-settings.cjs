@@ -17,6 +17,7 @@ const DEFAULT = Object.freeze({
   feel: "normal",
   palette: Object.freeze(["#ffd8ad", "#e8c4ff", "#9dc9ff"]),
   colorMode: "travel",
+  warmCoolColors: false,
   colorSeconds: 8,
   minimumBrightness: 10,
   maximumBrightness: 35,
@@ -60,6 +61,7 @@ function settings(input = {}) {
     typeof value.feel !== "string" ||
     !Object.hasOwn(FEELS, value.feel) ||
     !choice("colorMode", ["fixed", "travel", "onsets", "roles", "energy"]) ||
+    typeof value.warmCoolColors !== "boolean" ||
     !choice("raveColorPlan", ["configured", "frequency", "energy"]) ||
     !choice("scenarioMode", ["manual", "random"]) ||
     !choice("raveDurationMode", ["song", "dynamic", "separate"]) ||

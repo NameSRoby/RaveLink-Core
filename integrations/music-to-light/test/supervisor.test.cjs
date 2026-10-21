@@ -252,3 +252,22 @@ test("finished source query removes its abort listener", async () => {
   abort.abort();
   assert.equal(child.killed, false);
 });
+
+test("fullscreen discovery distinguishes verified process selection from absence", async () => {
+  const { fullscreenSource } = require("../probe.cjs");
+  for (const selected of [
+    null,
+    { id: "process:10:20", label: "Game", kind: "application", scope: "process_tree" },
+  ]) {
+    const child = new Child();
+    const pending = fullscreenSource({
+      spawn: (_file, args) => {
+        assert.deepEqual(args, ["fullscreen"]);
+        return child;
+      },
+    });
+    child.send({ v: 2, type: "sources", sources: selected ? [selected] : [] });
+    child.close();
+    assert.deepEqual(await pending, selected);
+  }
+});

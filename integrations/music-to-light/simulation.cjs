@@ -11,14 +11,16 @@ function simulate({ features, fixtures, design, random = () => 0.5, history = nu
   const mapper = createMapper(design, { random, history });
   const effective = mapper.settings();
   const transitionPlan = chooseTransitions(effective.behaviors, random, history);
-  fixtures = require("./recipe.cjs").fixtures(
-    fixtures,
-    effective,
-    true,
-    random,
-    effective.behaviors.expressiveEnabled && effective.behaviors.shuffleChoicesEnabled
-      ? history
-      : null,
+  fixtures = require("./fixture-contrast.cjs").plan(
+    require("./recipe.cjs").fixtures(
+      fixtures,
+      effective,
+      true,
+      random,
+      effective.behaviors.expressiveEnabled && effective.behaviors.shuffleChoicesEnabled
+        ? history
+        : null,
+    ),
   );
   mapper.setPositions(require("./composition.cjs").reactivePositions(fixtures));
   const cadence = createCadence(fixtures),
@@ -45,8 +47,7 @@ function simulate({ features, fixtures, design, random = () => 0.5, history = nu
     if (at >= nextSampleAt) continue;
     const rendered = fixtures.map((f, i) => {
       const frame = mapper.render(at, {
-        role: f.role,
-        position: f.position,
+        ...f,
         onsetSince: Math.max(sentAt.get(i) ?? at - 1, at - cadence.retentionMs(f, rate)),
       });
       if (!frame) return null;

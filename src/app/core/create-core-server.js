@@ -158,6 +158,8 @@ module.exports = function createCoreServer(options = {}) {
     check: musicToLight.checkRave,
     stop: musicToLight.stopRave,
     ids: musicToLight.raveIds,
+    routedIds: musicToLight.raveRouteIds,
+    save: musicToLight.viewerSave,
   });
   const widgetController = createSystemWidgetEventController({
     colorApply: async (body) => {

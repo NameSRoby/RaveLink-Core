@@ -15,12 +15,12 @@ const createSession = require("../integrations/music-to-light/session.cjs");
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 async function waitFor(check) {
   const deadline = Date.now() + 4000;
-  while (!check()) {
+  while (!(await check())) {
     if (Date.now() > deadline) assert.fail("lifecycle drain timed out");
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
 }
-async function environment(t, sourceRows) {
+async function environment(t, sourceRows, readPlayback, entertainment = false) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-music-wiring-"));
   let at = 0,
     captures = 0,
@@ -46,8 +46,20 @@ async function environment(t, sourceRows) {
     },
   });
   const host = createHost({
+    readPlayback,
     core: {
       fixtureOutput: { ownership: broker },
+      ...(entertainment
+        ? {
+            hueBridge: {
+              prepareEntertainment:
+                typeof entertainment === "function"
+                  ? entertainment
+                  : async () => ({ ok: true, activeIds: ["music-bulb"] }),
+              stopEntertainment: async () => {},
+            },
+          }
+        : {}),
       fixtureRegistry: {
         getFixtures: () => [
           {
@@ -320,11 +332,12 @@ test("portable design persists without grants/bindings and invalid stored data i
   await first.call({
     capability: "music.styles.v1",
     method: "configure",
-    payload: { palette: ["#123456"], preset: "pulse" },
+    payload: { palette: ["#123456"], preset: "pulse", warmCoolColors: true },
   });
   await first.shutdown();
   const second = createHost({ designPath: file });
   assert.deepEqual(second.view().design.palette, ["#123456"]);
+  assert.equal(second.view().design.warmCoolColors, true);
   assert.deepEqual(second.view().status.permissions, { capture: false, output: false });
   assert.deepEqual(second.view().bindings, {
     source: null,
@@ -482,6 +495,15 @@ test("native tab browser flow previews and drives simulated lights at desktop an
   page.setDefaultTimeout(6000);
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  // Partial startup must recover without a reload or duplicate look controls.
+  for (const endpoint of ["catalog", "effects"]) {
+    let attempts = 0;
+    await page.route(`**/api/music-to-light/${endpoint}`, (route) =>
+      ++attempts === 1
+        ? route.fulfill({ status: 503, json: { ok: false, error: "temporarily_unavailable" } })
+        : route.continue(),
+    );
+  }
   await page.goto(e.base + "/");
   await page.locator('[data-light-tab="music"]').click();
   await page.waitForFunction(() =>
@@ -490,12 +512,15 @@ test("native tab browser flow previews and drives simulated lights at desktop an
   assert.equal(await page.locator('[data-light-panel="music"] iframe').count(), 0);
   assert.equal(await page.locator("#music-preview").isDisabled(), true);
   await page.waitForFunction(() => document.getElementById("music-look").options.length >= 6);
+  await page.waitForFunction(() => !document.getElementById("music-look").disabled);
+  const catalog = await fetch(e.base + "/api/music-to-light/catalog").then((r) => r.json());
+  assert.equal(await page.locator("#music-look option").count(), catalog.value.looks.length + 1);
   assert.equal(await page.locator("#music-catalogPanel").isVisible(), false);
   assert.equal(await page.locator("#music-tuning").evaluate((el) => el.open), false);
   assert.equal(await page.locator("#music-lookCards").isVisible(), true);
   assert.equal(await page.locator("#music-palette").isVisible(), true);
 
-  for (const count of [4, 5]) {
+  for (const count of [4, 5, 6, 7, 8]) {
     await page.locator("#music-addColor").click();
     await page.waitForFunction(
       (expected) =>
@@ -503,19 +528,30 @@ test("native tab browser flow previews and drives simulated lights at desktop an
         !document.getElementById("music-look").disabled,
       count,
     );
+    await waitFor(() => e.host.view().design.palette.length === count);
   }
   assert.equal(await page.locator("#music-addColor").isDisabled(), true);
-  for (const count of [4, 3, 2]) {
+  for (const count of [7, 6, 5, 4, 3, 2]) {
     await page.locator("#music-palette button").last().click();
-    await page.waitForFunction(
-      (expected) =>
-        document.getElementById("music-palette").children.length === expected &&
-        !document.getElementById("music-look").disabled,
-      count,
-    );
+    await page
+      .waitForFunction(
+        (expected) =>
+          document.getElementById("music-palette").children.length === expected &&
+          !document.getElementById("music-look").disabled,
+        count,
+      )
+      .catch(async (error) => {
+        throw new Error(
+          `Palette removal to ${count}: ${await page.locator("#music-notice").textContent()}; ${JSON.stringify(e.host.view().design.palette)}`,
+          { cause: error },
+        );
+      });
+    await waitFor(() => e.host.view().design.palette.length === count);
   }
   assert.equal(await page.locator("#music-palette button").first().isDisabled(), true);
   assert.equal(e.host.view().design.palette.length, 2);
+  await page.locator("#music-warmCoolColors").check();
+  await waitFor(() => e.host.view().design.warmCoolColors);
   await page.locator('[data-look="expressive-mix"]').click();
   await page.waitForFunction(
     () =>
@@ -523,6 +559,7 @@ test("native tab browser flow previews and drives simulated lights at desktop an
       !document.getElementById("music-look").disabled,
   );
   assert.equal(e.host.view().design.behaviors.expressiveEnabled, true);
+  assert.equal(e.host.view().design.warmCoolColors, true);
   assert.equal(e.host.view().design.behaviors.perceptualColorsEnabled, true);
   assert.deepEqual(e.host.view().design.parameterRanges.spatialAccentShare, {
     min: 0.05,
@@ -579,6 +616,7 @@ test("native tab browser flow previews and drives simulated lights at desktop an
     Object.values(e.host.view().design.recipeOptions).every((o) => o.mode === "configured"),
   );
   assert.deepEqual(e.host.view().design.parameterRanges, {});
+  assert.equal(e.host.view().design.warmCoolColors, true);
   await openWorkspace("customize");
   await page.locator('[data-music-preset="bands"]').click();
   await page.waitForFunction(() => !document.getElementById("music-applyDesign").disabled);
@@ -675,6 +713,7 @@ test("native tab browser flow previews and drives simulated lights at desktop an
     fullPage: true,
   });
   await openWorkspace("play");
+  await openWorkspace("library");
   await page.locator("#music-savedEffectName").fill("Browser favourite");
   await page.locator("#music-saveCurrentEffect").click();
   await page.waitForFunction(() =>
@@ -888,4 +927,380 @@ test("saved effects HTTP routes capture actual combinations, validate pools and 
     200,
   );
   assert.equal(e.host.effects().profiles.length, 0);
+});
+
+test("song library routes reject foreign origins and Auto-Rave follows a song without viewer routes", async (t) => {
+  let title = "Saved track";
+  const e = await environment(
+    t,
+    [{ id: "process:10:20", label: "TIDAL", kind: "application", scope: "process_tree" }],
+    async () => ({
+      primary: {
+        provider: "tidal",
+        title,
+        artists: ["Artist"],
+        observedAt: Date.now(),
+        positionMs: 1000,
+        durationMs: 180000,
+        status: "playing",
+      },
+    }),
+  );
+  const foreign = await e.http(
+    "/api/music-to-light/songs/save",
+    "POST",
+    { title, artist: "Artist" },
+    "https://untrusted.example",
+  );
+  assert.equal(foreign.status, 403);
+  assert.equal(
+    (await e.http("/api/music-to-light/songs/save", "POST", { title, artist: "Artist" })).status,
+    200,
+  );
+  await e.select(true);
+  await e.call("music.styles.v1", "configure", { ...e.host.view().design, raveEnabled: true });
+  await e.host.songPolicy({ enabled: true });
+  await waitFor(() => e.captures === 1);
+  assert.equal((await e.host.library()).rave.origin, "auto");
+  await e.pump();
+  await e.call("music.session.v1", "stop");
+  await new Promise((r) => setTimeout(r, 1200));
+  assert.equal(e.captures, 1, "Stop must not immediately restart the same song");
+  assert.equal((await e.host.library()).rave, null);
+  title = "Different track";
+  await e.host.songPolicy({ enabled: false });
+});
+
+test("Main dashboard edits sources, lights and settings; Library edits any song and reviews viewer submissions", async (t) => {
+  const { chromium } = require("playwright");
+  if (!fs.existsSync(chromium.executablePath())) {
+    t.skip("optional browser binary unavailable");
+    return;
+  }
+  const e = await environment(t),
+    browser = await chromium.launch({ headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
+  page.setDefaultTimeout(6000);
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto(e.base + "/");
+  await page.locator('[data-light-tab="music"]').click();
+  await page.waitForFunction(() => document.getElementById("music-quickCeiling").value !== "");
+  assert.equal(
+    await page.getByRole("button", { name: "Main", exact: true }).getAttribute("aria-pressed"),
+    "true",
+  );
+  await page.locator("#music-quickCeiling").fill("45");
+  await page.locator("#music-quickCeiling").press("Tab");
+  await waitFor(() => e.host.view().design.maximumBrightness === 45);
+  await page.locator("#music-quickBrightness").selectOption("loudness");
+  await waitFor(() => e.host.view().design.behaviors.loudnessBrightness);
+  await page.waitForFunction(() => !document.getElementById("music-quickAccent").disabled);
+  assert.equal(await page.locator("#music-quickAccent").isEnabled(), true);
+  await page.locator("#music-quickAccent").evaluate((input) => {
+    input.value = "12";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await waitFor(() => e.host.view().design.behaviors.accentDepth === 0.12);
+  await page.locator("#music-quickImpact").evaluate((input) => {
+    input.value = "42";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await waitFor(() => e.host.view().design.behaviors.impactDepth === 0.42);
+  const originalAttack = e.host.view().design.behaviors.outputAttackMs;
+  await page.locator("#music-quickRise").evaluate((input) => {
+    input.value = "80";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await waitFor(() => e.host.view().design.behaviors.bodyAttackMs === 80);
+  assert.equal(e.host.view().design.behaviors.outputAttackMs, originalAttack);
+  await page.locator("#music-quickBrightness").selectOption("steady");
+  await waitFor(() => e.host.view().design.behaviors.steadyBrightness);
+  await page.locator("#music-mainCapture").check();
+  await waitFor(() => e.host.view().status.permissions.capture);
+  await page.locator("#music-mainFindApps").click();
+  await page
+    .locator('#music-mainSource option[value="process:10:20"]')
+    .waitFor({ state: "attached" });
+  await page.locator("#music-mainSource").selectOption("process:10:20");
+  await page.locator("#music-mainSaveSources").click();
+  await waitFor(() => e.host.view().bindings.source?.id === "process:10:20");
+  await page.locator("#music-mainOutput").check();
+  await waitFor(() => e.host.view().status.permissions.output);
+  await page.locator("#music-mainLights button").click();
+  await waitFor(() => e.host.view().bindings.fixtures.length === 1);
+  await page.waitForFunction(() => !document.getElementById("music-contrastAmount").disabled);
+  await page.locator("#music-contrastAmount").evaluate((input) => {
+    input.value = "40";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await waitFor(() => e.host.view().bindings.fixtures[0].outOfSync === 40);
+  assert.equal(e.captures, 0, "contrast cannot start capture");
+  await page.locator("#music-contrastScope").selectOption("selected");
+  assert.equal(await page.locator("#music-contrastAmount").isDisabled(), true);
+  await page.locator("#music-contrastLights button").click();
+  await page.locator("#music-contrastAmount").evaluate((input) => {
+    input.value = "70";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await waitFor(() => e.host.view().bindings.fixtures[0].outOfSync === 70);
+  await page.waitForFunction(
+    () => document.getElementById("music-contrastValue").textContent === "70%",
+  );
+  await page.locator("#music-contrastScope").selectOption("all");
+  const customColors = [...e.host.view().design.palette];
+  await page.locator("#music-paletteSource").selectOption("generated");
+  await waitFor(() => e.host.view().design.recipeOptions.palette?.allowed[0] === "generated");
+  assert.deepEqual(e.host.view().design.palette, customColors);
+  await page.locator("#music-palette").waitFor({ state: "hidden" });
+  await page.locator("#music-warmCoolColors").check();
+  await waitFor(() => e.host.view().design.warmCoolColors);
+  await page.locator("#music-quickColor").selectOption("energy");
+  await waitFor(() => e.host.view().design.colorMode === "energy");
+  assert.equal(e.host.view().design.warmCoolColors, true);
+  assert.equal(e.host.view().design.recipeOptions.color.mode, "configured");
+  assert.equal(e.captures, 0);
+  await page.locator("#music-autoRave").check();
+  await waitFor(async () => (await e.host.library()).enabled);
+  await page.locator("#music-autoRave").uncheck();
+  await waitFor(async () => !(await e.host.library()).enabled);
+  await page.screenshot({
+    path: path.resolve(__dirname, "../runtime/music-main-dashboard.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Library", exact: true }).click();
+  await page.locator("#music-songTitle").fill("Any song");
+  await page.locator("#music-songArtist").fill("Any artist");
+  await page.locator("#music-songSubmit").click();
+  await page.locator("#music-songList strong", { hasText: "Any song" }).waitFor();
+  assert.equal(e.captures, 0, "adding a song grants no capture");
+  await page.locator("#music-songList").getByRole("button", { name: "Edit", exact: true }).click();
+  await page.locator("#music-songTitle").fill("Edited song");
+  await page.locator("#music-songSubmit").click();
+  await page.locator("#music-songList strong", { hasText: "Edited song" }).waitFor();
+  await page.locator("#music-songList input[type=checkbox]").uncheck();
+  await waitFor(async () => !(await e.host.library()).songs[0].enabled);
+  await page.locator("#music-viewerSongs").selectOption("approval");
+  await waitFor(async () => (await e.host.library()).viewerSongs === "approval");
+  assert.equal(
+    (await e.host.viewerSave({ type: "rave-remember", value: "Viewer artist - Viewer song" }))
+      .pending,
+    true,
+  );
+  await page.locator("#music-pendingList").getByRole("button", { name: "Approve" }).click();
+  await page.locator("#music-songList strong", { hasText: "Viewer song" }).waitFor();
+  await page.locator("#music-songSearch").fill("edited");
+  assert.equal(await page.locator("#music-songList .musicLibraryRow").count(), 1);
+  await page.locator("#music-songList").getByRole("button", { name: "Remove" }).click();
+  await page.locator("#music-songSearch").fill("");
+  await page.locator("#music-songList strong", { hasText: "Viewer song" }).waitFor();
+  await page.screenshot({
+    path: path.resolve(__dirname, "../runtime/music-song-library.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await page.getByRole("button", { name: "Main", exact: true }).click();
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await page.locator("#music-preview").click();
+  await waitFor(() => e.captures === 1);
+  await e.pump();
+  const drawnColors = e.host.pipeline().effective.palette;
+  assert(drawnColors.length >= 3 && drawnColors.length <= 7);
+  assert.equal(e.host.pipeline().effective.colorMode, "energy");
+  assert.equal(e.host.pipeline().effective.warmCoolColors, true);
+  await page.waitForFunction(
+    () => document.getElementById("music-randomPalette").children.length >= 3,
+  );
+  assert.equal(await page.locator("#music-randomPalette span").count(), drawnColors.length);
+  await page.locator("#music-bookmark").click();
+  await waitFor(() => e.host.effects().profiles.length === 1);
+  assert.deepEqual(e.host.effects().profiles[0].artistic.palette, drawnColors);
+  await page.locator("#music-stop").click();
+  await page.locator("#music-paletteSource").selectOption("custom");
+  await waitFor(() => e.host.view().design.recipeOptions.palette.mode === "configured");
+  assert.deepEqual(e.host.view().design.palette, customColors);
+  await page.getByRole("button", { name: "Library", exact: true }).click();
+  await page.locator(".musicSavedManage > summary").click();
+  await page.locator("#music-renameEffectName").fill("Kept from Main");
+  await page.locator("#music-renameEffect").click();
+  await waitFor(() => e.host.effects().profiles[0].name === "Kept from Main");
+  await page.getByRole("button", { name: "Main", exact: true }).click();
+  await page.screenshot({
+    path: path.resolve(__dirname, "../runtime/music-main-dashboard-mobile.png"),
+    fullPage: true,
+  });
+  assert.deepEqual(errors, []);
+});
+
+test("Entertainment Stop and later status calls remain valid through native HTTP contracts", async (t) => {
+  const e = await environment(t, undefined, undefined, true);
+  await e.select(true);
+  await e.call("music.styles.v1", "configure", { ...e.host.view().design, outputHz: 16 });
+  await e.call("music.session.v1", "start", { mode: "live", seconds: 2 });
+  await e.pump();
+  assert.equal((await e.call("music.session.v1", "status")).session.state, "running");
+  const response = await e.http("/api/music-to-light/call", "POST", {
+    capability: "music.session.v1",
+    method: "stop",
+    payload: null,
+  });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.ok, true);
+  assert.equal(result.value.session.state, "stopped");
+  const status = await e.call("music.session.v1", "status");
+  assert.equal(status.state, "idle");
+  assert.equal(status.session.ownedFixtures, 0);
+  assert.deepEqual(e.native, e.baseline);
+});
+
+test("Entertainment preheating status is readable before any command exists", async (t) => {
+  let prepared;
+  const barrier = new Promise((resolve) => {
+    prepared = resolve;
+  });
+  const e = await environment(t, undefined, undefined, () => barrier);
+  await e.select(true);
+  await e.call("music.session.v1", "start", { mode: "live", seconds: 2 });
+  await e.pump();
+  const status = await e.call("music.session.v1", "status");
+  assert.equal(status.state, "preheating");
+  assert.equal(status.session.state, "preheating");
+  assert.equal(status.session.ownedFixtures, 0);
+  assert.equal(status.session.frames, 0);
+  prepared({ ok: true, activeIds: ["music-bulb"] });
+  await flush();
+  await e.call("music.session.v1", "stop");
+  assert.equal((await e.call("music.session.v1", "status")).state, "idle");
+});
+
+test("contrast HTTP edits are local, persist in bindings and do not interrupt live or preview", async (t) => {
+  const e = await environment(t);
+  await e.select(true);
+  const edit = (percent, fixtures = null, origin) =>
+    e.http("/api/music-to-light/contrast", "PUT", { value: { percent, fixtures } }, origin);
+  assert.equal((await edit(40)).status, 200);
+  assert.equal(e.host.view().bindings.fixtures[0].outOfSync, 40);
+  assert.equal(e.captures, 0);
+  assert.equal((await edit(90, null, "https://untrusted.example")).status, 403);
+  assert.equal((await edit(90, ["missing"])).status, 400);
+  await e.call("music.session.v1", "start", { mode: "live" });
+  await e.pump();
+  assert.equal((await edit(85, ["music-bulb"])).status, 200);
+  assert.equal(e.host.pipeline().assignments[0].outOfSync, 85);
+  await e.pump();
+  assert.equal(e.captures, 1);
+  assert.equal(e.stops, 0);
+  await e.call("music.session.v1", "stop");
+  assert.deepEqual(e.native, e.baseline);
+  await e.call("music.session.v1", "start", { mode: "preview" });
+  await e.pump();
+  assert(e.host.pipeline().assignments.every((f) => f.outOfSync === 85));
+  assert.equal((await edit(25)).status, 200);
+  assert(e.host.pipeline().assignments.every((f) => f.outOfSync === 25));
+});
+
+test("contrast survives private operator persistence without entering the portable design", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-contrast-"));
+  t.after(() => {
+    const relative = path.relative(os.tmpdir(), root);
+    assert(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const broker = createBroker({
+    isEligible: () => true,
+    readState: async () => ({ ok: true, state: { on: false, bri: 100 } }),
+    writeState: async () => ({ sent: 1, failed: 0 }),
+    restoreState: async () => ({ sent: 1, failed: 0 }),
+  });
+  t.after(() => broker.shutdown());
+  const options = {
+    operatorPath: path.join(root, "operator.json"),
+    core: {
+      fixtureOutput: { ownership: broker },
+      fixtureRegistry: {
+        getFixtures: () => [
+          { id: "one", brand: "hue", enabled: true },
+          { id: "two", brand: "wiz", enabled: true },
+        ],
+      },
+    },
+  };
+  const first = createHost(options);
+  await first.fixtures([
+    { id: "one", role: "all", position: 0 },
+    { id: "two", role: "all", position: 1 },
+  ]);
+  await first.contrast({ percent: 80, fixtures: ["two"] });
+  await first.shutdown();
+  const second = createHost(options);
+  t.after(() => second.shutdown());
+  assert.equal(second.view().operatorRecovered, false);
+  assert.equal(second.view().bindings.fixtures.find((f) => f.id === "two").outOfSync, 80);
+  assert.equal(second.view().bindings.fixtures.find((f) => f.id === "one").outOfSync, undefined);
+  assert.equal(second.view().design.outOfSync, undefined);
+});
+
+test("warm/cool toggles live inside a locked random recipe without capture restart or palette redraw", async (t) => {
+  const e = await environment(t);
+  await e.select(true);
+  await e.call("music.styles.v1", "configure", {
+    ...e.host.view().design,
+    recipeOptions: { palette: { mode: "random", value: "generated", allowed: ["generated"] } },
+  });
+  await e.call("music.session.v1", "start", { mode: "live" });
+  await e.pump();
+  const before = e.host.pipeline();
+  for (const warmCoolColors of [true, false, true]) {
+    await e.call("music.styles.v1", "configure", { ...e.host.view().design, warmCoolColors });
+    await e.pump();
+    const after = e.host.pipeline();
+    assert.equal(after.effective.warmCoolColors, warmCoolColors);
+    assert.deepEqual(after.effective.palette, before.effective.palette);
+    assert.equal(after.recipeId, before.recipeId);
+    assert.equal(e.captures, 1);
+    assert.equal(e.stops, 0);
+    assert.equal(e.host.view().status.session.ownedFixtures, 1);
+  }
+  await e.call("music.session.v1", "stop");
+  assert.deepEqual(e.native, e.baseline);
+});
+
+test("leaving steady brightness in a locked live recipe restores pulses immediately", async (t) => {
+  const e = await environment(t);
+  await e.select(true);
+  await e.call("music.styles.v1", "configure", {
+    ...e.host.view().design,
+    preset: "pulse",
+    intensity: 1,
+    maximumBrightness: 100,
+    recipeOptions: { palette: { mode: "random", value: "generated", allowed: ["generated"] } },
+    behaviors: {
+      ...e.host.view().design.behaviors,
+      steadyBrightness: true,
+      loudnessBrightness: true,
+    },
+  });
+  await e.call("music.session.v1", "start", { mode: "live" });
+  await e.pump();
+  const before = e.host.pipeline();
+  assert.equal(e.native.bri, 254);
+  await e.call("music.styles.v1", "configure", {
+    ...e.host.view().design,
+    behaviors: {
+      ...e.host.view().design.behaviors,
+      steadyBrightness: false,
+      loudnessBrightness: true,
+    },
+  });
+  await e.pump();
+  assert.equal(e.host.pipeline().effective.behaviors.steadyBrightness, false);
+  assert.equal(e.host.pipeline().recipeId, before.recipeId);
+  assert.deepEqual(e.host.pipeline().effective.palette, before.effective.palette);
+  assert(e.native.bri < 254, "an audio pulse must be visible immediately");
+  assert.equal(e.captures, 1);
+  assert.equal(e.stops, 0);
 });

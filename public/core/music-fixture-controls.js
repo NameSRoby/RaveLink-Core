@@ -10,6 +10,7 @@
           row = document.createElement("div");
         row.className = "musicFixture";
         row.dataset.fixtureId = fixture.id;
+        row.dataset.outOfSync = binding.outOfSync || 0;
         const name = document.createElement("label");
         name.className = "musicCheck";
         const enabled = document.createElement("input");
@@ -94,6 +95,7 @@
       .filter((row) => row.querySelector('input[type="checkbox"]').checked)
       .map((row) => ({
         id: row.dataset.fixtureId,
+        outOfSync: Number(row.dataset.outOfSync),
         ...Object.fromEntries(
           [...row.querySelectorAll("[data-route-field]")].map((input) => [
             input.dataset.routeField,

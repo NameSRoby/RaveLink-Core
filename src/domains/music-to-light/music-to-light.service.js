@@ -73,6 +73,7 @@ module.exports = function createMusicToLightService({
                 );
               }
             : undefined,
+          isAutoAllowed: (id) => !core.lightingLab?.isExcluded(id),
         }
       : null,
   });
@@ -149,18 +150,34 @@ module.exports = function createMusicToLightService({
       throw fault("music_operator_save_failed");
     }
   };
+  const captureProfile = (value) => {
+    const status = instance.client.status();
+    const pipeline = instance.operator.pipeline();
+    if (pipeline)
+      pipeline.assignments = (pipeline.assignments || []).map((a) => ({
+        ...instance.operator.bindings().fixtures.find((f) => f.id === a.id),
+        ...a,
+      }));
+    return savedEffects.draft(value, pipeline, status.session?.transition);
+  };
+  const library = require("./music-library-runtime")({
+    instance,
+    savedEffects,
+    readPlayback: readPlayback || controllerOptions.readPlayback || (async () => null),
+    storePath: designPath ? path.join(path.dirname(designPath), "songs.json") : undefined,
+    captureProfile,
+    brightnessLimit: () => core?.lightingLab?.settings?.().brightnessLimit ?? 100,
+  });
   return Object.freeze({
+    library: library.snapshot,
+    songPolicy: library.configure,
+    saveSong: library.save,
+    deleteSong: library.remove,
+    reviewSubmission: library.review,
+    viewerSave: library.viewer,
     effects: () => savedEffects.snapshot(),
-    saveEffect: (value) => {
-      const status = instance.client.status();
-      const pipeline = instance.operator.pipeline();
-      if (pipeline)
-        pipeline.assignments = (pipeline.assignments || []).map((a) => ({
-          ...instance.operator.bindings().fixtures.find((f) => f.id === a.id),
-          ...a,
-        }));
-      return savedEffects.save(value, pipeline, status.session?.transition);
-    },
+    saveEffect: (value) => savedEffects.add(captureProfile(value)),
+    renameEffect: (value) => savedEffects.rename(value),
     effectPolicy: (value) => savedEffects.policy(value),
     deleteEffect: (id) => savedEffects.remove(id),
     async call(payload) {
@@ -169,6 +186,8 @@ module.exports = function createMusicToLightService({
         Object.keys(payload).some((k) => !["capability", "method", "payload"].includes(k))
       )
         throw fault("invalid_music_request");
+      if (payload.capability === "music.session.v1" && payload.method === "stop")
+        library.suppress();
       const previous = instance.client.exportDesign();
       const result = await instance.client.call(
         payload.capability,
@@ -213,12 +232,26 @@ module.exports = function createMusicToLightService({
     permissions: operatorChange("permissions"),
     pipeline: () => instance.operator.pipeline(),
     rave: (value) => instance.operator.rave(value),
+    manualRave: () =>
+      instance.operator.rave({
+        fixtureIds: instance.operator.bindings().fixtures.map((f) => f.id),
+        origin: "manual",
+        brightnessLimit: core?.lightingLab?.settings?.().brightnessLimit ?? 100,
+      }),
     checkRave: (value) => instance.operator.checkRave(value),
-    stopRave: (ids) => instance.operator.stopRave(ids),
+    stopRave: (ids) => {
+      library.suppress();
+      return instance.operator.stopRave(ids);
+    },
     raveIds: () => instance.operator.raveIds(),
+    raveRouteIds: () => instance.operator.raveRouteIds(),
     source: operatorChange("selectSource"),
     sources: operatorChange("selectSources"),
     fixtures: operatorChange("selectFixtures"),
-    shutdown: () => instance.operator.shutdown(),
+    contrast: operatorChange("contrast"),
+    shutdown: async () => {
+      await library.shutdown();
+      await instance.operator.shutdown();
+    },
   });
 };

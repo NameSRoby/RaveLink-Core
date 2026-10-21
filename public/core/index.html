@@ -103,11 +103,15 @@
             ROOM LAYOUT <span class="alphaBadge">ALPHA</span>
           </button>
         </div>
+        <p id="lightWorkspaceHelp" class="effectHelp">
+          Direct control: set lights yourself or test a saved viewer route. Tests send real light
+          commands.
+        </p>
         <div data-light-panel="control">
           <div class="panelTitle">
             <div>
               <span>DIRECT CONTROL</span>
-              <h2>TWITCH LIGHTS</h2>
+              <h2>YOUR LIGHTS</h2>
             </div>
             <span id="lightStatus" class="statusLine">READY</span>
           </div>
@@ -203,6 +207,41 @@
           </div>
         </div>
         <div data-light-panel="viewer" hidden>
+          <section class="cluster" aria-labelledby="viewerRaveTitle">
+            <h3 id="viewerRaveTitle">CHAT RAVE</h3>
+            <p>
+              Let viewers trigger music-reactive lights through your existing
+              <strong>Change my lights</strong> Channel Points reward.
+            </p>
+            <label class="switchLabel"
+              ><input id="viewerRaveEnabled" type="checkbox" disabled /><span
+                class="toggleSwitch"
+                aria-hidden="true"
+              ></span
+              ><span>ALLOW VIEWERS TO START RAVE</span></label
+            >
+            <p>
+              Type <code>rave</code> in the reward input. Viewers can also enter
+              <code>rave red, blue aggressive</code>, <code>rave stop</code>,
+              <code>rave save My look</code>, or <code>rave remember Artist - Song</code>. Typing
+              rave in ordinary Twitch chat does not redeem the reward.
+            </p>
+            <p>
+              Lights set to Dim &amp; hold, Off, or Hold a color in Music-to-Light Setup follow Rave
+              automatically.
+            </p>
+            <p id="viewerRaveStatus" class="notice" role="status">
+              Open Viewer controls to check Rave readiness.
+            </p>
+            <div class="actions">
+              <button id="viewerRaveRefresh" type="button">CHECK RAVE SETUP</button
+              ><button id="viewerRaveSetup" type="button">CHOOSE AUDIO &amp; MUSIC LIGHTS</button>
+            </div>
+            <p>
+              Saved automatically. Dynamic commands must also be enabled below. Song and look
+              submissions follow your approval settings in Music-to-Light Library.
+            </p>
+          </section>
           <section class="cluster" id="twitchLightProgram">
             <h3>TWITCH CHANNEL-POINT PROGRAM</h3>
             <fieldset id="twitchProgramControls">
@@ -678,14 +717,20 @@
             <p id="music-notice" role="status" aria-live="polite">Loading controls…</p>
 
             <nav class="musicNavigation" aria-label="Music lighting workspace">
-              <button type="button" data-music-view-target="play" aria-pressed="true">Play</button>
+              <button type="button" data-music-view-target="play" aria-pressed="true">Main</button>
+              <button type="button" data-music-view-target="library" aria-pressed="false">
+                Library
+              </button>
               <button type="button" data-music-view-target="customize" aria-pressed="false">
-                Customize
+                Advanced
               </button>
               <button type="button" data-music-view-target="setup" aria-pressed="false">
                 Setup
               </button>
             </nav>
+            <p id="music-workspaceHelp" class="musicSmallHint musicWorkspaceHelp">
+              Main: live playback, looks and everyday controls. Changes are saved as you use them.
+            </p>
             <div class="musicConnectionBar">
               <span id="music-readySummary">Checking source and lights…</span>
               <button type="button" data-music-view-target="setup">Change source or lights</button>
@@ -703,6 +748,31 @@
               </div>
             </div>
             <div data-music-view="play">
+              <section class="musicHomeHero" aria-labelledby="music-homeTitle">
+                <div class="musicHeroCopy">
+                  <span class="musicEyebrow">YOUR ROOM, IN RHYTHM</span>
+                  <h2 id="music-homeTitle">Make this song a moment.</h2>
+                  <p id="music-nowSong" class="musicNowSong">Waiting for song information</p>
+                  <p id="music-raveOrigin" class="musicSmallHint" role="status">
+                    Manual controls are ready.
+                  </p>
+                  <div class="actions">
+                    <button type="button" id="music-startRave">Rave now</button
+                    ><button type="button" id="music-bookmark">Keep this look</button
+                    ><button type="button" id="music-rememberSong">Save this song</button>
+                  </div>
+                </div>
+                <div class="musicAutoCard">
+                  <span class="musicEyebrow">YOUR SONGS. AUTOMATICALLY.</span>
+                  <label class="musicToggle"
+                    ><input id="music-autoRave" type="checkbox" /><span>Auto-Rave</span></label
+                  >
+                  <p id="music-autoStatus" role="status">Off — start Rave whenever you like.</p>
+                  <button type="button" data-music-view-target="library">
+                    Edit your Rave songs →
+                  </button>
+                </div>
+              </section>
               <section class="musicSurface musicMain">
                 <div class="musicPlayGrid">
                   <div class="musicPlayControls">
@@ -726,6 +796,32 @@
                       <h3>Your colors</h3>
                       <button id="music-addColor" type="button">+ Color</button>
                     </div>
+                    <label class="musicPaletteMode"
+                      >Color selection
+                      <select id="music-paletteSource">
+                        <option value="custom">Your colors</option>
+                        <option value="generated">Random contrasting colors</option>
+                        <option value="advanced" disabled>Look / advanced palette</option>
+                      </select>
+                    </label>
+                    <p id="music-paletteHint" class="musicSmallHint"></p>
+                    <label class="musicCheck"
+                      ><input type="checkbox" id="music-warmCoolColors" />Warm bass / cool
+                      treble</label
+                    >
+                    <p class="musicSmallHint">
+                      This mapping stays active across looks, random palettes and color movement
+                      options. Bass-role lights stay warm, treble-role lights stay cool, and
+                      midrange blends between them. Overall lights follow the band balance. Include
+                      warm and cool colors in a custom palette; Random supplies both. If a family is
+                      missing, the nearest available palette color is used.
+                    </p>
+                    <div
+                      id="music-randomPalette"
+                      class="musicPalettePreview"
+                      aria-label="Current session colors"
+                      hidden
+                    ></div>
                     <div id="music-palette" class="musicPalette" aria-label="Effect palette"></div>
                     <label class="musicIntensity"
                       >Intensity <output id="music-intensityValue">60%</output
@@ -765,6 +861,239 @@
                     </button>
                   </div>
                 </div>
+              </section>
+              <section class="musicSurface musicQuickPanel" aria-labelledby="music-quickTitle">
+                <div class="musicSectionHeading">
+                  <div>
+                    <span class="musicEyebrow">EVERYDAY CONTROLS</span>
+                    <h2 id="music-quickTitle">Set the mood</h2>
+                  </div>
+                  <span class="musicSmallHint"
+                    >Saved automatically · artistic changes apply next start</span
+                  >
+                </div>
+                <div class="musicQuickGrid">
+                  <label class="musicCheck"
+                    ><input id="music-quickRave" type="checkbox" />Enable Rave</label
+                  >
+                  <label
+                    >Brightness ceiling
+                    <input id="music-quickCeiling" type="number" min="1" max="100"
+                  /></label>
+                  <label
+                    >Brightness movement<select id="music-quickBrightness">
+                      <option value="loudness">Loudness foundation, pulse accents</option>
+                      <option value="reactive">Full effect brightness</option>
+                      <option value="steady">Steady level, moving colors</option>
+                    </select></label
+                  >
+                  <label
+                    >Color movement<select id="music-quickColor">
+                      <option value="travel">Continuous travel</option>
+                      <option value="onsets">On measured attacks</option>
+                      <option value="roles">Frequency roles</option>
+                      <option value="energy">Audio energy</option>
+                      <option value="fixed">Fixed palette</option>
+                    </select></label
+                  >
+                  <label
+                    >Pulse accents <span class="musicUnit" id="music-quickAccentValue">10%</span
+                    ><input id="music-quickAccent" type="range" min="0" max="100" step="1"
+                  /></label>
+                  <label
+                    >Strong pulses <span class="musicUnit" id="music-quickImpactValue">35%</span
+                    ><input id="music-quickImpact" type="range" min="0" max="100" step="1"
+                  /></label>
+                  <label
+                    >Rise smoothing <span class="musicUnit" id="music-quickRiseValue">0 ms</span
+                    ><input id="music-quickRise" type="range" min="0" max="200" step="5"
+                  /></label>
+                  <label
+                    >Release smoothing
+                    <span class="musicUnit" id="music-quickReleaseValue">0 ms</span
+                    ><input id="music-quickRelease" type="range" min="0" max="500" step="10"
+                  /></label>
+                  <label
+                    >Viewer Rave timing<select id="music-quickDuration">
+                      <option value="song">Follow the song</option>
+                      <option value="dynamic">Dynamic-effect timer</option>
+                      <option value="separate">Separate Rave timer</option>
+                    </select></label
+                  >
+                  <label
+                    >Fallback / separate timer (seconds)<input
+                      id="music-quickSeconds"
+                      type="number"
+                      min="1"
+                      max="3600"
+                  /></label>
+                </div>
+                <p id="music-quickBrightnessHint" class="musicSmallHint" role="status"></p>
+                <p class="musicSmallHint">
+                  Song automation follows the saved song only. Viewer Rave can use your configured
+                  fullscreen/game fallback when music is unavailable. Stop always restores and
+                  prevents an automatic restart during this playback.
+                </p>
+              </section>
+              <section
+                class="musicSurface musicContrastPanel"
+                aria-labelledby="music-contrastTitle"
+              >
+                <div class="musicSectionHeading">
+                  <div>
+                    <span class="musicEyebrow">ONE SONG, DIFFERENT EXPRESSIONS</span>
+                    <h2 id="music-contrastTitle">Out of sync</h2>
+                  </div>
+                  <output id="music-contrastValue" for="music-contrastAmount">0%</output>
+                </div>
+                <p class="musicSmallHint">
+                  Create visual contrast without delaying the music. Start with color separation;
+                  turn it up for different frequency emphasis and contrasting accents on the same
+                  beats.
+                </p>
+                <div class="musicQuickGrid">
+                  <label
+                    >Apply to<select id="music-contrastScope">
+                      <option value="all">All involved lights</option>
+                      <option value="selected">Selected lights</option>
+                    </select></label
+                  >
+                  <label
+                    >Visual contrast<input
+                      id="music-contrastAmount"
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value="0"
+                      aria-describedby="music-contrastHint"
+                  /></label>
+                </div>
+                <div
+                  id="music-contrastLights"
+                  class="musicLightPicks"
+                  aria-label="Lights to adjust"
+                  hidden
+                ></div>
+                <p id="music-contrastHint" class="musicSmallHint">
+                  0% keeps the original response. Audio timing stays aligned at every setting. Dim,
+                  steady and off lights are excluded.
+                </p>
+                <p id="music-contrastStatus" class="musicSmallHint" role="status"></p>
+              </section>
+              <div id="music-mainTransitions"></div>
+              <section class="musicSurface" aria-labelledby="music-quickSourcesTitle">
+                <div class="musicSectionHeading">
+                  <div>
+                    <span class="musicEyebrow">CONNECTED TO YOUR ROOM</span>
+                    <h2 id="music-quickSourcesTitle">Sources &amp; lights</h2>
+                  </div>
+                  <button type="button" id="music-mainFindApps">Find apps</button>
+                </div>
+                <div class="musicQuickGrid">
+                  <label>Preferred music app<select id="music-mainSource"></select></label>
+                  <label>Music fallback<select id="music-mainFallback1"></select></label>
+                  <label>Game / other fallback<select id="music-mainFallback2"></select></label>
+                  <div>
+                    <label class="musicCheck"
+                      ><input id="music-mainCapture" type="checkbox" />Allow audio capture</label
+                    ><label class="musicCheck"
+                      ><input id="music-mainOutput" type="checkbox" />Allow light output</label
+                    >
+                  </div>
+                </div>
+                <div class="actions">
+                  <button type="button" id="music-mainSaveSources">Save source order</button>
+                </div>
+                <p class="musicSmallHint">
+                  Pick a music app first. A configured fullscreen / borderless fallback is used for
+                  Rave when no matching music is playing. Running manual captures keep their source.
+                </p>
+                <h3>Your music lights</h3>
+                <div
+                  id="music-mainLights"
+                  class="musicLightPicks"
+                  aria-label="Music light selection"
+                ></div>
+                <p class="musicSmallHint">
+                  Changing light selection stops current lighting. Set individual roles and
+                  positions in Setup.
+                </p>
+              </section>
+            </div>
+            <div data-music-view="library" hidden>
+              <nav class="musicLibraryNavigation" aria-label="Library sections">
+                <a href="#music-libraryTitle">Songs</a>
+                <a href="#music-savedEffectsTitle">Saved looks &amp; playback</a>
+                <a href="#music-viewerSavesTitle">Viewer submissions</a>
+              </nav>
+              <section class="musicSurface musicSongLibrary" aria-labelledby="music-libraryTitle">
+                <div class="musicSectionHeading">
+                  <div>
+                    <span class="musicEyebrow">BUILD YOUR SETLIST</span>
+                    <h2 id="music-libraryTitle">Songs worth a Rave</h2>
+                  </div>
+                  <span id="music-songCount" class="musicCount">0 songs</span>
+                </div>
+                <p class="musicSmallHint">
+                  Add any song by link or artist and title. Enable Auto-Rave on Main to play its
+                  saved look when it starts. No playlist import or current playback required.
+                </p>
+                <p class="musicSmallHint">
+                  For desktop players, add artist and title even when using a link: Windows media
+                  sessions do not always provide the original track ID. Song detection uses the
+                  selected player's Now Playing information from Song Request.
+                </p>
+                <form id="music-songForm" class="musicSongEditor">
+                  <input id="music-songId" type="hidden" />
+                  <label class="musicWide"
+                    >Song link (optional)<input
+                      id="music-songUrl"
+                      type="url"
+                      maxlength="500"
+                      placeholder="Spotify, TIDAL, YouTube or SoundCloud track link"
+                  /></label>
+                  <label
+                    >Song title<input id="music-songTitle" maxlength="200" placeholder="Song title"
+                  /></label>
+                  <label
+                    >Artist<input id="music-songArtist" maxlength="200" placeholder="Artist name"
+                  /></label>
+                  <label
+                    >Look<select id="music-songEffect">
+                      <option value="">Use current playback selection</option>
+                    </select></label
+                  >
+                  <label
+                    >Intensity override (%)<input
+                      id="music-songIntensity"
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="Use current intensity"
+                  /></label>
+                  <div class="actions musicWide">
+                    <button type="submit" id="music-songSubmit">Add song</button
+                    ><button type="button" id="music-songCancel" hidden>Cancel edit</button>
+                  </div>
+                </form>
+                <label class="musicLibrarySearch"
+                  >Find a saved song<input
+                    id="music-songSearch"
+                    type="search"
+                    placeholder="Search title or artist"
+                /></label>
+                <div
+                  id="music-songList"
+                  class="musicLibraryList"
+                  aria-label="Saved Rave songs"
+                ></div>
+                <p
+                  id="music-libraryStatus"
+                  class="musicSmallHint"
+                  role="status"
+                  aria-live="polite"
+                ></p>
               </section>
               <section class="musicSurface" aria-labelledby="music-savedEffectsTitle">
                 <h2 id="music-savedEffectsTitle">Saved effects</h2>
@@ -832,11 +1161,53 @@
                   >
                     Delete selected saved effect
                   </button>
+                  <label
+                    >Rename selected effect<input id="music-renameEffectName" maxlength="80"
+                  /></label>
+                  <button id="music-renameEffect" type="button">Rename effect</button>
                 </details>
                 <p class="musicSmallHint">
                   Saved-only modes also apply to channel-points Rave. A saved combination stays
                   fixed; the audio still drives its response.
                 </p>
+              </section>
+              <section class="musicSurface musicViewerSaves">
+                <div class="musicSectionHeading">
+                  <div>
+                    <span class="musicEyebrow">LET CHAT CONTRIBUTE</span>
+                    <h2 id="music-viewerSavesTitle">Viewer submissions &amp; approvals</h2>
+                  </div>
+                </div>
+                <p class="musicSmallHint">
+                  Enable viewer Rave under <strong>Lights → Viewer controls → Chat Rave</strong>.
+                  These submission choices save immediately.
+                </p>
+                <p class="musicSmallHint">
+                  Use the existing Change my lights Channel Points reward.
+                  <code>rave save Neon Storm</code> saves the running look.
+                  <code>rave remember Artist - Song</code> saves any song; a track link also works.
+                  <code>rave remember</code> saves Now Playing.
+                </p>
+                <div class="musicQuickGrid">
+                  <label
+                    >Viewer song submissions<select id="music-viewerSongs">
+                      <option value="allow">Save immediately</option>
+                      <option value="approval">Require my approval</option>
+                      <option value="disabled">Disabled</option>
+                    </select></label
+                  ><label
+                    >Viewer effect submissions<select id="music-viewerEffects">
+                      <option value="allow">Save immediately</option>
+                      <option value="approval">Require my approval</option>
+                      <option value="disabled">Disabled</option>
+                    </select></label
+                  >
+                </div>
+                <div
+                  id="music-pendingList"
+                  class="musicLibraryList"
+                  aria-label="Pending viewer submissions"
+                ></div>
               </section>
               <details class="musicSurface" id="music-transitions">
                 <summary>Opening &amp; ending animations</summary>
@@ -1487,6 +1858,46 @@
               ><input id="showFixtureAddresses" type="checkbox" /> SHOW ADDRESSES</label
             >
           </div>
+          <div class="cluster" data-fixture-brands="hue" id="hueEntertainmentConfig">
+            <h3>HUE ENTERTAINMENT</h3>
+            <p>
+              Use a Hue Entertainment area for responsive music lighting. Edit a saved Hue fixture
+              to find areas automatically. Create areas in the Hue app first.
+            </p>
+            <div class="fixtureForm">
+              <label
+                >ENTERTAINMENT AREA ID
+                <input
+                  id="hueEntertainmentArea"
+                  list="hueEntertainmentAreas"
+                  maxlength="64"
+                  placeholder="Choose a discovered area, or enter a group ID / UUID"
+                  autocomplete="off"
+                />
+                <datalist id="hueEntertainmentAreas"></datalist>
+              </label>
+              <label
+                >STREAMING CLIENT KEY
+                <input
+                  id="hueEntertainmentKey"
+                  type="password"
+                  maxlength="32"
+                  autocomplete="new-password"
+                  placeholder="Stored during link-button pairing"
+                />
+              </label>
+            </div>
+            <p id="hueEntertainmentAreaNames" class="sub"></p>
+            <label class="checkLabel"
+              ><input id="hueEntertainmentApply" type="checkbox" disabled /> APPLY TO MATCHING SAVED
+              LIGHTS ON THIS BRIDGE</label
+            >
+            <div class="actions">
+              <button id="findHueAreas" type="button" disabled>FIND AREAS</button>
+              <button id="saveHueEntertainment" type="button" disabled>SAVE ENTERTAINMENT</button>
+            </div>
+            <p id="hueEntertainmentStatus" role="status" aria-live="polite"></p>
+          </div>
           <div class="actions">
             <button id="saveFixture" type="button">SAVE FIXTURE</button
             ><button id="clearFixture" type="button">CLEAR</button>
@@ -1813,6 +2224,7 @@
     <script src="/theme-state.js"></script>
     <script src="/action-feedback.js"></script>
     <script src="/core.js"></script>
+    <script src="/hue-entertainment-setup.js"></script>
     <script src="/usability-tooltips.js"></script>
     <script src="/lighting-profiles.js"></script>
     <script src="/music-workspace.js"></script>
@@ -1820,6 +2232,7 @@
     <script src="/music-pipeline.js"></script>
     <script src="/music-recipe-controls.js"></script>
     <script src="/music-saved-effects.js"></script>
+    <script src="/music-library.js"></script>
     <script src="/music-to-light.js"></script>
     <script src="/lighting-commands.js"></script>
     <script src="/workspace-navigation.js"></script>

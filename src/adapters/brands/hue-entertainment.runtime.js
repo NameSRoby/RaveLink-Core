@@ -2,8 +2,6 @@
  * no selected fixture count is ever used as an area-wide RGB broadcast.
  * Startup, send and teardown are bounded, and shutdown invalidates pending starts.
  */
-const https = require("node:https");
-const fs = require("node:fs");
 const resolveCa = require("./hue-ca-path");
 const keyFor = (c) => [c.bridgeIp, c.username, c.clientKey, c.entertainmentAreaId].join("|");
 const fault = (code) => Object.assign(new Error(code), { code });
@@ -48,38 +46,11 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
     }
   }
   const certPath = resolveCa(options.rootDir || process.cwd());
-  function agent(c) {
-    return new https.Agent({
-      ...(certPath ? { ca: fs.readFileSync(certPath) } : {}),
-      ...(c.bridgeId ? { servername: c.bridgeId.toLowerCase() } : {}),
-    });
-  }
-  async function request(c, version, resource, body, signal) {
-    const legacyHttp = version === 1 && c.forceHttp === true;
-    const url = legacyHttp
-      ? `http://${c.bridgeIp}/api/${c.username}/${resource}`
-      : version === 1
-        ? `https://${c.bridgeIp}/api/${c.username}/${resource}`
-        : `https://${c.bridgeIp}/${resource}`;
-    const transport = legacyHttp ? null : agent(c);
-    try {
-      const response = await http.request({
-        url,
-        method: body ? "PUT" : "GET",
-        data: body,
-        timeout: Math.min(timeoutMs, 2400),
-        signal,
-        httpsAgent: transport,
-        headers: { "hue-application-key": c.username },
-      });
-      const data = response.data;
-      if (data?.errors?.length || (Array.isArray(data) && data.some((r) => r.error)))
-        throw fault("hue_entertainment_bridge_rejected");
-      return data;
-    } finally {
-      transport?.destroy();
-    }
-  }
+  const request = require("./hue-entertainment-http")({
+    http,
+    timeoutMs,
+    rootDir: options.rootDir || process.cwd(),
+  });
   async function stop(session) {
     if (!session || session.stopping) return session?.stopping;
     session.active = false;
@@ -214,14 +185,19 @@ module.exports = function createHueEntertainmentRuntime(options = {}) {
               controller.signal,
             );
             if (controller.signal.aborted) throw fault("hue_entertainment_cancelled");
+            // The bridge acknowledges activation before its UDP listener is
+            // necessarily ready. Do not lose the first DTLS ClientHello there.
+            await new Promise((resolve) => setTimeout(resolve, settleMs));
+            if (generation !== epoch || controller.signal.aborted)
+              throw fault("hue_entertainment_cancelled");
             await new Promise((resolve, reject) => {
-              session.socket = createSocket({
+              session.socket = require("./hue-dtls-handshake")(createSocket, {
                 address: c.bridgeIp,
                 port: 2100,
                 type: "udp4",
                 timeout: timeoutMs,
                 signal: controller.signal,
-                cipherSuites: ["TLS_PSK_WITH_AES_128_GCM_SHA256"],
+                ciphers: ["TLS_PSK_WITH_AES_128_GCM_SHA256"],
                 psk: { [session.identity]: Buffer.from(c.clientKey, "hex") },
               });
               session.socket.on("error", () => {

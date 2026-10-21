@@ -94,6 +94,32 @@ function setup(t, labOverrides = {}) {
   };
 }
 
+test("viewer library commands can save during active Rave without replacing it or granting output", async (t) => {
+  const { service, calls } = setup(t);
+  const submissions = [];
+  let stopped = 0;
+  service.setMusicHandler({
+    ids: () => ["desk-wiz"],
+    stop: async () => {
+      stopped++;
+    },
+    save: async (command) => {
+      submissions.push(command);
+      return { ok: true, effect: command.type, targets: [], sent: 0, failed: 0 };
+    },
+  });
+  assert(service.isRaveLibraryCommand("rave save Neon Storm"));
+  assert.equal(service.parse("rave remember Artist - Any song").value, "Artist - Any song");
+  assert.equal((await service.handle("rave save Neon Storm")).ok, true);
+  assert.equal((await service.handle("rave remember https://tidal.com/track/123")).ok, true);
+  assert.equal(submissions.length, 2);
+  assert.equal(stopped, 0);
+  assert.equal(calls.length, 0);
+  await service.handle("rave save Preview", { preview: true });
+  assert.equal(submissions.length, 2);
+  assert.equal((await service.handle("rave red")).error, "music_rave_active");
+});
+
 test("dynamic effect parser supports the approved language and does not claim excluded ideas", (t) => {
   const { service } = setup(t);
   for (const command of [
@@ -886,4 +912,29 @@ test("dynamic effects stop before their first frame when Entertainment preheat f
   assert.equal(calls.length, 0);
   assert.deepEqual(service.snapshot().activeFixtureIds, []);
   await service.shutdown();
+});
+
+test("saving viewer routes compares admitted Rave targets and leaves background scene fixtures alone", async (t) => {
+  const { service } = setup(t);
+  service.save({ revision: 0, enabled: true, fixtureIds: ["old-hue"], prefixes: {} });
+  const stops = [];
+  service.setMusicHandler({
+    ids: () => ["old-hue", "background-scene"],
+    routedIds: () => ["old-hue"],
+    stop: async (ids) => {
+      stops.push(ids);
+    },
+  });
+  const result = service.save({
+    revision: 1,
+    enabled: true,
+    fixtureIds: ["old-hue"],
+    prefixes: {},
+  });
+  assert.equal(result.ok, true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(stops, []);
+  service.save({ revision: 2, enabled: false, fixtureIds: ["old-hue"], prefixes: {} });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(stops, [["old-hue"]]);
 });

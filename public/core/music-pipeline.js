@@ -66,7 +66,7 @@
             : pipeline?.preset === "bands"
               ? `Frequency zones · separation ${b.bandSeparation} · sensitivity ${b.bandSensitivity}`
               : d.arrangement + " fixture response",
-      color: `${b.colorEnabled ? { roles: "Role-offset cycling", fixed: "Together cycling", onsets: "Attacks + gentle cycling", energy: "Energy + cycling", travel: "Travelling palette" }[d.colorMode] : "Color movement blocked"} · ${d.palette.length} colors · blend ${b.colorBlendMs}ms · vibrance ${Math.round((b.colorVibrance || 0) * 100)}%`,
+      color: `${b.colorEnabled ? { roles: "Role-offset cycling", fixed: "Together cycling", onsets: "Attacks + gentle cycling", energy: "Energy + cycling", travel: "Travelling palette" }[d.colorMode] : "Color movement blocked"} · ${d.palette.length} colors${d.warmCoolColors ? " / warm bass, cool treble" : ""} · blend ${b.colorBlendMs}ms · vibrance ${Math.round((b.colorVibrance || 0) * 100)}%`,
       output: `${d.minimumBrightness}–${d.maximumBrightness}% brightness · intensity ${Math.round(d.intensity * 100)}% · ${pipeline?.outputCadence?.targetHz ?? d.outputHz} Hz · ${d.outputRateMode}`,
     };
     if (b.expressiveEnabled) {

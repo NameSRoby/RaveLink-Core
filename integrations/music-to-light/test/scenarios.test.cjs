@@ -219,3 +219,16 @@ test("onset color blending is smooth, bounded and independent from brightness", 
   assert.deepEqual(m.render(2160).rgb, { r: 0, g: 0, b: 255 });
   assert.deepEqual(m.render(2080), m.render(2080), "polling does not advance or restart the blend");
 });
+
+test("random foundation recipes retain allowed drum accents in every scenario and respect explicit blocks", () => {
+  for (const id of ["wash", "pulse", "bands", "wave", "bounce", "handoff"])
+    for (const attacksEnabled of [true, false]) {
+      const b = {
+        ...settings().behaviors,
+        loudnessBrightness: true,
+        steadyBrightness: false,
+        attacksEnabled,
+      };
+      assert.equal(chooseLayers(b, id, () => 0.99).attacksEnabled, attacksEnabled);
+    }
+});

@@ -30,7 +30,9 @@ module.exports = async function runMusicEffect({
     stopFixtures(request.fixtureIds, { force: true, animate: false });
     const result = await handler.start(request);
     if (settings.cooldownSeconds > 0)
-      for (const id of result.targets) setCooldown(id, now() + settings.cooldownSeconds * 1000);
+      for (const id of result.targets)
+        if (request.fixtureIds.includes(id))
+          setCooldown(id, now() + settings.cooldownSeconds * 1000);
     return { matched: true, effect: "rave", ...result, sent: 0, failed: 0 };
   } catch (error) {
     return {
@@ -48,8 +50,30 @@ module.exports.stopRouted = async function stopRouted(handler, ids, preview) {
   return selected;
 };
 module.exports.cancelRemoved = function cancelRemoved(handler, next, supervise) {
-  const removed = (handler?.ids() || []).filter(
+  const removed = (handler?.routedIds?.() || handler?.ids() || []).filter(
     (id) => !next.enabled || !next.fixtureIds.includes(id),
   );
   if (removed.length) supervise(() => handler.stop(removed), "music-policy", "");
+};
+module.exports.libraryCommand = function libraryCommand(command, context, handler) {
+  if (!["rave-save", "rave-remember"].includes(command.type)) return null;
+  if (!handler?.save)
+    return {
+      matched: true,
+      ok: false,
+      effect: command.type,
+      error: "music_viewer_saving_disabled",
+      refundRecommended: true,
+    };
+  if (context.preview)
+    return {
+      matched: true,
+      ok: true,
+      preview: true,
+      effect: command.type,
+      targets: [],
+      sent: 0,
+      failed: 0,
+    };
+  return handler.save(command);
 };

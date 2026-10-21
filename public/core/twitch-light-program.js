@@ -1,3 +1,4 @@
+import { initViewerRave } from "./viewer-rave.js";
 /**
  * Twitch light program.
  * Developer context and change constraints:
@@ -11,6 +12,7 @@ export function initTwitchLightProgram({
   changed = () => {},
 }) {
   const $ = (id) => document.getElementById(id);
+  const viewerRave = initViewerRave({ request, getFixtures });
   let state = initialState,
     draftRules = [],
     busy = false,
@@ -190,6 +192,7 @@ export function initTwitchLightProgram({
         }),
       });
       renderEffectFixtures();
+      void viewerRave.refresh();
       $("twitchEffectsNotice").textContent = effectState.enabled
         ? `DYNAMIC COMMANDS ENABLED FOR ${effectState.fixtureIds.length} FIXTURE${effectState.fixtureIds.length === 1 ? "" : "S"}.`
         : "DYNAMIC COMMANDS ARE OFF.";
