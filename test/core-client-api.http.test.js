@@ -65,6 +65,7 @@ async function core(t) {
   const created = createCoreServer({
     runtimeDir,
     dryRun: true,
+    fixtureSecretVaultOptions: require("./support/fixture-vault-codec.cjs"),
     widgetIntakeToken: "contract-test-scoped-token",
   });
   t.after(async () => {
@@ -177,7 +178,7 @@ test("typed Core workflows reuse real fixture, lighting, widget and update owner
     ip: "192.0.2.10",
     enabled: true,
   });
-  assert.equal(inserted.status, 200);
+  assert.equal(inserted.status, 200, JSON.stringify(inserted.body));
   assert.equal(inserted.body.fixture.deviceIpConfigured, true);
   assert.equal("ip" in inserted.body.fixture, false);
   const fixtures = await command("fixtures.list");
