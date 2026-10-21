@@ -31,6 +31,14 @@ module.exports = function createLightEffectCommand(directiveService) {
     const source = String(rawText || "")
       .replace(/\s+/g, " ")
       .trim();
+    const library = /^rave\s+(save|remember)(?:\s+(.{1,500}))?$/i.exec(source);
+    if (library)
+      return {
+        matched: true,
+        ok: true,
+        type: "rave-" + library[1].toLowerCase(),
+        value: library[2] || "",
+      };
     const requested = /^([a-z]+)(?:\s+|$)/i.exec(source)?.[1]?.toLowerCase() || "";
     const first = requested === "alternate" ? "cycle" : requested;
     if (/^rave\s+stop$/i.test(source))

@@ -9,7 +9,7 @@ const featureUiRelay = require("./feature-ui-relay");
 const featureDraftScript = require("./feature-draft-script");
 const featurePresentation = require("./feature-presentation");
 const featureThemeScript = require("./feature-theme-script");
-const { isLocalOrSameHostRequest } = require("../../../app/runtime/request-security.middleware");
+const { requireLocalOperator } = require("../../../app/runtime/local-operator.middleware");
 
 const FEATURE_ID_RE = /^[a-z][a-z0-9-]{1,63}$/;
 const PAGE_ID_RE = /^[a-z][a-z0-9-]{1,39}$/;
@@ -46,21 +46,6 @@ function featurePageShell(featureId, page, pageIds) {
     : "";
   const embedSandbox = page.embedHosts.length ? " allow-same-origin" : "";
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlText(page.title)}</title><style>html,body,iframe{width:100%;height:100%;margin:0;border:0;background:${page.surface === "overlay" ? "transparent" : "#050507"}}iframe{display:block}body{overflow:hidden}</style></head><body><iframe id="surface" ${featureId === "song-request" && page.id === "player" ? 'allow="autoplay"' : ""} data-src="/features-content/${featureId}/${page.id}" sandbox="allow-scripts allow-presentation${featureId === "song-request" && page.id === "server-playlist" ? " allow-downloads" : ""}${embedSandbox}${popupSandbox}"  referrerpolicy="no-referrer" title="${htmlText(page.title)}"></iframe><script src="/action-feedback.js"></script><script src="/feature-events-client.js"></script><script>${featureDraftScript(featureId, page.id, page.surface)}${featureThemeScript(featureId, page.id)}(${featureUiRelay.toString()})(${config});</script></body></html>`;
-}
-
-function requireLocalOperator(req, res, next) {
-  if (!isLocalOrSameHostRequest(req))
-    return res.status(403).json({ ok: false, error: "feature_operator_loopback_required" });
-  const origin = String(req.headers?.origin || "").trim();
-  if (origin) {
-    try {
-      if (new URL(origin).host.toLowerCase() !== String(req.headers?.host || "").toLowerCase())
-        throw new Error("origin_mismatch");
-    } catch {
-      return res.status(403).json({ ok: false, error: "feature_operator_same_origin_required" });
-    }
-  }
-  return next();
 }
 
 module.exports = function registerFeaturePlatformRoutes(app, options = {}) {

@@ -2,6 +2,19 @@ const test = require("node:test"),
   assert = require("node:assert/strict");
 const create = require("../output-cadence.cjs");
 const { settings } = require("../mapping-settings.cjs");
+
+test("quiet color travel keeps render resolution without requiring a strong attack", () => {
+  const c = create([{ brand: "hue", entertainmentActive: true }, { brand: "wiz" }]);
+  const config = settings({ outputHz: 16, outputRateMode: "adaptive" });
+  const motion = {
+    fresh: true,
+    metrics: { level: 0.3, rise: 0, attack: false, attackStrength: 0, colorMotion: true },
+  };
+  for (let at = 0; at <= 3000; at += 20) assert.equal(c.rate(config, motion, at), 16);
+  assert.equal(c.rate(config, { ...motion, fresh: false }, 3020), 2);
+  assert.equal(c.fixtureRate({ brand: "hue" }, 16), 8);
+  assert.equal(c.fixtureRate({ brand: "wiz" }, 50), 16);
+});
 test("adaptive pacing holds fast attacks without selecting another recipe", () => {
   const c = create(),
     config = settings({ outputHz: 8, outputRateMode: "adaptive" });

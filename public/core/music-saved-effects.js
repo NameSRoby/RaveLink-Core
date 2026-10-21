@@ -1,6 +1,24 @@
 /** Saved combinations are local operator choices; playback policy changes next Start. */
 window.RaveLinkSavedEffects = {
   errors: {
+    hue_entertainment_start_timeout:
+      "The Hue stream handshake timed out. Check the bridge connection and try starting lights again.",
+    hue_entertainment_socket_error:
+      "The Hue stream could not connect. Check the network and the bridge streaming key in Fixtures.",
+    hue_entertainment_area_busy:
+      "This Hue area is in use. Stop the other Hue Sync app, then start lights again.",
+    hue_entertainment_bridge_identity_missing:
+      "Could not identify the Hue bridge. Check its connection or re-pair it in Fixtures.",
+    hue_entertainment_bridge_identity_mismatch:
+      "The Hue bridge certificate does not match its saved identity. Re-pair this bridge in Fixtures.",
+    hue_entertainment_certificate_failed:
+      "The Hue bridge certificate could not be verified. Check the installed Hue certificate and system clock.",
+    hue_entertainment_bridge_timeout:
+      "The Hue bridge did not respond in time. Check its connection and try again.",
+    hue_entertainment_bridge_unreachable:
+      "The Hue bridge could not be reached. Check its address and network connection.",
+    hue_entertainment_bridge_request_failed:
+      "The Hue bridge rejected or could not complete the Entertainment request. Check its pairing and area in Fixtures.",
     fullscreen_app_unavailable:
       "Waiting for a fullscreen or borderless app. Start again, then focus the app within five seconds. Capture stays with that app when you Alt+Tab away.",
     music_effect_not_running: "Start a preview or live effect before saving its combination.",

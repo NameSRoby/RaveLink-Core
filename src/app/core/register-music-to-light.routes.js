@@ -3,9 +3,7 @@
  * capture/output or change source/fixture bindings through these routes.
  */
 const { rateLimit } = require("express-rate-limit");
-const {
-  requireLocalOperator,
-} = require("../../capabilities/feature-platform/http/register-feature-platform.routes");
+const { requireLocalOperator } = require("../runtime/local-operator.middleware");
 module.exports = function registerMusicToLightRoutes(app, { host }) {
   const limit = rateLimit({
     windowMs: 60000,
@@ -36,7 +34,7 @@ module.exports = function registerMusicToLightRoutes(app, { host }) {
     res.json({
       ok: true,
       value: {
-        revision: 15,
+        revision: 23,
         recipeAxes: require("../../../integrations/music-to-light/recipe.cjs").axes,
         looks: require("../../../integrations/music-to-light/looks.cjs"),
         behaviors: require("../../../integrations/music-to-light/behavior-settings.cjs").catalog,
@@ -48,16 +46,29 @@ module.exports = function registerMusicToLightRoutes(app, { host }) {
   app.get("/api/music-to-light/effects", (req, res) =>
     res.json({ ok: true, value: host.effects() }),
   );
+  app.get("/api/music-to-light/library", async (req, res) => {
+    try {
+      res.json({ ok: true, value: await host.library() });
+    } catch {
+      res.status(503).json({ ok: false, error: "music_library_unavailable" });
+    }
+  });
   for (const [route, method] of [
     ["effects/save", "saveEffect"],
     ["effects/policy", "effectPolicy"],
     ["effects/delete", "deleteEffect"],
+    ["effects/rename", "renameEffect"],
+    ["songs/save", "saveSong"],
+    ["songs/delete", "deleteSong"],
+    ["songs/policy", "songPolicy"],
+    ["songs/review", "reviewSubmission"],
+    ["rave/start", "manualRave"],
   ]) {
-    app.post("/api/music-to-light/" + route, limit, (req, res) => {
+    app.post("/api/music-to-light/" + route, limit, async (req, res) => {
       try {
         res.json({
           ok: true,
-          value: host[method](route.endsWith("delete") ? req.body?.id : req.body),
+          value: await host[method](route.endsWith("delete") ? req.body?.id : req.body),
         });
       } catch (error) {
         res.status(400).json({
@@ -84,6 +95,7 @@ module.exports = function registerMusicToLightRoutes(app, { host }) {
     ["source", "source"],
     ["sources", "sources"],
     ["fixtures", "fixtures"],
+    ["contrast", "contrast"],
   ]) {
     app.put("/api/music-to-light/" + route, limit, async (req, res) => {
       try {

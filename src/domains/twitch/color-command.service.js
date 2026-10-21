@@ -46,7 +46,10 @@ module.exports = function createColorCommandService(options = {}) {
   async function applyColorText(rawText, requestOptions = {}) {
     const direct = requestOptions.mode === "direct";
     const raveBlocked = () =>
-      !direct && twitchLightEffects?.isRaveActive?.() && !twitchLightEffects?.isRaveStop?.(rawText);
+      !direct &&
+      twitchLightEffects?.isRaveActive?.() &&
+      !twitchLightEffects?.isRaveStop?.(rawText) &&
+      !twitchLightEffects?.isRaveLibraryCommand?.(rawText);
     const refused = () => ({
       ok: false,
       error: "music_rave_active",

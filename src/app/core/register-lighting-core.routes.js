@@ -5,57 +5,7 @@ const crypto = require("node:crypto");
 const { rateLimit } = require("express-rate-limit");
 const registerClientApiRoutes = require("./register-client-api.routes");
 
-function publicFixture(fixture = {}) {
-  const storedRange = fixture.extras?.colorTemperatureMired;
-  const brand = String(fixture.brand || "");
-  const temperatureMinimum =
-    brand === "hue" && Number(storedRange?.maximum) > 0
-      ? Math.round(1000000 / Number(storedRange.maximum))
-      : brand === "wiz"
-        ? 2200
-        : 2000;
-  const temperatureMaximum =
-    brand === "hue" && Number(storedRange?.minimum) > 0
-      ? Math.round(1000000 / Number(storedRange.minimum))
-      : brand === "wiz"
-        ? 6500
-        : 9000;
-  return {
-    id: String(fixture.id || ""),
-    name: String(fixture.name || fixture.id || ""),
-    brand,
-    zone: String(fixture.zone || ""),
-    enabled: fixture.enabled !== false,
-    engineEnabled: fixture.engineEnabled === true,
-    twitchEnabled: fixture.twitchEnabled === true,
-    customEnabled: fixture.customEnabled === true,
-    lightId: Number(fixture.lightId || 0),
-    bridgeIpConfigured: Boolean(fixture.bridgeIp),
-    deviceIpConfigured: Boolean(fixture.ip),
-    entertainmentConfigured: Boolean(fixture.bridgeId || fixture.entertainmentAreaId),
-    credentialsConfigured: Boolean(fixture.username || fixture.clientKey),
-    temperatureRange: {
-      minimumKelvin: temperatureMinimum,
-      maximumKelvin: temperatureMaximum,
-    },
-  };
-}
-
-function editableFixture(fixture = {}) {
-  return {
-    id: String(fixture.id || ""),
-    name: String(fixture.name || fixture.id || ""),
-    brand: String(fixture.brand || ""),
-    zone: String(fixture.zone || ""),
-    enabled: fixture.enabled !== false,
-    engineEnabled: fixture.engineEnabled === true,
-    twitchEnabled: fixture.twitchEnabled === true,
-    customEnabled: fixture.customEnabled === true,
-    bridgeIp: String(fixture.bridgeIp || ""),
-    ip: String(fixture.ip || ""),
-    lightId: Number(fixture.lightId || 0),
-  };
-}
+const { publicFixture, editableFixture } = require("../../domains/fixtures/fixture-public-view");
 
 function maskNetworkAddress(value) {
   const text = String(value || "").trim();
@@ -505,6 +455,7 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
       .status(result.ok ? 200 : result.error === "twitch_effects_conflict" ? 409 : 400)
       .json(result);
   });
+  require("./register-hue-entertainment.routes")(app, core);
   app.get("/fixtures", (req, res) => {
     res.json({
       ok: true,

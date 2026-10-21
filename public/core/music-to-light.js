@@ -14,6 +14,7 @@
     closed = false,
     polling = false,
     visible = false,
+    initialized = false,
     lastSequence = null;
   let behaviorCatalog = null;
   let sourceChoices = [];
@@ -46,54 +47,9 @@
     "floorDb",
     "ceilingDb",
   ]);
-  const labels = { all: "Overall", low: "Low", mid: "Mid", high: "High" };
+  const { labels, presetHelp, responseRanges: ranges } = workspaceUI;
   const histories = new Map();
-  const ranges = workspaceUI.responseRanges;
-  const presetHelp = {
-    ambient: "Loudness and swells, with a gentle sustained glow.",
-    pulse: "Distinct measured attacks and decay; held notes settle to a dimmer bed.",
-    bands: "Each role follows energy and new rises within its own frequency band.",
-  };
-  const errors = {
-    ...window.RaveLinkSavedEffects.errors,
-    invalid_music_contract_response:
-      "Lighting status could not update. Your lights may still be running; retrying the connection.",
-    invalid_music_source_priorities:
-      "Choose each app only once. Leave unused source slots set to None.",
-    invalid_music_recipe_options:
-      "Check recipe choices: pinned values must be among the allowed choices.",
-    invalid_music_parameter_ranges:
-      "Check randomized ranges against the displayed parameter limits and steps.",
-    music_no_recipe_choices: "Allow at least one choice for each randomized recipe axis.",
-    music_calibration_superseded:
-      "Calibration stopped or settings changed; the previous reference was kept.",
-    music_calibration_insufficient_audio:
-      "Not enough fresh audio to calibrate. Play music in the selected source and try again.",
-    music_calibration_too_quiet:
-      "The measured audio is too quiet for a useful reference. Keep a comfortable listening level and check the selected source.",
-    music_selected_app_not_running:
-      "No saved source is available. Open one of your selected apps and try again. Your choices are still saved.",
-    music_selected_app_multiple_roots:
-      "This app has multiple independent audio processes. Close extra app instances and try again. Core has not switched to desktop audio.",
-    music_operator_save_failed:
-      "The change could not be saved on this computer. Check Core's runtime folder access before restarting.",
-    audio_probe_not_built:
-      "The audio helper is not built. Build it in the developer checkout first.",
-    music_source_not_in_current_catalog:
-      "That source list expired. Refresh sources, then select again.",
-    invalid_music_settings:
-      "Check the response values: quiet/loud levels need at least 12 dB separation and minimum brightness cannot exceed maximum.",
-    music_brightness_limits_unrepresentable:
-      "The chosen brightness range cannot be represented by these lights. WiZ needs a minimum of 10%.",
-    music_feature_inactive: "Music lighting has stopped. Restart Core to start a new session.",
-    music_response_too_large:
-      "The source list exceeds this preview’s display limit. Close unused audio applications or endpoints, then refresh.",
-  };
-  function notice(text, error = false, origin = "action") {
-    $("notice").textContent = text;
-    $("notice").dataset.error = String(error);
-    $("notice").dataset.origin = origin;
-  }
+  const { errors, notice } = workspaceUI;
   async function request(url, method = "GET", body) {
     const response = await fetch(url, {
       method,
@@ -126,14 +82,23 @@
       method,
       payload,
     });
-  async function action(fn) {
+  const libraryUI = globalThis.RaveLinkMusicLibrary.create({
+    $,
+    request,
+    action,
+    call,
+    renderView,
+    getView: () => view,
+    savedEffectsUI,
+  });
+  async function action(fn, immediate = false) {
     if (busy) return;
     busy = true;
     controls();
     try {
       await fn();
       notice(
-        view?.pipeline?.recipeLocked
+        !immediate && view?.pipeline?.recipeLocked
           ? "Saved for the next activation. Current recipe stays locked."
           : "Changes applied.",
       );
@@ -145,31 +110,34 @@
     }
   }
   function controls() {
-    workspaceUI.controls(busy, !!view && !!behaviorCatalog);
+    const waiting = busy || !initialized;
+    libraryUI.controls(waiting, !!behaviorCatalog);
+    workspaceUI.controls(waiting, !!view && !!behaviorCatalog);
     $("catalogPanel")
       .querySelectorAll("input,select,button")
       .forEach((el) => {
-        el.disabled = busy || !behaviorCatalog;
+        el.disabled = waiting || !behaviorCatalog;
       });
     const status = view?.status,
       running = status && !["idle", "closed", "inactive"].includes(status.state);
     const ready = status?.permissions.capture && status?.sourceSelected && view?.captureAvailable;
-    $("preview").disabled = busy || !ready || running || !behaviorCatalog;
-    $("calibrate").disabled = busy || !ready || running || !behaviorCatalog;
+    $("preview").disabled = waiting || !ready || running || !behaviorCatalog;
+    $("calibrate").disabled = waiting || !ready || running || !behaviorCatalog;
     for (const id of ["calibrationSeconds", "calibrationHeadroom"])
-      $(id).disabled = busy || running || !behaviorCatalog;
+      $(id).disabled = waiting || running || !behaviorCatalog;
     $("live").disabled =
-      busy ||
+      waiting ||
       !ready ||
       running ||
       !behaviorCatalog ||
       !status?.permissions.output ||
       !status?.musicFixtureCount;
     $("stop").disabled = !running;
-    $("refreshSources").disabled = busy || !status?.permissions.capture || !view?.captureAvailable;
-    $("selectSource").disabled = busy || !status?.permissions.capture;
+    $("refreshSources").disabled =
+      waiting || !status?.permissions.capture || !view?.captureAvailable;
+    $("selectSource").disabled = waiting || !status?.permissions.capture;
     for (const id of ["source", "sourceFallback1", "sourceFallback2"])
-      $(id).disabled = busy || !status?.permissions.capture;
+      $(id).disabled = waiting || !status?.permissions.capture;
     for (const id of [
       "capturePermission",
       "outputPermission",
@@ -177,17 +145,20 @@
       "applyDesign",
       "preset",
       "intensity",
+      "paletteSource",
+      "warmCoolColors",
       "outputCeiling",
       "outputHz",
       "outputRateMode",
       "look",
       "applyRecipe",
     ])
-      $(id).disabled = busy || !view || (id === "saveFixtures" && !behaviorCatalog);
+      $(id).disabled = waiting || !view || (id === "saveFixtures" && !behaviorCatalog);
+    workspaceUI.paletteControls(view?.design, waiting, !!view);
     $("fixtureChoices")
       .querySelectorAll("input,select")
       .forEach((input) => {
-        input.disabled = busy || !behaviorCatalog;
+        input.disabled = waiting || !behaviorCatalog;
       });
   }
   function renderStatus(status) {
@@ -202,18 +173,8 @@
       : session && !["idle", "stopped", "failed"].includes(session.state)
         ? "Waiting / silent"
         : "No capture";
-    const states = {
-      idle: "Ready",
-      waiting: "Waiting for verified audio",
-      preview: "Preview running · lights untouched",
-      acquiring: "Reading prior light states",
-      running: "Live lighting",
-      stopping: "Stopping & restoring",
-      stopped: "Stopped",
-      failed: "Stopped after a session error",
-    };
     $("sessionStatus").textContent =
-      `${states[session?.state === "failed" ? "failed" : status.state] || status.state}${session?.reason ? " · " + session.reason.replaceAll("_", " ") : ""}${session?.pausedFixtures ? " · " + session.pausedFixtures + " lights released after takeover" : ""}${session?.failedOperations ? " · " + session.failedOperations + " output/restoration failures" : ""}`;
+      `${workspaceUI.sessionStates[session?.state === "failed" ? "failed" : status.state] || status.state}${session?.reason ? " · " + (errors[session.reason] || session.reason.replaceAll("_", " ")) : ""}${session?.pausedFixtures ? " · " + session.pausedFixtures + " lights released after takeover" : ""}${session?.failedOperations ? " · " + session.failedOperations + " output/restoration failures" : ""}`;
     const frame = session?.lastPreview;
     $("responseSummary").textContent = !frame
       ? "Waiting for verified audio"
@@ -299,33 +260,7 @@
     controls();
   }
   function renderPalette(colors) {
-    colors = [...new Set(colors)];
-    if (colors.length === 1) colors.push(colors[0] === "#ff075b" ? "#008cff" : "#ff075b");
-    $("palette").replaceChildren(
-      ...colors.map((color, index) => {
-        const row = document.createElement("div"),
-          input = document.createElement("input"),
-          remove = document.createElement("button");
-        input.type = "color";
-        input.value = color;
-        input.onchange = () => void action(saveDesign);
-        input.setAttribute("aria-label", `Palette color ${index + 1}`);
-        remove.type = "button";
-        remove.textContent = "×";
-        remove.setAttribute("aria-label", `Remove color ${index + 1}`);
-        remove.onclick = () => {
-          if ($("palette").children.length > 2) {
-            row.remove();
-            void action(saveDesign);
-          }
-        };
-        row.append(input, remove);
-        return row;
-      }),
-    );
-  }
-  function renderFixtures() {
-    globalThis.RaveLinkMusicFixtures.render({ view, $, labels });
+    workspaceUI.palette(colors, () => void action(saveDesign));
   }
   function renderView(next, edit = false) {
     const sourceChanged =
@@ -355,7 +290,7 @@
         $(id).value = next.design[id];
       });
       renderPalette(next.design.palette);
-      renderFixtures();
+      globalThis.RaveLinkMusicFixtures.render({ view, $, labels });
     }
     $("presetHelp").textContent = presetHelp[next.design.preset];
     document.querySelectorAll("[data-music-preset]").forEach((button) => {
@@ -364,6 +299,8 @@
       button.setAttribute("aria-pressed", String(selected));
     });
     renderStatus(next.status);
+    libraryUI.syncDesign();
+    workspaceUI.paletteControls(view?.design, busy, initialized);
   }
   async function saveDesign() {
     if (new Set([...$("palette").querySelectorAll("input")].map((input) => input.value)).size < 2)
@@ -573,6 +510,7 @@
   }
   function renderPipeline(pipeline) {
     view.pipeline = pipeline;
+    workspaceUI.randomPalette(pipeline);
     globalThis.RaveLinkMusicPipeline.render({ pipeline, view, behaviorCatalog, $ });
   }
   $("smoothing").oninput = () => {
@@ -689,12 +627,17 @@
       }
     });
   async function selectResponse(preset) {
+    const paletteChoice = view.design.recipeOptions.palette;
+    const keepGenerated =
+      paletteChoice?.value === "generated" &&
+      (paletteChoice.mode === "fixed" ||
+        (paletteChoice.mode === "random" && paletteChoice.allowed.length === 1));
     view.design = await call("music.styles.v1", "configure", {
       ...view.design,
       preset,
       scenarioMode: "manual",
       layerMode: "fixed",
-      recipeOptions: {},
+      recipeOptions: keepGenerated ? { palette: paletteChoice } : {},
       parameterRanges: {},
       arrangement: preset === "bands" ? "roles" : preset === "ambient" ? "spatial" : "unified",
       colorMode: preset === "ambient" ? "travel" : preset === "pulse" ? "onsets" : "fixed",
@@ -714,12 +657,41 @@
   document.querySelectorAll("[data-music-preset]").forEach((button) => {
     button.onclick = () => void action(() => selectResponse(button.dataset.musicPreset));
   });
+  $("warmCoolColors").onchange = () => {
+    const enabled = $("warmCoolColors").checked;
+    void action(async () => {
+      await call("music.styles.v1", "configure", { ...view.design, warmCoolColors: enabled });
+      renderView(await request("/api/music-to-light/operator"), true);
+    }, true);
+  };
+  $("paletteSource").onchange = () => {
+    const generated = $("paletteSource").value === "generated";
+    void action(async () => {
+      await call("music.styles.v1", "configure", {
+        ...view.design,
+        recipeOptions: {
+          ...view.design.recipeOptions,
+          palette: generated
+            ? { mode: "random", value: "generated", allowed: ["generated"] }
+            : { mode: "configured", value: "configured", allowed: ["configured"] },
+        },
+      });
+      renderView(await request("/api/music-to-light/operator"), true);
+    });
+  };
   $("addColor").onclick = () => {
     const colors = [...$("palette").querySelectorAll("input")].map((input) => input.value);
-    const next = ["#ff075b", "#008cff", "#7024ff", "#00e6a8", "#ffae00"].find(
-      (color) => !colors.includes(color),
-    );
-    if (colors.length < 5 && next) {
+    const next = [
+      "#ff075b",
+      "#008cff",
+      "#7024ff",
+      "#00e6a8",
+      "#ffae00",
+      "#00e5ff",
+      "#ff5c00",
+      "#c2ff00",
+    ].find((color) => !colors.includes(color));
+    if (colors.length < 8 && next) {
       renderPalette([...colors, next]);
       void action(saveDesign);
     }
@@ -751,35 +723,39 @@
     if (closed || !visible || document.hidden || polling) return;
     polling = true;
     try {
-      if (!view) {
-        renderView(await request("/api/music-to-light/operator"), true);
+      if (!initialized) {
+        if (!view) renderView(await request("/api/music-to-light/operator"), true);
         try {
-          const catalog = await request("/api/music-to-light/catalog");
-          if (catalog.revision !== 15) throw Error("music_restart_required");
-          for (const look of catalog.looks || []) {
-            const option = document.createElement("option");
-            option.value = look.id;
-            option.textContent = look.label;
-            $("look").append(option);
-            workspaceUI.addLook(look);
-          }
-          $("look").onchange = () =>
-            void action(async () => {
-              const look = catalog.looks.find((l) => l.id === $("look").value);
-              if (!look) return;
-              await call("music.styles.v1", "configure", {
-                ...view.design,
-                scenarioMode: "manual",
-                recipeOptions: {},
-                parameterRanges: {},
-                ...look.design,
-                behaviors: { ...view.design.behaviors, ...look.design.behaviors },
+          if (!behaviorCatalog) {
+            const catalog = await request("/api/music-to-light/catalog");
+            if (catalog.revision !== 23) throw Error("music_restart_required");
+            for (const look of catalog.looks || []) {
+              const option = document.createElement("option");
+              option.value = look.id;
+              option.textContent = look.label;
+              $("look").append(option);
+              workspaceUI.addLook(look);
+            }
+            $("look").onchange = () =>
+              void action(async () => {
+                const look = catalog.looks.find((l) => l.id === $("look").value);
+                if (!look) return;
+                await call("music.styles.v1", "configure", {
+                  ...view.design,
+                  scenarioMode: "manual",
+                  recipeOptions: {},
+                  parameterRanges: {},
+                  ...look.design,
+                  behaviors: { ...view.design.behaviors, ...look.design.behaviors },
+                });
+                $("lookHelp").textContent = look.help;
+                renderView(await request("/api/music-to-light/operator"), true);
               });
-              $("lookHelp").textContent = look.help;
-              renderView(await request("/api/music-to-light/operator"), true);
-            });
-          buildBehaviorControls(catalog);
+            buildBehaviorControls(catalog);
+          }
           await savedEffectsUI.refresh();
+          initialized = true;
+          renderView(view, true);
         } catch (error) {
           workspaceUI.loadError(error);
           return;
@@ -794,6 +770,7 @@
         if (behaviorCatalog) renderPipeline(await request("/api/music-to-light/pipeline"));
       }
       workspaceUI.recovered();
+      await libraryUI.refresh();
     } catch (error) {
       notice(error.message, true, "poll");
     } finally {

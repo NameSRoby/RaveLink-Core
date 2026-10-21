@@ -68,7 +68,7 @@ function createLifetime({ design, request, source, playback, now, wallNow }) {
   let current = design.raveDurationMode === "song" ? song(playback, source, wallNow) : null;
   if (current?.status !== "playing") current = null;
   let mode = current ? "song" : design.raveDurationMode === "separate" ? "separate" : "dynamic";
-  let next = !!current && current.duration - current.position <= 60000;
+  let next = request.songOnly !== true && !!current && current.duration - current.position <= 60000;
   let phase = next ? "current_then_next" : current ? "current_song" : "timer";
   const capAt = now + (current ? MAX_SECONDS : fallback) * 1000;
   let deadline =

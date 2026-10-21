@@ -54,6 +54,7 @@ module.exports = function createMusicController({
     lastResult = null;
   let raveRevision = 0,
     raveContext = null,
+    pendingRave = null,
     raveQueue = Promise.resolve();
   const captures = createSharedCapture(probeApi);
   const recipeHistory = require("./recipe-history.cjs")();
@@ -148,6 +149,7 @@ module.exports = function createMusicController({
         "sceneBrightness",
         "sceneFadeMs",
         "colorSlot",
+        "outOfSync",
       ]);
       fixtureBehavior.validate(row);
       if (
@@ -206,19 +208,45 @@ module.exports = function createMusicController({
     if (!design.raveEnabled) throw fault("music_rave_disabled");
     if (!grants.output) throw fault("music_output_permission_required");
     if (!source) throw fault("music_source_selection_required");
-    keys(request, ["fixtureIds", "palette", "feel", "seconds", "brightnessLimit"]);
+    keys(request, [
+      "fixtureIds",
+      "palette",
+      "feel",
+      "seconds",
+      "brightnessLimit",
+      "origin",
+      "effectPolicy",
+      "intensity",
+      "songOnly",
+    ]);
+    if (request.origin !== undefined && !["auto", "manual", "viewer"].includes(request.origin))
+      throw fault("invalid_music_start");
     if (
       !Array.isArray(request.fixtureIds) ||
       request.fixtureIds.some((id) => typeof id !== "string")
     )
       throw fault("invalid_music_fixture_selection");
     const wanted = new Set(request.fixtureIds);
+    const viewer = !request.origin || request.origin === "viewer";
+    const routed = selection.filter(
+      (f) => wanted.has(f.id) && (!viewer || output.isRaveAllowed?.(f.id) !== false),
+    );
+    // The operator's background scene accompanies a viewer Rave, but cannot
+    // turn an unrouted reactive light into a viewer-controlled effect target.
+    const companions =
+      routed.length && viewer
+        ? selection.filter(
+            (f) => !wanted.has(f.id) && f.raveBehavior && f.raveBehavior !== "reactive",
+          )
+        : [];
     const fixtures = fixtureBindings(
-      selection.filter((f) => wanted.has(f.id)).map(({ brand, ...binding }) => binding),
+      [...routed, ...companions].map(({ brand, ...binding }) => binding),
     );
     const maximum = Math.min(design.maximumBrightness, request.brightnessLimit ?? 100);
     const config = validateSettings({
       ...design,
+      ...(request.intensity === undefined ? {} : { intensity: request.intensity }),
+      ...(request.songOnly ? { raveDurationMode: "song" } : {}),
       scenarioMode: "random",
       layerMode: design.raveLayerMode,
       colorMode:
@@ -248,38 +276,50 @@ module.exports = function createMusicController({
           : {}),
       },
       maximumBrightness: maximum,
+      minimumBrightness: Math.min(design.minimumBrightness, maximum),
     });
     if (!savedEffects?.restricted?.() && !Object.values(config.scenarioWeights).some((v) => v > 0))
       throw fault("music_no_scenarios_enabled");
     const seconds = request.seconds ?? design.raveSeconds;
     if (!Number.isInteger(seconds) || seconds < 1 || seconds > 3600)
       throw fault("invalid_music_start");
-    return { fixtures, config, seconds };
+    return {
+      fixtures,
+      config,
+      seconds,
+      routedIds: routed.map((f) => f.id),
+      companionIds: new Set(companions.map((f) => f.id)),
+    };
   }
   async function startRave(request, revision, command) {
     if (revision !== epoch || command !== raveRevision) throw fault("music_request_superseded");
-    let { fixtures, config } = prepareRave(request);
-    const chosen = savedEffects?.choose(config, fixtures);
+    let { fixtures, config, routedIds, companionIds } = prepareRave(request);
+    const sceneBindings = new Map(
+      fixtures.filter((f) => companionIds.has(f.id)).map((f) => [f.id, f]),
+    );
+    const chosen = savedEffects?.choose(config, fixtures, request.effectPolicy);
     if (chosen) {
       config = chosen.design;
-      fixtures = chosen.fixtures;
+      fixtures = chosen.fixtures.map((f) => sceneBindings.get(f.id) || f);
     }
     let playback = null;
-    if (config.raveDurationMode === "song")
-      try {
-        playback = await readPlayback();
-      } catch {}
+    try {
+      playback = await readPlayback();
+    } catch {}
+    // Availability and saved priority choose capture; missing metadata or silence
+    // must never replace an open player with a game or another application.
+    const raveSource = source;
     const lifetime = createLifetime({
       design: config,
       request,
-      source,
+      source: raveSource,
       playback,
       now: now(),
       wallNow: wallNow(),
     });
     const seconds = lifetime.seconds;
     if (revision !== epoch || command !== raveRevision) throw fault("music_request_superseded");
-    if (!context?.probe) await probeApi.ensureAvailable?.(source.id);
+    if (!context?.probe) await probeApi.ensureAvailable?.(raveSource.id);
     if (revision !== epoch || command !== raveRevision) throw fault("music_request_superseded");
     await stopRave("rave_replaced");
     capturePermission();
@@ -289,10 +329,12 @@ module.exports = function createMusicController({
       fixtures,
       design: config,
       limit: request.brightnessLimit ?? 100,
+      routedIds,
       session: null,
       probe: null,
       lifetime,
       profile: chosen?.profile || null,
+      origin: request.origin || "viewer",
     };
     ctx.session = sessionFactory({
       settings: config,
@@ -304,13 +346,19 @@ module.exports = function createMusicController({
         stopTransport: output.stopTransport,
         fixtures,
         kind: "effect",
-        allowed: output.isRaveAllowed,
+        allowed:
+          request.origin && request.origin !== "viewer"
+            ? output.isAutoAllowed
+            : (id) =>
+                companionIds.has(id)
+                  ? output.isAutoAllowed?.(id) !== false
+                  : output.isRaveAllowed?.(id) !== false,
       },
       onFrame: (f) => notify(f, ctx),
     });
     raveContext = ctx;
     try {
-      ctx.probe = captures.acquire(source.id, seconds);
+      ctx.probe = captures.acquire(raveSource.id, seconds);
       ctx.session.start(ctx.probe);
     } catch (error) {
       await ctx.session.stop("music_start_failed");
@@ -395,6 +443,7 @@ module.exports = function createMusicController({
     };
     ctx.session = sessionFactory({
       settings: renderDesign,
+      previewFixtures: selection.filter((f) => !f.raveBehavior || f.raveBehavior === "reactive"),
       recipeHistory,
       now,
       output: fixtures
@@ -557,9 +606,16 @@ module.exports = function createMusicController({
         raveContext?.profile && overlay
           ? require("./saved-effects.cjs").retain(overlay, raveContext.design)
           : overlay;
+      const brightnessChanged = ["steadyBrightness", "loudnessBrightness"].some(
+        (key) => next.behaviors[key] !== design.behaviors[key],
+      );
+      if (brightnessChanged)
+        for (const target of [manualNext, raveNext].filter(Boolean))
+          for (const key of ["steadyBrightness", "loudnessBrightness"])
+            target.behaviors[key] = next.behaviors[key];
       context?.session.validate?.(manualNext);
       if (raveNext) raveContext.session.validate?.(raveNext);
-      context?.session.configure(manualNext);
+      if (context) context.design = context.session.configure(manualNext);
       if (raveContext) {
         if (!next.raveEnabled) void stopRave("music_rave_disabled");
         else {
@@ -635,6 +691,7 @@ module.exports = function createMusicController({
                   raveBehavior = "reactive",
                   sceneBrightness = 10,
                   colorSlot = 0,
+                  outOfSync = 0,
                 }) => ({
                   id,
                   role,
@@ -642,16 +699,38 @@ module.exports = function createMusicController({
                   behavior: raveBehavior,
                   sceneBrightness,
                   colorSlot,
+                  outOfSync,
                 }),
               ) || [],
           }
         : null;
     },
     raveIds: () => raveContext?.fixtures.map((f) => f.id) || [],
+    raveRouteIds: () => raveContext?.routedIds.slice() || [],
+    raveInfo: () =>
+      raveContext
+        ? {
+            origin: raveContext.origin,
+            effect: raveContext.profile,
+            timing: raveContext.lifetime.snapshot(now()),
+          }
+        : pendingRave
+          ? {
+              origin: pendingRave.origin,
+              pending: true,
+              effect: null,
+              timing: { remainingSeconds: null },
+            }
+          : null,
     rave(request) {
       const revision = epoch;
       const command = ++raveRevision;
-      const task = raveQueue.then(() => startRave(request, revision, command));
+      pendingRave = { command, origin: request.origin || "viewer" };
+      const task = raveQueue
+        .then(() => startRave(request, revision, command))
+        .finally(() => {
+          if (pendingRave?.command === command) pendingRave = null;
+        });
       raveQueue = task.catch(() => {});
       return task;
     },
@@ -730,6 +809,34 @@ module.exports = function createMusicController({
         source = rows.find(Boolean) || null;
         probeApi.setPriorities?.(rows.map((row) => row?.id || null));
       });
+    },
+    contrast(input) {
+      enabled();
+      keys(input, ["percent", "fixtures"]);
+      const { percent, fixtures } = input;
+      const contexts = [context, raveContext].filter(Boolean);
+      const reactive = (f) => !f.raveBehavior || f.raveBehavior === "reactive";
+      const known = new Set(
+        [...selection, ...contexts.flatMap((c) => c.fixtures || [])]
+          .filter(reactive)
+          .map((f) => f.id),
+      );
+      if (
+        !Number.isInteger(percent) ||
+        percent < 0 ||
+        percent > 100 ||
+        (fixtures !== null &&
+          (!Array.isArray(fixtures) ||
+            !fixtures.length ||
+            fixtures.length > 64 ||
+            new Set(fixtures).size !== fixtures.length ||
+            fixtures.some((id) => !known.has(id))))
+      )
+        throw fault("invalid_music_fixture_selection");
+      for (const c of contexts) c.session?.setContrast?.(fixtures, percent);
+      for (const f of [...selection, ...contexts.flatMap((c) => c.fixtures || [])])
+        if (reactive(f) && (fixtures === null || fixtures.includes(f.id))) f.outOfSync = percent;
+      return status();
     },
     async selectFixtures(input) {
       enabled();

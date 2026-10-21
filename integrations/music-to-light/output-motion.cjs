@@ -12,9 +12,13 @@ module.exports = function createOutputMotion() {
       const last = previous.get(key),
         target = frame.brightness;
       const duration =
-        target > (last?.brightness ?? target)
-          ? config.behaviors.outputAttackMs
-          : config.behaviors.outputReleaseMs;
+        config.interpretation === "musical" &&
+        config.behaviors.loudnessBrightness &&
+        !config.behaviors.steadyBrightness
+          ? 0
+          : target > (last?.brightness ?? target)
+            ? config.behaviors.outputAttackMs
+            : config.behaviors.outputReleaseMs;
       const amount =
         last && duration > 0
           ? last.brightness +

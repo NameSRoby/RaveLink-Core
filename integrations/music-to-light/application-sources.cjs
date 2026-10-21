@@ -171,7 +171,6 @@ module.exports = function createApplicationSources({ native, known = [] } = {}) 
       resolution = { state: "ready", label: binding.source.label };
       return id;
     }
-    if (id === "fullscreen-app") return id;
     let group = data.groups.get(id);
     if (!group) {
       // Windows may remove an idle application's audio session. Its verified
@@ -216,7 +215,16 @@ module.exports = function createApplicationSources({ native, known = [] } = {}) 
     for (const [priority, selected] of slots.entries()) {
       if (!selected) continue;
       try {
-        const root = resolveFrom(selected, data);
+        let root;
+        if (selected === "fullscreen-app") {
+          const fullscreen = await native.fullscreenSource(options);
+          if (!fullscreen) throw fault("music_selected_app_not_running");
+          const verified = validateSource(fullscreen);
+          if (!/^process:\d+:\d+$/.test(verified.id) || verified.scope !== "process_tree")
+            throw fault("invalid_audio_app_catalog");
+          root = verified.id;
+          resolution = { state: "ready", label: remembered.get(selected).source.label };
+        } else root = resolveFrom(selected, data);
         resolution = { ...resolution, priority };
         return { root, label: remembered.get(selected).source.label, priority };
       } catch (error) {

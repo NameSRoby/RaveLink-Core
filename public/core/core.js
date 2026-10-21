@@ -15,6 +15,7 @@ let coreUpdateStatus = null;
 window.RaveLinkCoreUi = {
   request: (...args) => request(...args),
   fixtures: () => fixtures.slice(),
+  refreshFixtures: () => loadFixtures(),
   showResult: (...args) => showResult(...args),
 };
 async function request(path, options = {}) {
@@ -508,6 +509,7 @@ developerMode.onchange = () => {
 };
 
 function clearFixtureForm() {
+  window.RaveLinkHueSetup?.load();
   byId("fixtureBrand").value = "hue";
   byId("fixtureId").value = "";
   byId("fixtureName").value = "";
@@ -567,7 +569,7 @@ function renderFixtures() {
               )
                 .replaceAll("_", " ")
                 .toUpperCase();
-          return `<tr><td><strong>${escapeHtml(row.name || row.id)}</strong><br><span class="sub">${escapeHtml(row.id)}</span></td><td>${escapeHtml(row.brand).toUpperCase()}</td><td>${escapeHtml(row.zone || "-")}</td><td>${row.twitchEnabled ? "TWITCH" : "OFF"}</td><td>${escapeHtml(state)}</td><td><div class="actions compact"><button data-fixture-test="${escapeHtml(row.id)}">TEST</button><button data-fixture-edit="${escapeHtml(row.id)}">EDIT</button><button class="danger" data-fixture-delete="${escapeHtml(row.id)}">DELETE</button></div></td></tr>`;
+          return `<tr><td><strong>${escapeHtml(row.name || row.id)}</strong><br><span class="sub">${escapeHtml(row.id)}</span></td><td>${escapeHtml(row.brand).toUpperCase()}${row.brand === "hue" ? `<br><span class="sub">${row.entertainmentConfigured ? "ENTERTAINMENT CONFIGURED" : "STANDARD CONTROL"}</span>` : ""}</td><td>${escapeHtml(row.zone || "-")}</td><td>${row.twitchEnabled ? "TWITCH" : "OFF"}</td><td>${escapeHtml(state)}</td><td><div class="actions compact"><button data-fixture-test="${escapeHtml(row.id)}">TEST</button><button data-fixture-edit="${escapeHtml(row.id)}">EDIT</button><button class="danger" data-fixture-delete="${escapeHtml(row.id)}">DELETE</button></div></td></tr>`;
         })
         .join("")
     : '<tr><td colspan="6">NO FIXTURES CONFIGURED</td></tr>';
@@ -671,6 +673,7 @@ byId("fixtureRows").onclick = async (event) => {
     if (!row) return;
     try {
       const detail = (await request(`/fixtures/${encodeURIComponent(row.id)}/edit`)).fixture;
+      window.RaveLinkHueSetup?.load(detail);
       byId("fixtureBrand").value = detail.brand;
       syncFixtureBrandUi();
       byId("fixtureId").value = detail.id;

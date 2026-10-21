@@ -240,6 +240,8 @@ module.exports = {
   available: () => fs.existsSync(HELPER),
   capture,
   listSources: (options) => query(["sources"], options),
+  fullscreenSource: (options) =>
+    query(["fullscreen"], options).then((entries) => entries[0] || null),
   applicationCatalog: (options) => query(["apps"], options),
   identify: (pid, options) => {
     if (!Number.isInteger(pid) || pid <= 0 || pid > 0xffffffff) throw fault("invalid_pid");

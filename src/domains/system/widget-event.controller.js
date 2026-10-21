@@ -566,6 +566,22 @@ function createSystemWidgetEventController(deps = {}) {
     );
     let teachPreview = null,
       chatDelivery = null;
+    if (action === "color" && ["rave-save", "rave-remember"].includes(body.effect)) {
+      const message = bridgeOk
+        ? body.message
+        : "Rave could not save that submission: " +
+          asString(body.error || "save failed").replaceAll("_", " ") +
+          ".";
+      try {
+        chatDelivery = await sendChat({
+          message: asString(message)
+            .replace(/[<>\r\n]/g, " ")
+            .slice(0, 450),
+        });
+      } catch {
+        chatDelivery = { ok: false, error: "twitch_chat_send_failed" };
+      }
+    }
     if (action === "teach") {
       const settings = {
         preview: true,

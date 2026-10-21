@@ -767,33 +767,11 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     }
   }
 
-  async function listEntertainmentAreas(bridgeHost = "", username = "", input = {}) {
-    const host = sanitizeBridgeHost(bridgeHost);
-    const user = sanitizeUsername(username);
-    if (!host || !user || !axios || typeof axios.get !== "function") return [];
-    try {
-      const response = await axios.get(`http://${host}/api/${user}/groups`, {
-        timeout: clampNumber(input.timeoutMs, 200, 10000, 2000),
-      });
-      const groups = response?.data && typeof response.data === "object" ? response.data : {};
-      const out = [];
-      for (const [id, row] of Object.entries(groups)) {
-        const type = String(row?.type || "")
-          .trim()
-          .toLowerCase();
-        if (type !== "entertainment") continue;
-        const areaId = String(id || "").trim();
-        if (!areaId) continue;
-        out.push({
-          id: areaId,
-          name: String(row?.name || areaId).trim() || areaId,
-        });
-      }
-      return out.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
-    } catch {
-      return [];
-    }
-  }
+  const listEntertainmentAreas = require("./hue-entertainment-areas")({
+    axios,
+    sanitizeBridgeHost,
+    sanitizeUsername,
+  });
 
   async function listLights(input = {}) {
     const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
@@ -1576,6 +1554,8 @@ module.exports = function createHueBridgeAdapter(options = {}) {
     discoverBridges,
     pairBridge,
     listLights,
+    discoverEntertainmentAreas: (fixture) =>
+      listEntertainmentAreas(fixture.bridgeIp, fixture.username, { strict: true }),
     setTransportMode,
     syncTransportForFixtures,
     getTelemetry,

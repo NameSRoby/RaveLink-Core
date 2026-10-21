@@ -608,6 +608,16 @@ test("Entertainment preheat gates all frames and enables independent sixteen-Hz 
   e.session.start(e.probe);
   await e.pump(400);
   assert.equal(e.session.snapshot().state, "preheating");
+  const schema = require("../contracts/music-controller-v1.contracts.json").contracts.find(
+    (c) => c.capability === "music.session.v1",
+  ).methods.status.response.properties.session;
+  assert(
+    require("../../../src/shared/contracts/bounded-json-schema").validateValue(
+      schema,
+      e.session.snapshot(),
+    ),
+    "preheating is a public lifecycle state, including before the first command",
+  );
   assert.equal(e.writes.length, 0);
   assert.equal(e.frames.length, 0);
   finish({ ok: true, activeIds: ["h", "h2"] });
@@ -636,4 +646,63 @@ test("failed Entertainment preheat emits no frames, acquires no lights and stops
   assert.equal(e.frames.length, 0);
   assert.equal(e.writes.length, 0);
   assert.equal(e.broker.snapshot().fixtures.length, 0);
+});
+
+test("Entertainment transport markers stay private and status remains valid after Stop", async (t) => {
+  const e = environment(t, {
+    prepare: async () => ({ ok: true, activeIds: ["h"] }),
+    settings: { preset: "pulse", outputHz: 16, maximumBrightness: 100 },
+  });
+  const schema = require("../contracts/music-controller-v1.contracts.json").contracts.find(
+    (c) => c.capability === "music.session.v1",
+  ).methods.status.response.properties.session;
+  const { validateValue } = require("../../../src/shared/contracts/bounded-json-schema");
+  e.session.start(e.probe);
+  await e.pump(1000);
+  assert(
+    e.writes.some((w) => w.id === "h" && w.state.__entertainment === true),
+    "the adapter still receives the stream authorization marker",
+  );
+  const running = e.session.snapshot();
+  assert.deepEqual(
+    e.writes.filter((w) => w.id === "h").at(-1).state.__rgb,
+    running.lastPreview.frames[0].rgb,
+    "Hue streaming preserves the same mapped color as the preview",
+  );
+  assert.equal(
+    Object.hasOwn(running.outputCadence.fixtureHz[0].delivery.lastCommand.state, "__rgb"),
+    false,
+  );
+  assert.equal(running.outputCadence.fixtureHz[0].hz, 16);
+  assert.equal(
+    Object.hasOwn(running.outputCadence.fixtureHz[0].delivery.lastCommand.state, "__entertainment"),
+    false,
+  );
+  assert(validateValue(schema, running));
+  const stopped = await e.session.stop();
+  assert.equal(stopped.state, "stopped");
+  assert.equal(stopped.ownedFixtures, 0);
+  assert(validateValue(schema, stopped), "stopped snapshots must remain contract-valid");
+  assert.deepEqual(e.states, e.initial);
+});
+
+test("live fixture contrast edits retain capture and leases, exclude theatre lights and restore", async (t) => {
+  const e = environment(t, { extraHue: true, sceneRoles: { w: { raveBehavior: "dim" } } });
+  e.session.start(e.probe);
+  await e.pump(800);
+  const before = e.session.snapshot();
+  e.session.setContrast(["h"], 55);
+  let rows = e.session.inspect().assignments;
+  assert.equal(rows.find((f) => f.id === "h").outOfSync, 55);
+  assert.equal(rows.find((f) => f.id === "h2").outOfSync, 0);
+  e.session.setContrast(null, 85);
+  rows = e.session.inspect().assignments;
+  assert.equal(rows.find((f) => f.id === "h2").outOfSync, 85);
+  assert.equal(rows.find((f) => f.id === "w").outOfSync, 0);
+  await e.pump(500);
+  assert.equal(e.stops, 0);
+  assert.equal(e.session.snapshot().ownedFixtures, before.ownedFixtures);
+  assert.throws(() => e.session.setContrast(null, 101));
+  await e.session.stop();
+  assert.deepEqual(e.states, e.initial);
 });

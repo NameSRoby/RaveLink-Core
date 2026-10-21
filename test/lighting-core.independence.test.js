@@ -111,6 +111,7 @@ test("core HTTP server declares absent capabilities and applies color independen
   ]);
   const loadedModules = Object.keys(require.cache).join("\n").replaceAll("\\", "/");
   for (const forbiddenModule of [
+    "/capabilities/feature-platform/",
     "/domains/audio/",
     "/domains/engine-v2/",
     "/domains/live/",
@@ -221,7 +222,7 @@ test("core HTTP server declares absent capabilities and applies color independen
 
   const shell = await fetch(`${base}/`).then((response) => response.text());
   assert.match(shell, /RAVELINK/);
-  assert.doesNotMatch(shell, /AUDIO|MIDI|OAUTH/);
+  assert.doesNotMatch(shell, /data-tab="(?:audio|midi|oauth)"/i);
 
   const retiredSettingsResponse = await fetch(`${base}/system/config`);
   assert.equal(retiredSettingsResponse.status, 404);

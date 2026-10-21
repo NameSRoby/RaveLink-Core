@@ -13,6 +13,7 @@ pub enum Source {
 pub enum Command {
     Sources,
     Apps,
+    Fullscreen,
     Identify(u32),
     Capture {
         source: Source,
@@ -47,6 +48,9 @@ pub fn parse_source(value: &str) -> Result<Source, Failure> {
 }
 
 pub fn parse(args: Vec<String>) -> Result<Command, Failure> {
+    if args == ["fullscreen"] {
+        return Ok(Command::Fullscreen);
+    }
     if args == ["apps"] {
         return Ok(Command::Apps);
     }
@@ -121,6 +125,11 @@ mod tests {
         let mut extra = valid;
         extra.push("--fallback-desktop".into());
         assert!(parse(extra).is_err());
+    }
+    #[test]
+    fn fullscreen_discovery_is_an_explicit_query() {
+        assert_eq!(parse(args(&["fullscreen"])).unwrap(), Command::Fullscreen);
+        assert!(parse(args(&["fullscreen", "anything"])).is_err());
     }
     #[test]
     fn source_scope_never_defaults_or_accepts_ambiguous_processes() {

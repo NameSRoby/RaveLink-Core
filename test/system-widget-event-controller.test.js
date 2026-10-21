@@ -23,6 +23,53 @@ function event(id, rewardId, input = "teal", user = "viewer", broadcasterId = ""
   };
 }
 
+test("Rave saves acknowledge once through the existing lighting reward and failed saves refund", async () => {
+  let failed = false;
+  const chats = [],
+    settlements = [];
+  const controller = createSystemWidgetEventController({
+    getTwitchIntakeMode: () => "native",
+    colorApply: async () => ({
+      status: failed ? 400 : 200,
+      body: {
+        ok: !failed,
+        effect: "rave-remember",
+        message: "Saved song.",
+        ...(failed ? { error: "music_song_already_saved", refundRecommended: true } : {}),
+      },
+    }),
+    sendChat: async (payload) => {
+      chats.push(payload);
+      return { ok: true };
+    },
+    settleRedemption: async (payload) => {
+      settlements.push(payload);
+      return { ok: true, status: payload.status };
+    },
+  });
+  const request = {
+    transport: "native",
+    widgetConfig: { colorRewardId: "lights" },
+    eventEnvelope: event("remember-one", "lights", "rave remember Artist - Song"),
+  };
+  assert.equal((await controller.handleWidgetEvent(request)).body.status, "FULFILLED");
+  assert.equal((await controller.handleWidgetEvent(request)).body.duplicate, true);
+  assert.equal(chats.length, 1);
+  assert.equal(chats[0].message, "Saved song.");
+  failed = true;
+  assert.equal(
+    (
+      await controller.handleWidgetEvent({
+        ...request,
+        eventEnvelope: event("remember-two", "lights", "rave remember Artist - Song"),
+      })
+    ).body.status,
+    "CANCELED",
+  );
+  assert.equal(settlements[1].status, "CANCELED");
+  assert.equal(chats.length, 2);
+});
+
 test("Add to playlist widget route preserves viewer identity and uses the community submission flag", async () => {
   const calls = [];
   const controller = createSystemWidgetEventController({

@@ -566,7 +566,12 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
   async function handle(rawText, context = {}) {
     if (shuttingDown) return { matched: true, ok: false, error: "lighting_shutting_down" };
     const command = parse(rawText);
-    if (!command.matched || !command.ok) return command;
+    const libraryResult = require("./music-light-effect-command").libraryCommand(
+      command,
+      context,
+      musicHandler,
+    );
+    if (!command.matched || !command.ok || libraryResult) return libraryResult || command;
     // Admission precedes revision changes: a rejected redemption must not
     // invalidate the in-flight Rave that it was refused permission to replace.
     if (command.type !== "stop" && isRaveActive())
@@ -821,6 +826,10 @@ module.exports = function createTwitchLightEffectsService(options = {}) {
     },
     isRaveActive,
     isRaveStop,
+    isRaveLibraryCommand: (text) => {
+      const route = resolve(text);
+      return ["rave-save", "rave-remember"].includes(parse(route.matched ? route.text : text).type);
+    },
     snapshot,
     save,
     parse,

@@ -47,3 +47,24 @@ test("optional color smoothing reduces target jumps without delaying brightness 
   assert(Math.abs(later.rgb.b - target.rgb.b) < 1);
   assert.deepEqual(m.render("b", target, 2000, c).rgb, target.rgb);
 });
+
+test("the loudness foundation is not delayed by a second output envelope", () => {
+  const c = settings({
+    maximumBrightness: 100,
+    behaviors: {
+      loudnessBrightness: true,
+      outputAttackMs: 200,
+      outputReleaseMs: 500,
+      outputColorMs: 200,
+    },
+  });
+  const m = create();
+  m.render("a", frame(80), 0, c);
+  const next = m.render("a", { ...frame(65), rgb: { r: 0, g: 100, b: 255 } }, 62.5, c);
+  assert.equal(next.brightness, 65, "the sample-clock loudness envelope already owns the fall");
+  assert.notDeepEqual(
+    next.rgb,
+    { r: 0, g: 100, b: 255 },
+    "independent color smoothing remains available",
+  );
+});

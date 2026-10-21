@@ -29,6 +29,7 @@
       "Color palette",
       {
         configured: "Your colors",
+        generated: "Fresh contrasting colors",
         "electric-pulse": "Electric",
         "ember-pulse": "Ember",
         "aurora-swell": "Aurora",

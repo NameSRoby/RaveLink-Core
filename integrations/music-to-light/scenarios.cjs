@@ -121,7 +121,10 @@ function chooseLayers(config, scenario, random = Math.random) {
   }
   // Keep the defining mechanism of a shape when it is allowed. A pulse without
   // attacks or a wave without spatial response is an unhelpful random result.
-  if (["pulse", "wave", "bounce", "handoff"].includes(scenario))
+  if (
+    ["pulse", "wave", "bounce", "handoff"].includes(scenario) ||
+    (config.loudnessBrightness && !config.steadyBrightness)
+  )
     selected.attacksEnabled = config.attacksEnabled;
   if (["wave", "wash", "bounce", "handoff"].includes(scenario))
     selected.spatialEnabled = config.spatialEnabled;

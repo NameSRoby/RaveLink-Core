@@ -225,15 +225,79 @@ test("remembered app resolves while silent and after its audio process restarts 
 test("fullscreen mode is explicit, persists without a process identity and never becomes desktop capture", async () => {
   const os = native({ value: { sources: [], processes: [] } });
   os.supportsFullscreen = true;
+  os.fullscreenSource = async () => source(99, 900, "Game");
   const apps = create({ native: os });
   const rows = await apps.listSources();
   const fullscreen = rows.find((r) => r.id === "fullscreen-app");
   assert.equal(fullscreen.scope, "process_tree");
   const restored = create({ native: os, known: [apps.describe(fullscreen.id)] });
-  assert.equal(await restored.ensureAvailable(fullscreen.id), "fullscreen-app");
+  assert.equal(await restored.ensureAvailable(fullscreen.id), "process:99:900");
   const capture = restored.capture(fullscreen.id, { seconds: 1 });
   await new Promise(setImmediate);
-  assert.deepEqual(os.captures, ["fullscreen-app"]);
+  assert.deepEqual(os.captures, ["process:99:900"]);
   capture.stop();
   await capture.done;
+});
+
+test("saved priorities keep a silent main app, skip unavailable fullscreen and reach fallback 2", async () => {
+  const tidal = node(10, 0, 100, "C:\\Music\\TIDALPlayer.exe");
+  const firefox = node(20, 0, 200, "C:\\Browser\\firefox.exe");
+  const data = {
+    value: {
+      sources: [source(10, 100, "TIDALPlayer"), source(20, 200, "firefox")],
+      processes: [tidal, firefox],
+    },
+  };
+  const os = native(data);
+  os.supportsFullscreen = true;
+  let fullscreen = null,
+    checks = 0;
+  os.fullscreenSource = async () => {
+    checks++;
+    return fullscreen;
+  };
+  const apps = create({ native: os });
+  const rows = await apps.listSources();
+  const main = rows.find((r) => r.label === "TIDALPlayer");
+  const browser = rows.find((r) => r.label.startsWith("firefox"));
+  apps.setPriorities([main.id, "fullscreen-app", browser.id]);
+  // No audio sessions at all: process existence, not volume/playback, wins.
+  data.value.sources = [];
+  assert.equal(await apps.ensureAvailable(main.id), "process:10:100");
+  assert.equal(checks, 0, "main app presence must bypass fullscreen discovery");
+  data.value.processes = [firefox];
+  assert.equal(await apps.ensureAvailable(main.id), "process:20:200");
+  assert.equal(apps.resolution().priority, 2);
+  const capture = apps.capture(main.id, { seconds: 0 });
+  await new Promise(setImmediate);
+  assert.deepEqual(os.captures, ["process:20:200"]);
+  assert.equal(apps.current().priority, 2);
+  capture.stop();
+  await capture.done;
+  fullscreen = source(30, 300, "Game");
+  assert.equal(await apps.ensureAvailable(main.id), "process:30:300");
+  assert.equal(apps.resolution().priority, 1);
+  fullscreen = null;
+  data.value.processes = [];
+  await assert.rejects(apps.ensureAvailable(main.id), /music_selected_app_not_running/);
+});
+
+test("fullscreen query failures do not authorize a different capture source", async () => {
+  const data = {
+    value: {
+      sources: [source(20, 200, "firefox")],
+      processes: [node(20, 0, 200, "C:\\Browser\\firefox.exe")],
+    },
+  };
+  const os = native(data);
+  os.supportsFullscreen = true;
+  os.fullscreenSource = async () => {
+    throw Object.assign(Error("source_query_cancelled"), { code: "source_query_cancelled" });
+  };
+  const apps = create({ native: os });
+  const rows = await apps.listSources();
+  apps.setPriorities(["fullscreen-app", null, rows.find((r) => r.id !== "fullscreen-app").id]);
+  const capture = apps.capture("fullscreen-app", { seconds: 0 });
+  await assert.rejects(capture.done, /source_query_cancelled/);
+  assert.deepEqual(os.captures, []);
 });

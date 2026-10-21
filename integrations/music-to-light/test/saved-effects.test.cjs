@@ -82,3 +82,18 @@ test("saved combinations persist atomically; in-use deletion and corrupt restric
   broken.policy({ mode: "full-random", ids: [] });
   assert.equal(broken.choose(settings(), []).profile, null);
 });
+
+test("saved looks retain per-fixture contrast and validate imported percentages", () => {
+  const library = create(),
+    original = current();
+  original.assignments[0].outOfSync = 70;
+  const saved = library.save({ name: "Contrasting colors" }, original);
+  library.policy({ mode: "single", ids: [saved.id] });
+  assert.equal(
+    library.choose(settings(), [{ id: "lamp.1", brand: "hue", role: "all", position: 0 }])
+      .fixtures[0].outOfSync,
+    70,
+  );
+  original.assignments[0].outOfSync = 101;
+  assert.throws(() => library.save({ name: "Invalid" }, original));
+});
