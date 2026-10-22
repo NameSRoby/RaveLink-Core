@@ -42,6 +42,10 @@ test("clean HUD boots and remains usable on desktop and mobile", async (t) => {
         ![
           "/",
           "/core.css",
+          "/dashboard.css",
+          "/dashboard.js",
+          "/dashboard-layout.js",
+          "/feature-navigation.js",
           "/usability.css",
           "/lighting.css",
           "/music-to-light.css",
@@ -71,6 +75,7 @@ test("clean HUD boots and remains usable on desktop and mobile", async (t) => {
         apiRequests.push(pathname);
     });
     await page.goto(url, { waitUntil: "networkidle" });
+    await page.locator('[data-tab="lights"]').click();
     await page.locator("#health").waitFor({ state: "visible" });
     assert.equal(await page.locator('[data-tab="updates"]').isVisible(), false);
     await page.locator("#moreNav > summary").click();
@@ -145,7 +150,13 @@ test("clean HUD boots and remains usable on desktop and mobile", async (t) => {
     assert.ok(apiRequests.includes("/api/presentation/navigation"));
     assert.deepEqual(
       apiRequests.filter(
-        (url) => !["/api/presentation/theme", "/api/presentation/navigation"].includes(url),
+        (url) =>
+          ![
+            "/api/presentation/theme",
+            "/api/presentation/navigation",
+            "/api/presentation/dashboard",
+            "/api/dashboard",
+          ].includes(url),
       ),
       ["/system/status", "/lighting-profiles", "/system/update/status"],
     );
@@ -195,6 +206,7 @@ test("Viewer controls exposes and saves Rave permission without granting audio o
   page.on("pageerror", (e) => errors.push(e.message));
   const url = `http://127.0.0.1:${server.address().port}`;
   await page.goto(url, { waitUntil: "networkidle" });
+  await page.locator('[data-tab="lights"]').click();
   await page.locator('[data-light-tab="viewer"]').click();
   await page.waitForFunction(() => !document.getElementById("viewerRaveEnabled").disabled);
   assert.equal(await page.locator("#viewerRaveEnabled").isChecked(), false);
@@ -215,6 +227,7 @@ test("Viewer controls exposes and saves Rave permission without granting audio o
   assert.match(await page.locator("#viewerRaveStatus").textContent(), /audio|Dynamic|music/i);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.reload({ waitUntil: "networkidle" });
+  await page.locator('[data-tab="lights"]').click();
   await page.locator('[data-light-tab="viewer"]').click();
   await page.waitForFunction(() => !document.getElementById("viewerRaveEnabled").disabled);
   assert.equal(await page.locator("#viewerRaveEnabled").isChecked(), true);

@@ -722,7 +722,15 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
       ),
     );
     rewardPauseChain = operation.catch(() => null);
-    return operation;
+    return operation.then((result) => {
+      if (result?.ok) {
+        rewardCatalogAfter = 0;
+        rewardCatalog = rewardCatalog.map((row) =>
+          row.id === managed.rewardId ? { ...row, paused: input.paused === true } : row,
+        );
+      }
+      return result;
+    });
   }
   async function sendChat(input) {
     return withAuthorization(

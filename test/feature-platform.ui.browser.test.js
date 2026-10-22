@@ -15,6 +15,15 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   fs.cpSync(path.join(__dirname, "..", "features", "song-request"), installed, {
     recursive: true,
   });
+  // Simulate an upgrade that preserved the former Music-to-Light package,
+  // including one installed under a noncanonical folder name.
+  const legacy = path.join(root, "installed", "old-music-facade");
+  fs.cpSync(installed, legacy, { recursive: true });
+  const manifestPath = path.join(legacy, "ravelink.feature.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  manifest.id = "music-to-light";
+  manifest.name = "Music-to-Light";
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest));
   const desktopObserver = {
     lifecycle: "stopped",
     selectedProvider: "spotify",
@@ -81,6 +90,13 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
     });
   });
   const snapshot = await fetch(`${base}/api/features`).then((response) => response.json());
+  assert.deepEqual(
+    snapshot.features.map((row) => row.id),
+    ["song-request"],
+  );
+  assert.equal(fs.existsSync(manifestPath), true, "upgrade filtering preserves local package data");
+  const retiredInstall = await created.extension.registry.install("music-to-light");
+  assert.equal(retiredInstall.error, "feature_moved_to_core");
   const deniedStream = await fetch(`${base}/api/features-stream`, {
     headers: { origin: "https://untrusted.invalid" },
   });
@@ -175,6 +191,20 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   await page.locator("#moreNav > summary").click();
   await page.locator("#featuresTab").click();
   await page.getByRole("button", { name: "Player" }).waitFor();
+  await page.evaluate(async () => {
+    const snapshot = await fetch("/api/features").then((response) => response.json());
+    const { syncFeatureNavigation } = await import("/feature-navigation.js");
+    syncFeatureNavigation([
+      ...snapshot.features,
+      {
+        id: "music-to-light",
+        name: "Music-to-Light",
+        lifecycle: "active",
+        uiContributions: [{ id: "controls", title: "Controls", surface: "panel" }],
+      },
+    ]);
+  });
+  assert.equal(await page.locator('[data-tab="feature:music-to-light"]').count(), 0);
   assert.deepEqual(contributionRequests, []);
   const originalPageCount = context.pages().length;
   await page.getByRole("button", { name: "Player" }).click();

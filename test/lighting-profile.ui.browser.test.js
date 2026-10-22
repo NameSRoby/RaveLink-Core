@@ -47,6 +47,7 @@ test("operator can route mixed fixtures and apply a default profile from the HUD
   await page.goto(`http://127.0.0.1:${server.address().port}`, {
     waitUntil: "networkidle",
   });
+  await page.locator('[data-tab="lights"]').click();
   await page.locator('[data-light-tab="profiles"]').click();
   await page.locator("#lightingProfileFixtures .profileFixtureCard").first().waitFor();
   assert.equal(await page.locator("#lightingProfileFixtures .profileFixtureCard").count(), 2);

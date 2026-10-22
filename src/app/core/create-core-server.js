@@ -233,6 +233,12 @@ module.exports = function createCoreServer(options = {}) {
   registerPresentationRoutes(app, { runtimeDir });
   require("./register-music-to-light.routes")(app, { host: musicToLight });
   require("./register-navigation.routes")(app, { runtimeDir });
+  require("./register-dashboard-layout.routes")(app, { runtimeDir });
+  require("./register-dashboard.routes")(app, {
+    core,
+    music: musicToLight,
+    getRegistry: () => extension?.registry || extension?.features?.registry,
+  });
   // Prevent stale widgets from posting an HTML 404 into chat. This compatibility
   // sink stays behind normal write security and never invokes retired behavior.
   app.post("/mods/music-request-engine/now_playing_announce", (_req, res) => {

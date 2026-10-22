@@ -7,6 +7,7 @@
   const nav = document.getElementById("tabs"),
     more = document.querySelector("#moreNav .moreNavMenu");
   const known = {
+    dashboard: "Dashboard",
     lights: "Lights",
     fixtures: "Fixtures",
     widget: "Widget",
@@ -41,9 +42,14 @@
   };
   more.append(menuOpen);
   const defaultMode = (id) =>
-    ["lights", "fixtures", "widget", "feature:song-request", "feature:twitch-integration"].includes(
-      id,
-    )
+    [
+      "dashboard",
+      "lights",
+      "fixtures",
+      "widget",
+      "feature:song-request",
+      "feature:twitch-integration",
+    ].includes(id)
       ? "main"
       : "more";
   function apply() {

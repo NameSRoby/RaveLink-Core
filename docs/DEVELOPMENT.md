@@ -104,6 +104,14 @@ child-process entrypoints, and serialized browser functions are also entry paths
 
 ## Startup and shutdown
 
+The dashboard delegates quick actions to the existing music, fixture-profile,
+Song Request and Twitch owners. Its reward route accepts managed purposes rather
+than caller-supplied reward IDs, reports partial updates, and keeps song rewards
+closed when intake cannot be verified open. Dashboard layout settings contain
+validated identifiers from `src/domains/system/dashboard-catalog.json`; editing
+previews presentation without invoking live controls. Keep new actions in that
+catalog and cover owner admission and layout persistence in `test/dashboard.test.js`.
+
 Each process entrypoint selects a profile and calls `start-core-server.js`.
 `create-core-server.js` composes services and HTTP routes; the shared process
 lifecycle handles listening, SIGINT, SIGTERM, host shutdown requests, and listen

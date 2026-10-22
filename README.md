@@ -8,7 +8,26 @@ RaveLink Core is a local Windows app for streamer lighting, music requests and o
 
 This release adds editable Auto-Rave songs, viewer Rave controls, Hue Entertainment setup, contrasting random colors, warm/cool band assignments and per-light visual contrast. It improves musical brightness and color movement, fallback selection, session restoration and navigation.
 
+## Dashboard (development)
+
+The Dashboard brings managed Channel Points, request intake, music lighting,
+saved light profiles and installed-package shortcuts into one workspace. Reward
+controls apply only to rewards created and managed by Core. Resuming rewards
+keeps song rewards closed while their request intake is paused or unavailable.
+
+Choose **Edit dashboard** from the settings cog or the dashboard toolbar. The
+searchable catalog groups sections and individual actions by purpose, with each
+package requirement explained. Add or remove sections, use Move up / Move down
+to order them, hide individual actions, and choose spacing and columns. Live
+dashboard actions are disabled during the preview. **Save & finish editing**
+keeps the layout locally across restarts; **Cancel editing** discards changes.
+
 ## Install 0.7.3
+
+For the simplest setup on another PC, use the installer or self-contained ZIP
+below. These include Node, production dependencies, the Windows tray launcher
+and the native audio capture helper. No Node, npm, Rust or developer tools need
+to be installed separately.
 
 1. Download **RaveLink-Core-Windows-v0.7.3-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
 2. Choose an installation folder and optional features. Setup downloads and verifies only your selected features from this repository.
@@ -197,7 +216,33 @@ Uninstall through Windows **Installed apps** or the Start menu; the uninstaller 
 
 ## Source and tests
 
-Published source includes runtime code, first-party feature sources, licenses and relevant regression tests. Private state, logs, experiments and working archives are excluded. For source use, install a supported Node.js release, run `npm ci`, then `npm start`. Run `npm test`; browser tests also require `npx playwright install chromium`.
+Published source includes runtime code, first-party feature sources, licenses and relevant regression tests. Private state, logs, experiments and working archives are excluded.
+
+**GitHub source ZIP or clone on Windows:** extract the entire folder into a
+writable location, then double-click **Start-RaveLink.cmd**. On first launch it
+downloads the pinned official Windows runtime (about 43 MB), verifies its SHA-256
+against the included manifest, checks production dependencies against the source
+lockfile, and builds the tray launcher using Windows' included .NET Framework
+compiler. It runs this checkout's source, including local edits. Later launches
+reuse the local runtime. No administrator access or separate Node/Rust install
+is needed. Internet is needed for the initial runtime download and installing
+optional packages. For offline first setup, supply the matching self-contained
+ZIP with `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-source.ps1 -ReleaseArchive "C:\Downloads\RaveLink-Core-Windows-v0.7.3-self-contained.zip"`.
+
+Pair Hue bridges, discover lights and connect accounts on the new PC. Machine
+settings and credentials are deliberately excluded from downloads. Optional
+packages remain opt-in under **Packages**; their verified downloads are wired
+into Core. Supported systems are Windows 10/11 x64; this is not a macOS/Linux
+distribution.
+
+**Development:** install Node 24 LTS and run `npm ci`, then `npm start`. Use
+`npm run setup:windows` to prepare the bundled runtime and launcher without
+starting Core. This checks the pinned release against your lockfile; after
+changing production dependencies, use `npm ci` and build audio from source with
+Rust 1.94.0 and the Visual C++ build tools via `npm run build:audio`. Build the
+tray launcher with `npm run build:host`. Run `npm test`; browser tests also
+require `npx playwright install chromium firefox`. The launcher path installs
+production dependencies only; `npm ci` supplies development and test tools.
 
 ## Report a bug
 

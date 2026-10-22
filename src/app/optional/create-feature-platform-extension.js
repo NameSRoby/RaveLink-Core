@@ -178,6 +178,9 @@ function createFeaturePlatformExtension(options = {}) {
       });
     }
     registry = createFeatureHostRegistry({
+      // Older installations retain packages when updating Core. This former
+      // facade is now supplied by Lights and must never start a duplicate worker.
+      supersededFeatureIds: ["music-to-light"],
       featuresRoot: options.featuresRoot || path.join(rootDir, "features", "installed"),
       packageRoots: options.packageRoots || [
         path.join(rootDir, "feature-packages"),
@@ -361,6 +364,10 @@ function createFeaturePlatformExtension(options = {}) {
       if (!twitchActive) twitchOAuth?.suspendMonitor?.();
       else if (twitchOAuth) twitchOAuth.ensureStatus().catch(() => {});
     });
+    require("../../capabilities/feature-platform/http/register-dashboard-rewards.routes")(
+      context.app,
+      { registry, getProvider: twitchProvider },
+    );
     const startup = registry.startInstalled().catch((error) => ({
       ok: false,
       error: String(error?.message || error).slice(0, 160),
