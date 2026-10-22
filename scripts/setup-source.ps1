@@ -73,8 +73,16 @@ try {
     if (![IO.Path]::GetFullPath($stage).StartsWith("$cache\", [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid staging directory.' }
     Remove-Item -LiteralPath $stage -Recurse -Force
   }
-  & (Join-Path $PSScriptRoot 'build-windows-host.ps1')
-  if ($LASTEXITCODE -ne 0) { throw 'Windows launcher build failed.' }
+  $hostStamp = Join-Path $cache 'host.sha256'
+  $hostHash = (@('desktop\windows-host\RaveLinkCoreHost.cs', 'desktop\windows-host\app.manifest', 'assets\RaveLink-Core.ico', 'scripts\build-windows-host.ps1') | ForEach-Object {
+    (Get-FileHash -LiteralPath (Join-Path $root $_) -Algorithm SHA256).Hash
+  }) -join ':'
+  if (!(Test-Path -LiteralPath (Join-Path $root 'RaveLink-Core.exe')) -or
+      !(Test-Path -LiteralPath $hostStamp) -or (Get-Content -LiteralPath $hostStamp -Raw).Trim() -ne $hostHash) {
+    & (Join-Path $PSScriptRoot 'build-windows-host.ps1')
+    if ($LASTEXITCODE -ne 0) { throw 'Windows launcher build failed. Exit Core before rebuilding changed launcher sources.' }
+    Set-Content -LiteralPath $hostStamp -Value $hostHash -Encoding ASCII
+  }
   Write-Host '[SETUP] Ready. Node, production dependencies and audio capture are included. Optional packages can be installed from Packages.'
   if (!$NoStart) { Start-Process -FilePath (Join-Path $root 'RaveLink-Core.exe') -WorkingDirectory $root -WindowStyle Hidden }
 } catch {
