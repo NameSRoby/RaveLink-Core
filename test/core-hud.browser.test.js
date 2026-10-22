@@ -9,13 +9,18 @@ const createCoreServer = require("../src/app/core/create-core-server");
 
 test("clean HUD boots and remains usable on desktop and mobile", async (t) => {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-hud-"));
-  const { app, services } = createCoreServer({ runtimeDir, dryRun: true });
-  services.lightingCore.fixtureRegistry.upsertFixture({
+  const { app, services } = createCoreServer({
+    runtimeDir,
+    dryRun: true,
+    fixtureSecretVaultOptions: require("./support/fixture-vault-codec.cjs"),
+  });
+  const seeded = services.lightingCore.fixtureRegistry.upsertFixture({
     id: "incomplete-hue",
     brand: "hue",
     bridgeIp: "192.0.2.10",
     lightId: 1,
   });
+  assert.equal(seeded.ok, true, seeded.error);
   const server = await new Promise((resolve) => {
     const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
   });
