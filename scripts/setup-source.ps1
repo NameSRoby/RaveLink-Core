@@ -4,6 +4,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# PowerShell 7 parents can pass incompatible module directories to Windows PowerShell.
+# Setup uses only built-in modules; keep discovery local to this PowerShell process.
+$env:PSModulePath = "$PSHOME\Modules"
 $root = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 try {
   if (![Environment]::Is64BitOperatingSystem -or $env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {

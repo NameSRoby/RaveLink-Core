@@ -71,7 +71,12 @@ test(
         "-ReleaseArchive",
         archive,
       ],
-      { encoding: "utf8", windowsHide: true, timeout: 15000 },
+      {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 15000,
+        env: { ...process.env, PSModulePath: path.join(root, "incompatible-parent-modules") },
+      },
     );
     assert.equal(result.status, 1);
     assert.match(result.stdout, /checksum mismatch/);
