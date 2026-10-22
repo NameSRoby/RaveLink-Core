@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/music-to-light.css" />
     <link rel="stylesheet" href="/mods.css" />
     <link rel="stylesheet" href="/navigation-settings.css" />
+    <link rel="stylesheet" href="/dashboard.css" />
   </head>
   <body>
     <header class="hudHeader">
@@ -72,7 +73,8 @@
       </div>
     </aside>
     <nav id="tabs" class="tabs" aria-label="RaveLink controls">
-      <button class="tabButton active" data-tab="lights" type="button">LIGHTS</button
+      <button class="tabButton active" data-tab="dashboard" type="button">DASHBOARD</button>
+      <button class="tabButton" data-tab="lights" type="button">LIGHTS</button
       ><button class="tabButton" data-tab="fixtures" type="button">FIXTURES</button
       ><button class="tabButton" data-tab="widget" type="button">WIDGET</button>
       <details id="moreNav" class="moreNav">
@@ -92,7 +94,235 @@
       </details>
     </nav>
     <main>
-      <section class="panel active" data-panel="lights">
+      <section
+        class="panel active dashboard"
+        data-panel="dashboard"
+        aria-labelledby="dashboardTitle"
+      >
+        <header class="dashboardHero">
+          <div>
+            <span class="dashboardEyebrow">YOUR CONTROL ROOM</span>
+            <h2 id="dashboardTitle">Your stream at a glance.</h2>
+            <p>Everyday actions for your stream, music and lights.</p>
+          </div>
+          <div class="dashboardHeroActions">
+            <span id="dashboardOverview" class="badge">CHECKING PACKAGES</span
+            ><button id="dashboardRefresh" type="button">Refresh status</button>
+          </div>
+        </header>
+        <p id="dashboardNotice" role="status" aria-live="polite" class="dashboardNotice">
+          Loading your controls…
+        </p>
+        <p id="dashboardEmpty" class="dashboardHint" hidden>
+          Your dashboard is empty. Choose Edit dashboard to add sections and quick actions.
+        </p>
+        <div class="dashboardGrid">
+          <section
+            class="dashboardCard dashboardWide"
+            aria-labelledby="dashboardRewardsTitle"
+            data-dashboard-widget="rewards"
+          >
+            <div class="dashboardCardHeading">
+              <div>
+                <span class="dashboardEyebrow">VIEWER PARTICIPATION</span>
+                <h3 id="dashboardRewardsTitle">Channel Points rewards</h3>
+              </div>
+              <span id="dashboardRewardState" class="badge">CHECKING</span>
+            </div>
+            <p>
+              Pause or resume rewards created and managed by Core. Song request intake has its own
+              control below.
+            </p>
+            <div class="actions">
+              <button
+                id="dashboardPauseRewards"
+                class="primary"
+                type="button"
+                data-dashboard-group="rewards"
+                disabled
+              >
+                Pause all managed rewards</button
+              ><button
+                id="dashboardResumeRewards"
+                type="button"
+                data-dashboard-group="rewards"
+                disabled
+              >
+                Resume all managed rewards</button
+              ><button
+                type="button"
+                data-dashboard-feature="twitch-integration"
+                data-dashboard-page="connection"
+              >
+                Twitch settings
+              </button>
+            </div>
+            <div id="dashboardRewards" class="dashboardRewardList"></div>
+            <p id="dashboardRewardsNotice" class="dashboardHint" role="status">
+              Song rewards stay paused while request intake is paused.
+            </p>
+          </section>
+          <section
+            class="dashboardCard"
+            aria-labelledby="dashboardSongTitle"
+            data-dashboard-widget="song"
+          >
+            <div class="dashboardCardHeading">
+              <div>
+                <span class="dashboardEyebrow">REQUESTS &amp; PLAYBACK</span>
+                <h3 id="dashboardSongTitle">Song Request</h3>
+              </div>
+              <span id="dashboardIntakeState" class="badge">CHECKING</span>
+            </div>
+            <strong id="dashboardNowPlaying" class="dashboardNowPlaying"
+              >No song information</strong
+            >
+            <p id="dashboardQueueCount">Waiting for the package.</p>
+            <div class="actions">
+              <button id="dashboardIntake" type="button" data-dashboard-group="song" disabled>
+                Pause requests</button
+              ><button id="dashboardSkip" type="button" data-dashboard-group="song" disabled>
+                Skip current request
+              </button>
+            </div>
+            <div class="dashboardLinks">
+              <button
+                type="button"
+                data-dashboard-feature="song-request"
+                data-dashboard-page="request-queue"
+              >
+                Open queue →</button
+              ><button
+                type="button"
+                data-dashboard-feature="song-request"
+                data-dashboard-page="player"
+              >
+                Player →</button
+              ><button
+                type="button"
+                data-dashboard-feature="song-request"
+                data-dashboard-page="overlay-editor"
+              >
+                Overlay designer →
+              </button>
+            </div>
+            <p id="dashboardSongNotice" class="dashboardHint" role="status">
+              Pausing intake stops new requests; current playback can continue.
+            </p>
+          </section>
+          <section
+            class="dashboardCard"
+            aria-labelledby="dashboardMusicTitle"
+            data-dashboard-widget="music"
+          >
+            <div class="dashboardCardHeading">
+              <div>
+                <span class="dashboardEyebrow">YOUR ROOM, IN RHYTHM</span>
+                <h3 id="dashboardMusicTitle">Music-to-Light</h3>
+              </div>
+              <span id="dashboardMusicState" class="badge">CHECKING</span>
+            </div>
+            <strong id="dashboardMusicSource" class="dashboardNowPlaying"
+              >Checking source and lights</strong
+            >
+            <p id="dashboardMusicSummary">Use your saved source, lights and look.</p>
+            <div class="actions">
+              <button
+                id="dashboardMusicStart"
+                class="primary"
+                type="button"
+                data-dashboard-group="music"
+                disabled
+              >
+                Start lights</button
+              ><button id="dashboardRave" type="button" data-dashboard-group="music" disabled>
+                Rave now</button
+              ><button id="dashboardMusicStop" type="button">Stop &amp; restore</button>
+            </div>
+            <label class="dashboardAutoRave"
+              ><input id="dashboardAutoRave" type="checkbox" disabled />Auto-Rave for saved
+              songs</label
+            >
+            <div class="dashboardLinks">
+              <button type="button" data-dashboard-light="music">Music controls →</button
+              ><button
+                type="button"
+                id="dashboardReviewSongs"
+                data-dashboard-light="music"
+                data-dashboard-music-view="library"
+              >
+                Song library →
+              </button>
+            </div>
+            <p id="dashboardMusicNotice" class="dashboardHint" role="status">
+              Start uses your existing capture and light permissions.
+            </p>
+          </section>
+          <section
+            class="dashboardCard"
+            aria-labelledby="dashboardProfilesTitle"
+            data-dashboard-widget="profiles"
+          >
+            <div class="dashboardCardHeading">
+              <div>
+                <span class="dashboardEyebrow">CHANGE THE ATMOSPHERE</span>
+                <h3 id="dashboardProfilesTitle">Saved light profiles</h3>
+              </div>
+            </div>
+            <p>
+              Recall a room setup in one click. Applying a profile takes over its lights from active
+              effects.
+            </p>
+            <div id="dashboardProfiles" class="dashboardProfileList"></div>
+            <div class="dashboardLinks">
+              <button type="button" data-dashboard-light="profiles">Manage profiles →</button
+              ><button type="button" data-dashboard-light="control">Direct control →</button
+              ><button type="button" data-dashboard-tab="fixtures">Fixtures →</button>
+            </div>
+            <p id="dashboardProfilesNotice" class="dashboardHint" role="status"></p>
+          </section>
+          <section
+            class="dashboardCard"
+            aria-labelledby="dashboardPackagesTitle"
+            data-dashboard-widget="packages"
+          >
+            <div class="dashboardCardHeading">
+              <div>
+                <span class="dashboardEyebrow">YOUR INSTALLED TOOLS</span>
+                <h3 id="dashboardPackagesTitle">Packages at a glance</h3>
+              </div>
+            </div>
+            <div id="dashboardPackages" class="dashboardPackageList"></div>
+            <div class="dashboardLinks">
+              <button type="button" data-dashboard-tab="features">Manage packages →</button
+              ><button type="button" data-dashboard-tab="updates">Core updates →</button
+              ><button type="button" data-dashboard-tab="widget">Widget setup →</button>
+            </div>
+          </section>
+          <section
+            class="dashboardCard dashboardWide"
+            data-dashboard-widget="shortcuts"
+            aria-labelledby="dashboardShortcutsTitle"
+            hidden
+          >
+            <span class="dashboardEyebrow">GO STRAIGHT THERE</span>
+            <h3 id="dashboardShortcutsTitle">Quick navigation</h3>
+            <div class="dashboardLinks">
+              <button type="button" data-dashboard-tab="lights">Lights</button
+              ><button type="button" data-dashboard-light="viewer">Viewer controls</button
+              ><button
+                type="button"
+                data-dashboard-feature="song-request"
+                data-dashboard-page="request-queue"
+              >
+                Request queue</button
+              ><button type="button" data-dashboard-light="music">Music-to-Light</button
+              ><button type="button" data-dashboard-tab="features">Packages</button>
+            </div>
+          </section>
+        </div>
+      </section>
+      <section class="panel" data-panel="lights" hidden>
         <div class="actions lightSubtabs" role="tablist" aria-label="Lights workspaces">
           <button class="active" data-light-tab="control" type="button">DIRECT CONTROL</button>
           <button data-light-tab="viewer" type="button">VIEWER CONTROLS</button>
@@ -2237,6 +2467,7 @@
     <script src="/lighting-commands.js"></script>
     <script src="/workspace-navigation.js"></script>
     <script src="/navigation-settings.js"></script>
+    <script type="module" src="/dashboard.js"></script>
     <script src="/visible-choices.js"></script>
   </body>
 </html>

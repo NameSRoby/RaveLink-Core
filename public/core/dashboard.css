@@ -1,0 +1,284 @@
+.dashboardHero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 26px;
+  margin-bottom: 18px;
+  border: 1px solid var(--edge);
+  border-radius: 16px;
+  background:
+    radial-gradient(
+      ellipse at top left,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      transparent 70%
+    ),
+    var(--surface);
+}
+.dashboardHero h2 {
+  font-size: clamp(26px, 3vw, 38px);
+  letter-spacing: -0.025em;
+  margin: 5px 0 10px;
+  line-height: 1.15;
+}
+.dashboardHero p,
+.dashboardCard p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+.dashboardHeroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.dashboardEyebrow {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+}
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.dashboardWide {
+  grid-column: 1/-1;
+}
+.dashboardCard {
+  min-width: 0;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  padding: 24px;
+  background: color-mix(in srgb, var(--surface) 64%, var(--panel));
+}
+.dashboardCardHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.dashboardCard h3 {
+  font-size: 24px;
+  margin: 6px 0;
+}
+.dashboardNowPlaying {
+  display: block;
+  margin-top: 18px;
+  font-size: 19px;
+  overflow-wrap: anywhere;
+}
+.dashboardLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 20px;
+}
+.dashboardLinks button {
+  border: 0;
+  box-shadow: none;
+  padding: 6px 0;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+}
+.dashboardLinks button:hover {
+  color: var(--text);
+}
+.dashboardRewardList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+.dashboardReward,
+.dashboardPackage {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.dashboardReward strong,
+.dashboardPackage strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.dashboardReward small,
+.dashboardPackage small {
+  display: block;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.dashboardPackageList {
+  display: grid;
+  gap: 10px;
+  margin-top: 15px;
+}
+.dashboardProfileList {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dashboardAutoRave {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 0;
+}
+.dashboard .dashboardAutoRave {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  font-size: 14px;
+  letter-spacing: normal;
+}
+.dashboard .dashboardAutoRave input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  margin: 0;
+}
+.dashboardHero .badge {
+  padding: 6px 10px;
+  height: auto;
+}
+.dashboardNotice,
+.dashboardHint {
+  min-height: 1.5em;
+  overflow-wrap: anywhere;
+}
+.dashboardHint {
+  font-size: 13px;
+  margin: 16px 0 0;
+}
+.dashboard [data-error="true"] {
+  color: var(--bad);
+}
+.dashboard [hidden] {
+  display: none !important;
+}
+.dashboardEditBar,
+.dashboardEditBar > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0;
+}
+.dashboardEditBar > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.dashboardEditTools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--accent);
+}
+.dashboardEditTools button {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.dashboard[data-editing="true"] .dashboardCard {
+  outline: 1px dashed var(--accent);
+}
+.dashboard[data-editing="true"] .dashboardCard > :not(.dashboardEditTools) {
+  opacity: 0.65;
+}
+.dashboard[data-columns="one"] .dashboardGrid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.dashboard[data-columns="two"] .dashboardGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.dashboard[data-density="compact"] .dashboardCard {
+  padding: 16px;
+}
+.dashboard[data-density="compact"] .dashboardCard h3 {
+  font-size: 21px;
+}
+.dashboard[data-density="compact"] .dashboardCard p {
+  margin: 10px 0;
+}
+.dashboard[data-density="compact"] .dashboardReward,
+.dashboard[data-density="compact"] .dashboardPackage {
+  padding: 10px;
+}
+#dashboardCatalog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: 85vh;
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+}
+#dashboardCatalog::backdrop {
+  background: #000a;
+}
+#dashboardCatalog h2 {
+  margin-top: 0;
+}
+#dashboardCatalog p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+.dashboardCatalogSection {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--edge);
+}
+.dashboardCatalogActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+#dashboardCatalog .dashboardCatalogChoice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+#dashboardCatalog .dashboardCatalogChoice input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+}
+.dashboardLayoutOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+@media (max-width: 720px) {
+  .dashboard[data-columns="two"] .dashboardGrid,
+  .dashboardCatalogActions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboardGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboardHero,
+  .dashboardCard {
+    padding: 18px;
+  }
+  .dashboard .actions button {
+    flex: 1 1 auto;
+  }
+  .dashboardHeroActions {
+    width: 100%;
+  }
+}

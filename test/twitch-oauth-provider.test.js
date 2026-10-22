@@ -83,6 +83,24 @@ test("managed reward creation admits one writer per purpose and releases failed 
     cost: 100,
   });
   assert.equal((await provider.createReward({ purpose: "lights" })).ok, true);
+  let paused = false,
+    reads = 0;
+  api.listRewards = async () => {
+    reads++;
+    return {
+      ok: true,
+      rewards: [{ id: "lights-retry", title: "Lights", cost: 100, paused, manageable: true }],
+    };
+  };
+  api.setRewardPaused = async (input) => {
+    paused = input.paused;
+    return { ok: true, rewardId: input.rewardId, paused };
+  };
+  await provider.listRewards();
+  assert.equal((await provider.listRewards()).cached, true);
+  await provider.setManagedRewardPaused({ purpose: "lights", paused: true });
+  assert.equal((await provider.listRewards()).rewards[0].paused, true);
+  assert.equal(reads, 2, "a successful pause invalidates the catalog immediately");
 });
 
 test("OAuth provider starts with the shipped public application Client ID", async () => {

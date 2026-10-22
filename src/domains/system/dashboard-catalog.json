@@ -1,0 +1,172 @@
+[
+  {
+    "id": "rewards",
+    "title": "Channel Points rewards",
+    "description": "All managed rewards and individual pause/resume controls.",
+    "requires": "Twitch Integration connected with reward management access",
+    "default": true,
+    "actions": [
+      {
+        "id": "rewards-pause",
+        "label": "Pause all managed rewards",
+        "selector": "#dashboardPauseRewards"
+      },
+      {
+        "id": "rewards-resume",
+        "label": "Resume all managed rewards",
+        "selector": "#dashboardResumeRewards"
+      },
+      {
+        "id": "rewards-individual",
+        "label": "Individual reward controls",
+        "selector": "#dashboardRewards"
+      },
+      {
+        "id": "rewards-settings",
+        "label": "Twitch settings shortcut",
+        "selector": "[data-dashboard-feature='twitch-integration']"
+      }
+    ]
+  },
+  {
+    "id": "song",
+    "title": "Song Request",
+    "description": "Now playing, queue count, intake and request controls.",
+    "requires": "Song Request enabled",
+    "default": true,
+    "actions": [
+      {
+        "id": "song-intake",
+        "label": "Pause / resume request intake",
+        "selector": "#dashboardIntake"
+      },
+      { "id": "song-skip", "label": "Skip current request", "selector": "#dashboardSkip" },
+      {
+        "id": "song-queue",
+        "label": "Open request queue",
+        "selector": "[data-dashboard-page='request-queue']"
+      },
+      { "id": "song-player", "label": "Open player", "selector": "[data-dashboard-page='player']" },
+      {
+        "id": "song-overlay",
+        "label": "Open overlay designer",
+        "selector": "[data-dashboard-page='overlay-editor']"
+      }
+    ]
+  },
+  {
+    "id": "music",
+    "title": "Music-to-Light",
+    "description": "Music lighting, Rave and saved-song automation.",
+    "requires": "Choose sources, lights and capture/output permissions in Music-to-Light",
+    "default": true,
+    "actions": [
+      { "id": "music-start", "label": "Start music lights", "selector": "#dashboardMusicStart" },
+      { "id": "music-rave", "label": "Rave now", "selector": "#dashboardRave" },
+      { "id": "music-stop", "label": "Stop and restore lights", "selector": "#dashboardMusicStop" },
+      { "id": "music-auto", "label": "Auto-Rave toggle", "selector": ".dashboardAutoRave" },
+      {
+        "id": "music-controls",
+        "label": "Music controls shortcut",
+        "selector": "[data-dashboard-light='music']:not([data-dashboard-music-view])"
+      },
+      {
+        "id": "music-library",
+        "label": "Song library and submission review",
+        "selector": "#dashboardReviewSongs"
+      }
+    ]
+  },
+  {
+    "id": "profiles",
+    "title": "Lighting profiles",
+    "description": "Saved room setups and direct lighting shortcuts.",
+    "requires": "Add fixtures and save profiles in Lights",
+    "default": true,
+    "actions": [
+      {
+        "id": "profiles-saved",
+        "label": "Saved profile buttons",
+        "selector": "#dashboardProfiles"
+      },
+      {
+        "id": "profiles-manage",
+        "label": "Manage light profiles",
+        "selector": "[data-dashboard-light='profiles']"
+      },
+      {
+        "id": "profiles-control",
+        "label": "Direct light control",
+        "selector": "[data-dashboard-light='control']"
+      },
+      {
+        "id": "profiles-fixtures",
+        "label": "Fixture setup shortcut",
+        "selector": "[data-dashboard-tab='fixtures']"
+      }
+    ]
+  },
+  {
+    "id": "packages",
+    "title": "Installed packages",
+    "description": "Package status, open/manage buttons and maintenance shortcuts.",
+    "requires": "Install optional packages to populate their status cards",
+    "default": true,
+    "actions": [
+      {
+        "id": "packages-list",
+        "label": "Installed package cards",
+        "selector": "#dashboardPackages"
+      },
+      {
+        "id": "packages-manage",
+        "label": "Manage packages",
+        "selector": "[data-dashboard-tab='features']"
+      },
+      {
+        "id": "packages-updates",
+        "label": "Core updates shortcut",
+        "selector": "[data-dashboard-tab='updates']"
+      },
+      {
+        "id": "packages-widget",
+        "label": "Widget setup shortcut",
+        "selector": "[data-dashboard-tab='widget']"
+      }
+    ]
+  },
+  {
+    "id": "shortcuts",
+    "title": "Quick navigation",
+    "description": "A compact row of links to frequently used workspaces.",
+    "requires": "Package links become available when their packages are enabled",
+    "default": false,
+    "actions": [
+      {
+        "id": "shortcut-lights",
+        "label": "Lights workspace",
+        "selector": "[data-dashboard-tab='lights']"
+      },
+      {
+        "id": "shortcut-viewers",
+        "label": "Viewer lighting controls",
+        "selector": "[data-dashboard-light='viewer']"
+      },
+      {
+        "id": "shortcut-requests",
+        "label": "Request queue",
+        "selector": "[data-dashboard-page='request-queue']"
+      },
+      {
+        "id": "shortcut-music",
+        "label": "Music-to-Light",
+        "selector": "[data-dashboard-light='music']"
+      },
+      {
+        "id": "shortcut-packages",
+        "label": "Package management",
+        "selector": "[data-dashboard-tab='features']"
+      }
+    ]
+  }
+]

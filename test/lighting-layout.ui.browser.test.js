@@ -52,6 +52,7 @@ test("room layout alpha places mixed-brand fixtures and explains segment capabil
   page.on("pageerror", (error) => errors.push(error.message));
   const base = `http://127.0.0.1:${server.address().port}`;
   await page.goto(base, { waitUntil: "networkidle" });
+  await page.locator('[data-tab="lights"]').click();
   await page.locator('[data-light-tab="layout"]').click();
   await page.locator("#layoutFixtureSelect").waitFor({ state: "visible" });
   await page.waitForTimeout(500);

@@ -93,6 +93,7 @@ test("Light Commands builds and copies guides from active saved routes", async (
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(origin, { waitUntil: "networkidle" });
+  await page.locator('[data-tab="lights"]').click();
   await page.locator('[data-light-tab="commands"]').click();
   await page.locator("#lightCommandsStatus").filter({ hasText: "GUIDE READY" }).waitFor();
   const compact = await page.locator("#compactLightCommands").textContent();

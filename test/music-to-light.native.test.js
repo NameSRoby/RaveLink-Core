@@ -505,6 +505,7 @@ test("native tab browser flow previews and drives simulated lights at desktop an
     );
   }
   await page.goto(e.base + "/");
+  await page.locator('[data-tab="lights"]').click();
   await page.locator('[data-light-tab="music"]').click();
   await page.waitForFunction(() =>
     document.getElementById("music-helperStatus").textContent.includes("ready"),
@@ -681,6 +682,7 @@ test("native tab browser flow previews and drives simulated lights at desktop an
   assert((await page.locator("#music-source option:checked").textContent()).includes("remembered"));
   e.setSourceRows(undefined);
   await page.reload();
+  await page.locator('[data-tab="lights"]').click();
   await page.locator('[data-light-tab="music"]').click();
   await page.waitForFunction(
     () => document.querySelectorAll("#music-lookCards [data-look]").length >= 6,
@@ -868,6 +870,7 @@ test("native tab browser flow previews and drives simulated lights at desktop an
     await route.fulfill({ json: { ...data, value: { ...data.value, revision: 12 } } });
   });
   await page.reload();
+  await page.locator('[data-tab="lights"]').click();
   await page.locator('[data-light-tab="music"]').click();
   await page.waitForFunction(() =>
     document.getElementById("music-notice").textContent.includes("older music code"),
@@ -985,6 +988,7 @@ test("Main dashboard edits sources, lights and settings; Library edits any song 
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(e.base + "/");
+  await page.locator('[data-tab="lights"]').click();
   await page.locator('[data-light-tab="music"]').click();
   await page.waitForFunction(() => document.getElementById("music-quickCeiling").value !== "");
   assert.equal(

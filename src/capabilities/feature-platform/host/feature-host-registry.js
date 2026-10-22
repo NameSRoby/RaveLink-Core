@@ -26,6 +26,7 @@ module.exports = function createFeatureHostRegistry(options = {}) {
     options.runtimeRoot || path.join(process.cwd(), "runtime", "features"),
   );
   const supervisorFactory = options.supervisorFactory || createFeatureProcessSupervisor;
+  const supersededFeatureIds = new Set(options.supersededFeatureIds || []);
   const providers = new Map(Object.entries(options.providers || {}));
   const mutations = new Map();
   let closing = false;
@@ -331,7 +332,11 @@ module.exports = function createFeatureHostRegistry(options = {}) {
     const directories = fs
       .readdirSync(featuresRoot, { withFileTypes: true })
       .filter(
-        (entry) => entry.isDirectory() && !entry.isSymbolicLink() && !entry.name.startsWith("."),
+        (entry) =>
+          entry.isDirectory() &&
+          !entry.isSymbolicLink() &&
+          !entry.name.startsWith(".") &&
+          !supersededFeatureIds.has(entry.name),
       )
       .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, MAX_INSTALLED_FEATURES);
@@ -347,6 +352,7 @@ module.exports = function createFeatureHostRegistry(options = {}) {
         });
         continue;
       }
+      if (supersededFeatureIds.has(verified.manifest.id)) continue;
       const compiled = await compileFeatureContracts(rootPath, verified.manifest);
       if (!compiled.ok) {
         discoveryErrors.push({
@@ -465,6 +471,7 @@ module.exports = function createFeatureHostRegistry(options = {}) {
   }
 
   async function install(featureId) {
+    if (supersededFeatureIds.has(featureId)) return { ok: false, error: "feature_moved_to_core" };
     const installed = await packageManager.install(featureId);
     if (!installed.ok) return installed;
     await discover();
@@ -633,7 +640,15 @@ module.exports = function createFeatureHostRegistry(options = {}) {
     discover,
     enable: serialize(enable),
     install: serialize(install),
-    listAvailable: packageManager.listAvailable,
+    async listAvailable(selection) {
+      const available = await packageManager.listAvailable(selection);
+      const features = available.features.filter((row) => !supersededFeatureIds.has(row.id));
+      return {
+        ...available,
+        total: features.length,
+        features,
+      };
+    },
     restart: serialize(restart),
     rollback: serialize(rollback),
     uninstall: serialize(uninstall),

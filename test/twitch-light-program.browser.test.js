@@ -34,6 +34,7 @@ test("Twitch fixture board moves exclusive members and previews request-local de
     viewport: { width: 1440, height: 1000 },
   });
   await page.goto(base, { waitUntil: "networkidle" });
+  await page.locator('[data-tab="lights"]').click();
   await page.locator("[data-light-tab=viewer]").click();
   await page
     .locator('[data-choice-for="twitchRoutingMode"] [data-choice-value="assignments"]')

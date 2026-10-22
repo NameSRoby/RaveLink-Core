@@ -4,20 +4,47 @@
 
 RaveLink Core is a local Windows app for streamer lighting, music requests and optional Twitch integration. It runs in the tray and opens at `http://127.0.0.1:5050`.
 
-## New in 0.7.3
+## New in 0.7.4
 
-This release adds editable Auto-Rave songs, viewer Rave controls, Hue Entertainment setup, contrasting random colors, warm/cool band assignments and per-light visual contrast. It improves musical brightness and color movement, fallback selection, session restoration and navigation.
+This release adds a customizable Dashboard for managed Channel Points, song
+requests, music lighting and package shortcuts. It removes duplicate legacy
+Music-to-Light navigation and makes fresh-PC setup easier with a verified source
+launcher and an audio helper that needs no separate Visual C++ runtime install.
 
-## Install 0.7.3
+## Dashboard
 
-1. Download **RaveLink-Core-Windows-v0.7.3-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
+The Dashboard brings managed Channel Points, request intake, music lighting,
+saved light profiles and installed-package shortcuts into one workspace. Reward
+controls apply only to rewards created and managed by Core. Resuming rewards
+keeps song rewards closed while their request intake is paused or unavailable.
+
+Choose **Edit dashboard** from the settings cog or the dashboard toolbar. The
+searchable catalog groups sections and individual actions by purpose, with each
+package requirement explained. Add or remove sections, use Move up / Move down
+to order them, hide individual actions, and choose spacing and columns. Live
+dashboard actions are disabled during the preview. **Save & finish editing**
+keeps the layout locally across restarts; **Cancel editing** discards changes.
+
+## Install 0.7.4
+
+For the simplest portable setup on another PC, use
+**RaveLink-Core-Windows-v0.7.4-self-contained.zip** from the release below. It includes
+Node, production dependencies, the Windows tray launcher and an audio helper
+with its C runtime built in. No Node, npm, Rust, Visual C++ runtime installer or
+developer tools need to be installed separately. Extract it completely and run
+`RaveLink-Core.exe`; verify downloads against `SHA256SUMS.txt`.
+
+1. Download **RaveLink-Core-Windows-v0.7.4-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
 2. Choose an installation folder and optional features. Setup downloads and verifies only your selected features from this repository.
 3. Choose **Main**, **More** or **Hidden** placement for tabs. Change this later from the settings gear → **Choose tabs**.
 4. Launch from the Start menu or desktop shortcut. Use the tray icon to reopen, restart or exit.
 
 Windows 10 or 11, 64-bit, is required. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-For portable use, extract **RaveLink-Core-Windows-v0.7.3-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
+For portable use, extract **RaveLink-Core-Windows-v0.7.4-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
+
+All 0.7.4 downloads include the fresh-PC audio helper fix. Upgrading from the
+original 0.7.3 installer or ZIP removes the separate Visual C++ runtime requirement.
 
 ## Hue Entertainment setup
 
@@ -141,7 +168,7 @@ Available in 0.7.3. Main keeps everyday controls together; Library provides link
 - **Active fullscreen / borderless app** selects its source once when capture starts. Alt+Tab and minimization keep capture pinned to that app; use Stop and Start to select another app. An app that mutes its own background audio will still produce silence.
 - Existing song requests, playlist transfers, chat commands and OBS overlays remain available through optional packages.
 
-**Updating from 0.7.1d or earlier:** use the 0.7.3 installer, or stop Core and extract the complete portable archive into your installation folder. Earlier built-in updaters do not copy the new Music-to-Light components. Keep your local data, restart Core and refresh the dashboard. Check **Packages** for Song Request and Twitch Integration updates. The capture helper, Node runtime and production dependencies are bundled; end users do not need Rust or Node installed.
+**Updating from 0.7.1d or earlier:** use the 0.7.4 installer, or stop Core and extract the complete portable archive into your installation folder. Earlier built-in updaters do not copy the new Music-to-Light components. Keep your local data, restart Core and refresh the dashboard. Check **Packages** for Song Request and Twitch Integration updates. The capture helper, Node runtime and production dependencies are bundled; end users do not need Rust or Node installed.
 
 Music-to-Light process capture requires a supported Windows build (build 20348 or later; Windows 11 recommended). Protected content may be unavailable. Application capture includes its process tree; browser capture does not promise isolation of one tab. TIDAL capture and Hue/WiZ output have had limited hardware validation; automated coverage uses synthetic signals and fixtures. Govee remains Alpha for direct control and is excluded from Music-to-Light restoration.
 
@@ -197,7 +224,34 @@ Uninstall through Windows **Installed apps** or the Start menu; the uninstaller 
 
 ## Source and tests
 
-Published source includes runtime code, first-party feature sources, licenses and relevant regression tests. Private state, logs, experiments and working archives are excluded. For source use, install a supported Node.js release, run `npm ci`, then `npm start`. Run `npm test`; browser tests also require `npx playwright install chromium`.
+Published source includes runtime code, first-party feature sources, licenses and relevant regression tests. Private state, logs, experiments and working archives are excluded.
+
+**GitHub source ZIP or clone on Windows:** extract the entire folder into a
+writable location, then double-click **Start-RaveLink.cmd**. On first launch it
+downloads the pinned official Windows runtime (about 43 MB), verifies its SHA-256
+against the included manifest, checks production dependencies against the source
+lockfile, and builds the tray launcher using Windows' included .NET Framework
+compiler. It runs this checkout's source, including local edits. Later launches
+reuse the local runtime. No administrator access or separate Node/Rust install
+is needed. Only runtime dependencies come from the pinned 0.7.3 fresh-PC archive;
+the application code comes from this checkout. Internet is needed for the initial runtime download and installing
+optional packages. For offline first setup, supply the matching self-contained
+ZIP with `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-source.ps1 -ReleaseArchive "C:\Downloads\RaveLink-Core-Windows-v0.7.3-fresh-pc.zip"`.
+
+Pair Hue bridges, discover lights and connect accounts on the new PC. Machine
+settings and credentials are deliberately excluded from downloads. Optional
+packages remain opt-in under **Packages**; their verified downloads are wired
+into Core. Supported systems are Windows 10/11 x64; this is not a macOS/Linux
+distribution.
+
+**Development:** install Node 24 LTS and run `npm ci`, then `npm start`. Use
+`npm run setup:windows` to prepare the bundled runtime and launcher without
+starting Core. This checks the pinned release against your lockfile; after
+changing production dependencies, use `npm ci` and build audio from source with
+Rust 1.94.0 and the Visual C++ build tools via `npm run build:audio`. Build the
+tray launcher with `npm run build:host`. Run `npm test`; browser tests also
+require `npx playwright install chromium firefox`. The launcher path installs
+production dependencies only; `npm ci` supplies development and test tools.
 
 ## Report a bug
 

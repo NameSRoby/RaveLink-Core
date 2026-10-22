@@ -117,6 +117,7 @@ export function syncFeatureNavigation(features) {
   // worker pages. Explicitly disabled packages still leave navigation normally.
   const visibleFeatures = features.filter(
     (feature) =>
+      feature.id !== "music-to-light" &&
       (feature.lifecycle === "active" ||
         (["crashed", "quarantined", "incompatible"].includes(feature.lifecycle) &&
           (feature.enabledOnStartup || views.has(feature.id))) ||

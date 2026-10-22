@@ -11,6 +11,7 @@ const {
   validateBrowserOrigin,
 } = require("../runtime/request-security.middleware");
 const defaults = {
+  dashboard: "main",
   lights: "main",
   fixtures: "main",
   widget: "main",
