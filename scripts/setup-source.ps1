@@ -11,7 +11,7 @@ try {
   }
   $spec = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'source-runtime.json') -Raw | ConvertFrom-Json
   if ($spec.version -notmatch '^\d+\.\d+\.\d+[a-z]?$' -or
-      $spec.asset -cne "RaveLink-Core-Windows-v$($spec.version)-self-contained.zip" -or
+      $spec.asset -cne "RaveLink-Core-Windows-v$($spec.version)-fresh-pc.zip" -or
       $spec.sha256 -notmatch '^[a-f0-9]{64}$') { throw 'Invalid source runtime manifest.' }
   $cache = Join-Path $root 'runtime\source-setup'
   $stamp = Join-Path $cache 'ready.json'
@@ -52,7 +52,7 @@ try {
     try {
       foreach ($entry in $zip.Entries) {
         # Strip the archive's leading ./ and copy only runtime dependencies.
-        $relative = $entry.FullName -replace '^[^/]+/', ''
+        $relative = $entry.FullName -replace '^\./', ''
         if ($relative -notmatch '^(node_modules/|runtime/RaveLink-Core-Node\.exe$|runtime/music-to-light/cargo/release/ravelink-audio-probe\.exe$|runtime/NODE-LICENSE\.txt$|package-lock\.json$)') { continue }
         $destination = [IO.Path]::GetFullPath((Join-Path $stage $relative))
         if (!$destination.StartsWith("$stage\", [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe archive path.' }

@@ -24,10 +24,12 @@ keeps the layout locally across restarts; **Cancel editing** discards changes.
 
 ## Install 0.7.3
 
-For the simplest setup on another PC, use the installer or self-contained ZIP
-below. These include Node, production dependencies, the Windows tray launcher
-and the native audio capture helper. No Node, npm, Rust or developer tools need
-to be installed separately.
+For the simplest portable setup on another PC, use
+**RaveLink-Core-Windows-v0.7.3-fresh-pc.zip** from the release below. It includes
+Node, production dependencies, the Windows tray launcher and an audio helper
+with its C runtime built in. No Node, npm, Rust, Visual C++ runtime installer or
+developer tools need to be installed separately. Extract it completely and run
+`RaveLink-Core.exe`; verify it using the accompanying `.zip.sha256` file.
 
 1. Download **RaveLink-Core-Windows-v0.7.3-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
 2. Choose an installation folder and optional features. Setup downloads and verifies only your selected features from this repository.
@@ -37,6 +39,10 @@ to be installed separately.
 Windows 10 or 11, 64-bit, is required. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
 For portable use, extract **RaveLink-Core-Windows-v0.7.3-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
+
+The original 0.7.3 installer and ZIPs predate the fresh-PC audio helper fix and
+may require the Visual C++ runtime for audio capture. The additional **fresh-pc**
+ZIP removes that requirement; existing release files retain their original hashes.
 
 ## Hue Entertainment setup
 
@@ -227,7 +233,7 @@ compiler. It runs this checkout's source, including local edits. Later launches
 reuse the local runtime. No administrator access or separate Node/Rust install
 is needed. Internet is needed for the initial runtime download and installing
 optional packages. For offline first setup, supply the matching self-contained
-ZIP with `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-source.ps1 -ReleaseArchive "C:\Downloads\RaveLink-Core-Windows-v0.7.3-self-contained.zip"`.
+ZIP with `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-source.ps1 -ReleaseArchive "C:\Downloads\RaveLink-Core-Windows-v0.7.3-fresh-pc.zip"`.
 
 Pair Hue bridges, discover lights and connect accounts on the new PC. Machine
 settings and credentials are deliberately excluded from downloads. Optional
