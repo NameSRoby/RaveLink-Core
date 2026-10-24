@@ -14,7 +14,7 @@ try {
   }
   $spec = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'source-runtime.json') -Raw | ConvertFrom-Json
   if ($spec.version -notmatch '^\d+\.\d+\.\d+[a-z]?$' -or
-      $spec.asset -cne "RaveLink-Core-Windows-v$($spec.version)-fresh-pc.zip" -or
+      $spec.asset -cnotin @("RaveLink-Core-Windows-v$($spec.version).zip", "RaveLink-Core-Windows-v$($spec.version)-fresh-pc.zip") -or
       $spec.sha256 -notmatch '^[a-f0-9]{64}$') { throw 'Invalid source runtime manifest.' }
   $cache = Join-Path $root 'runtime\source-setup'
   $stamp = Join-Path $cache 'ready.json'
