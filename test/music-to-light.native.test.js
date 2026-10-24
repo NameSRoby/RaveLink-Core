@@ -1007,12 +1007,16 @@ test("Main dashboard edits sources, lights and settings; Library edits any song 
     input.dispatchEvent(new Event("change", { bubbles: true }));
   });
   await waitFor(() => e.host.view().design.behaviors.accentDepth === 0.12);
+  // Unlike click/selectOption, evaluate bypasses disabled-control checks. The
+  // server can commit before the browser has finished its previous save.
+  await page.waitForFunction(() => !document.getElementById("music-quickImpact").disabled);
   await page.locator("#music-quickImpact").evaluate((input) => {
     input.value = "42";
     input.dispatchEvent(new Event("change", { bubbles: true }));
   });
   await waitFor(() => e.host.view().design.behaviors.impactDepth === 0.42);
   const originalAttack = e.host.view().design.behaviors.outputAttackMs;
+  await page.waitForFunction(() => !document.getElementById("music-quickRise").disabled);
   await page.locator("#music-quickRise").evaluate((input) => {
     input.value = "80";
     input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -1045,6 +1049,7 @@ test("Main dashboard edits sources, lights and settings; Library edits any song 
   await page.locator("#music-contrastScope").selectOption("selected");
   assert.equal(await page.locator("#music-contrastAmount").isDisabled(), true);
   await page.locator("#music-contrastLights button").click();
+  await page.waitForFunction(() => !document.getElementById("music-contrastAmount").disabled);
   await page.locator("#music-contrastAmount").evaluate((input) => {
     input.value = "70";
     input.dispatchEvent(new Event("change", { bubbles: true }));
