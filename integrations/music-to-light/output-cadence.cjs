@@ -55,6 +55,9 @@ module.exports = function createCadence(fixtures = []) {
     },
     fixtureRate(fixture, rate) {
       if (fixture.brand === "hue" && fixture.entertainmentActive) return Math.min(rate, 50);
+      // Govee uses three separate whole-device UDP commands per frame, rather
+      // than an Entertainment stream. Keep a conservative eight-frame budget.
+      if (fixture.brand === "govee") return Math.min(rate, 8);
       return fixture.brand === "hue"
         ? Math.min(rate, 8 / Math.max(1, hueCount()))
         : Math.min(rate, 16);

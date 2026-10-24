@@ -285,7 +285,7 @@ test("rapid replacement during native capture preserves the original baseline an
   assert.equal(e.intervals.size, 0);
 });
 
-test("unavailable native reads block effects, while manual alpha-Govee commands stay available", async (t) => {
+test("adapters without native reads block effects, while manual commands stay available", async (t) => {
   const e = harness(t, { read: async () => ({ ok: false }) });
   const result = await e.effects.handle("cycle red, blue", { fixtureIds: ["hue", "govee"] });
   assert.equal(result.ok, false);

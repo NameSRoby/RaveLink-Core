@@ -163,7 +163,7 @@ module.exports = function createMusicController({
       )
         throw fault("invalid_music_fixture_selection");
       const fixture = available.get(row.id);
-      if (!fixture || fixture.enabled !== true || !["hue", "wiz"].includes(fixture.brand))
+      if (!fixture || fixture.enabled !== true || !["hue", "wiz", "govee"].includes(fixture.brand))
         throw fault("music_fixture_not_available");
       selected.add(row.id);
       return { ...row, brand: fixture.brand };

@@ -29,7 +29,7 @@ module.exports = function createMusicToLightService({
   }
   const fixtures = () =>
     (core?.fixtureRegistry.listConfigured?.() || core?.fixtureRegistry.getFixtures() || [])
-      .filter((f) => f.enabled !== false && ["hue", "wiz"].includes(f.brand))
+      .filter((f) => f.enabled !== false && ["hue", "wiz", "govee"].includes(f.brand))
       .map((f) => ({
         id: f.id,
         name: String(f.name || f.id).slice(0, 80),

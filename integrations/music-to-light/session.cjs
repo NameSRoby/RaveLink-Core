@@ -42,7 +42,7 @@ function targets(output, previewFixtures) {
       typeof f.id !== "string" ||
       !/^[a-zA-Z0-9._-]{1,64}$/.test(f.id) ||
       ids.has(f.id) ||
-      !["hue", "wiz"].includes(f.brand) ||
+      !["hue", "wiz", "govee"].includes(f.brand) ||
       !["all", "low", "mid", "high"].includes(f.role) ||
       !Number.isFinite(f.position) ||
       f.position < 0 ||

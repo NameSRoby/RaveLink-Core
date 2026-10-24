@@ -37,7 +37,7 @@ function fakeDgram(onSend) {
   };
 }
 
-test("Govee alpha discovery uses the documented LAN ports and rejects malformed replies", async () => {
+test("Govee LAN discovery uses the documented LAN ports and rejects malformed replies", async () => {
   const transport = fakeDgram(({ handlers, message }) => {
     if (message.msg.cmd !== "scan") return;
     queueMicrotask(() => {
@@ -79,7 +79,7 @@ test("Govee alpha discovery uses the documented LAN ports and rejects malformed 
 
   const result = await adapter.discoverDevices({ timeoutMs: 300 });
   assert.equal(result.ok, true);
-  assert.equal(result.alpha, true);
+  assert.equal(result.support, "lan-whole-device");
   assert.deepEqual(result.devices, [
     {
       ip: "192.168.1.44",
@@ -94,7 +94,7 @@ test("Govee alpha discovery uses the documented LAN ports and rejects malformed 
   assert.ok(transport.sockets[0].sent.some((row) => row.host === "192.168.1.255"));
 });
 
-test("Govee alpha control sends power, brightness, and whole-device RGB over UDP 4003", () => {
+test("Govee LAN control sends power, brightness, and whole-device RGB over UDP 4003", () => {
   const transport = fakeDgram();
   const adapter = createGoveeLanAdapter({
     dgramRef: transport,
@@ -134,7 +134,7 @@ test("Govee alpha control sends power, brightness, and whole-device RGB over UDP
   );
 });
 
-test("Govee alpha control does not send to an invalid target address", () => {
+test("Govee LAN control does not send to an invalid target address", () => {
   const transport = fakeDgram();
   const adapter = createGoveeLanAdapter({
     dgramRef: transport,
@@ -147,4 +147,19 @@ test("Govee alpha control does not send to an invalid target address", () => {
   });
   assert.deepEqual({ sent: result.sent, failed: result.failed }, { sent: 0, failed: 1 });
   assert.equal(transport.sockets[0].sent.length, 0);
+});
+
+test("Govee asynchronous UDP errors are contained and visible in diagnostics", async () => {
+  let fail;
+  const transport = fakeDgram(({ handlers }) => {
+    fail = handlers.error;
+  });
+  const adapter = createGoveeLanAdapter({ dgramRef: transport, dryRun: false, log: { warn() {} } });
+  adapter.sendState([{ ip: "192.0.2.9" }], { on: false });
+  await new Promise((resolve) => queueMicrotask(resolve));
+  fail({ code: "ENETUNREACH" });
+  assert.equal(adapter.getTelemetry().lastError, "ENETUNREACH");
+  assert.equal(adapter.getTelemetry().failed, 1);
+  assert.equal(transport.sockets[0].closed, true);
+  assert.equal(adapter.getTelemetry().resources.activeSends, 0);
 });

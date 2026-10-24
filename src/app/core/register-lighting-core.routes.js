@@ -104,7 +104,7 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
       twitchColors: true,
       hue: true,
       wiz: true,
-      govee: "alpha",
+      govee: true,
       widget: Boolean(widgetController),
       features: optionalCapabilities.features === true,
       mods: optionalCapabilities.mods === true,
@@ -245,7 +245,7 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
                     activeSessions: Number(hueEntertainment.activeSessions || 0),
                   },
                   wiz: wizTelemetry.resources || null,
-                  goveeAlpha: goveeTelemetry,
+                  goveeLan: goveeTelemetry,
                 },
               },
             }
@@ -610,12 +610,12 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
               ok: false,
               error: String(result.error || "govee_discovery_failed"),
               targets: [],
-              alpha: true,
+              support: "lan-whole-device",
             }
           : {
               ok: true,
               kind: "govee",
-              alpha: true,
+              support: "lan-whole-device",
               count: result.devices.length,
               targets: hardwareOnboarding.recordDiscovery("govee", result.devices),
             },

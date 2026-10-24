@@ -1,5 +1,5 @@
 // [TITLE] Module: domains/twitch/color-command.service.js
-// [TITLE] Purpose: parse and route Twitch color commands to Hue, WiZ, and alpha Govee fixtures
+// [TITLE] Purpose: parse and route Twitch color commands to Hue, WiZ, and Govee LAN fixtures
 
 module.exports = function createColorCommandService(options = {}) {
   const {
@@ -165,7 +165,7 @@ module.exports = function createColorCommandService(options = {}) {
       goveeTargets: 0,
       hueDelivery: { sent: 0, failed: 0 },
       wizDelivery: { sent: 0, failed: 0 },
-      goveeDelivery: { sent: 0, failed: 0, alpha: true },
+      goveeDelivery: { sent: 0, failed: 0, support: "lan-whole-device" },
       directiveType: directive.type,
       colorMatch: directive.matchedName || "",
       fuzzy: directive.fuzzy || null,
@@ -295,7 +295,7 @@ module.exports = function createColorCommandService(options = {}) {
                 await goveeBridge.sendState(targets, directive.wizState),
                 targets.length,
               ),
-              alpha: true,
+              support: "lan-whole-device",
             };
             if (result.goveeDelivery.sent === targets.length)
               for (const row of targets)
@@ -304,7 +304,7 @@ module.exports = function createColorCommandService(options = {}) {
             result.goveeDelivery = {
               sent: 0,
               failed: targets.length,
-              alpha: true,
+              support: "lan-whole-device",
             };
           }
         });

@@ -4,12 +4,15 @@
 
 RaveLink Core is a local Windows app for streamer lighting, music requests and optional Twitch integration. It runs in the tray and opens at `http://127.0.0.1:5050`.
 
-## New in 0.7.4
+## New in 0.7.4a
 
-This release adds a customizable Dashboard for managed Channel Points, song
-requests, music lighting and package shortcuts. It removes duplicate legacy
-Music-to-Light navigation and makes fresh-PC setup easier with a verified source
-launcher and an audio helper that needs no separate Visual C++ runtime install.
+Compatible Govee LAN fixtures now participate in Music-to-Light, Rave, viewer
+effects and lighting profiles. Native state reads and verified restoration
+preserve reported RGB or white state, brightness and power, including an off
+light. Fixture setup explains model-dependent controls and restoration limits.
+This update also hardens LAN discovery, concurrent status reads, malformed
+responses and transport cleanup, with stateful UDP simulations across all six
+Rave scenarios and the full 64-fixture selection.
 
 ## Dashboard
 
@@ -25,26 +28,45 @@ to order them, hide individual actions, and choose spacing and columns. Live
 dashboard actions are disabled during the preview. **Save & finish editing**
 keeps the layout locally across restarts; **Cancel editing** discards changes.
 
-## Install 0.7.4
+## Install 0.7.4a
 
 For the simplest portable setup on another PC, use
-**RaveLink-Core-Windows-v0.7.4-self-contained.zip** from the release below. It includes
+**RaveLink-Core-Windows-v0.7.4a-self-contained.zip** from the release below. It includes
 Node, production dependencies, the Windows tray launcher and an audio helper
 with its C runtime built in. No Node, npm, Rust, Visual C++ runtime installer or
 developer tools need to be installed separately. Extract it completely and run
 `RaveLink-Core.exe`; verify downloads against `SHA256SUMS.txt`.
 
-1. Download **RaveLink-Core-Windows-v0.7.4-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
+1. Download **RaveLink-Core-Windows-v0.7.4a-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
 2. Choose an installation folder and optional features. Setup downloads and verifies only your selected features from this repository.
 3. Choose **Main**, **More** or **Hidden** placement for tabs. Change this later from the settings gear → **Choose tabs**.
 4. Launch from the Start menu or desktop shortcut. Use the tray icon to reopen, restart or exit.
 
 Windows 10 or 11, 64-bit, is required. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-For portable use, extract **RaveLink-Core-Windows-v0.7.4-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
+For portable use, extract **RaveLink-Core-Windows-v0.7.4a-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
 
-All 0.7.4 downloads include the fresh-PC audio helper fix. Upgrading from the
+All 0.7.4a downloads include the fresh-PC audio helper fix. Upgrading from the
 original 0.7.3 installer or ZIP removes the separate Visual C++ runtime requirement.
+
+## Govee LAN compatibility
+
+In **Fixtures**, choose **Govee**, enable **LAN Control** for each compatible
+light in Govee Home, then choose **Find Govee lights**. Keep the PC and lights on
+the same network. You can also enter the device address manually. No Govee cloud
+account key is required.
+
+Music, Rave, viewer effects and profiles use whole-light controls. White color
+temperature depends on the model and firmware. Segments, DreamView and Govee app
+scenes are not exposed by this LAN connection. Stop restores reported power,
+brightness and RGB or white state; it cannot recreate an app animation because
+LAN status does not identify that scene. Govee music output is limited to eight
+updates per second, so very short accents may look softer than Hue Entertainment.
+
+Integration tests use synthetic fixtures over real loopback UDP. They verify
+RaveLink behavior, not every physical model or firmware. Network isolation,
+blocked UDP, or another controller using the fixed response port can prevent
+discovery and status checks; see the compatibility notice in fixture setup.
 
 ## Hue Entertainment setup
 
@@ -168,15 +190,15 @@ Available in 0.7.3. Main keeps everyday controls together; Library provides link
 - **Active fullscreen / borderless app** selects its source once when capture starts. Alt+Tab and minimization keep capture pinned to that app; use Stop and Start to select another app. An app that mutes its own background audio will still produce silence.
 - Existing song requests, playlist transfers, chat commands and OBS overlays remain available through optional packages.
 
-**Updating from 0.7.1d or earlier:** use the 0.7.4 installer, or stop Core and extract the complete portable archive into your installation folder. Earlier built-in updaters do not copy the new Music-to-Light components. Keep your local data, restart Core and refresh the dashboard. Check **Packages** for Song Request and Twitch Integration updates. The capture helper, Node runtime and production dependencies are bundled; end users do not need Rust or Node installed.
+**Updating from 0.7.1d or earlier:** use the 0.7.4a installer, or stop Core and extract the complete portable archive into your installation folder. Earlier built-in updaters do not copy the new Music-to-Light components. Keep your local data, restart Core and refresh the dashboard. Check **Packages** for Song Request and Twitch Integration updates. The capture helper, Node runtime and production dependencies are bundled; end users do not need Rust or Node installed.
 
-Music-to-Light process capture requires a supported Windows build (build 20348 or later; Windows 11 recommended). Protected content may be unavailable. Application capture includes its process tree; browser capture does not promise isolation of one tab. TIDAL capture and Hue/WiZ output have had limited hardware validation; automated coverage uses synthetic signals and fixtures. Govee remains Alpha for direct control and is excluded from Music-to-Light restoration.
+Music-to-Light process capture requires a supported Windows build (build 20348 or later; Windows 11 recommended). Protected content may be unavailable. Application capture includes its process tree; browser capture does not promise isolation of one tab. TIDAL capture and Hue/WiZ output have had limited hardware validation; automated coverage uses synthetic signals and fixtures. Compatible Govee LAN fixtures participate in Music-to-Light, Rave, chat effects and profiles using whole-light controls. Model and firmware determine white-temperature support and response speed. Stop restores reported power, brightness and RGB/white state; Govee app animations, DreamView and segments are not reported or recreated by the LAN API. Govee integration coverage uses simulated UDP fixtures; physical model compatibility is not certified by these tests.
 
 Earlier changes are recorded in the [release history](https://github.com/NameSRoby/RaveLink-Core/releases).
 
 ## Lighting
 
-- **Fixtures:** discover and pair Philips Hue and WiZ lights. Compatible Govee LAN models are supported as **Alpha** and must offer LAN Control in their app.
+- **Fixtures:** discover and pair Philips Hue and WiZ lights. Compatible Govee LAN models must offer LAN Control in their app. The fixture setup panel explains model-dependent features and restoration limits.
 - **Lights:** direct colors, brightness, tunable white, reusable profiles, natural-language color commands and independently routed synchronized effects.
 - **Light Commands:** copy viewer instructions generated from current routes.
 - **Viewer Controls:** configure Channel Points routing, teaching feedback and dynamic commands together.

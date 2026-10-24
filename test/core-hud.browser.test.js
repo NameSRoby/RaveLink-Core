@@ -136,6 +136,10 @@ test("clean HUD boots and remains usable on desktop and mobile", async (t) => {
     await page.locator('[data-fixture-brand="govee"]').click();
     await page.locator(".goveeSetup > summary").waitFor({ state: "visible" });
     assert.match(await page.locator(".goveeSetup").innerText(), /LAN Control/);
+    const goveeNotice = await page.locator(".goveeSetup").innerText();
+    assert.match(goveeNotice, /Features depend on your fixture and firmware/);
+    assert.match(goveeNotice, /app animation cannot be recreated/);
+    assert.doesNotMatch(goveeNotice, /ALPHA/);
     assert.equal(await page.locator("#discoverGovee").isVisible(), true);
     await page.locator('[data-fixture-brand="hue"]').click();
     assert.equal(await page.locator("#fixtureLightIdField").isVisible(), true);

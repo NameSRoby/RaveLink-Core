@@ -243,7 +243,7 @@ test("direct control reports partial delivery without discarding successful fixt
   assert.equal(result.partial, true);
 });
 
-test("direct control routes Govee alpha fixtures through the LAN adapter", async () => {
+test("direct control routes Govee LAN fixtures through the LAN adapter", async () => {
   const sent = [];
   const fixture = {
     id: "govee-desk",
@@ -297,7 +297,7 @@ test("direct control routes Govee alpha fixtures through the LAN adapter", async
   });
   assert.equal(result.ok, true);
   assert.equal(result.goveeTargets, 1);
-  assert.equal(result.goveeDelivery.alpha, true);
+  assert.equal(result.goveeDelivery.support, "lan-whole-device");
   assert.deepEqual(
     sent[0].rows.map((row) => row.id),
     ["govee-desk"],
