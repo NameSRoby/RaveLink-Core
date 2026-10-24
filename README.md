@@ -14,6 +14,10 @@ This update also hardens LAN discovery, concurrent status reads, malformed
 responses and transport cleanup, with stateful UDP simulations across all six
 Rave scenarios and the full 64-fixture selection.
 
+The bundled request parser is updated to body-parser 2.4.0, fixing
+[GHSA-27r3-jxmh-p828](https://github.com/advisories/GHSA-27r3-jxmh-p828), which
+could crash a server when processing malformed compressed request bodies.
+
 ## Dashboard
 
 The Dashboard brings managed Channel Points, request intake, music lighting,
