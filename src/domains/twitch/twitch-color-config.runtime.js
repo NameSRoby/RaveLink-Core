@@ -164,7 +164,7 @@ module.exports = function createTwitchColorConfigRuntime(options = {}) {
     return { target: null, fixtureId: "", prefix: "", text: source };
   }
   function getCapabilities() {
-    return { hue: true, wiz: true, govee: "alpha" };
+    return { hue: true, wiz: true, govee: true };
   }
   function getLoadSummary() {
     return {

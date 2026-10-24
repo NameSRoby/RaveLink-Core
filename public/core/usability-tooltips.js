@@ -10,7 +10,7 @@
     pairHueManual: "Connect to the selected Hue bridge after pressing its physical link button.",
     discoverWiz: "Search the local network for WiZ lights and choose which fixtures to add.",
     discoverGovee:
-      "Search for Govee lights with LAN Control enabled. This adapter is an alpha feature.",
+      "Search for compatible Govee lights with LAN Control enabled. See fixture setup for model-dependent features and restoration limits.",
     refreshFixtures: "Reload saved fixtures and their current connection state.",
     saveFixture: "Save the fixture information currently entered in this form.",
     clearFixture: "Clear the fixture form without deleting saved fixtures.",

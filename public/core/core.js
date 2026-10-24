@@ -149,7 +149,7 @@ function showDiscoveryResult(result) {
     result.kind === "hue"
       ? "Hue bridge"
       : result.kind === "govee"
-        ? "Govee device (alpha)"
+        ? "Govee LAN device"
         : "WiZ device";
   heading.textContent = `${Number(result.count || 0)} ${kindLabel}${result.count === 1 ? "" : "s"} found`;
   output.append(heading);
@@ -609,7 +609,7 @@ function renderLightTargets() {
     ["all", "ALL LIGHTS"],
     ["brand:hue", "ALL HUE"],
     ["brand:wiz", "ALL WIZ"],
-    ["brand:govee", "ALL GOVEE (ALPHA)"],
+    ["brand:govee", "ALL GOVEE"],
     ...fixtureGroups
       .filter((row) => row.enabled !== false && row.fixtureIds?.length)
       .map((row) => [`group:${row.id}`, `GROUP: ${row.name}`]),

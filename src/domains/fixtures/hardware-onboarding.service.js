@@ -1,5 +1,5 @@
 // [TITLE] Module: domains/fixtures/hardware-onboarding.service.js
-// [TITLE] Purpose: bounded, server-owned Hue, WiZ, and alpha Govee discovery/onboarding sessions
+// [TITLE] Purpose: bounded, server-owned Hue, WiZ, and Govee LAN discovery/onboarding sessions
 
 const crypto = require("node:crypto");
 
@@ -64,7 +64,7 @@ module.exports = function createHardwareOnboardingService(options = {}) {
     if (kind === "govee" && typeof core.goveeBridge?.discoverDevices !== "function") {
       return Promise.resolve({
         ok: false,
-        error: "govee_alpha_unavailable",
+        error: "govee_lan_unavailable",
         devices: [],
       });
     }
@@ -468,7 +468,7 @@ module.exports = function createHardwareOnboardingService(options = {}) {
         extras: {
           device: target.device,
           sku: target.sku,
-          alpha: true,
+          support: "lan-whole-device",
           transport: "lan",
         },
       };
@@ -477,7 +477,7 @@ module.exports = function createHardwareOnboardingService(options = {}) {
     return saved.ok
       ? {
           ok: true,
-          alpha: true,
+          support: "lan-whole-device",
           installed: saved.fixtures.map((row) => ({
             id: row.id,
             name: row.name,
@@ -557,7 +557,7 @@ module.exports = function createHardwareOnboardingService(options = {}) {
         return {
           ok: false,
           reachable: false,
-          error: "govee_alpha_unavailable",
+          error: "govee_lan_unavailable",
         };
       const probe = await core.goveeBridge.probeDevice(fixture, {
         timeoutMs: input.timeoutMs,
@@ -569,7 +569,7 @@ module.exports = function createHardwareOnboardingService(options = {}) {
               id: fixture.id,
               name: fixture.name,
               brand: "govee",
-              alpha: true,
+              support: "lan-whole-device",
             },
           }
         : probe;

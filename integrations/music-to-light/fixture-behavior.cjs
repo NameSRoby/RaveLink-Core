@@ -55,7 +55,7 @@ function sceneFrame(fixture, frame, config, baseline, elapsed) {
     ? { on: false }
     : fixture.brand === "hue"
       ? { on: true, bri: Math.max(1, Math.round((brightness * 254) / 100)), transitiontime: 0 }
-      : { on: true, dimming: Math.max(10, Math.round(brightness)) };
+      : { on: true, dimming: Math.max(fixture.brand === "wiz" ? 10 : 1, Math.round(brightness)) };
   return { ...frame, brightness, sceneNative: native };
 }
 module.exports = { validate, sceneFrame };

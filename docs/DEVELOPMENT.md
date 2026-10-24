@@ -34,9 +34,10 @@ to one physical bulb are blocked and counted in diagnostics, rather than getting
 independent ownership lanes.
 
 Temporary programs use native reads, including dynamic-only fixtures; command
-caches do not supply baselines. Govee's alpha adapter lacks a trustworthy native
-restoration reader, so temporary ownership fails closed there while manual
-commands remain available. Effects and taught previews share Core's trusted
+caches do not supply baselines. Govee reads documented LAN status into RGB or
+white native state; restoration writes latent state even when off and checks
+the reported result, retrying one lost update. LAN status cannot identify or
+recreate Govee app animations or segmented scenes. Effects and taught previews share Core's trusted
 `core.effects` replacement namespace; external features must use bounded owner
 admission and opaque tokens, not `replaceOwned`. Native-state changes, route-mode
 changes and removal invalidate outstanding ownership. Shutdown closes admission,
@@ -360,6 +361,34 @@ imports, and whole-file token duplicates. They cannot prove that a dynamic
 capability is unused, detect every similar algorithm, validate hardware behavior,
 or replace a review of cancellation and recovery logic. Delete an exported path
 only after checking its runtime registrations, manifests, builders, and tests.
+
+## Simulated Govee LAN fixtures
+
+Run `node --test test/govee-lan.adapter.test.js test/govee-lan.simulation.test.js test/govee-features.simulation.test.js`
+for stateful RGB/RGBW peer simulations over real loopback UDP. The helper is
+`test/support/govee-lan-simulator.cjs`. Automated tests remap the documented LAN
+ports onto isolated ephemeral ports and intercept discovery destinations; they
+never broadcast to physical lights. Device IDs and SKU labels are synthetic and
+do not certify a particular model or firmware.
+
+The scenarios cover discovery and deduplication, power, retained off-state,
+brightness and RGB bounds, temperature, unsupported white on an RGB-only peer,
+concurrent reads, malformed/oversized/wrong-source replies, offline/reconnect,
+queue limits, shutdown, asynchronous socket failures, dry-run and a reproducible
+128-command sweep. Feature simulations exercise the real adapter and shared
+broker with profiles, viewer effects, Music-to-Light/Rave, dim/steady/off roles,
+manual takeover and verified restoration. Govee LAN fixtures use a conservative
+eight-frame-per-second music budget (three UDP commands per RGB frame), rather
+than a Hue Entertainment stream. No app scenes, segments or cloud API are
+invented by the simulator. Compatible LAN models are supported with an explicit
+model/firmware notice; simulation does not certify physical hardware behavior.
+
+For manual inspection in an isolated Core test installation, run
+`node test/support/govee-lan-simulator.cjs --serve` and add its printed loopback
+fixtures manually. This opt-in mode uses control port 4003 and response port 4002;
+it must not share the receiver port with another test instance. Its discovery
+listener stays on loopback rather than announcing fake devices on a real LAN.
+Stop the simulator with Ctrl+C. Never copy simulated fixtures into release state.
 
 ## Native Music-to-Light controls
 

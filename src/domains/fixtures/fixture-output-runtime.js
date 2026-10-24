@@ -25,7 +25,7 @@ module.exports = function createFixtureOutputRuntime({ fixtureRegistry, adapters
       const fixture = target(id),
         adapter = adapters[fixture.brand];
       // Lack of a genuine restorable native read is an explicit admission failure.
-      // In particular, the alpha Govee probe currently normalizes missing fields.
+      // Unsupported adapters must not fabricate a baseline from cached intent.
       if (!adapter?.readState) return { ok: false, error: "fixture_native_state_unavailable" };
       return adapter.readState(fixture);
     },

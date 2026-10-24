@@ -368,7 +368,7 @@
                   <option value="all">ALL LIGHTS</option>
                   <option value="brand:hue">ALL HUE</option>
                   <option value="brand:wiz">ALL WIZ</option>
-                  <option value="brand:govee">ALL GOVEE (ALPHA)</option>
+                  <option value="brand:govee">ALL GOVEE</option>
                 </select></label
               ><label
                 >COLOR OR DIRECTIVE<input
@@ -1993,7 +1993,7 @@
             ><select id="fixtureBrand" class="choiceSelectHidden" aria-label="Fixture brand">
               <option value="hue">PHILIPS HUE</option>
               <option value="wiz">WIZ</option>
-              <option value="govee">GOVEE (ALPHA)</option>
+              <option value="govee">GOVEE</option>
             </select>
             <div class="choiceCardGrid">
               <button type="button" data-fixture-brand="hue">
@@ -2005,7 +2005,7 @@
                 <strong>WIZ</strong
                 ><span>Direct local-network control using the light's device address.</span></button
               ><button type="button" data-fixture-brand="govee">
-                <strong>GOVEE <small>ALPHA</small></strong
+                <strong>GOVEE</strong
                 ><span>Direct LAN control for compatible models with LAN Control enabled.</span>
               </button>
             </div>
@@ -2023,11 +2023,20 @@
                 <span>OPTIONAL LOCAL DEVICE SUPPORT</span>
                 <h4>GOVEE LAN</h4>
               </div>
-              <span class="alphaBadge">ALPHA</span>
+              <span class="alphaBadge">COMPATIBLE LAN MODELS</span>
             </summary>
             <p>
               RaveLink controls compatible Govee lights directly over your home network. No Govee
               cloud password or API key is needed.
+            </p>
+            <p class="sub">
+              Features depend on your fixture and firmware. LAN Control must be available and
+              enabled. Music, Rave, chat effects and profiles control the whole light; segments,
+              DreamView and Govee app scenes are not exposed by this LAN connection. White color
+              temperature only works on fixtures that support it. Stop restores the reported power,
+              brightness and RGB or white state; an app animation cannot be recreated because LAN
+              status does not report its scene. Music output is limited to eight updates per second,
+              so very short pulses may look softer than Hue Entertainment.
             </p>
             <ol>
               <li>Open the <strong>Govee Home</strong> app and select a light.</li>
