@@ -49,17 +49,20 @@ try {
     }
     Write-Host '[SETUP] Verified archive. Preparing runtime and audio capture...'
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $stage = Join-Path $cache ([Guid]::NewGuid().ToString('N'))
+    # Keep extraction shallow: Windows PowerShell's ZIP APIs have a path limit.
+    $stageRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
+    $stage = Join-Path $stageRoot ("ravelink-source-" + [Guid]::NewGuid().ToString('N').Substring(0, 16))
     New-Item -ItemType Directory -Path $stage | Out-Null
     $zip = [IO.Compression.ZipFile]::OpenRead($archive)
     try {
       foreach ($entry in $zip.Entries) {
-        # Strip the archive's leading ./ and copy only runtime dependencies.
-        $relative = $entry.FullName -replace '^\./', ''
+        # Windows Compress-Archive and tar use different ZIP path separators.
+        # Normalize both before filtering and checking the extraction boundary.
+        $relative = ($entry.FullName -replace '\\', '/') -replace '^\./', ''
         if ($relative -notmatch '^(node_modules/|runtime/RaveLink-Core-Node\.exe$|runtime/music-to-light/cargo/release/ravelink-audio-probe\.exe$|runtime/NODE-LICENSE\.txt$|package-lock\.json$)') { continue }
         $destination = [IO.Path]::GetFullPath((Join-Path $stage $relative))
         if (!$destination.StartsWith("$stage\", [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe archive path.' }
-        if ($entry.FullName.EndsWith('/')) { continue }
+        if ($relative.EndsWith('/')) { continue }
         New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
         [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $destination, $true)
       }
@@ -68,12 +71,13 @@ try {
     # A runtime from another dependency graph must never silently satisfy this source tree.
     & $stagedNode (Join-Path $PSScriptRoot 'verify-source-runtime.js') $root $stage
     if ($LASTEXITCODE -ne 0) { throw 'The pinned runtime does not match this source lockfile. See README for developer setup.' }
-    foreach ($directory in @('node_modules', 'runtime')) {
-      Copy-Item -LiteralPath (Join-Path $stage $directory) -Destination $root -Recurse -Force
-    }
+    # Node handles long destination paths even when Windows PowerShell cannot.
+    $copyScript = "const fs=require('node:fs'),path=require('node:path');for(const dir of ['node_modules','runtime'])fs.cpSync(path.join(process.argv[1],dir),path.join(process.argv[2],dir),{recursive:true,force:true});"
+    & $stagedNode -e $copyScript $stage $root
+    if ($LASTEXITCODE -ne 0) { throw 'Runtime installation failed. See the setup output above.' }
     @{ lock = $lockHash; archive = $spec.sha256 } | ConvertTo-Json | Set-Content -LiteralPath $stamp -Encoding UTF8
     # Only this generated staging directory is removed, never application settings.
-    if (![IO.Path]::GetFullPath($stage).StartsWith("$cache\", [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid staging directory.' }
+    if (![IO.Path]::GetFullPath($stage).StartsWith("$stageRoot\ravelink-source-", [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid staging directory.' }
     Remove-Item -LiteralPath $stage -Recurse -Force
   }
   $hostStamp = Join-Path $cache 'host.sha256'
