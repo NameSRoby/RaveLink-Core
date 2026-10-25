@@ -87,6 +87,9 @@ module.exports = function createCoreServer(options = {}) {
   const lifecycle = createLifecycleRegistry();
   let extension = null;
   const musicToLight = createMusicToLightService({
+    installed: !require("node:fs").existsSync(
+      path.join(rootDir, "config", "music-to-light.disabled"),
+    ),
     core,
     controllerOptions: options.musicControllerOptions,
     designPath: path.join(runtimeDir, "music-to-light", "design.json"),

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const path = require("node:path");
+const fs = require("node:fs");
 const createFeaturePackageManager = require("../src/capabilities/feature-platform/packages/feature-package-manager");
 const {
   OFFICIAL_FEATURE_SOURCES,
@@ -61,13 +62,25 @@ async function installSelectedFeatures(options = {}) {
 }
 
 async function main() {
+  const log = (message) => {
+    try {
+      const dir = path.resolve(__dirname, "../runtime/logs");
+      fs.mkdirSync(dir, { recursive: true });
+      const file = path.join(dir, "feature-setup.log");
+      if (fs.existsSync(file) && fs.statSync(file).size > 1024 * 1024) fs.writeFileSync(file, "");
+      fs.appendFileSync(file, message + "\n");
+    } catch {}
+  };
   try {
     const results = await installSelectedFeatures({
       featureIds: process.argv.slice(2),
     });
-    for (const row of results)
+    for (const row of results) {
       process.stdout.write(`[FEATURE SETUP] ${row.featureId} ${row.operation}\n`);
+      log(`[FEATURE SETUP] ${row.featureId} ${row.operation}`);
+    }
   } catch (error) {
+    log(`[FEATURE SETUP] ${String(error?.message || "feature_install_failed").slice(0, 160)}`);
     process.stderr.write(
       `[FEATURE SETUP] ${String(error?.message || "feature_install_failed").slice(0, 160)}\n`,
     );

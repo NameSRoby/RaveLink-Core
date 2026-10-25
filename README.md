@@ -4,19 +4,20 @@
 
 RaveLink Core is a local Windows app for streamer lighting, music requests and optional Twitch integration. It runs in the tray and opens at `http://127.0.0.1:5050`.
 
-## New in 0.7.4a
+## New in 0.7.4b
 
-Compatible Govee LAN fixtures now participate in Music-to-Light, Rave, viewer
-effects and lighting profiles. Native state reads and verified restoration
-preserve reported RGB or white state, brightness and power, including an off
-light. Fixture setup explains model-dependent controls and restoration limits.
-This update also hardens LAN discovery, concurrent status reads, malformed
-responses and transport cleanup, with stateful UDP simulations across all six
-Rave scenarios and the full 64-fixture selection.
+A native startup window now shows connection status, a copyable dashboard address,
+and buttons to open the dashboard, restart, view the startup log or exit. Failed
+startup displays a useful error instead of opening an unreachable browser page.
+Tray Exit and Restart cancel startup checks; bounded HTTP requests and an
+independent exit deadline prevent a stalled server or frozen UI from keeping Core
+running indefinitely. Shutdown requests are sent only to a verified Core server.
 
-The bundled request parser is updated to body-parser 2.4.0, fixing
-[GHSA-27r3-jxmh-p828](https://github.com/advisories/GHSA-27r3-jxmh-p828), which
-could crash a server when processing malformed compressed request bodies.
+Setup now offers Music-to-Light explicitly and checks the bundled runtime,
+production dependencies, writable data folders and selected audio helper before
+launching. It reports optional feature download failures and blocks installation
+into an old RaveLink Bridge folder. No credentials, device pairings or local
+settings are included in the download.
 
 ## Dashboard
 
@@ -32,25 +33,25 @@ to order them, hide individual actions, and choose spacing and columns. Live
 dashboard actions are disabled during the preview. **Save & finish editing**
 keeps the layout locally across restarts; **Cancel editing** discards changes.
 
-## Install 0.7.4a
+## Install 0.7.4b
 
 For the simplest portable setup on another PC, use
-**RaveLink-Core-Windows-v0.7.4a-self-contained.zip** from the release below. It includes
+**RaveLink-Core-Windows-v0.7.4b-self-contained.zip** from the release below. It includes
 Node, production dependencies, the Windows tray launcher and an audio helper
 with its C runtime built in. No Node, npm, Rust, Visual C++ runtime installer or
 developer tools need to be installed separately. Extract it completely and run
 `RaveLink-Core.exe`; verify downloads against `SHA256SUMS.txt`.
 
-1. Download **RaveLink-Core-Windows-v0.7.4a-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
-2. Choose an installation folder and optional features. Setup downloads and verifies only your selected features from this repository.
+1. Download **RaveLink-Core-Windows-v0.7.4b-setup-installer.exe** from the [latest release](https://github.com/NameSRoby/RaveLink-Core/releases/latest).
+2. Choose an installation folder, Music-to-Light and optional features. Setup checks bundled prerequisites and downloads only your selected online features. Use a separate folder from an old RaveLink Bridge installation.
 3. Choose **Main**, **More** or **Hidden** placement for tabs. Change this later from the settings gear → **Choose tabs**.
-4. Launch from the Start menu or desktop shortcut. Use the tray icon to reopen, restart or exit.
+4. Launch from the Start menu or desktop shortcut. The startup window shows the dashboard address and connection status. Use it or the tray icon to reopen, restart or exit.
 
-Windows 10 or 11, 64-bit, is required. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
+Windows 10 build 19041 or later, or Windows 11, 64-bit, is required. Music-to-Light process capture requires build 20348 or later; Windows 11 is recommended. Setup checks .NET Framework 4.8 and explains any missing prerequisite. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-For portable use, extract **RaveLink-Core-Windows-v0.7.4a-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
+For portable use, extract **RaveLink-Core-Windows-v0.7.4b-self-contained.zip** completely and run `RaveLink-Core.exe`. Both ZIPs contain the complete application and runtime. Install optional features later under **Packages**. Upgrades preserve local settings and feature data.
 
-All 0.7.4a downloads include the fresh-PC audio helper fix. Upgrading from the
+All 0.7.4b downloads include the fresh-PC audio helper fix. Upgrading from the
 original 0.7.3 installer or ZIP removes the separate Visual C++ runtime requirement.
 
 ## Govee LAN compatibility
@@ -194,7 +195,7 @@ Available in 0.7.3. Main keeps everyday controls together; Library provides link
 - **Active fullscreen / borderless app** selects its source once when capture starts. Alt+Tab and minimization keep capture pinned to that app; use Stop and Start to select another app. An app that mutes its own background audio will still produce silence.
 - Existing song requests, playlist transfers, chat commands and OBS overlays remain available through optional packages.
 
-**Updating from 0.7.1d or earlier:** use the 0.7.4a installer, or stop Core and extract the complete portable archive into your installation folder. Earlier built-in updaters do not copy the new Music-to-Light components. Keep your local data, restart Core and refresh the dashboard. Check **Packages** for Song Request and Twitch Integration updates. The capture helper, Node runtime and production dependencies are bundled; end users do not need Rust or Node installed.
+**Updating from 0.7.1d or earlier:** use the 0.7.4b installer, or stop Core and extract the complete portable archive into your installation folder. Earlier built-in updaters do not copy the new Music-to-Light components. Keep your local data, restart Core and refresh the dashboard. Check **Packages** for Song Request and Twitch Integration updates. The capture helper, Node runtime and production dependencies are bundled; end users do not need Rust or Node installed.
 
 Music-to-Light process capture requires a supported Windows build (build 20348 or later; Windows 11 recommended). Protected content may be unavailable. Application capture includes its process tree; browser capture does not promise isolation of one tab. TIDAL capture and Hue/WiZ output have had limited hardware validation; automated coverage uses synthetic signals and fixtures. Compatible Govee LAN fixtures participate in Music-to-Light, Rave, chat effects and profiles using whole-light controls. Model and firmware determine white-temperature support and response speed. Stop restores reported power, brightness and RGB/white state; Govee app animations, DreamView and segments are not reported or recreated by the LAN API. Govee integration coverage uses simulated UDP fixtures; physical model compatibility is not certified by these tests.
 

@@ -110,7 +110,7 @@
     }
   }
   function controls() {
-    const waiting = busy || !initialized;
+    const waiting = busy || !initialized || view?.installed === false;
     libraryUI.controls(waiting, !!behaviorCatalog);
     workspaceUI.controls(waiting, !!view && !!behaviorCatalog);
     $("catalogPanel")

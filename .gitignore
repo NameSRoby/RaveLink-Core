@@ -12,6 +12,7 @@ mod/*
 features/installed/*
 !features/installed/.gitkeep
 config/*.enabled
+config/*.disabled
 *.user
 *.suo
 .vs/

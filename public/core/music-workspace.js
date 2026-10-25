@@ -175,6 +175,13 @@
           : `${state.sourceLabel || source?.label || "No music source"}${state.sourcePriority > 0 ? " · Fallback " + state.sourcePriority : ""} · ${state.musicFixtureCount || 0} lights${state.permissions.output ? "" : " · Preview only"}`;
     }
     function sourceStatus(view) {
+      if (view.installed === false) {
+        notice(
+          "Music-to-Light was not selected during setup. Run the installer again and select Music-to-Light and Rave.",
+        );
+        $("sourceStatus").textContent = "Audio capture and light output are disabled.";
+        return;
+      }
       $("sourceStatus").textContent = view.status.sourceSelected
         ? view.bindings.source?.id === "fullscreen-app"
           ? "Start, then focus the fullscreen or borderless app within five seconds. Capture stays with that app when you Alt+Tab away, until you stop it or the app exits."

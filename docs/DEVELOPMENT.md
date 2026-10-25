@@ -323,6 +323,30 @@ Node process, and its Windows job object. The `v0.6` text in the mutex/event nam
 is a compatibility identifier: changing it per release would allow two versions
 to compete for the same local server. Assembly/product versions are separate.
 
+Non-default ports scope the IPC names, allowing isolated lifecycle tests. Loopback
+HTTP bypasses system proxies, rejects unrelated health responders, and uses an
+abort deadline covering asynchronous response headers and bodies. Framework
+`HttpWebRequest.Timeout` alone does not bound asynchronous requests. Exit cancels
+startup, attempts graceful shutdown, then kills its owned child/job if needed.
+An independent background thread enforces an eight-second exit deadline, armed
+before dispatching an external exit signal onto the UI thread. Do not move that
+deadline behind the lifecycle semaphore or rely on the UI thread to enforce it.
+
+The native startup window exposes server status, the copyable dashboard address,
+restart/exit and the startup log. `--background` supports unattended startup;
+explicit UI requests still reopen the status window. The desktop shortcut is
+selected by default on first install. Old Bridge folders are rejected before
+managed files are changed, while existing Core data remains upgradeable.
+
+Setup validates .NET 4.8, the bundled Node/dependency graph, writable local data,
+Hue crypto and (when selected) native audio helper loading. Music-to-Light is a
+bundled task, not the retired worker package: deselection omits the native helper,
+writes `config/music-to-light.disabled`, prevents restoring capture grants and
+blocks mutation endpoints without deleting saved preferences. Setup failures and
+remote-feature failures remain visible; reports live under `runtime/logs`.
+Per-PC device pairing, network permission and account sign-in are explained in
+`assets/First-run.txt`; they cannot be copied from a developer installation.
+
 Update installation distinguishes managed application files from mutable user
 state. Health confirmation and rollback must preserve features, credentials,
 configuration, and runtime data. Do not infer a successful update from a process

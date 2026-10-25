@@ -6,6 +6,7 @@ const { song: timedSong } = require("../../../integrations/music-to-light/song-d
 const fault = (code) => Object.assign(Error(code), { code });
 module.exports = function createMusicLibraryRuntime({
   instance,
+  installed = true,
   savedEffects,
   readPlayback,
   storePath,
@@ -63,7 +64,7 @@ module.exports = function createMusicLibraryRuntime({
         ? instance.operator.stopRave()
         : Promise.resolve(),
   });
-  if (library.snapshot().enabled) void automation.changed();
+  if (installed && library.snapshot().enabled) void automation.changed();
   async function snapshot() {
     const value = library.snapshot();
     return {

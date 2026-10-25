@@ -10,6 +10,7 @@ const { settings } = require("../../../integrations/music-to-light/mapping-setti
 const fault = (code) => Object.assign(new Error(code), { code });
 module.exports = function createMusicToLightService({
   core,
+  installed = true,
   controllerOptions = {},
   designPath,
   operatorPath,
@@ -77,9 +78,11 @@ module.exports = function createMusicToLightService({
         }
       : null,
   });
+  // Keep read-only status/design available to explain deselection in the UI.
+  // No grants are restored and public mutation methods are blocked below.
   instance.operator.activate();
   let operatorRecovered = false;
-  if (operatorPath && fs.existsSync(operatorPath)) {
+  if (installed && operatorPath && fs.existsSync(operatorPath)) {
     try {
       const stat = fs.lstatSync(operatorPath);
       if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 32768)
@@ -161,6 +164,7 @@ module.exports = function createMusicToLightService({
     return savedEffects.draft(value, pipeline, status.session?.transition);
   };
   const library = require("./music-library-runtime")({
+    installed,
     instance,
     savedEffects,
     readPlayback: readPlayback || controllerOptions.readPlayback || (async () => null),
@@ -168,7 +172,7 @@ module.exports = function createMusicToLightService({
     captureProfile,
     brightnessLimit: () => core?.lightingLab?.settings?.().brightnessLimit ?? 100,
   });
-  return Object.freeze({
+  const service = {
     library: library.snapshot,
     songPolicy: library.configure,
     saveSong: library.save,
@@ -219,11 +223,12 @@ module.exports = function createMusicToLightService({
     },
     view() {
       return {
+        installed,
         status: instance.client.status(),
         design: instance.client.exportDesign(),
         bindings: instance.operator.bindings(),
         fixtures: fixtures(),
-        captureAvailable: appSources.available?.() ?? false,
+        captureAvailable: installed && (appSources.available?.() ?? false),
         designRecovered,
         operatorRecovered,
         sourceResolution: appSources.resolution?.() || null,
@@ -253,5 +258,23 @@ module.exports = function createMusicToLightService({
       await library.shutdown();
       await instance.operator.shutdown();
     },
-  });
+  };
+  if (!installed) {
+    const readers = new Set([
+      "view",
+      "library",
+      "effects",
+      "pipeline",
+      "raveIds",
+      "raveRouteIds",
+      "shutdown",
+      "stopRave",
+    ]);
+    for (const key of Object.keys(service))
+      if (!readers.has(key))
+        service[key] = () => {
+          throw fault("music_not_installed");
+        };
+  }
+  return Object.freeze(service);
 };
