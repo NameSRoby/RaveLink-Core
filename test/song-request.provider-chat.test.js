@@ -93,7 +93,7 @@ test("every player replies to Twitch intake, failures and confirmed playback exa
         assert.equal(result.ok, true, JSON.stringify(result));
         assert.equal(result.entry.chatNotify, true);
         assert.equal(sent.length, 1);
-        assert.match(sent[0].message, /@Viewer Queued "Shared song"/);
+        assert.match(sent[0].message, /@Viewer Queued "Shared song - Artist"/);
         assert.equal(sent[0].replyParentMessageId, "message-1");
         await harness.request("song.queue.submit.v1", "submit", payload);
         assert.equal(sent.length, 1, "request replay stays silent");
@@ -167,7 +167,7 @@ test("every player replies to Twitch intake, failures and confirmed playback exa
           4,
           "confirmed playback announces once across polling and restart",
         );
-        assert.match(sent[3].message, /Now playing "Shared song", requested by @Viewer/);
+        assert.match(sent[3].message, /Now playing "Shared song - Artist", requested by @Viewer/);
         reject = "throw";
         const unavailable = await harness.request("song.queue.submit.v1", "submit", {
           ...payload,

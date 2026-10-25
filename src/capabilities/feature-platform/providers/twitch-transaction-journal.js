@@ -103,6 +103,7 @@ module.exports = function createTransactionJournal(options = {}) {
       observedStatus: "",
       error: "",
       updatedAt: now(),
+      ...(input.songRequest === true ? { songRequest: true } : {}),
     };
     state.entries.push(row);
     return row;
@@ -176,7 +177,8 @@ module.exports = function createTransactionJournal(options = {}) {
           refunded: row.desiredStatus === "CANCELED",
           duplicate: true,
         };
-      if (flights.has(key)) return flights.get(key);
+      if (flights.has(key))
+        return flights.get(key).then((result) => ({ ...result, duplicate: true }));
       if (["review", "sending"].includes(row.phase))
         return failure("twitch_settlement_review_required");
       const flight = send(row, operation)
@@ -246,8 +248,17 @@ module.exports = function createTransactionJournal(options = {}) {
       ok: !blocked,
       error: blocked ? "twitch_journal_unavailable" : "",
       total: entries.length,
-      entries: entries.slice(0, 50).map((row) => ({ ...row })),
+      entries: entries.slice(0, 50).map(({ songRequest, ...row }) => row),
     };
   }
-  return Object.freeze({ begin, settle, reconcile, reviewExecution, list });
+  function song(broadcasterId, requestId) {
+    const row = state.entries.find(
+      (entry) =>
+        entry.songRequest === true &&
+        entry.broadcasterId === broadcasterId &&
+        entry.redemptionId === requestId,
+    );
+    return row ? { ...row } : null;
+  }
+  return Object.freeze({ begin, settle, reconcile, reviewExecution, list, song });
 };

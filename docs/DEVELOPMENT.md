@@ -204,6 +204,17 @@ Public OAuth client identifiers are identifiers, not embedded client secrets.
 
 ## Song requests, providers, and playback
 
+Native managed song rewards remain unfulfilled until confirmed playback. Core marks
+song redemptions in its durable Twitch journal before dispatch. Song Request
+0.45.4+ records native reward outcomes in small changed storage pages, writes a
+first decision before external settlement, and retries delivery across restarts.
+The host accepts these callbacks only from Song Request and only for known song
+redemptions in the current broadcaster account. Queue insertion and native handoff
+are not playback evidence. Browser driver acknowledgements and exact native
+occurrences complete rewards; confirmed removal before playback refunds them.
+Uncertain native removals or Twitch sends remain reviewable. Confirmed refunds
+produce chat notices; widget-only transports never claim automatic refunds.
+
 The feature domain owns the request queue, requester restrictions, replay policy,
 driver leases, and normalized playback state. Provider integrations resolve catalog
 metadata and execute provider-specific operations through host capabilities.

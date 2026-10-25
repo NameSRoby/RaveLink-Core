@@ -244,6 +244,9 @@
               },
               "addToPlaylist": {
                 "type": "boolean"
+              },
+              "rewardRedemption": {
+                "type": "boolean"
               }
             }
           },

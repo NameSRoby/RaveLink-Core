@@ -6,6 +6,14 @@ RaveLink Core is a local Windows app for streamer lighting, music requests and o
 
 ## New in 0.7.4b
 
+The refreshed 0.7.4b download keeps native Song Request rewards refundable until
+confirmed playback starts. Use `!remove` beforehand to cancel and reclaim points.
+Queue handoff to TIDAL or Spotify alone does not complete the reward. Chat
+confirms successful refunds, explains Rave-blocked lighting commands, and includes
+artist names in song confirmations when the provider supplies them. Widget-only
+connections still require manual Twitch refunds. If you already installed
+0.7.4b, rerun the refreshed installer and update **Song Request** under **Packages**.
+
 A native startup window now shows connection status, a copyable dashboard address,
 and buttons to open the dashboard, restart, view the startup log or exit. Failed
 startup displays a useful error instead of opening an unreachable browser page.

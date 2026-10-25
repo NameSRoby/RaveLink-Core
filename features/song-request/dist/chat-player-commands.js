@@ -102,7 +102,11 @@ module.exports = function chatPlayerCommands({
       let status = null;
       if (native) status = await player("status", null);
       const managed = queue.playbackStatus().managed;
-      const currentId = native ? status?.current?.entryId : managed?.entryId;
+      const currentId = native
+        ? status?.current?.entryId
+        : action === "remove" && !managed?.started && managed?.status !== "playing"
+          ? ""
+          : managed?.entryId;
       const receipts = native
         ? (status?.handoffs || []).filter((r) =>
             ["appended", "playing", "pending", "unknown"].includes(r.phase),

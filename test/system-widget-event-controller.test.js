@@ -68,6 +68,7 @@ test("Rave saves acknowledge once through the existing lighting reward and faile
   );
   assert.equal(settlements[1].status, "CANCELED");
   assert.equal(chats.length, 2);
+  assert.match(chats[1].message, /refunded/);
 });
 
 test("Add to playlist widget route preserves viewer identity and uses the community submission flag", async () => {
@@ -559,7 +560,7 @@ test("StreamElements conveys Song Request input to the native resolver with no H
   assert.equal(titleOnly.body.reason, "reward_not_configured");
 });
 
-test("native managed Song Request rewards enqueue YouTube and settle from the result", async () => {
+test("native managed Song Request rewards enqueue YouTube and remain refundable until playback", async () => {
   const submissions = [];
   const settlements = [];
   const controller = createSystemWidgetEventController({
@@ -587,11 +588,41 @@ test("native managed Song Request rewards enqueue YouTube and settle from the re
     },
   });
   assert.equal(result.body.action, "song_request");
-  assert.equal(result.body.status, "FULFILLED");
+  assert.equal(result.body.status, "UNFULFILLED");
+  assert.equal(result.body.settlement.pending, true);
   assert.equal(submissions[0].candidate.providerItemId, "dQw4w9WgXcQ");
   assert.equal(submissions[0].requesterId, "viewer-42");
   assert.equal(submissions[0].notifyChat, true);
-  assert.equal(settlements[0].status, "FULFILLED");
+  assert.deepEqual(settlements, []);
+});
+
+test("Rave-blocked rewards explain blocking and only claim confirmed refunds", async () => {
+  for (const refunded of [true, false]) {
+    const messages = [];
+    const controller = createSystemWidgetEventController({
+      getTwitchIntakeMode: () => "native",
+      colorApply: async () => ({
+        body: { ok: false, error: "music_rave_active", refundRecommended: true },
+      }),
+      settleRedemption: async () =>
+        refunded ? { ok: true, status: "CANCELED" } : { ok: false, error: "twitch_not_connected" },
+      sendChat: async ({ message }) => {
+        messages.push(message);
+        return { ok: true };
+      },
+    });
+    const request = {
+      transport: "native",
+      widgetConfig: { colorRewardId: "lights" },
+      eventEnvelope: event("blocked", "lights"),
+    };
+    await controller.handleWidgetEvent(request);
+    await controller.handleWidgetEvent(request);
+    assert.equal(messages.length, 1);
+    assert.match(messages[0], /Rave is active/);
+    assert.equal(messages[0].includes("were refunded"), refunded);
+    if (!refunded) assert.match(messages[0], /moderator/);
+  }
 });
 
 test("invalid native Song Request rewards recommend and request a refund", async () => {

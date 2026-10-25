@@ -200,6 +200,14 @@ module.exports = function createCoreServer(options = {}) {
     submitSongRequest: async (payload) => {
       const registry = extension?.registry || extension?.features?.registry;
       if (!registry?.request) return { ok: false, error: "song_request_unavailable" };
+      if (
+        payload.rewardRedemption === true &&
+        require("../../capabilities/feature-platform/packages/feature-package-manager").compareVersions(
+          registry.list().features.find((row) => row.id === "song-request")?.version || "0.0.0",
+          "0.45.4",
+        ) < 0
+      )
+        return { status: 409, body: { ok: false, error: "song_request_update_required" } };
       return registry.request("song-request", "song.queue.submit.v1", "submit", payload, {
         timeoutMs: 30000,
       });

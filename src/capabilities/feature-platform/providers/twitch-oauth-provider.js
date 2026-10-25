@@ -588,13 +588,14 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
           reason: "authorization_revoked",
         }),
     });
-  const { settle, reviewTransactions, reconcileTransaction, receiveRedemption } =
+  const { settle, reviewTransactions, reconcileTransaction, receiveRedemption, songOutcome } =
     require("./twitch-transactions")({
       journal,
       getProfile: () => profile,
       withAuthorization,
       api,
       onRedemption: options.onRedemption,
+      sendChat,
       now,
     });
   async function inspectReward(input) {
@@ -881,6 +882,7 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     refreshRoleDirectory,
     resolveRequesterRole,
     settle,
+    songOutcome,
     reviewTransactions,
     reconcileTransaction,
     sendChat,

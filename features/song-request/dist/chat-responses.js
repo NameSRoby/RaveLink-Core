@@ -143,7 +143,18 @@ function contextFrom(request, result, state) {
   return {
     user: clean(payload.requesterName || entry?.requesterLabel, 80),
     target: clean(payload.requesterName, 80).replace(/^@/, ""),
-    title: clean(entry?.candidate?.title || entry?.query || payload.query, 180),
+    title: clean(
+      [
+        entry?.candidate?.title || entry?.query || payload.query,
+        (entry?.candidate?.artists || [])
+          .map((value) => clean(value, 80))
+          .filter(Boolean)
+          .join(", "),
+      ]
+        .filter(Boolean)
+        .join(" - "),
+      260,
+    ),
     position: Number(result?.position || 0),
     reason:
       REASONS[clean(result?.reason || result?.code || result?.error, 80)] ||
