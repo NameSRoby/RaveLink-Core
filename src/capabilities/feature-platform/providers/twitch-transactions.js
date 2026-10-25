@@ -9,6 +9,7 @@ module.exports = function createTwitchTransactions({
   withAuthorization,
   api,
   onRedemption,
+  sendChat = async () => {},
   now = Date.now,
 }) {
   function managed(profile, rewardId) {
@@ -52,6 +53,7 @@ module.exports = function createTwitchTransactions({
       broadcasterId: profile.userId,
       rewardId: event?.reward?.id,
       redemptionId: event?.id,
+      songRequest: event?.reward?.id === profile.managedRewards.song_request?.rewardId,
     };
     if (owned) {
       if (event.status && String(event.status).toUpperCase() !== "UNFULFILLED")
@@ -66,16 +68,42 @@ module.exports = function createTwitchTransactions({
       const admitted = journal.begin(identity);
       if (!admitted.ok || admitted.duplicate) return admitted;
     }
+    let result;
     try {
-      return await onRedemption?.(event, { ...profile.managedRewards });
+      result = await onRedemption?.(event, { ...profile.managedRewards });
+      return result;
     } finally {
-      if (owned) journal.reviewExecution(identity);
+      if (owned)
+        journal.reviewExecution(
+          identity,
+          result?.body?.settlement?.pending ? "song_waiting_for_playback" : undefined,
+        );
     }
+  }
+  async function songOutcome(input = {}) {
+    if (!["FULFILLED", "CANCELED"].includes(input.status)) return fail("twitch_settlement_invalid");
+    const profile = getProfile(),
+      row = journal.song(profile.userId, input.requestId);
+    if (!row) return { ok: true, ignored: true };
+    if (row.phase === "confirmed") return { ok: true, duplicate: true, status: row.desiredStatus };
+    const result = await settle({ ...row, status: input.status });
+    if (result.ok && !result.duplicate && result.status === "CANCELED") {
+      const user = String(input.requesterName || "")
+        .replace(/[^\p{L}\p{N}_]/gu, "")
+        .slice(0, 40);
+      try {
+        await sendChat({
+          message: `${user ? "@" + user + " " : ""}Your song request was removed before playback. Your Channel Points were refunded.`,
+        });
+      } catch {}
+    }
+    return result;
   }
   return Object.freeze({
     settle,
     reviewTransactions,
     reconcileTransaction,
     receiveRedemption,
+    songOutcome,
   });
 };

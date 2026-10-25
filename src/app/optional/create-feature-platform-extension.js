@@ -304,6 +304,10 @@ function createFeaturePlatformExtension(options = {}) {
           twitchProvider().reconcileTransaction(payload),
         "twitch.host.v1/send-chat": (payload) => twitchProvider().sendChat(payload),
         "youtube.catalog.host.v1/status": () => youtubeProvider().status(),
+        "twitch.rewards.manage.v1/song-outcome": (payload, caller) =>
+          caller.featureId === "song-request"
+            ? twitchProvider().songOutcome(payload)
+            : { ok: false, error: "twitch_song_outcome_denied" },
         "youtube.catalog.host.v1/configure": (payload) => youtubeProvider().configure(payload),
         "youtube.catalog.host.v1/clear": () => youtubeProvider().clear(),
         "youtube.catalog.host.v1/resolve": (payload) =>

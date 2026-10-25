@@ -130,9 +130,7 @@ function createSongQueue(options = {}) {
   function clonePlayback(value) {
     if (!value) return null;
     const out = { ...value };
-    out.candidate = out.candidate
-      ? { ...out.candidate, artists: [...out.candidate.artists] }
-      : out.candidate;
+    out.candidate &&= { ...out.candidate, artists: [...out.candidate.artists] };
     delete out.leaseId;
     return out;
   }
@@ -318,6 +316,7 @@ function createSongQueue(options = {}) {
         Number(now()) +
         (managedPlayback.candidate.provider === "soundcloud" ? 60000 : DRIVER_LEASE_MS),
       status: state === "started" || state === "progress" ? "playing" : state,
+      started: managedPlayback.started === true || ["started", "progress"].includes(state),
       positionMs,
       durationMs,
       observedAt: Number(now()),
@@ -640,7 +639,10 @@ function createSongQueue(options = {}) {
     if (!requesterId || !["skip", "remove"].includes(action))
       return response(false, "rejected", { reason: "invalid_request" });
     const requester = requesterKey(requesterId);
-    const activeId = managedPlayback?.entryId || "";
+    const activeId =
+      action === "remove" && !managedPlayback?.started && managedPlayback?.status !== "playing"
+        ? ""
+        : managedPlayback?.entryId || "";
     const index =
       action === "skip"
         ? queue.findIndex((row) => row.id === activeId && row.requesterKey === requester)

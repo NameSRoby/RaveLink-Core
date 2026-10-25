@@ -20,7 +20,7 @@ const OPTIONAL = Object.freeze({
 
 let context;
 let queue;
-let experimentalTidal, spotify, playerRouting, community, desktopChat;
+let experimentalTidal, spotify, playerRouting, community, desktopChat, rewardOutcomes;
 let playlists, profileStorage, flushing, playerPreferences, soundcloud;
 let persistTimer;
 let dirty = false;
@@ -283,9 +283,12 @@ async function activate(nextContext) {
       }
     }
   } catch {}
+  rewardOutcomes = require("./reward-outcomes")({ context });
+  await rewardOutcomes.load();
   desktopChat = require("./desktop-chat-responses")({
     context,
     send: sendResponse,
+    started: (entry) => rewardOutcomes.decide(entry, "FULFILLED"),
   });
   await desktopChat.load();
   await playlists.activate();
@@ -332,7 +335,17 @@ function sendResponse(request, result) {
     });
 }
 async function handleRequest(request) {
+  const previous = rewardOutcomes.before(request, queue);
   const result = await handleOperation(request);
+  try {
+    await rewardOutcomes.capture(request, result, previous, queue);
+  } catch {
+    optionalCall("diagnostics", {
+      owner: "song-request",
+      event: "reward_outcome_storage_failed",
+      ok: false,
+    });
+  }
   await require("./request-chat-responses")(request, result, sendResponse, desktopChat);
   return result;
 }
@@ -725,6 +738,7 @@ async function handleOperation(request) {
 
 async function deactivate() {
   shuttingDown = true;
+  await rewardOutcomes?.stop();
   await community?.stop();
   spotify?.stop();
   experimentalTidal?.stop();

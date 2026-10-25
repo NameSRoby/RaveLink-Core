@@ -5,7 +5,7 @@
  */
 // A desktop handoff confirms queue insertion, not playback. Announce only when
 // the companion identifies that exact request as the current native occurrence.
-module.exports = function createDesktopChatResponses({ context, send }) {
+module.exports = function createDesktopChatResponses({ context, send, started = async () => {} }) {
   const key = "desktop-chat-state-v1",
     entries = new Map();
   let checking = false;
@@ -47,6 +47,7 @@ module.exports = function createDesktopChatResponses({ context, send }) {
       candidate: {
         provider: entry.candidate.provider,
         title: entry.candidate.title,
+        artists: entry.candidate.artists || [],
       },
       announced: false,
     });
@@ -78,6 +79,7 @@ module.exports = function createDesktopChatResponses({ context, send }) {
       );
       const entry = entries.get(current.entryId || receipt?.entryId);
       if (!entry || entry.announced || entry.candidate.provider !== provider) return;
+      await started(entry);
       entry.announced = true;
       await store();
       send(

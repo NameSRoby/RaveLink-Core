@@ -425,6 +425,7 @@ function createSystemWidgetEventController(deps = {}) {
       requesterName: meta.userName,
       requesterRole: ["vip", "moderator"].includes(meta.userRole) ? meta.userRole : "viewer",
       notifyChat: transport === "native",
+      ...(transport === "native" && action === "song_request" ? { rewardRedemption: true } : {}),
       query: meta.userInput,
       ...(videoId
         ? {
@@ -554,18 +555,56 @@ function createSystemWidgetEventController(deps = {}) {
     counters[action] += 1;
     if (!bridgeOk) counters.failed += 1;
     const desiredStatus = bridgeOk ? "FULFILLED" : "CANCELED";
-    const settlement = await settle(
-      meta,
-      desiredStatus,
-      partialDelivery
-        ? "lighting_delivery_partial"
-        : bridgeOk
-          ? "action_succeeded"
-          : resolveBridgeFailureMessage(bridgeResult),
-      transport,
-    );
+    const settlement =
+      action === "song_request" && bridgeOk && transport === "native"
+        ? {
+            attempted: false,
+            ok: true,
+            pending: true,
+            status: "UNFULFILLED",
+            desiredStatus: "FULFILLED",
+            reason: "song_waiting_for_playback",
+          }
+        : await settle(
+            meta,
+            desiredStatus,
+            partialDelivery
+              ? "lighting_delivery_partial"
+              : bridgeOk
+                ? "action_succeeded"
+                : resolveBridgeFailureMessage(bridgeResult),
+            transport,
+          );
     let teachPreview = null,
       chatDelivery = null;
+    const raveBlocked = action === "color" && body.error === "music_rave_active";
+    let refundNotice = "";
+    if (
+      raveBlocked ||
+      settlement.status === "CANCELED" ||
+      (transport === "native" && !bridgeOk && !settlement.ok)
+    ) {
+      const user = asString(meta.userName)
+        .replace(/[^\p{L}\p{N}_]/gu, "")
+        .slice(0, 40);
+      refundNotice =
+        (user ? "@" + user + " " : "") +
+        (raveBlocked ? "Rave is active; lighting commands are paused until it ends. " : "") +
+        (body.error === "song_request_update_required"
+          ? "Update Song Request under Packages before using this reward. "
+          : "") +
+        (settlement.status === "CANCELED" && settlement.ok
+          ? "Your Channel Points were refunded."
+          : transport === "native"
+            ? "Points could not be refunded automatically; a moderator needs to review this reward."
+            : "This widget connection cannot refund points automatically; a moderator can refund the reward.");
+      try {
+        if (!["rave-save", "rave-remember"].includes(body.effect))
+          chatDelivery = await sendChat({ message: refundNotice });
+      } catch {
+        chatDelivery = { ok: false, error: "twitch_chat_send_failed" };
+      }
+    }
     if (action === "color" && ["rave-save", "rave-remember"].includes(body.effect)) {
       const message = bridgeOk
         ? body.message
@@ -574,7 +613,7 @@ function createSystemWidgetEventController(deps = {}) {
           ".";
       try {
         chatDelivery = await sendChat({
-          message: asString(message)
+          message: asString(message + (refundNotice ? " " + refundNotice : ""))
             .replace(/[<>\r\n]/g, " ")
             .slice(0, 450),
         });
