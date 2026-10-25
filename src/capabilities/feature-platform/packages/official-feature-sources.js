@@ -5,12 +5,13 @@
  */
 // A release must download every manifest and payload from one immutable tree.
 // A moving branch can be cached per file by GitHub and briefly mix revisions.
-const OFFICIAL_FEATURE_REVISION = "53147e86cfd4579b391c6a14f61bf99054496ddf";
+const OFFICIAL_FEATURE_REVISION = "b49bc54f6c46bad6806db2289112737ed868bf6c";
 const GITHUB_RAW_ROOT = `https://raw.githubusercontent.com/NameSRoby/RaveLink-Core/${OFFICIAL_FEATURE_REVISION}/features/`;
 
 const OFFICIAL_FEATURE_SOURCES = Object.freeze([
   Object.freeze({
     id: "song-request",
+    minimumVersion: "0.45.4",
     name: "Song Request",
     description:
       "YouTube, Spotify, TIDAL and SoundCloud requests, community playlists, reviewed transfers, moderation and OBS overlays.",
