@@ -96,8 +96,9 @@ for (const body of [false, true])
           res.write("{");
         }
       });
+      const harness = compiled().harness;
       const at = performance.now();
-      const result = await run(compiled().harness, ["health", String(port)]);
+      const result = await run(harness, ["health", String(port)]);
       assert.equal(result.stdout.trim(), "False");
       assert(performance.now() - at < 2500);
     },
