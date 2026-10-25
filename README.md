@@ -34,6 +34,10 @@ saved light profiles and installed-package shortcuts into one workspace. Reward
 controls apply only to rewards created and managed by Core. Resuming rewards
 keeps song rewards closed while their request intake is paused or unavailable.
 
+[<img src="assets/screenshots/dashboard.png" alt="Dashboard with managed rewards and music quick actions" width="360">](assets/screenshots/dashboard.png)
+
+<sub>Demo data; click the image to enlarge.</sub>
+
 Choose **Edit dashboard** from the settings cog or the dashboard toolbar. The
 searchable catalog groups sections and individual actions by purpose, with each
 package requirement explained. Add or remove sections, use Move up / Move down
@@ -105,6 +109,10 @@ color movement, smoothing, source order and light selection together. **Keep thi
 look** bookmarks the exact running combination. **Library** holds editable songs,
 saved effects and optional viewer approvals; Advanced and Setup retain detailed
 tuning and calibration.
+
+[<img src="assets/screenshots/music-to-light.png" alt="Music-to-Light looks, color controls and simulated light response" width="360">](assets/screenshots/music-to-light.png)
+
+<sub>Demo data; click the image to enlarge.</sub>
 
 Save any song by artist/title or a supported track link. Each song can be enabled
 or disabled, assigned a saved effect and given an intensity override. Auto-Rave
@@ -225,6 +233,10 @@ Install, update, roll back or remove features in **Packages**. Hiding a tab chan
 **Twitch Integration** provides OAuth, EventSub, chat, managed Channel Points rewards, completion/refunds and optional chat responses. It works independently of Song Request.
 
 **Song Request** provides song-name parsing, FIFO requests, local playlists, quick song/requester bans and timeouts, artwork, playback details and customizable OBS overlays. Library Play, Shuffle and Pick Random start the correct player with one click. Player selection persists.
+
+[<img src="assets/screenshots/song-request.png" alt="Song Request player and a queue of demonstration songs" width="360">](assets/screenshots/song-request.png)
+
+<sub>Demo data; click the image to enlarge.</sub>
 
 Frequent choices such as player, transfer grouping and overlay layout appear as visible option buttons. Saved lighting and overlay profiles use searchable lists; countries, timeout durations and detailed match candidates keep compact dropdowns.
 
