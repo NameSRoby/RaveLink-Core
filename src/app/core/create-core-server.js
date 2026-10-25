@@ -207,7 +207,7 @@ module.exports = function createCoreServer(options = {}) {
           "0.45.4",
         ) < 0
       )
-        return { ok: false, error: "song_request_update_required" };
+        return { status: 409, body: { ok: false, error: "song_request_update_required" } };
       return registry.request("song-request", "song.queue.submit.v1", "submit", payload, {
         timeoutMs: 30000,
       });

@@ -10,6 +10,57 @@ const {
 } = require("../src/domains/system/widget-event.controller");
 const { createFeatureRuntimeHarness } = require("./support/feature-runtime-harness");
 const feature = require("../features/song-request/dist/main");
+
+test("an older installed Song Request package refunds with a clear update notice before admission", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "rvl-reward-upgrade-")),
+    calls = [];
+  const createCore = require("../src/app/core/create-core-server");
+  const created = createCore({
+    rootDir: path.resolve(__dirname, ".."),
+    runtimeDir: root,
+    dryRun: true,
+    extend: ({ twitchIntakeGate }) => {
+      twitchIntakeGate.setMode("native");
+      return {
+        registry: {
+          list: () => ({
+            features: [{ id: "song-request", version: "0.45.3", lifecycle: "active" }],
+          }),
+          request: async (id, cap, method, payload) => {
+            calls.push({ id, cap, method, payload });
+            assert.notEqual(
+              id,
+              "song-request",
+              "an incompatible feature must never receive this reward",
+            );
+            return { ok: true, value: { ok: true, status: payload.status } };
+          },
+        },
+      };
+    },
+  });
+  t.after(async () => {
+    await created.services.lifecycle.stopAll();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const result = await created.services.widgetController.handleWidgetEvent({
+    transport: "native",
+    widgetConfig: { songRewardId: "songs" },
+    eventEnvelope: {
+      event: {
+        id: "old-package",
+        user_id: "viewer",
+        user_name: "Viewer",
+        user_input: "song",
+        reward: { id: "songs" },
+      },
+    },
+  });
+  assert.equal(result.body.status, "CANCELED");
+  const chat = calls.find((row) => row.cap === "twitch.chat.send.v1");
+  assert.match(chat.payload.message, /Update Song Request under Packages/);
+  assert.match(chat.payload.message, /were refunded/);
+});
 async function until(predicate) {
   const end = Date.now() + 1000;
   while (!predicate()) {
