@@ -1,0 +1,36 @@
+RaveLink Core - First-time setup
+
+Core includes its Node runtime and production dependencies. You do not need to
+install Node, npm or Rust. Setup checks the runtime before offering Launch.
+Music-to-Light and Rave include the native audio helper when selected in Setup;
+application audio capture needs Windows build 20348 or later (Windows 11 recommended).
+
+Open RaveLink Core from your desktop or Start menu. A startup window shows the
+dashboard address, server status, Restart, Exit and the startup log. The default
+address is http://127.0.0.1:5050/. The tray can reopen this window at any time.
+
+Choose a new folder if you previously used RaveLink Bridge. Do not mix the two
+applications. Existing Core installations can be upgraded in their normal folder.
+
+Lights: use Fixtures to discover and pair your devices on the same local network.
+Hue Entertainment needs an area created in the Hue app and selected in Fixtures.
+Govee needs a compatible model with LAN Control enabled in Govee Home.
+If Windows asks for network access, allow the application on your trusted private
+network for lighting discovery. Public-network access is not required.
+
+Music-to-Light: choose your source app and fixtures, then allow capture and light
+output. Selecting the feature in Setup does not grant these permissions or start
+recording. Run Setup again to add it if it was not selected.
+
+Twitch and Song Request: install the optional features in Setup or Packages, then
+sign in and configure them in the dashboard. Downloads need internet access.
+If a download fails, Setup reports it and Packages can retry later.
+
+Desktop music providers still need their own installed applications and accounts.
+Follow the TIDAL/Spotify setup steps in Song Request for their local companions.
+Account logins, device pairing and music permissions must be configured on each PC;
+your personal credentials and settings are never bundled into the installer.
+
+Trouble starting? Open Startup log from the launcher. Setup prerequisite results
+are in runtime\logs\setup-check.log inside the installation folder. Review and
+redact tokens, account details and private paths before sharing any logs.
