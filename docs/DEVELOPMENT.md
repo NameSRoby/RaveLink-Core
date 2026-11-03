@@ -374,7 +374,9 @@ Keep the helpers independent of parent-shell module configuration; see Microsoft
 
 Use Node 24 for the maintained checks. Install development dependencies with
 `npm ci`; runtime-only installs can omit them. Browser tests need Playwright's
-Chromium (`npx playwright install chromium`) and should use temporary state.
+Chromium and Firefox (`npx playwright install chromium firefox`) and should use
+temporary state. Start with [CONTRIBUTING.md](../CONTRIBUTING.md) for local setup
+and pull request guidance.
 
 1. Edit authored modules and add a behavioral regression test for a changed rule.
 2. Run `npm run format` and `npm run lint`.
@@ -435,7 +437,7 @@ transports. No optional feature worker or package is needed.
 Core-owned same-origin routes handle capture/output grants, exact source
 selection and independent music fixture selection. Null/external origins are
 denied. Session/styles/source DTOs remain versioned and schema validated for
-future JavaFX parity; they carry no PCM, credentials or transport details.
+future native-client parity; they carry no PCM, credentials or transport details.
 Portable designs persist separately from private remembered app identity, grants
 and fixture roles. Restoring preferences never starts capture. Each command
 resolves fresh native process identity before using the selected app.
@@ -447,10 +449,12 @@ It pauses polling when the tab is hidden. Keep preset role/color defaults useful
 and keep calibration explicit rather than normalizing each song automatically.
 `music-pipeline.js` presents authoritative pipeline choices and duration;
 `music-fixture-controls.js` edits reactive/theatre/steady/off roles. Neither helper
-has audio or fixture-output authority. See the scenario architecture document for
-shared capture leases, song-clock fallback and non-reactive scene restoration.
+has audio or fixture-output authority. The capture and fixture-ownership sections
+of this guide cover shared leases and non-reactive scene restoration.
 
-Run npm run test:music-probe and test/music-to-light.native.test.js. Browser and
+Run `node --test "integrations/music-to-light/test/*.test.cjs" test/music-to-light.native.test.js`.
+For Rust-side tests, run `cargo test --locked --manifest-path integrations/music-to-light/native/Cargo.toml --target-dir runtime/music-to-light/cargo`.
+Browser and
 lifecycle tests use synthetic capture and fixture states. Physical camera/audio
 checks are operator-authorized, bounded, local-only experiments; never include
 footage, source identities or native recovery state in a publication. Native
