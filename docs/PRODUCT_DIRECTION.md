@@ -1,16 +1,21 @@
-# Product direction and JavaFX preparation
+# Historical product direction and JavaFX exploration
 
 Updated for 0.7.2: Music-to-Light now includes first-party application capture,
 reactive looks, saved effects and fixture ownership. Hardware acceptance remains
 limited; see the current behavior and requirements in [README.md](../README.md).
-This is the current scope decision. Older dated designs describe history or
-research; their unfinished checkboxes do not automatically become release work.
+This document retains an earlier planning baseline, including the JavaFX
+proposal; it is not the current feature inventory or a commitment to that UI
+toolkit. C# with Avalonia is the preferred direction discussed for a future
+desktop UI, but no Avalonia or JavaFX application is shipped here. The current
+Windows tray launcher uses C# WinForms and opens the browser dashboard.
+Use [README.md](../README.md) and [DEVELOPMENT.md](DEVELOPMENT.md) for current
+behavior and setup. The proposed delivery steps below are historical context.
 
 ## What is worth completing
 
 | Area                                         | Decision                            | Reason and next useful outcome                                                                                                                                                                                                                   |
 | -------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Hue, WiZ and Govee lighting                  | Keep and harden                     | This is Core's purpose. Verify cancellation, restoration, mixed-brand output and fixture recovery on hardware. Keep Govee's Alpha label until its acceptance warrants a change.                                                                  |
+| Hue, WiZ and Govee lighting                  | Keep and harden                     | This is Core's purpose. Verify cancellation, restoration, mixed-brand output and fixture recovery on hardware. Compatible Govee LAN models are supported with model/firmware notices; simulations do not certify physical hardware.              |
 | Fixtures, groups, profiles, color language   | Keep                                | Reuse the server owners from every client. Add native contracts for discovery/pairing and profile administration before building those JavaFX screens.                                                                                           |
 | StreamElements widget                        | Keep transport only                 | It remains a useful intake path. Chat policy and credentials stay with their optional owners; do not rebuild a second chatbot in the widget.                                                                                                     |
 | Song Request and OBS overlays                | Keep and stabilize                  | Preserve moderation, requester attribution, layout editing, artwork updates and scrolling. Browser playback and OBS remain browser surfaces where required.                                                                                      |
@@ -68,8 +73,8 @@ operations and a server instance ID. It is not desktop authentication.
 
 ## Delivery order and exit criteria
 
-1. **Finish scope and ownership cleanup.** Use this document as the current
-   decision, keep the web HUD working, remove the preview and superseded setup
+1. **Finish scope and ownership cleanup.** In the earlier proposal, the intended
+   sequence was to keep the web HUD working, remove the preview and superseded setup
    paths, and pass package integrity, relevant regression and absence checks.
    Do not delete installed data or rotate the published feature pin as cleanup.
 2. **Build a read-only feasibility client.** Generate/maintain typed models from

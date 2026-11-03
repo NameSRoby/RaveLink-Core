@@ -31,7 +31,7 @@ The renderer only connects when a trusted caller supplies explicit connection op
 
 Validate isolated behavior with `node --test "test/spotify*.test.js"` and bundle reproducibility with `node scripts/build-spotify-desktop.js --check`.
 
-Implementation evidence and the remaining live acceptance steps are in [the research report](../../docs/research/spotify-desktop-integration-2026-10-16.md).
+See the [developer guide](../../docs/DEVELOPMENT.md) for provider ownership and recovery rules. The tests above establish isolated behavior; broader client/account compatibility and live Premium operation still require validation.
 
 Launch requests return immediately with an opening status; the paired bridge confirms connection separately. Pending launches are deduplicated, and later launch errors appear in status. Queue admission does not require a current song or a Play command. An idle native queue is treated as empty, and insertion uses the native command rather than the high-level helper that can silently ignore an absent playback context.
 
