@@ -9,11 +9,8 @@ globalThis.RaveLinkMusicLibrary = {
       editing = null;
     let saving = false,
       ready = false;
-    let sourceFingerprint = "",
-      lightsFingerprint = "";
     const contrastTargets = new Set();
     let contrastFingerprint = "";
-    $("mainTransitions").append($("transitions"));
     const element = (tag, text, className) => {
       const node = document.createElement(tag);
       if (text !== undefined) node.textContent = text;
@@ -31,7 +28,7 @@ globalThis.RaveLinkMusicLibrary = {
       ready = available;
       document
         .querySelectorAll(
-          '.musicContrastPanel input, .musicContrastPanel select, .musicContrastPanel button, .musicHomeHero input, .musicHomeHero button, .musicQuickPanel input, .musicQuickPanel select, .musicSongLibrary input, .musicSongLibrary select, .musicSongLibrary button, .musicViewerSaves select, .musicViewerSaves button, [aria-labelledby="music-quickSourcesTitle"] input, [aria-labelledby="music-quickSourcesTitle"] select, [aria-labelledby="music-quickSourcesTitle"] button',
+          ".musicContrastPanel input, .musicContrastPanel select, .musicContrastPanel button, .musicAutoCard input, .musicAutoCard button, .musicSessionActions button, .musicQuickPanel input, .musicQuickPanel select, .musicSongLibrary input, .musicSongLibrary select, .musicSongLibrary button, .musicViewerSaves select, .musicViewerSaves button",
         )
         .forEach((input) => {
           input.disabled = busy || !available;
@@ -46,6 +43,7 @@ globalThis.RaveLinkMusicLibrary = {
         !getView()?.design.behaviors.loudnessBrightness ||
         getView()?.design.behaviors.steadyBrightness;
       $("rememberSong").disabled ||= !library?.current;
+      $("autoRave").disabled ||= !getView()?.design.raveEnabled && !library?.enabled;
       $("startRave").disabled ||=
         !getView()?.design.raveEnabled ||
         !getView()?.status.permissions.capture ||
@@ -54,8 +52,6 @@ globalThis.RaveLinkMusicLibrary = {
       $("bookmark").disabled ||=
         !getView()?.status.session ||
         ["idle", "stopped", "failed"].includes(getView()?.status.state);
-      $("mainFindApps").disabled ||= !getView()?.status.permissions.capture;
-      $("mainSaveSources").disabled ||= !getView()?.status.permissions.capture;
     }
     function button(label, fn) {
       const node = element("button", label);
@@ -228,14 +224,11 @@ globalThis.RaveLinkMusicLibrary = {
       const d = getView()?.design;
       if (!d) return;
       const values = {
-        quickRave: d.raveEnabled,
-        quickCeiling: d.maximumBrightness,
         quickBrightness: d.behaviors.steadyBrightness
           ? "steady"
           : d.behaviors.loudnessBrightness
             ? "loudness"
             : "reactive",
-        quickColor: d.colorMode,
         quickAccent: Math.round(d.behaviors.accentDepth * 100),
         quickImpact: Math.round(d.behaviors.impactDepth * 100),
         quickRise: d.behaviors.loudnessBrightness
@@ -244,8 +237,6 @@ globalThis.RaveLinkMusicLibrary = {
         quickRelease: d.behaviors.loudnessBrightness
           ? d.behaviors.bodyReleaseMs
           : d.behaviors.outputReleaseMs,
-        quickDuration: d.raveDurationMode,
-        quickSeconds: d.raveSeconds,
       };
       $("quickBrightnessHint").textContent = (
         getView()?.pipeline?.effective.behaviors || d.behaviors
@@ -265,41 +256,8 @@ globalThis.RaveLinkMusicLibrary = {
         if (input.type === "checkbox") input.checked = value;
         else input.value = value;
       }
-      const view = getView();
       $("quickRiseValue").textContent = $("quickRise").value + " ms";
       $("quickReleaseValue").textContent = $("quickRelease").value + " ms";
-      $("mainCapture").checked = view.status.permissions.capture;
-      $("mainOutput").checked = view.status.permissions.output;
-      const choices = [...$("source").options].map((o) => [o.value, o.textContent]);
-      const sourceKey = JSON.stringify([choices, view.bindings.sources]);
-      if (sourceKey !== sourceFingerprint) {
-        sourceFingerprint = sourceKey;
-        ["mainSource", "mainFallback1", "mainFallback2"].forEach((id, index) => {
-          $(id).replaceChildren(...choices.map(([value, label]) => new Option(label, value)));
-          $(id).value = view.bindings.sources[index]?.id || "";
-        });
-      }
-      const lightKey = JSON.stringify([view.fixtures, view.bindings.fixtures]);
-      if (lightKey !== lightsFingerprint) {
-        lightsFingerprint = lightKey;
-        $("mainLights").replaceChildren(
-          ...view.fixtures.map((fixture) => {
-            const selected = view.bindings.fixtures.some((f) => f.id === fixture.id);
-            const pick = button(fixture.name, async () => {
-              const current = getView().bindings.fixtures;
-              const next = selected
-                ? current.filter((f) => f.id !== fixture.id)
-                : [...current, { id: fixture.id, role: "all", position: 0.5 }];
-              renderView(
-                await request("/api/music-to-light/fixtures", "PUT", { value: next }),
-                true,
-              );
-            });
-            pick.setAttribute("aria-pressed", String(selected));
-            return pick;
-          }),
-        );
-      }
       syncContrast();
       controls(saving, ready);
     }
@@ -312,7 +270,7 @@ globalThis.RaveLinkMusicLibrary = {
       manual_priority: "Manual or viewer lighting has priority for this playback.",
       stopped_for_this_playback: "Stopped for this playback. The next saved song can trigger.",
       permissions_required: "Allow audio capture and light output in Setup.",
-      rave_disabled: "Enable Rave below to use your saved songs.",
+      rave_disabled: "Enable Rave effects above to use song automation.",
       lights_required: "Choose your music lights in Setup.",
       music_source_required:
         "Choose the matching music app in Setup. Game audio is a viewer-Rave fallback.",
@@ -431,37 +389,10 @@ globalThis.RaveLinkMusicLibrary = {
       $(id).oninput = () => {
         $(output).textContent = $(id).value + " ms";
       };
-    $("mainFindApps").onclick = () => $("refreshSources").click();
-    $("mainSaveSources").onclick = () => {
-      ["source", "sourceFallback1", "sourceFallback2"].forEach((id, i) => {
-        $(id).value = $(["mainSource", "mainFallback1", "mainFallback2"][i]).value;
-      });
-      $("selectSource").click();
-    };
-    for (const [id, target] of [
-      ["mainCapture", "capturePermission"],
-      ["mainOutput", "outputPermission"],
-    ])
-      $(id).onchange = () => {
-        $(target).checked = $(id).checked;
-        $(target).dispatchEvent(new Event("change"));
-      };
-    for (const id of [
-      "quickRave",
-      "quickCeiling",
-      "quickBrightness",
-      "quickAccent",
-      "quickImpact",
-      "quickColor",
-      "quickRise",
-      "quickRelease",
-      "quickDuration",
-      "quickSeconds",
-    ])
+    for (const id of ["quickBrightness", "quickAccent", "quickImpact", "quickRise", "quickRelease"])
       $(id).onchange = () =>
         run(async () => {
-          const d = getView().design,
-            ceiling = Number($("quickCeiling").value);
+          const d = getView().design;
           const loudness = $("quickBrightness").value === "loudness";
           const timing = {};
           if (id === "quickRise")
@@ -472,23 +403,6 @@ globalThis.RaveLinkMusicLibrary = {
             );
           const design = {
             ...d,
-            raveEnabled: $("quickRave").checked,
-            maximumBrightness: ceiling,
-            minimumBrightness: Math.min(d.minimumBrightness, ceiling),
-            colorMode: $("quickColor").value,
-            recipeOptions:
-              id === "quickColor"
-                ? {
-                    ...d.recipeOptions,
-                    color: {
-                      mode: "configured",
-                      value: $("quickColor").value,
-                      allowed: [$("quickColor").value],
-                    },
-                  }
-                : d.recipeOptions,
-            raveDurationMode: $("quickDuration").value,
-            raveSeconds: Number($("quickSeconds").value),
             behaviors: {
               ...d.behaviors,
               steadyBrightness: $("quickBrightness").value === "steady",

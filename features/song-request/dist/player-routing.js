@@ -15,6 +15,7 @@ module.exports = function playerRouting({ preferences, queue, tidal, changed }) 
         "song.spotify.player.v1",
         "song.tidal.experimental.v1",
         "song.soundcloud.player.v1",
+        "song.youtube.browser.v1",
       ].includes(request.capability);
     if (!relevant) return null;
     const selected = await preferences("status", null);
@@ -24,7 +25,10 @@ module.exports = function playerRouting({ preferences, queue, tidal, changed }) 
       request.activePlayer = selected.player;
     if (request.capability === "song.player.preferences.v1" && request.method === "select") {
       const result = await preferences("select", payload);
-      if (result.ok && result.player !== selected.player) {
+      if (
+        result.ok &&
+        (result.player !== selected.player || result.youtubePlayback !== selected.youtubePlayback)
+      ) {
         queue.configurePlaybackSource({ source: result.player, suspend: true });
         changed(result);
       }
@@ -42,6 +46,7 @@ module.exports = function playerRouting({ preferences, queue, tidal, changed }) 
       "song.spotify.player.v1": "spotify",
       "song.tidal.experimental.v1": "tidal",
       "song.soundcloud.player.v1": "soundcloud",
+      "song.youtube.browser.v1": "youtube",
     }[request.capability];
     if (
       provider &&
@@ -55,7 +60,8 @@ module.exports = function playerRouting({ preferences, queue, tidal, changed }) 
         "control",
         "volume",
       ].includes(request.method) &&
-      provider !== selected.player
+      (provider !== selected.player ||
+        (provider === "youtube" && selected.youtubePlayback !== "browser"))
     ) {
       return {
         value: { ok: false, code: "player_inactive", error: "player_inactive" },
@@ -70,6 +76,7 @@ module.exports = function playerRouting({ preferences, queue, tidal, changed }) 
     if (request.capability === "song.playback.driver.v1" && request.method === "pull") {
       if (
         !["youtube", "soundcloud"].includes(selected.player) ||
+        (selected.player === "youtube" && selected.youtubePlayback === "browser") ||
         !payload.providers?.includes(selected.player)
       )
         return { value: { ok: true, code: "idle", action: null } };

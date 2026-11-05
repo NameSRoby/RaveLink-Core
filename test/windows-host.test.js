@@ -14,11 +14,29 @@ function compiled() {
   if (build) return build;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rvl-host-"));
   const source = path.join(root, "desktop/windows-host/RaveLinkCoreHost.cs");
+  const desktopSources = ["DashboardWindow.cs", "DesktopPolicy.cs", "DesktopBrowserActions.cs"].map(
+    (file) => path.join(root, "desktop/windows-host", file),
+  );
+  const dependencies = path.join(root, "runtime/desktop");
+  const restored = spawnSync(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      path.join(root, "scripts/restore-webview2.ps1"),
+    ],
+    { encoding: "utf8", windowsHide: true },
+  );
+  assert.equal(restored.status, 0, restored.stdout + restored.stderr);
+  fs.cpSync(dependencies, path.join(dir, "runtime/desktop"), { recursive: true });
   const harness = path.join(dir, "Harness.cs");
   fs.writeFileSync(
     harness,
     `using System; using RaveLink.Core.WindowsHost;
 class Harness { [STAThread] static void Main(string[] args) {
+ AppDomain.CurrentDomain.AssemblyResolve += DesktopPolicy.ResolveDependency;
  if(args[0]=="blocked-ui") {
    System.Windows.Forms.Application.EnableVisualStyles();
    var context = new CoreApplicationContext(args[1], true);
@@ -38,11 +56,14 @@ class Harness { [STAThread] static void Main(string[] args) {
       "/warnaserror+",
       "/reference:System.Drawing.dll",
       "/reference:System.Windows.Forms.dll",
+      "/reference:System.Web.Extensions.dll",
+      `/reference:${path.join(dependencies, "Microsoft.Web.WebView2.Core.dll")}`,
+      `/reference:${path.join(dependencies, "Microsoft.Web.WebView2.WinForms.dll")}`,
       `/out:${path.join(dir, name + ".exe")}`,
     ];
     if (name === "Harness") args.push("/main:Harness");
     else args.push("/target:winexe");
-    args.push(source);
+    args.push(source, ...desktopSources);
     if (name === "Harness") args.push(harness);
     const result = spawnSync(compiler, args, { encoding: "utf8", windowsHide: true });
     assert.equal(result.status, 0, result.stdout + result.stderr);
@@ -150,6 +171,9 @@ for (const starts of [false, true, "blocked"])
       const exe = path.join(dir, "RaveLink-Core.exe");
       fs.copyFileSync(compiled().host, exe);
       fs.mkdirSync(path.join(dir, "runtime"));
+      fs.cpSync(path.join(compiled().dir, "runtime/desktop"), path.join(dir, "runtime/desktop"), {
+        recursive: true,
+      });
       fs.copyFileSync(process.execPath, path.join(dir, "runtime/RaveLink-Core-Node.exe"));
       const app = path.join(dir, "src/app/optional");
       fs.mkdirSync(app, { recursive: true });

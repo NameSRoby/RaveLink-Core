@@ -95,10 +95,10 @@ test("an attack resumes from gentle idle palette travel without a color jump", (
 });
 test("a handoff interrupted by another attack starts at its interpolated position", () => {
   const m = create({
-    preset: "ambient",
+    preset: "pulse",
     intensity: 1,
     recipeOptions: { shape: { mode: "fixed", value: "handoff", allowed: ["handoff"] } },
-    behaviors: { handoffHits: 1, handoffMs: 500, ambientBed: 1 },
+    behaviors: { handoffHits: 1, handoffMs: 500, pulseBed: 1 },
   });
   for (let i = 1; i <= 300; i++) m.update(sample(i, i === 280 || i === 290), i * 20);
   const before = [0, 1].map((position) => m.render(6020, { position }).brightness);
@@ -140,7 +140,7 @@ test("composition selections reset artistic overrides and preserve host-owned li
     ceilingDb: -23,
     outputHz: 16,
   });
-  for (const id of ["electric-pulse", "aurora-swell", "prism-bands", "smooth-reference"]) {
+  for (const id of ["electric-pulse", "aurora-swell", "prism-pulse", "smooth-reference"]) {
     const look = looks.find((l) => l.id === id),
       merged = settings({ ...prior, ...look.design });
     assert.equal(merged.maximumBrightness, 42);

@@ -102,6 +102,11 @@ module.exports = function createRewardOutcomes({ context }) {
   }
   async function capture(request, result, previous, queue) {
     if (!result?.ok || result.nativeError || /_partial$/.test(result.code || "")) return;
+    if (Array.isArray(result.nativeEntryIds)) {
+      let changed = false;
+      for (const id of result.nativeEntryIds) changed = mark({ id }, "CANCELED") || changed;
+      if (changed) await commit();
+    }
     if (request.payload?.rewardRedemption === true && result.entry?.requestId)
       await record(result.entry);
     const payload = request.payload || {};

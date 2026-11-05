@@ -343,11 +343,20 @@ An independent background thread enforces an eight-second exit deadline, armed
 before dispatching an external exit signal onto the UI thread. Do not move that
 deadline behind the lifecycle semaphore or rely on the UI thread to enforce it.
 
-The native startup window exposes server status, the copyable dashboard address,
-restart/exit and the startup log. `--background` supports unattended startup;
-explicit UI requests still reopen the status window. The desktop shortcut is
+The native window embeds the unchanged Core website using WebView2. Its frame
+follows the page's theme through a bounded, presentation-only message bridge.
+The pinned SDK bindings/loader live in `runtime/desktop`; the Evergreen browser
+runtime is supplied by Windows. `--background` starts no WebView/browser process;
+explicit UI requests reopen the same desktop window. Closing hides to the tray;
+Exit retains the existing drain and independent deadline. The desktop shortcut is
 selected by default on first install. Old Bridge folders are rejected before
 managed files are changed, while existing Core data remains upgradeable.
+
+Localhost always remains the primary listener. The optional network-sharing
+owner creates a separate private-IPv4 gateway, proxies only to that loopback
+listener, validates Host/Origin, and drains clients on disable/shutdown. It does
+not enable global remote-write admission or change feature/mod origin checks.
+See [desktop and LAN architecture](architecture/desktop-and-network-access.md).
 
 Setup validates .NET 4.8, the bundled Node/dependency graph, writable local data,
 Hue crypto and (when selected) native audio helper loading. Music-to-Light is a
@@ -371,6 +380,24 @@ Keep the helpers independent of parent-shell module configuration; see Microsoft
 [module-path inheritance documentation](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_psmodulepath).
 
 ## Editing, rebuilding, and checking a change
+
+The development YouTube browser connection lives in
+`integrations/youtube-browser/provider.cjs`. Its authenticated loopback bridge
+starts only after an explicit Setup action; the feature keeps admission,
+moderation and reward decisions. Source package 0.45.5 adds the optional
+`youtube.browser.host.v1` host capability and `song.youtube.browser.v1` UI surface.
+This does not change the published 0.7.4b feature catalog pin.
+
+Queue insertion accepts a verified current/owned occurrence anchor. The adapter
+and host both verify the original queue sequence with one correctly positioned
+addition. Persist intent before dispatch; hold uncertain receipts across restarts.
+Never turn a handoff into playback evidence, remove by video ID, or automatically
+retry an unknown write. Embedded playback has a paced error circuit breaker and
+heartbeats; abandoned drivers cannot retain a started lease forever.
+
+See the [companion guide](../integrations/youtube-browser/README.md) for setup and
+the remaining connected-browser acceptance. Tests use a synthetic extension peer
+over loopback; they do not certify YouTube's current private interfaces.
 
 Use Node 24 for the maintained checks. Install development dependencies with
 `npm ci`; runtime-only installs can omit them. Browser tests need Playwright's

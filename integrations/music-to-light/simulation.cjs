@@ -8,8 +8,8 @@ const createOutputMotion = require("./output-motion.cjs");
 const { opening, choose: chooseTransitions } = require("./lifecycle-motion.cjs");
 const { sceneFrame } = require("./fixture-behavior.cjs");
 function simulate({ features, fixtures, design, random = () => 0.5, history = null }) {
-  const mapper = createMapper(design, { random, history });
-  const effective = mapper.settings();
+  const baseMapper = createMapper(design, { random, history, fixtures });
+  const effective = baseMapper.settings();
   const transitionPlan = chooseTransitions(effective.behaviors, random, history);
   fixtures = require("./fixture-contrast.cjs").plan(
     require("./recipe.cjs").fixtures(
@@ -20,8 +20,10 @@ function simulate({ features, fixtures, design, random = () => 0.5, history = nu
       effective.behaviors.expressiveEnabled && effective.behaviors.shuffleChoicesEnabled
         ? history
         : null,
+      baseMapper.inspect(0).recipe.palette,
     ),
   );
+  const mapper = require("./fixture-renderers.cjs")(baseMapper, fixtures);
   mapper.setPositions(require("./composition.cjs").reactivePositions(fixtures));
   const cadence = createCadence(fixtures),
     motion = createOutputMotion(),

@@ -1,0 +1,43 @@
+:root {
+  color-scheme: dark;
+  font: 14px system-ui;
+  background: #0b0e18;
+  color: #e8ebf5;
+}
+body {
+  width: 300px;
+  margin: 18px;
+}
+h1 {
+  font-size: 20px;
+}
+p {
+  color: #b8c4df;
+}
+label {
+  display: block;
+  margin: 12px 0;
+}
+input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid #364361;
+  border-radius: 5px;
+}
+button {
+  padding: 9px;
+  border: 1px solid #364361;
+  border-radius: 5px;
+  background: #96092c;
+  color: white;
+  cursor: pointer;
+}
+#disconnect {
+  background: #182035;
+}
+#status {
+  overflow-wrap: anywhere;
+}

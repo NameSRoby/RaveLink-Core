@@ -338,6 +338,7 @@ function createYoutubeCatalogProvider(options = {}) {
       const result = await keyless.resolve({
         query,
         videoId: explicitId,
+        playbackMode: input.playbackMode,
         policy,
         signal,
       });
@@ -358,8 +359,9 @@ function createYoutubeCatalogProvider(options = {}) {
           maxResults: 5,
           order: "relevance",
           safeSearch: "strict",
-          videoEmbeddable: "true",
-          videoSyndicated: "true",
+          ...(input.playbackMode === "browser"
+            ? {}
+            : { videoEmbeddable: "true", videoSyndicated: "true" }),
           ...(policy.allowNonMusic ? {} : { videoCategoryId: "10" }),
         },
         signal,
@@ -403,7 +405,12 @@ function createYoutubeCatalogProvider(options = {}) {
       const views = count(video?.statistics?.viewCount);
       const subscribers = count(channel?.statistics?.subscriberCount);
       let reason = "";
-      if (!video || !channel || video.status?.embeddable === false) reason = "not_embeddable";
+      if (
+        !video ||
+        !channel ||
+        (input.playbackMode !== "browser" && video.status?.embeddable === false)
+      )
+        reason = "not_embeddable";
       else if (!policy.allowNonMusic && String(video.snippet?.categoryId) !== "10")
         reason = "not_music";
       else if (views < policy.minimumViews) reason = "insufficient_views";
@@ -479,6 +486,7 @@ function createYoutubeCatalogProvider(options = {}) {
           mode,
           query: query.toLowerCase(),
           videoId: text(input.videoId, 20),
+          playbackMode: input.playbackMode === "browser" ? "browser" : "embed",
           policy,
         }),
       )

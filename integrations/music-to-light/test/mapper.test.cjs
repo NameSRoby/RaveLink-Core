@@ -73,7 +73,7 @@ test("literal response is faster; all feels obey identical brightness bounds", (
     assert.equal(feed(m, 101, 100, 0).brightness, 7);
   }
 });
-test("Bands uses measured role energy, while unified ignores assignment", () => {
+test("Pulse uses measured role energy, while unified ignores assignment", () => {
   const m = createMapper({
     preset: "bands",
     arrangement: "roles",
@@ -195,12 +195,12 @@ test("Pulse makes an audible attack distinct from the sustained bed at four-Hz o
   assert.ok(Math.abs(after - bed) < 0.1, "sustained audio does not manufacture more attacks");
 });
 
-test("Bands emphasizes movement in its own band without cross-band pulses", () => {
+test("Pulse frequency roles track measured energy independently", () => {
   const m = createMapper({
-    preset: "bands",
+    preset: "pulse",
     arrangement: "roles",
     intensity: 1,
-    behaviors: { bandSeparation: 1 },
+    behaviors: { pulseBed: 1 },
   });
   feed(m, 1, 200, 0.1, [0.01, 0.02, 0.01]);
   const before = ["low", "mid", "high"].map((role) => m.render(4000, { role }).brightness);
@@ -224,14 +224,18 @@ test("a discontinuity discards old pulse and band-motion history", () => {
 
 test("musical band balance reveals measured treble without promoting quiet audio or absent bands", () => {
   const musical = createMapper({
-    preset: "bands",
+    preset: "pulse",
     interpretation: "musical",
+    arrangement: "roles",
+    behaviors: { pulseBed: 1 },
     intensity: 1,
     maximumBrightness: 60,
   });
   const raw = createMapper({
-    preset: "bands",
+    preset: "pulse",
     interpretation: "literal",
+    arrangement: "roles",
+    behaviors: { pulseBed: 1 },
     intensity: 1,
     maximumBrightness: 60,
   });
@@ -249,14 +253,14 @@ test("musical band balance reveals measured treble without promoting quiet audio
   assert.ok(musical.render(9000, { role: "low" }).brightness < 10.01, "no invented bass activity");
 });
 
-test("Bands exposes quiet measured treble while the full mix controls its ceiling", () => {
+test("Pulse roles reveal measured treble while the full mix controls its ceiling", () => {
   const m = createMapper({
-    preset: "bands",
+    preset: "pulse",
     intensity: 1,
     arrangement: "roles",
-    behaviors: { bandSeparation: 1 },
+    behaviors: { pulseBed: 1 },
   });
-  feed(m, 1, 250, 0.04, [0.03, 0.02, 0.002]);
+  feed(m, 1, 250, 0.04, [0.03, 0.02, 0.004]);
   assert.ok(
     m.render(5000, { role: "high" }).brightness > 13,
     "treble below the absolute full-mix floor must remain visible",
@@ -270,7 +274,7 @@ test("Bands exposes quiet measured treble while the full mix controls its ceilin
   assert.ok(m.render(15000, { role: "low" }).brightness < 10.01);
 });
 
-test("Ambient fixed contrast expands passages without changing its response over time", () => {
+test("retired Ambient contrast cannot change Pulse or introduce adaptive gain", () => {
   const response = (contrast, rms) => {
     const m = createMapper({
       preset: "ambient",
@@ -283,7 +287,7 @@ test("Ambient fixed contrast expands passages without changing its response over
   const rmsAt = (level) => 10 ** ((-42 + level * 24) / 20);
   const originalSpan = response(1, rmsAt(0.7)) - response(1, rmsAt(0.3));
   const contrastedSpan = response(2, rmsAt(0.7)) - response(2, rmsAt(0.3));
-  assert.ok(contrastedSpan > originalSpan * 1.5);
+  assert.equal(contrastedSpan, originalSpan);
   assert.ok(response(2, 0.001) < 10.01);
   const m = createMapper({ preset: "ambient", intensity: 1, arrangement: "unified" });
   const first = feed(m, 1, 500, 0.025).brightness;

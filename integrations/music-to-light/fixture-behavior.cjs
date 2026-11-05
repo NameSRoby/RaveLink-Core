@@ -9,6 +9,21 @@ const fault = () =>
   });
 function validate(row) {
   if (
+    row.assignedPalette !== undefined &&
+    (!Array.isArray(row.assignedPalette) ||
+      row.assignedPalette.length < 2 ||
+      row.assignedPalette.length > 8 ||
+      !row.assignedPalette.every((c) => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c)))
+  )
+    throw fault();
+  if (
+    row.assignedEffect !== undefined &&
+    !["pulse", "wave", "bounce", "handoff"].includes(
+      require("./legacy-response.cjs").effect(row.assignedEffect),
+    )
+  )
+    throw fault();
+  if (
     row.raveBehavior !== undefined &&
     !["reactive", "dim", "steady", "off"].includes(row.raveBehavior)
   )

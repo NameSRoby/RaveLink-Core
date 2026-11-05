@@ -475,6 +475,20 @@
       let playerReady = false;
       let lease = null;
       let starting = false;
+      let youtubeGuard;
+      const youtubeHeartbeat = setInterval(() => {
+        if (lease && window.ravelinkPlayerActive?.("youtube")) void youtubePlaybackGuard().heartbeat(player?.getPlayerState?.());
+      }, 5000);
+      function youtubePlaybackGuard() {
+        return youtubeGuard ||= createYoutubePlaybackGuard({
+          current: () => lease,
+          videoId: () => player?.getVideoData?.()?.video_id || "",
+          acknowledge,
+          pull: maybePull,
+          refresh: refreshState,
+          notice: setNotice,
+        });
+      }
       let refreshQueued = false;
       let refreshing = false;
       let moderationOffset = 0;
@@ -1158,7 +1172,8 @@
         );
       }
       async function maybePull() {
-        if (!playerReady || lease || starting) return;
+        if (window.ravelinkPlayerActive && !window.ravelinkPlayerActive("youtube")) return;
+        if (!playerReady || lease || starting || !youtubePlaybackGuard().canPull()) return;
         starting = true;
         try {
           const result = await call("song.playback.driver.v1", "pull", {
@@ -1178,9 +1193,8 @@
           starting = false;
         }
       }
-      async function acknowledge(state) {
-        if (!lease) return null;
-        const active = lease;
+      async function acknowledge(state, active = lease) {
+        if (!active || lease !== active) return null;
         try {
           const result = await call("song.playback.driver.v1", "acknowledge", {
             driverId: DRIVER,
@@ -1220,7 +1234,7 @@
             onStateChange: (event) => {
               if (
                 document.getElementById("songPlayerProvider")?.value &&
-                document.getElementById("songPlayerProvider").value !== "youtube"
+                (document.getElementById("songPlayerProvider").value !== "youtube" || window.ravelinkYouTubeBrowserActive?.())
               ) {
                 if (event.data === YT.PlayerState.PLAYING) player?.pauseVideo?.();
                 return;
@@ -1228,40 +1242,18 @@
               if (event.data === YT.PlayerState.PLAYING) {
                 if (chatPlaybackPaused) { player?.pauseVideo?.(); return; }
                 startPlayer.textContent = "PLAY";
-                void acknowledge("started").then(refreshState);
+                void youtubePlaybackGuard().started().then(refreshState);
               }
               if (event.data === YT.PlayerState.ENDED)
-                void acknowledge("ended").then(() => {
-                  void refreshState();
-                  void maybePull();
-                });
+                void youtubePlaybackGuard().ended();
             },
             onAutoplayBlocked: () => {
               startPlayer.textContent = "START PLAYBACK";
-              setNotice(
-                "Browser autoplay is blocked. Select Start Playback once to allow audio.",
-                true,
-              );
+              youtubePlaybackGuard().autoplayBlocked();
             },
             onError: (event) => {
-              const code = Number(event?.data || 0),
-                reason =
-                  code === 101 || code === 150
-                    ? "The uploader does not allow embedded playback."
-                    : code === 100
-                      ? "The video is unavailable or private."
-                      : code === 5
-                        ? "The browser could not play this video format."
-                        : code === 2
-                          ? "YouTube rejected the video ID."
-                          : code === 153
-                            ? "YouTube could not identify this local player."
-                            : "YouTube rejected playback.";
-              setNotice(`${reason} Error ${code || "unknown"}; moving to the next request.`, true);
-              void acknowledge("failed").then(() => {
-                void refreshState();
-                void maybePull();
-              });
+              if (document.getElementById("songPlayerProvider")?.value !== "youtube") return;
+              void youtubePlaybackGuard().failed(event?.data);
             },
           },
         });
@@ -1340,11 +1332,16 @@
           return;
         }
         try {
+          if (!youtubePlaybackGuard().resume()) return;
           await call("song.queue.admin.v1", "moderate", {
             action: "playback_start",
             source: "youtube",
           });
-          if (lease) player.playVideo();
+          if (lease) {
+            await acknowledge("paused");
+            if (lease) player.playVideo();
+            else await maybePull();
+          }
           else await maybePull();
         } catch (error) {
           setNotice(error.message, true);
@@ -1408,7 +1405,7 @@
           }, 150);
         }
       });
-      window.addEventListener("pagehide", () => clearTimeout(eventRefreshTimer));
+      window.addEventListener("pagehide", () => { clearTimeout(eventRefreshTimer); clearInterval(youtubeHeartbeat); youtubeGuard?.dispose(); });
       void refreshState();
       let youtubeRequested = false;
       function ensureYoutubePlayer() {
@@ -2191,6 +2188,27 @@ main {
   color: var(--muted);
 }
 
+#youtubeBrowserSetup .youtube-connection-step {
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 16px 0;
+}
+#youtubeBrowserSetup .youtube-connection-step h3 {
+  margin-top: 0;
+}
+#youtubeBrowserSetup p {
+  max-width: 76ch;
+  line-height: 1.5;
+}
+#youtubeBrowserSetup pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#youtubeBrowserSetup details {
+  margin-top: 20px;
+}
+
 /**
  * Player now playing.
  * Developer context and change constraints:
@@ -2331,6 +2349,414 @@ main {
 
 </style>
 <script>
+/** Pace failed embeds and bind asynchronous events to their original lease.
+ * Autoplay denial is not a failed request. Only explicit Start clears a stop. */
+/* exported createYoutubePlaybackGuard */
+function createYoutubePlaybackGuard({
+  current,
+  videoId,
+  acknowledge,
+  pull,
+  refresh,
+  notice,
+  now = Date.now,
+  schedule = setTimeout,
+  cancel = clearTimeout,
+}) {
+  let failures = 0,
+    blocked = false,
+    retryAt = 0,
+    terminal = null,
+    startedLease = null;
+  let timer = null,
+    stopped = false,
+    starting = null,
+    autoplayWait = false;
+  function matches(active) {
+    const observed = videoId();
+    return (
+      active && current() === active && (!observed || observed === active.candidate.providerItemId)
+    );
+  }
+  function stop(message) {
+    blocked = true;
+    cancel(timer);
+    timer = null;
+    notice(message, true);
+  }
+  async function started() {
+    const active = current();
+    if (autoplayWait && matches(active)) {
+      blocked = false;
+      autoplayWait = false;
+    }
+    if (blocked || terminal || !matches(active) || startedLease === active) return;
+    if (starting) return starting;
+    starting = Promise.resolve()
+      .then(() => acknowledge("started", active))
+      .then((result) => {
+        if (result?.ok && current() === active) startedLease = active;
+        else if (current() === active)
+          stop(
+            "Playback could not be confirmed. Check the connection, then select Start Playback.",
+          );
+      })
+      .catch(() => stop("Playback could not be confirmed. Select Start Playback to retry."))
+      .finally(() => {
+        starting = null;
+      });
+    return starting;
+  }
+  function finish(state, code = 0) {
+    const active = current();
+    if (blocked || terminal || !matches(active)) return Promise.resolve();
+    if (state === "ended" && startedLease !== active) return Promise.resolve();
+    const reasons = {
+      2: "YouTube rejected the video ID.",
+      5: "The browser could not play this video format.",
+      100: "The video is unavailable or private.",
+      101: "The uploader does not allow embedded playback.",
+      150: "The uploader does not allow embedded playback.",
+      153: "YouTube could not identify this local player.",
+    };
+    if (state === "failed" && (code === 153 || ![2, 5, 100, 101, 150].includes(code))) {
+      stop(
+        `${reasons[code] || "YouTube rejected playback."} Automatic playback is stopped. Your request is kept; check the player and select Start Playback.`,
+      );
+      return Promise.resolve();
+    }
+    if (state === "failed") {
+      failures++;
+      retryAt = now() + 2000;
+      if (failures >= 3)
+        stop(
+          `${reasons[code] || "YouTube rejected playback."} Automatic playback is stopped; remaining requests are kept. Select Start Playback after checking the player.`,
+        );
+      else notice(`${reasons[code]} Error ${code}; trying the next request in two seconds.`, true);
+    } else failures = 0;
+    terminal = Promise.resolve()
+      .then(async () => {
+        await starting;
+        const result = await acknowledge(state, active);
+        if (!result?.ok) {
+          stop(
+            "The request outcome could not be confirmed. Automatic playback is stopped. Check the connection, then select Start Playback.",
+          );
+          return;
+        }
+        await refresh();
+        if (stopped || blocked) return;
+        cancel(timer);
+        timer = schedule(
+          () => {
+            timer = null;
+            if (!blocked && !stopped) void pull();
+          },
+          Math.max(0, retryAt - now()),
+        );
+      })
+      .catch(() =>
+        stop("The request outcome could not be confirmed. Select Start Playback to retry."),
+      )
+      .finally(() => {
+        terminal = null;
+      });
+    return terminal;
+  }
+  return {
+    canPull: () => !stopped && !blocked && !terminal && now() >= retryAt,
+    started,
+    async heartbeat(state) {
+      const active = current();
+      if (stopped || terminal || !matches(active)) return;
+      if (state === 1 && !blocked) {
+        await started();
+        if (matches(active) && !terminal && !blocked) await acknowledge("progress", active);
+      } else if (state === 2) await acknowledge("paused", active);
+    },
+    ended: () => finish("ended"),
+    failed: (code) => finish("failed", Number(code) || 0),
+    autoplayBlocked() {
+      autoplayWait = true;
+      stop(
+        "Browser autoplay is blocked. Select Start Playback once to allow audio. Your request is kept.",
+      );
+    },
+    resume() {
+      if (terminal) return false;
+      blocked = false;
+      autoplayWait = false;
+      failures = 0;
+      retryAt = 0;
+      startedLease = null;
+      cancel(timer);
+      timer = null;
+      return !stopped;
+    },
+    dispose() {
+      stopped = true;
+      cancel(timer);
+      timer = null;
+    },
+  };
+}
+
+/** Optional playback in one explicitly paired tab. Never transfer cookies or stream URLs. */
+/* exported installYoutubeBrowserPlayer */
+function installYoutubeBrowserPlayer({
+  selected,
+  view,
+  setupPage,
+  playbackPage,
+  choosePlayer,
+  warning,
+}) {
+  let mode = "embed",
+    state = null,
+    timer = null,
+    stopped = false,
+    busy = false,
+    refreshing = false;
+  const setup = document.createElement("section");
+  setup.id = "youtubeBrowserSetup";
+  setup.innerHTML = `<h2>YouTube playback</h2><label>Playback connection<select id="youtubePlaybackMode"><option value="embed">Embedded player</option><option value="browser">YouTube Music browser extension (experimental)</option></select></label>
+    <div id="youtubeBrowserInstructions" hidden>
+      <p>Play requests in your YouTube Music tab. Your personal queue stays in place; requests are inserted after the current song in request order.</p>
+      <section class="youtube-connection-step"><h3>1. Load the Firefox extension</h3>
+      <p>Open the extension folder, then paste <strong>about:debugging#/runtime/this-firefox</strong> into Firefox's address bar. Choose <strong>Load Temporary Add-on</strong> and select <strong>manifest.json</strong> in that folder.</p>
+      <button id="youtubeOpenFolder" type="button">Open Firefox extension folder</button> <button id="youtubeCopySetup" type="button">Copy Firefox setup address</button>
+      <p>You only repeat this step after restarting Firefox while the extension is unsigned.</p></section>
+      <section class="youtube-connection-step"><h3>2. Connect your music tab</h3>
+      <p>Open <a href="https://music.youtube.com/" target="_blank" rel="noopener noreferrer">YouTube Music</a> in Firefox and play a song once. Then connect below and select that tab. Keep it open while using requests.</p>
+      <button id="enableYoutubeBrowser" type="button">Connect YouTube Music</button> <button id="disableYoutubeBrowser" type="button">Disconnect</button>
+      <p id="youtubeSetupStatus" role="status"></p><a id="youtubeConnectLink" hidden target="_blank" rel="noopener noreferrer">Open connection page</a></section>
+      <p>Account, region, ads and subscription restrictions still apply. Reloading the music tab can require a delivery review.</p>
+      <details><summary>Advanced / other browsers</summary><p>Chromium: load the Chromium folder using Load unpacked in your browser's extensions manager with Developer mode enabled.</p><button id="youtubeOpenChromiumFolder" type="button">Open Chromium extension folder</button><pre id="youtubeExtensionFolders"></pre>
+      <div id="youtubePairing" hidden><label>Port<input id="youtubeBrowserPort" readonly></label><label>Private pairing code ? do not share<input id="youtubeBrowserCode" type="password" readonly autocomplete="off" spellcheck="false"></label></div></details>
+    </div>`;
+  setupPage.prepend(setup);
+  const panel = document.createElement("section");
+  panel.id = "youtubeBrowserPlayback";
+  panel.innerHTML = `<h2>YouTube Music browser</h2><p id="youtubeBrowserStatus" role="status"></p><div class="actions"><button id="youtubeBrowserPlay" type="button">Play / resume</button><button id="youtubeBrowserPause" type="button">Pause</button><button id="youtubeBrowserSkip" type="button">Skip current</button><button id="youtubeBrowserRefresh" type="button">Refresh connection</button></div><p id="youtubeBrowserSong"></p><h3>Delivered requests</h3><div id="youtubeBrowserRequests"></div>`;
+  playbackPage.prepend(panel);
+  const active = () => selected() === "youtube" && mode === "browser";
+  window.ravelinkYouTubeBrowserActive = active;
+  const originalActive = window.ravelinkPlayerActive;
+  window.ravelinkPlayerActive = (provider) =>
+    originalActive(provider) && !(provider === "youtube" && active());
+  async function request(method, payload) {
+    const result = await call("song.youtube.browser.v1", method, payload || {});
+    if (!result.ok)
+      throw Error(
+        result.error || result.reason || result.code || "Browser action could not be confirmed.",
+      );
+    return result;
+  }
+  async function action(method, payload) {
+    if (busy) return;
+    busy = true;
+    try {
+      await request(method, payload);
+      await refreshState();
+    } catch (error) {
+      setNotice(error.message, true);
+    } finally {
+      busy = false;
+      await refresh();
+    }
+  }
+  function render() {
+    const current = state?.current;
+    $("youtubeBrowserStatus").textContent = state?.ready
+      ? "Connected. Requests are delivered automatically in order."
+      : state?.connected
+        ? "Connected; queue editing is unavailable. Check the music tab and disable shuffle before retrying."
+        : state?.enabled
+          ? "Waiting for your music tab. Choose Connect YouTube Music under Setup."
+          : "Connect the YouTube Music extension under Setup.";
+    $("youtubeBrowserSong").textContent = current
+      ? `${current.title} — ${(current.artists || []).join(", ")}${current.paused ? " (paused)" : ""}`
+      : "No confirmed browser playback.";
+    for (const id of ["youtubeBrowserPlay", "youtubeBrowserPause", "youtubeBrowserSkip"])
+      $(id).disabled = !state?.connected || !current;
+    const rows = (state?.handoffs || []).filter((row) =>
+      ["appended", "playing", "unknown", "pending"].includes(row.phase),
+    );
+    const list = $("youtubeBrowserRequests");
+    list.replaceChildren();
+    if (!rows.length)
+      list.textContent =
+        "No delivered requests. Pending requests appear in the normal request queue.";
+    for (const row of rows) {
+      const item = document.createElement("div"),
+        label = document.createElement("p");
+      label.textContent = `${row.title || "Requested song"}${row.requesterLabel ? " · " + row.requesterLabel : ""} · ${{ appended: "Queued in YouTube Music", playing: "Playing", unknown: "Needs delivery review", pending: "Sending" }[row.phase]}`;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent =
+        row.phase === "unknown"
+          ? (state.queue || []).some((item) => item.id === row.entryId)
+            ? "Checked absent: allow one retry"
+            : "Checked absent: clear held record"
+          : row.phase === "playing"
+            ? "Skip this request"
+            : "Remove this request";
+      button.title =
+        row.phase === "unknown"
+          ? "Check the music queue and playback history first. Use only if this request was not delivered."
+          : "Remove only this verified request occurrence";
+      button.disabled = busy || row.phase === "pending";
+      button.onclick = () =>
+        action(row.phase === "unknown" ? "review" : "moderate", {
+          entryId: row.entryId,
+          ...(row.phase === "unknown"
+            ? { confirmAbsent: true }
+            : { action: row.phase === "playing" ? "skip" : "remove" }),
+        });
+      item.append(label, button);
+      list.append(item);
+    }
+    if (state?.delivery?.lastError)
+      $("youtubeBrowserStatus").textContent +=
+        " Delivery is held: " + state.delivery.lastError.replaceAll("_", " ") + ".";
+  }
+  async function refresh() {
+    if (refreshing) return;
+    clearTimeout(timer);
+    timer = null;
+    if (stopped || !active()) return;
+    refreshing = true;
+    try {
+      state = await request("status");
+      render();
+    } catch {
+      $("youtubeBrowserStatus").textContent =
+        "Connection status is unavailable. Refresh or check Core.";
+    } finally {
+      refreshing = false;
+      if (!stopped && active()) timer = setTimeout(() => void refresh(), 4000);
+    }
+  }
+  function update() {
+    setup.hidden = selected() !== "youtube" || view() !== "setup";
+    panel.hidden = !active() || view() !== "player";
+    $("youtubeBrowserInstructions").hidden = mode !== "browser";
+    if (selected() === "youtube") {
+      $("playerFrame").hidden = active();
+      startPlayer.hidden = active();
+      $("skip").hidden = active();
+      warning.hidden = active() || view() !== "player";
+      if (active()) {
+        player?.pauseVideo?.();
+        $("playerProviderHint").textContent = "Requests play in your paired YouTube Music tab";
+      }
+    }
+    if (active()) void refresh();
+    else {
+      clearTimeout(timer);
+      timer = null;
+    }
+  }
+  $("youtubePlaybackMode").onchange = async () => {
+    const picker = $("youtubePlaybackMode");
+    picker.disabled = true;
+    try {
+      const result = await call("song.player.preferences.v1", "select", {
+        player: "youtube",
+        youtubePlayback: picker.value,
+      });
+      if (!result.ok) throw Error("Could not save YouTube playback connection.");
+      mode = result.youtubePlayback;
+      choosePlayer();
+      update();
+    } catch (error) {
+      picker.value = mode;
+      setNotice(error.message, true);
+    } finally {
+      picker.disabled = false;
+    }
+  };
+  $("youtubeOpenFolder").onclick = () =>
+    action("setup", { action: "open-folder", browser: "firefox" });
+  $("youtubeOpenChromiumFolder").onclick = () =>
+    action("setup", { action: "open-folder", browser: "chromium" });
+  $("youtubeCopySetup").onclick = async () => {
+    try {
+      await navigator.clipboard.writeText("about:debugging#/runtime/this-firefox");
+      $("youtubeSetupStatus").textContent = "Copied. Paste the address into Firefox's address bar.";
+    } catch {
+      $("youtubeSetupStatus").textContent =
+        "Paste about:debugging#/runtime/this-firefox into Firefox's address bar.";
+    }
+  };
+  $("enableYoutubeBrowser").onclick = async () => {
+    const popup = window.open("about:blank", "_blank");
+    if (popup) popup.opener = null;
+    $("enableYoutubeBrowser").disabled = true;
+    try {
+      const result = await request("setup", { action: "start", port: 0 });
+      const url = new URL(result.pairingUrl);
+      if (
+        url.protocol !== "http:" ||
+        url.hostname !== "127.0.0.1" ||
+        url.pathname !== "/connect.html" ||
+        !/^#[a-f0-9]{64}$/.test(url.hash)
+      )
+        throw Error("Invalid connection address. Check Core and try again.");
+      $("youtubeExtensionFolders").textContent = (result.extensionFolders || []).join("\n");
+      $("youtubeBrowserPort").value = result.port || "";
+      $("youtubeBrowserCode").value = result.pairingCode || "";
+      $("youtubePairing").hidden = false;
+      $("youtubeConnectLink").href = url.href;
+      $("youtubeConnectLink").hidden = false;
+      $("youtubeSetupStatus").textContent =
+        "Choose your music tab on the connection page. Open that page in Firefox if another browser opened it.";
+      if (popup) popup.location.replace(url.href);
+      await refresh();
+    } catch (error) {
+      popup?.close();
+      setNotice(error.message, true);
+    } finally {
+      $("enableYoutubeBrowser").disabled = false;
+    }
+  };
+  $("disableYoutubeBrowser").onclick = async () => {
+    await action("setup", { action: "stop" });
+    $("youtubeBrowserCode").value = "";
+    $("youtubeConnectLink").removeAttribute("href");
+    $("youtubeConnectLink").hidden = true;
+    $("youtubePairing").hidden = true;
+  };
+  $("youtubeBrowserPlay").onclick = async () => {
+    await action("monitor", {});
+    await action("control", { action: "resume" });
+  };
+  $("youtubeBrowserPause").onclick = () => action("control", { action: "pause" });
+  $("youtubeBrowserSkip").onclick = () =>
+    state?.current?.entryId
+      ? action("moderate", {
+          action: "skip",
+          entryId: state.current.entryId,
+          currentUid: state.current.uid,
+        })
+      : action("control", { action: "skip", currentUid: state?.current?.uid });
+  $("youtubeBrowserRefresh").onclick = () => void refresh();
+  window.addEventListener("pagehide", () => {
+    $("youtubeConnectLink").removeAttribute("href");
+    stopped = true;
+    clearTimeout(timer);
+    $("youtubeBrowserCode").value = "";
+  });
+  return {
+    update,
+    restore(saved) {
+      mode = saved.youtubePlayback || "embed";
+      $("youtubePlaybackMode").value = mode;
+    },
+    active,
+  };
+}
+
 /**
  * Provider marks.
  * Developer context and change constraints:
@@ -3924,6 +4350,7 @@ function installNowPlayingDetails() {
         : 0);
     if (
       playback.candidate?.provider === "youtube" &&
+      !window.ravelinkYouTubeBrowserActive?.() &&
       playerReady &&
       typeof player?.getCurrentTime === "function"
     )
@@ -4011,7 +4438,16 @@ function installPlayerVolumeControls(soundcloud) {
     nativeAvailable = false,
     generation = 0;
   const selected = () => $("songPlayerProvider").value;
+  const youtubeBrowser = () => selected() === "youtube" && window.ravelinkYouTubeBrowserActive?.();
   async function native() {
+    if (youtubeBrowser()) {
+      const reply = await call("song.youtube.browser.v1", "control", {
+        action: "volume",
+        value: outputVolume(),
+      });
+      if (!reply.ok) throw Error(reply.error || "YouTube Music volume could not be confirmed.");
+      return;
+    }
     if (selected() === "spotify") {
       if (!nativeAvailable) throw Error("Choose an active Premium playback device in Setup first.");
       const reply = await call("song.spotify.player.v1", "control", {
@@ -4035,7 +4471,7 @@ function installPlayerVolumeControls(soundcloud) {
   function preview() {
     const output = outputVolume();
     $("volumeOut").textContent = $("volume").value + " // OUTPUT " + output + "%";
-    if (selected() === "youtube") player?.setVolume?.(output);
+    if (selected() === "youtube" && !youtubeBrowser()) player?.setVolume?.(output);
     if (selected() === "soundcloud") soundcloud.setVolume(output);
   }
   async function applyRange() {
@@ -4060,7 +4496,8 @@ function installPlayerVolumeControls(soundcloud) {
       volumeDraftDirty = false;
       preview();
       note.textContent = "Output range saved.";
-      if (["tidal", "spotify"].includes(selected()) && nativeAvailable) await native();
+      if ((["tidal", "spotify"].includes(selected()) && nativeAvailable) || youtubeBrowser())
+        await native();
       await refreshState();
     } catch (error) {
       note.textContent = error.message;
@@ -4697,6 +5134,7 @@ function installSpotifyPlayer({ showView, volumeControls }) {
   let view = "player",
     providerReady = false,
     savedPlayer = "youtube";
+  let youtubeBrowserUi;
   const picker = document.createElement("div");
   picker.className = "playerProviderPicker";
   picker.innerHTML =
@@ -4707,7 +5145,7 @@ function installSpotifyPlayer({ showView, volumeControls }) {
   embedWarning.id = "youtubeEmbedWarning";
   embedWarning.setAttribute("role", "note");
   embedWarning.innerHTML =
-    "<strong>YouTube playback warning</strong><p>YouTube embeds can refuse songs because of uploader settings, account, age, region or content restrictions. A successful search does not guarantee playback.</p><p>Repeated failures and rapid automatic skips may overload playback and cause the server to stop or crash. Stop playback if songs keep skipping; try another source or restart Core if it stops responding.</p>";
+    "<strong>YouTube playback</strong><p>Uploader, account, age and region restrictions can prevent embedded playback. A successful search does not guarantee playback.</p><p>Unavailable videos are skipped at paced intervals. After three consecutive failures, automatic playback stops and keeps the remaining requests. Use Start Playback after checking the player. Autoplay or player-identification problems keep the current request.</p>";
   document.querySelector(".playerSide").prepend(embedWarning);
   const warningStyle = document.createElement("style");
   warningStyle.textContent =
@@ -4912,7 +5350,14 @@ function installSpotifyPlayer({ showView, volumeControls }) {
     }
     if (view === "moderation" || (view === "setup" && selected() === "youtube"))
       void refreshCatalog();
-    if (providerReady && view === "player" && selected() === "youtube") ensureYoutubePlayer();
+    if (
+      providerReady &&
+      view === "player" &&
+      selected() === "youtube" &&
+      !youtubeBrowserUi?.active()
+    )
+      ensureYoutubePlayer();
+    youtubeBrowserUi?.update();
     void refreshTidal();
     void spotify.refresh();
     void refreshState();
@@ -5337,12 +5782,14 @@ function installSpotifyPlayer({ showView, volumeControls }) {
 
     if (view === "moderation" || (view === "setup" && !tidal)) void refreshCatalog();
     if (tidal) void refreshTidal();
-    else if (selected() === "youtube" && view === "player") ensureYoutubePlayer();
+    else if (selected() === "youtube" && view === "player" && !youtubeBrowserUi?.active())
+      ensureYoutubePlayer();
     const staleControls = $("tidalNowControls");
     if (staleControls) staleControls.hidden = !tidal;
     void soundcloud.select();
     void volumeControls.select();
     spotify.select();
+    youtubeBrowserUi?.update();
     void refreshState();
   }
   $("songPlayerProvider").onchange = async () => {
@@ -5432,6 +5879,14 @@ function installSpotifyPlayer({ showView, volumeControls }) {
     }
   });
   $("songPlayerProvider").disabled = true;
+  youtubeBrowserUi = installYoutubeBrowserPlayer({
+    selected,
+    view: () => view,
+    setupPage,
+    playbackPage,
+    choosePlayer,
+    warning: embedWarning,
+  });
   $("playerProviderHint").textContent = "Restoring your player selection...";
   const playerRestored = (async () => {
     try {
@@ -5439,6 +5894,7 @@ function installSpotifyPlayer({ showView, volumeControls }) {
       if (!saved.ok)
         throw new Error("Could not restore your player selection. Choose a player to retry.");
       savedPlayer = saved.player;
+      youtubeBrowserUi.restore(saved);
       $("songPlayerProvider").value = saved.player;
       providerReady = true;
       choosePlayer();
@@ -5472,9 +5928,9 @@ function installSpotifyPlayer({ showView, volumeControls }) {
       if (event.data.provider === "soundcloud") await $("soundcloudStart").onclick();
       else {
         const deadline = Date.now() + 12000;
-        while (!playerReady && Date.now() < deadline)
+        while (!youtubeBrowserUi.active() && !playerReady && Date.now() < deadline)
           await new Promise((resolve) => setTimeout(resolve, 100));
-        await startPlayer.onclick();
+        await (youtubeBrowserUi.active() ? $("youtubeBrowserPlay") : startPlayer).onclick();
       }
     } catch (error) {
       setNotice(error.message, true);

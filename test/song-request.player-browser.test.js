@@ -101,7 +101,7 @@ test("Player connects TIDAL automatically, signs in, chooses supported countries
   await surface.locator('[data-choice-for="songPlayerProvider"]').waitFor();
   await surface.locator("iframe#playerFrame").waitFor();
   assert.equal(await surface.locator("#youtubeEmbedWarning").isVisible(), true);
-  assert.match(await surface.locator("#youtubeEmbedWarning").innerText(), /crash/);
+  assert.match(await surface.locator("#youtubeEmbedWarning").innerText(), /three|3/i);
   await surface.locator("#playerFrame").evaluate((node) => {
     node.dataset.retained = "yes";
   });

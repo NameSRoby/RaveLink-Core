@@ -1,0 +1,267 @@
+/* Shared geometry and native-control presentation. Custom switches must not
+ * inherit the text-input minimum height or padding. Keep one compact scale. */
+:root {
+  color-scheme: dark;
+  scrollbar-color: #33405c var(--bg);
+}
+input[type="checkbox"],
+input[type="radio"] {
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+input[type="range"] {
+  appearance: none;
+  min-height: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--edge);
+  border-radius: 4px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 2px solid var(--text);
+  border-radius: 50%;
+  background: var(--accent);
+}
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  background: var(--edge);
+  border: 0;
+  border-radius: 4px;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--text);
+  border-radius: 50%;
+  background: var(--accent);
+}
+input[type="range"]:focus {
+  box-shadow: none;
+}
+input[type="range"]:focus-visible {
+  outline: 2px solid var(--muted);
+  outline-offset: 3px;
+  border-radius: 5px;
+}
+meter {
+  color-scheme: dark;
+}
+meter::-webkit-meter-bar {
+  background: var(--surface);
+  border: 0;
+  border-radius: 4px;
+}
+meter::-webkit-meter-optimum-value {
+  background: var(--muted);
+  border-radius: 4px;
+}
+meter::-moz-meter-bar {
+  background: var(--muted);
+}
+select {
+  color-scheme: dark;
+}
+select option {
+  background: var(--panel);
+  color: var(--text);
+}
+.checkLabel input[type="checkbox"],
+.toggleGrid input[type="checkbox"],
+.musicToggle input[type="checkbox"],
+.dashboard .dashboardAutoRave input[type="checkbox"] {
+  appearance: none;
+  position: relative;
+  flex: 0 0 38px;
+  width: 38px;
+  min-width: 38px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: var(--surface);
+  cursor: pointer;
+  box-shadow: none;
+}
+.checkLabel input[type="checkbox"]::before,
+.toggleGrid input[type="checkbox"]::before,
+.musicToggle input[type="checkbox"]::before,
+.dashboard .dashboardAutoRave input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--muted);
+  transform: translateX(0);
+  transition: transform 0.12s;
+}
+.checkLabel input[type="checkbox"]:checked,
+.toggleGrid input[type="checkbox"]:checked,
+.musicToggle input[type="checkbox"]:checked,
+.dashboard .dashboardAutoRave input[type="checkbox"]:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: none;
+}
+.checkLabel input[type="checkbox"]:checked::before,
+.toggleGrid input[type="checkbox"]:checked::before,
+.musicToggle input[type="checkbox"]:checked::before,
+.dashboard .dashboardAutoRave input[type="checkbox"]:checked::before {
+  left: 2px;
+  transform: translateX(16px);
+  background: var(--text);
+}
+.toggleSwitch {
+  width: 38px;
+  height: 22px;
+  border-color: var(--edge);
+  background: var(--surface);
+  box-shadow: none;
+}
+.toggleSwitch:after {
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--muted);
+}
+.switchLabel > input:checked + .toggleSwitch {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: none;
+}
+.switchLabel > input:checked + .toggleSwitch:after {
+  left: 18px;
+  background: var(--text);
+}
+.switchLabel > input:disabled + .toggleSwitch,
+input[type="checkbox"]:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.hudHeader .headerRight {
+  gap: 8px;
+}
+.iconButton {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  flex: 0 0 36px;
+  padding: 0;
+}
+.iconButton svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+.hudHeader .badge {
+  min-width: 0;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+}
+.hudHeader #health::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 7px;
+}
+.dashboardHero {
+  padding: 20px 22px;
+  gap: 16px;
+  border-radius: 12px;
+}
+.dashboardHero h2 {
+  font-size: clamp(24px, 2.6vw, 30px);
+}
+.dashboardHero p {
+  margin-bottom: 0;
+}
+.dashboardCard {
+  padding: 20px;
+  border-radius: 12px;
+}
+.dashboardCard h3 {
+  font-size: 20px;
+}
+.musicPlayGrid {
+  align-items: start;
+}
+.musicPreview:has(.musicSwatch) {
+  min-height: 0;
+}
+.musicWorkspace input[type="checkbox"] {
+  min-height: 0;
+  padding: 0;
+}
+.musicWorkspace .musicToggle input[type="checkbox"] {
+  min-height: 22px;
+}
+.musicWorkspace .musicLookPanel {
+  padding-bottom: 18px;
+}
+.musicAssignmentDetails {
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.musicAssignmentDetails li {
+  margin: 8px 0;
+}
+.musicAssignmentDetails li span {
+  display: inline-block;
+  width: 13px;
+  height: 8px;
+  border-radius: 3px;
+  margin-left: 5px;
+}
+@media (max-width: 700px) {
+  .hudHeader {
+    gap: 14px;
+  }
+  .hudHeader .headerRight {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .dashboardHero {
+    padding: 18px;
+  }
+  .dashboardCard {
+    padding: 18px;
+  }
+  .musicAutoCard {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  input::before,
+  .toggleSwitch,
+  .toggleSwitch:after {
+    transition: none !important;
+  }
+}

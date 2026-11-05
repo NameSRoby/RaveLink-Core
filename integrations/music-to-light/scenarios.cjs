@@ -5,22 +5,10 @@
 const definitions = Object.freeze(
   [
     {
-      id: "wash",
-      label: "Swell wash",
-      help: "A sustained glow following loudness and rises.",
-      preset: "ambient",
-    },
-    {
       id: "pulse",
       label: "Attack pulse",
       help: "Measured attacks over a low sustained bed.",
       preset: "pulse",
-    },
-    {
-      id: "bands",
-      label: "Band conversation",
-      help: "Independent low, mid and high frequency roles.",
-      preset: "bands",
     },
     {
       id: "wave",
@@ -47,9 +35,19 @@ function weights(input = {}) {
     !input ||
     typeof input !== "object" ||
     Array.isArray(input) ||
-    Object.keys(input).some((k) => !definitions.some((d) => d.id === k))
+    Object.keys(input).some(
+      (k) => !definitions.some((d) => d.id === k) && !["wash", "bands"].includes(k),
+    )
   )
     throw Error("invalid_music_scenarios");
+  if (Object.values(input).some((v) => !Number.isFinite(v) || v < 0 || v > 10))
+    throw Error("invalid_music_scenarios");
+  input = {
+    ...input,
+    ...(Object.hasOwn(input, "wash") || Object.hasOwn(input, "bands")
+      ? { pulse: Math.max(input.pulse ?? 1, input.wash ?? 0, input.bands ?? 0) }
+      : {}),
+  };
   const value = Object.fromEntries(
     definitions.map((d) => [
       d.id,
@@ -126,10 +124,8 @@ function chooseLayers(config, scenario, random = Math.random) {
     (config.loudnessBrightness && !config.steadyBrightness)
   )
     selected.attacksEnabled = config.attacksEnabled;
-  if (["wave", "wash", "bounce", "handoff"].includes(scenario))
+  if (["wave", "bounce", "handoff"].includes(scenario))
     selected.spatialEnabled = config.spatialEnabled;
-  if (scenario === "bands") selected.balanceEnabled = config.balanceEnabled;
-  if (["wash", "bands"].includes(scenario)) selected.swellsEnabled = config.swellsEnabled;
   return selected;
 }
 module.exports = { definitions, weights, chances, choose, chooseLayers };

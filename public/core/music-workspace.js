@@ -3,16 +3,30 @@
  */
 (() => {
   function create(workspace, $) {
+    $("intensity").oninput = () => {
+      $("intensityValue").value = $("intensity").value + "%";
+    };
+    $("outputCeiling").oninput = () => {
+      $("outputCeilingValue").value = $("outputCeiling").value + "%";
+      $("maximumBrightness").value = $("outputCeiling").value;
+    };
+    for (const id of ["calibrationSeconds", "calibrationHeadroom"])
+      $(id).onchange = () => {
+        $("calibrationSummary").textContent =
+          `Calibration options · ${$("calibrationSeconds").value} seconds with ${$("calibrationHeadroom").value} dB headroom`;
+      };
     // Navigation changes presentation only. Hidden editors keep their existing
     // controls and bindings; switching views never starts capture or stops a run.
     function showWorkspace(name) {
+      const editRandom = name === "customize";
+      if (editRandom) name = "play";
       if (!["play", "library", "customize", "setup"].includes(name)) return;
       $("workspaceHelp").textContent = {
-        play: "Main: live playback, looks and everyday controls. Changes are saved as you use them.",
+        play: "Choose a look, colors and choreography. Changes save automatically for the next start.",
         library:
-          "Library: edit songs, manage saved looks and review viewer submissions. Playback selection needs Apply.",
+          "Songs & automation: choose which songs trigger Auto-Rave and which saved effects it may use. Playback selection needs Apply.",
         customize:
-          "Advanced: build movement recipes and inspect the live pipeline. Use Main for everyday adjustments.",
+          "Custom settings: edit movement recipes and randomness. A preset replaces artistic settings; calibration and output limits are kept.",
         setup:
           "Setup: choose capture apps, light roles and output limits. Sources and light selection need Save; calibration runs only when requested.",
       }[name];
@@ -23,10 +37,17 @@
         button.setAttribute("aria-pressed", String(button.dataset.musicViewTarget === name));
       });
       if (name === "setup") $("setup").open = true;
-      if (name === "customize") $("catalogPanel").open = true;
+      if (editRandom) $("randomRules").open = true;
     }
     workspace.querySelectorAll("[data-music-view-target]").forEach((button) => {
-      button.onclick = () => showWorkspace(button.dataset.musicViewTarget);
+      button.onclick = () => {
+        showWorkspace(button.dataset.musicViewTarget);
+        if (button.hasAttribute("data-music-calibration-shortcut")) {
+          $("tuning").open = true;
+          $("calibrate").focus();
+          $("calibrate").scrollIntoView({ block: "center", behavior: "smooth" });
+        }
+      };
     });
     // Enumeration lists currently available audio producers; the saved app is a
     // separate preference and must stay selected even while that app is silent.
@@ -54,6 +75,8 @@
     }
 
     function paletteControls(design, busy, ready) {
+      $("fixtureRandomization").disabled = busy || !ready;
+      $("paletteGrouping").disabled = busy || !ready;
       if (!busy) $("warmCoolColors").checked = !!design?.warmCoolColors;
       const option = design?.recipeOptions.palette;
       const generated =
@@ -71,10 +94,11 @@
       $("palette").hidden = !custom;
       $("addColor").disabled = busy || !ready || !custom || $("palette").children.length >= 8;
       $("paletteHint").textContent = generated
-        ? "A fresh palette of 3-7 distinct colors at each start. Balanced color strength, no near-duplicate stops. Your custom colors stay saved."
+        ? "A fresh warm / cool palette each start, with recent combinations avoided."
         : custom
-          ? "Choose 2-8 colors, or let Random build a contrasting palette."
-          : "The look or Advanced settings choose the palette. Select Your colors to edit it yourself.";
+          ? "Choose 2–8 distinct colors."
+          : "Colors come from your look or advanced pool. Choose Your colors to edit them.";
+      globalThis.RaveLinkMusicChoices.sync();
     }
     function renderRandomPalette(pipeline) {
       const colors = pipeline?.effective?.palette || [];
@@ -126,7 +150,13 @@
       card.type = "button";
       card.dataset.look = look.id;
       card.setAttribute("aria-pressed", "false");
-      title.textContent = look.id === "smooth-reference" ? "Smooth Pulse" : look.label;
+      card.title = `${look.help} Applying this preset keeps calibration and output limits.`;
+      title.textContent =
+        look.id === "smooth-reference"
+          ? "Smooth Pulse"
+          : look.id === "rave-mix"
+            ? "Smart random"
+            : look.label;
       colors.className = "musicLookColors";
       colors.setAttribute("aria-hidden", "true");
       for (const color of look.design.palette || []) {
@@ -134,12 +164,19 @@
         dot.style.backgroundColor = color;
         colors.append(dot);
       }
-      card.append(colors, title);
+      const description = document.createElement("small");
+      description.textContent =
+        {
+          "smooth-reference": "Smooth attacks · flowing handoff",
+          "electric-pulse": "Crisp attacks · the room together",
+          "rave-mix": "Compatible movement, color and pace",
+        }[look.id] || look.help.split(".")[0];
+      card.append(colors, title, description);
       card.onclick = () => {
         $("look").value = look.id;
         $("look").dispatchEvent(new Event("change"));
       };
-      if (["smooth-reference", "expressive-mix", "electric-pulse", "neon-relay"].includes(look.id))
+      if (["smooth-reference", "rave-mix", "electric-pulse"].includes(look.id))
         $("lookCards").insertBefore(card, $("moreLooks"));
       else $("extraLookCards").append(card);
     }
@@ -171,7 +208,7 @@
           : "";
       $("readySummary").textContent =
         !state.sourceSelected || !state.permissions.capture
-          ? "Setup needed · choose your music source and allow capture"
+          ? "Choose audio and lights to begin"
           : `${state.sourceLabel || source?.label || "No music source"}${state.sourcePriority > 0 ? " · Fallback " + state.sourcePriority : ""} · ${state.musicFixtureCount || 0} lights${state.permissions.output ? "" : " · Preview only"}`;
     }
     function sourceStatus(view) {
@@ -223,11 +260,9 @@
     function placeEditor(field, row, group) {
       (/^(opening|ending)/.test(field.id) ? $("transitionControls") : group).append(row);
     }
-    const labels = { all: "Overall", low: "Low", mid: "Mid", high: "High" };
+    const labels = { all: "Overall", low: "Bass", mid: "Mids", high: "Treble" };
     const presetHelp = {
-      ambient: "Loudness and swells, with a gentle sustained glow.",
       pulse: "Distinct measured attacks and decay; held notes settle to a dimmer bed.",
-      bands: "Each role follows energy and new rises within its own frequency band.",
     };
     const errors = {
       ...window.RaveLinkSavedEffects.errors,
@@ -240,10 +275,18 @@
       invalid_music_parameter_ranges:
         "Check randomized ranges against the displayed parameter limits and steps.",
       music_no_recipe_choices: "Allow at least one choice for each randomized recipe axis.",
+      music_no_compatible_recipes:
+        "These limits leave no compatible composition. Allow another movement, color motion or pace, or widen the parameter ranges in Movement & random rules.",
+      music_transport_changed:
+        "The planned Hue stream was unavailable at start. Start again to choose a composition for the current transport.",
       music_calibration_superseded:
         "Calibration stopped or settings changed; the previous reference was kept.",
       music_calibration_insufficient_audio:
         "Not enough fresh audio to calibrate. Play music in the selected source and try again.",
+      music_calibration_volume_changed:
+        "The mixer level or audio route changed during calibration. Keep both volumes steady and try again; the previous reference was kept.",
+      music_no_fixture_effects:
+        "No allowed group fits these lights. Travelling groups need two distinct positions and enough update speed; allow Pulse or use one coordinated look.",
       music_calibration_too_quiet:
         "The measured audio is too quiet for a useful reference. Keep a comfortable listening level and check the selected source.",
       music_selected_app_not_running:

@@ -20,7 +20,7 @@ impl Drop for Snapshot {
         }
     }
 }
-fn parents() -> Result<BTreeMap<u32, u32>, Failure> {
+pub(super) fn parents() -> Result<BTreeMap<u32, u32>, Failure> {
     let snapshot = Snapshot(unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)? });
     let mut entry = PROCESSENTRY32W {
         dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,

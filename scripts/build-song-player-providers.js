@@ -7,6 +7,8 @@ const path = require("node:path");
 const { read, replaceBlock, syncFile } = require("./lib/embedded-assets");
 const root = path.resolve(__dirname, "../features/song-request/ui");
 const scripts = [
+  "player-youtube.js",
+  "player-youtube-browser.js",
   "provider-marks.js",
   "player-branding.js",
   "player-provider-errors.js",

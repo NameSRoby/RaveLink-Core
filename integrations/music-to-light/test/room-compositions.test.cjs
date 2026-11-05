@@ -40,7 +40,11 @@ test("vivid blending keeps a chromatic hue arc without changing brightness", () 
 
 test("swell uses distinct fixture positions, halts in silence and resumes the same recipe", () => {
   const look = looks.find((l) => l.id === "aurora-swell");
-  const m = create({ ...look.design, intensity: 1 });
+  const m = create({
+    ...look.design,
+    intensity: 1,
+    behaviors: { ...look.design.behaviors, pulseBed: 1 },
+  });
   const at = feed(m, 1, 200, 0.06);
   const lights = [0, 1 / 3, 2 / 3, 1].map((position) => m.render(at, { position }));
   const brightness = lights.map((f) => f.brightness);
@@ -50,24 +54,25 @@ test("swell uses distinct fixture positions, halts in silence and resumes the sa
   const quiet = [0, 1 / 3, 2 / 3, 1].map((position) => m.render(10000, { position }));
   assert.ok(quiet.every((f) => f.brightness === 10 && f.quiet));
   assert.deepEqual(quiet[0].rgb, quiet[3].rgb, "silence settles to the same palette color");
-  assert.equal(m.preset(), "ambient");
+  assert.equal(m.preset(), "pulse");
 });
 
-test("band competition creates contrast without inventing an absent band", () => {
+test("retired band competition cannot change Pulse frequency roles or invent an absent band", () => {
   const design = { preset: "bands", intensity: 1, arrangement: "roles", colorMode: "fixed" };
-  const broad = create({ ...design, behaviors: { bandSeparation: 1 } });
-  const separated = create({ ...design, behaviors: { bandSeparation: 5 } });
+  const broad = create({ ...design, behaviors: { pulseBed: 1, bandSeparation: 1 } });
+  const separated = create({ ...design, behaviors: { pulseBed: 1, bandSeparation: 5 } });
   feed(broad, 1, 300, 0.06, [0.05, 0.015, 0]);
   feed(separated, 1, 300, 0.06, [0.05, 0.015, 0]);
   const contrast = (m) =>
     m.render(6000, { role: "low" }).brightness - m.render(6000, { role: "mid" }).brightness;
-  assert.ok(contrast(separated) > contrast(broad) + 3);
+  assert.equal(contrast(separated), contrast(broad));
+  assert.ok(contrast(separated) > 0);
   assert.ok(separated.render(6000, { role: "high" }).brightness < 10.01);
 });
 
-test("unassigned Bands fixtures receive measured position roles and require spectrum", () => {
+test("Pulse requires spectrum for explicit frequency roles and uses RMS for all-role fixtures", () => {
   const m = create({
-    preset: "bands",
+    preset: "pulse",
     arrangement: "roles",
     colorMode: "fixed",
     palette: ["#ff0000", "#00ff00", "#0000ff"],
@@ -75,11 +80,11 @@ test("unassigned Bands fixtures receive measured position roles and require spec
   const first = event(1);
   delete first.analysis;
   m.update(first, 20);
-  assert.equal(m.render(20, { role: "all", position: 1 }), null);
+  assert.equal(m.render(20, { role: "high", position: 1 }), null);
+  assert.ok(m.render(20, { role: "all", position: 1 }));
   feed(m, 2, 300, 0.06, [0.05, 0.015, 0]);
-  assert.notDeepEqual(m.render(6020, { position: 0 }).rgb, { r: 255, g: 0, b: 0 });
-  assert.notDeepEqual(m.render(6020, { position: 0 }).rgb, m.render(6020, { position: 1 }).rgb);
-  assert(m.render(6020, { position: 0 }).brightness > m.render(6020, { position: 1 }).brightness);
+  assert.deepEqual(m.render(6020, { position: 0 }), m.render(6020, { position: 1 }));
+  assert(m.render(6020, { role: "low" }).brightness > m.render(6020, { role: "high" }).brightness);
 });
 
 test("every composition replays at bounded device cadence and native brightness resolution", () => {

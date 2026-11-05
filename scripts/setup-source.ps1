@@ -59,7 +59,7 @@ try {
         # Windows Compress-Archive and tar use different ZIP path separators.
         # Normalize both before filtering and checking the extraction boundary.
         $relative = ($entry.FullName -replace '\\', '/') -replace '^\./', ''
-        if ($relative -notmatch '^(node_modules/|runtime/RaveLink-Core-Node\.exe$|runtime/music-to-light/cargo/release/ravelink-audio-probe\.exe$|runtime/NODE-LICENSE\.txt$|package-lock\.json$)') { continue }
+        if ($relative -notmatch '^(node_modules/|runtime/RaveLink-Core-Node\.exe$|runtime/music-to-light/cargo/release/ravelink-audio-probe\.exe$|runtime/NODE-LICENSE\.txt$|runtime/desktop/(Microsoft\.Web\.WebView2\.(Core|WinForms)\.dll|WebView2Loader\.dll|LICENSE\.WebView2\.txt)$|package-lock\.json$)') { continue }
         $destination = [IO.Path]::GetFullPath((Join-Path $stage $relative))
         if (!$destination.StartsWith("$stage\", [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe archive path.' }
         if ($relative.EndsWith('/')) { continue }
@@ -81,7 +81,7 @@ try {
     Remove-Item -LiteralPath $stage -Recurse -Force
   }
   $hostStamp = Join-Path $cache 'host.sha256'
-  $hostHash = (@('desktop\windows-host\RaveLinkCoreHost.cs', 'desktop\windows-host\app.manifest', 'assets\RaveLink-Core.ico', 'scripts\build-windows-host.ps1') | ForEach-Object {
+  $hostHash = (@('desktop\windows-host\RaveLinkCoreHost.cs', 'desktop\windows-host\DashboardWindow.cs', 'desktop\windows-host\DesktopBrowserActions.cs', 'desktop\windows-host\DesktopPolicy.cs', 'desktop\windows-host\webview2-sdk.json', 'desktop\windows-host\app.manifest', 'assets\RaveLink-Core.ico', 'scripts\build-windows-host.ps1', 'scripts\restore-webview2.ps1') | ForEach-Object {
     (Get-FileHash -LiteralPath (Join-Path $root $_) -Algorithm SHA256).Hash
   }) -join ':'
   if (!(Test-Path -LiteralPath (Join-Path $root 'RaveLink-Core.exe')) -or

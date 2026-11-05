@@ -65,24 +65,29 @@ module.exports = function createMusicSession({
   clearTimeout: cancel = clearTimeout,
 } = {}) {
   if (typeof onFrame !== "function") throw fault("invalid_music_preview_callback");
-  const mapper = createMapper(settings, { history: recipeHistory }),
+  // A server-only forecast keeps configured Entertainment rooms from being
+  // mistaken for slow REST rooms. Preheat verifies every marker before writes.
+  const planned = output?.planFixtures
+    ? { ...output, fixtures: output.planFixtures(output.fixtures) }
+    : output;
+  const routed = targets(planned, previewFixtures),
+    baseMapper = createMapper(settings, { history: recipeHistory, fixtures: routed }),
     transitionPlan = chooseTransitions(
-      mapper.settings().behaviors,
+      baseMapper.settings().behaviors,
       Math.random,
-      mapper.settings().behaviors.shuffleChoicesEnabled ? recipeHistory : null,
+      baseMapper.settings().behaviors.shuffleChoicesEnabled ? recipeHistory : null,
     ),
     selected = require("./fixture-contrast.cjs").plan(
       recipe.fixtures(
-        targets(output, previewFixtures),
-        mapper.settings(),
+        routed,
+        baseMapper.inspect(now()).effective,
         output?.kind === "effect",
         Math.random,
-        mapper.settings().behaviors.expressiveEnabled &&
-          mapper.settings().behaviors.shuffleChoicesEnabled
-          ? recipeHistory
-          : null,
+        recipeHistory,
+        baseMapper.inspect(now()).recipe.palette,
       ),
     ),
+    mapper = require("./fixture-renderers.cjs")(baseMapper, selected),
     cadence = createCadence(selected),
     motion = createOutputMotion(),
     deliveries = new Map(
@@ -239,6 +244,11 @@ module.exports = function createMusicSession({
         if (closed) return [];
         if (prepared && !prepared.ok)
           throw fault(prepared.error || "music_transport_preheat_failed");
+        if (
+          output.planFixtures &&
+          selected.some((f) => f.entertainmentActive && !prepared?.activeIds?.includes(f.id))
+        )
+          throw fault("music_transport_changed");
         for (const f of selected)
           f.entertainmentActive = prepared?.activeIds?.includes(f.id) === true;
         state = "acquiring";
@@ -340,7 +350,7 @@ module.exports = function createMusicSession({
       (fixture.brand === "hue"
         ? createHueStateFromRgb(frame.rgb, {
             brightness: Math.round((frame.brightness * 254) / 100),
-            // Only falling Pulse/Bands targets get the optional native glide.
+            // Only falling Pulse targets get the optional native glide.
             // Rising accents remain immediate; no brand-sync delay is added.
             transitiontime:
               config.interpretation === "musical" &&
@@ -349,9 +359,7 @@ module.exports = function createMusicSession({
                 ? 0
                 : falling && config.behaviors.hueGlideMs > 0
                   ? Math.round(config.behaviors.hueGlideMs / 100)
-                  : config.interpretation === "musical" && mapper.preset() === "ambient"
-                    ? 1
-                    : 0,
+                  : 0,
           })
         : createWizStateFromRgb(frame.rgb, { dimming: frame.brightness }));
     if (frame.entranceMix !== undefined && baselines.has(fixture.id)) {
@@ -654,6 +662,8 @@ module.exports = function createMusicSession({
                 sceneFadeMs,
                 colorSlot,
                 outOfSync = 0,
+                assignedEffect,
+                assignedPalette,
               }) => ({
                 id,
                 role,
@@ -663,6 +673,8 @@ module.exports = function createMusicSession({
                 sceneFadeMs,
                 colorSlot,
                 outOfSync,
+                ...(assignedEffect ? { assignedEffect } : {}),
+                ...(assignedPalette ? { assignedPalette: [...assignedPalette] } : {}),
               }),
             ),
           },
@@ -687,10 +699,17 @@ module.exports = function createMusicSession({
       );
       const fixtureBlocked = selected.some(
         (f) =>
-          (config.recipeOptions.role &&
+          (f.assignedEffect &&
+            config.recipeOptions.effect &&
+            config.recipeOptions.effect.mode !== "configured" &&
+            !config.recipeOptions.effect.allowed.includes(f.assignedEffect)) ||
+          (f.raveBehavior === "reactive" &&
+            config.recipeOptions.role &&
             config.recipeOptions.role.mode !== "configured" &&
             !config.recipeOptions.role.allowed.includes(f.role)) ||
           (output?.kind === "effect" &&
+            (!routed.find((r) => r.id === f.id)?.raveBehavior ||
+              routed.find((r) => r.id === f.id)?.raveBehavior === "reactive") &&
             config.recipeOptions.task &&
             config.recipeOptions.task.mode !== "configured" &&
             !config.recipeOptions.task.allowed.includes(f.raveBehavior)),

@@ -5,6 +5,7 @@ const { rgb, oklch } = require("../palette-math.cjs");
 const { family, create } = require("../temperature-colors.cjs");
 const createMapper = require("../mapper.cjs");
 const createLibrary = require("../saved-effects.cjs");
+const createHistory = require("../recipe-history.cjs");
 function seeded(seed) {
   return () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
 }
@@ -13,6 +14,29 @@ const lab = (color) => {
   return [l, c * Math.cos(h), c * Math.sin(h)];
 };
 const randomOption = { palette: { mode: "random", value: "generated", allowed: ["generated"] } };
+
+test("replacement palette selector remembers perceptual combinations independently of fixture plans", () => {
+  const memory = createHistory();
+  let previous;
+  for (let i = 0; i < 40; i++) {
+    const colors = generate(() => 0.5, memory);
+    assert.notDeepEqual([...colors].sort(), previous);
+    previous = [...colors].sort();
+    assert(colors.some((c) => family(rgb(c)) === "warm"));
+    assert(colors.some((c) => family(rgb(c)) === "cool"));
+  }
+  assert.equal(memory.recent("generated-palettes").length, 8);
+  assert.deepEqual(memory.recent("fixture-plans"), []);
+  const m = createMapper(
+    { recipeOptions: randomOption, behaviors: { expressiveEnabled: false } },
+    { history: memory, random: seeded(88) },
+  );
+  assert.equal(memory.recent("generated-palettes").length, 8);
+  const before = m.settings().palette;
+  m.inspect(0);
+  m.inspect(0);
+  assert.deepEqual(m.settings().palette, before);
+});
 test("5000 seeded palettes have 3-7 distinct stops, warm/cool coverage and pairwise separation", () => {
   const counts = new Set(),
     palettes = new Set();

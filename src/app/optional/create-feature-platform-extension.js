@@ -21,6 +21,24 @@ function createFeaturePlatformExtension(options = {}) {
     let registry;
     let twitchOAuth;
     let youtubeCatalog;
+    const youtubeBrowserProvider = require("../../../integrations/youtube-browser/provider.cjs")({
+      runtimeDir: context.runtimeDir,
+      ...options.youtubeBrowser,
+      resolve: (payload) =>
+        resolveSongInput("youtube", payload, (input) =>
+          youtubeProvider().resolve({ ...input, playbackMode: "browser" }),
+        ),
+      onQueueChanged: () => {
+        registry?.request("song-request", "song.youtube.browser.v1", "flush", {}).catch(() => {});
+      },
+      onSnapshot: (payload) => {
+        registry
+          ?.request("song-request", "song.playback.observe.v1", "observe", payload, {
+            timeoutMs: 1500,
+          })
+          .catch(() => {});
+      },
+    });
     const chatCommands = createTwitchChatCommandRouter({
       reply: (payload) => twitchProvider().sendChat(payload),
       querySongRequest: (payload) =>
@@ -191,6 +209,15 @@ function createFeaturePlatformExtension(options = {}) {
       fetchImpl: options.featureFetch,
       runtimeRoot: featureRuntimeRoot,
       providers: {
+        ...Object.fromEntries(
+          ["status", "setup", "resolve", "enqueue", "remove", "control", "review"].map((method) => [
+            "youtube.browser.host.v1/" + method,
+            (payload, caller) =>
+              caller.featureId === "song-request"
+                ? youtubeBrowserProvider.handle(method, payload || {})
+                : { ok: false, error: "youtube_browser_denied" },
+          ]),
+        ),
         ...Object.fromEntries(
           ["status", "setup", "resolve", "enqueue", "remove", "control", "review", "playlist"].map(
             (method) => [
@@ -395,6 +422,7 @@ function createFeaturePlatformExtension(options = {}) {
       async shutdown() {
         unsubscribeLifecycle?.();
         spotifyProvider.close();
+        await youtubeBrowserProvider.close();
         tidalBridge?.shutdown();
         tidalCatalog?.shutdown();
         await mediaObserver.stop();

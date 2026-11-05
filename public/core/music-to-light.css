@@ -1,1055 +1,1072 @@
-/* Host-owned operator view. No canvas animation or independent audio analysis. */
-.musicWorkspaceHelp {
-  border-left: 3px solid var(--accent);
-  padding: 8px 12px;
-}
-.musicLibraryNavigation {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 18px 0;
-}
-.musicLibraryNavigation a {
+/* One task per surface. Everyday controls stay compact; deeper controls disclose
+ * progressively. All colors follow the host theme. No independent animation. */
+.musicWorkspace {
+  --music-card: color-mix(in srgb, var(--panel, #0b0e18) 86%, var(--surface, #121a2f));
+  --music-selected: color-mix(in srgb, var(--accent) 13%, var(--music-card));
   color: var(--text);
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 16px 0;
+}
+body.musicWorkspace {
+  padding: 24px;
+  background: var(--bg);
+}
+.musicWorkspace [hidden] {
+  display: none !important;
+}
+.musicWorkspace h2,
+.musicWorkspace h3,
+.musicWorkspace h4,
+.musicWorkspace p {
+  margin-top: 0;
+}
+.musicWorkspace h2 {
+  font-size: 23px;
+  letter-spacing: -0.025em;
+}
+.musicWorkspace h3 {
+  font-size: 16px;
+  line-height: 1.3;
+  margin-bottom: 12px;
+}
+.musicWorkspace p {
+  margin-bottom: 12px;
+}
+.musicWorkspace .musicSmallHint,
+.musicWorkspace .muted {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.musicWorkspace .actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.musicWorkspace button {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: none;
+  letter-spacing: 0;
+  min-height: 38px;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+.musicWorkspace button:hover:not(:disabled) {
+  box-shadow: none;
+  background: color-mix(in srgb, var(--surface) 75%, var(--accent));
+}
+.musicWorkspace button:focus-visible,
+.musicWorkspace input:focus-visible,
+.musicWorkspace select:focus-visible,
+.musicWorkspace summary:focus-visible {
+  outline: 2px solid var(--muted);
+  outline-offset: 3px;
+}
+.musicWorkspace button:disabled {
+  opacity: 0.42;
+}
+.musicWorkspace label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 0;
+}
+.musicWorkspace label.musicCheck {
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+}
+.musicWorkspace input,
+.musicWorkspace select {
+  font-family: inherit;
+  font-size: 13px;
+  color-scheme: dark;
+}
+.musicWorkspace input:not([type="checkbox"]):not([type="range"]):not([type="color"]),
+.musicWorkspace select {
+  min-height: 40px;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
   border: 1px solid var(--edge);
   border-radius: 8px;
-  padding: 10px 14px;
-  text-decoration: none;
+  background: var(--bg);
+  color: var(--text);
+  padding: 9px 12px;
 }
-.musicLibraryNavigation a:hover,
-.musicLibraryNavigation a:focus-visible {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+.musicWorkspace select {
+  appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%2396a5c7' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
 }
-.musicHomeHero {
+.musicWorkspace select option {
+  background: var(--panel);
+  color: var(--text);
+}
+.musicWorkspace input[type="checkbox"],
+.musicWorkspace input[type="range"] {
+  accent-color: var(--accent);
+}
+.musicWorkspace input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+.musicWorkspace input[type="range"] {
+  width: 100%;
+  margin: 8px 0;
+  min-width: 0;
+}
+.musicWorkspace fieldset {
+  margin: 0;
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.musicWorkspace legend {
+  font-weight: 600;
+  font-size: 14px;
+  padding: 0;
+  margin-bottom: 12px;
+}
+.musicPageHeader,
+.musicSectionHeading,
+.musicColorHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.musicPageHeader {
+  padding: 0 0 16px;
+}
+.musicPageHeader h2 {
+  margin-bottom: 2px;
+}
+.musicPageHeader p {
+  margin-bottom: 0;
+}
+.musicNavigation {
+  display: flex;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  padding: 4px;
+}
+.musicNavigation button {
+  background: transparent;
+  border-color: transparent;
+  padding: 8px 16px;
+  color: var(--muted);
+}
+.musicNavigation button[aria-pressed="true"] {
+  background: var(--surface);
+  border-color: var(--edge);
+  color: var(--text);
+}
+.musicWorkspace #music-notice {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 12px;
+  min-height: 18px;
+}
+.musicWorkspace #music-notice:empty {
+  display: none;
+}
+.musicWorkspace #music-notice[data-error="true"] {
+  color: var(--bad);
+  border-left: 2px solid var(--bad);
+  padding-left: 10px;
+}
+.musicRunBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  padding: 14px 18px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+.musicRunStatus {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(240px, 1fr);
-  gap: 28px;
-  padding: 30px;
-  margin: 20px 0;
-  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--edge));
-  border-radius: 20px;
-  background:
-    radial-gradient(
-      ellipse at 0 0,
-      color-mix(in srgb, var(--accent) 17%, transparent),
-      transparent 65%
-    ),
-    var(--surface, #111725);
+  gap: 2px;
+}
+.musicRunStatus > strong {
+  font-size: 14px;
+}
+.musicRunStatus > span,
+.musicRunStatus > output {
+  font-size: 12px;
+  color: var(--muted);
+}
+.musicWorkspace #music-live {
+  background: var(--accent);
+  border-color: var(--accent);
+  padding: 8px 20px;
+}
+.musicWorkspace #music-stop:enabled {
+  border-color: color-mix(in srgb, var(--accent) 75%, var(--edge));
+}
+.musicSurface {
+  background: var(--music-card);
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  padding: 22px;
+  margin-bottom: 18px;
+  min-width: 0;
+}
+.musicSectionHeading {
+  margin-bottom: 18px;
+  align-items: flex-start;
+}
+.musicSectionHeading h2,
+.musicSectionHeading h3 {
+  margin-bottom: 0;
 }
 .musicEyebrow {
   display: block;
   color: var(--muted);
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  margin-bottom: 10px;
-}
-.musicHeroCopy h2 {
-  font-size: clamp(24px, 3vw, 36px);
-  line-height: 1.12;
-  letter-spacing: -0.035em;
-  margin: 0 0 16px;
-}
-.musicNowSong {
-  font-size: 17px;
+  letter-spacing: 0.12em;
   font-weight: 600;
-  overflow-wrap: anywhere;
-  margin: 0 0 8px;
-}
-.musicHeroCopy .actions {
-  margin-top: 20px;
-}
-.musicAutoCard {
-  padding: 22px;
-  border: 1px solid var(--edge);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--bg, #090d16) 65%, transparent);
-}
-.musicAutoCard[data-enabled="true"] {
-  border-color: var(--accent);
-}
-.musicAutoCard p {
-  font-size: 13px;
-  line-height: 1.6;
-  min-height: 3.2em;
-}
-.musicAutoCard button {
-  font-size: 12px;
-  background: transparent;
-  box-shadow: none;
-}
-.musicWorkspace .musicToggle {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 23px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.musicWorkspace .musicToggle input[type="checkbox"] {
-  appearance: none;
-  width: 44px;
-  height: 25px;
-  border-radius: 20px;
-  background: var(--edge);
-  padding: 3px;
-  margin: 0;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.musicToggle input::before {
-  content: "";
-  display: block;
-  width: 19px;
-  height: 19px;
-  background: var(--text, #fff);
-  border-radius: 50%;
-  transition: transform 0.16s ease;
-}
-.musicToggle input:checked {
-  background: var(--accent);
-}
-.musicToggle input:checked::before {
-  transform: translateX(19px);
-}
-.musicWorkspace input:focus-visible,
-.musicWorkspace select:focus-visible,
-.musicWorkspace button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
-.musicSectionHeading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 18px;
-}
-.musicSectionHeading h2 {
-  margin: 0;
-  font-size: 22px;
-  letter-spacing: -0.02em;
-}
-.musicSectionHeading .musicEyebrow {
   margin-bottom: 6px;
 }
-.musicQuickGrid,
-.musicSongEditor {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
-}
-.musicQuickGrid label,
-.musicSongEditor label,
-.musicLibrarySearch {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.musicQuickGrid label.musicCheck {
-  flex-direction: row;
-  align-items: center;
-}
-.musicQuickGrid input:not([type="checkbox"]),
-.musicQuickGrid select,
-.musicSongEditor input,
-.musicSongEditor select {
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-}
-.musicUnit {
-  color: var(--muted);
-  font-weight: 400;
-  font-size: 11px;
-}
-.musicQuickPanel > .musicSmallHint {
-  padding-top: 18px;
-  border-top: 1px solid var(--edge);
-  margin-top: 22px;
-}
-.musicSongEditor {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  background: var(--panel, #101622);
-  border: 1px solid var(--edge);
-  border-radius: 14px;
-  padding: 22px;
-  margin: 22px 0;
-}
-.musicWide {
-  grid-column: 1 / -1;
-}
+.musicPill,
 .musicCount {
-  padding: 7px 12px;
-  border-radius: 20px;
-  background: var(--panel, #151b28);
-  font-size: 12px;
-  white-space: nowrap;
-}
-.musicLibrarySearch {
-  max-width: 420px;
-  margin-bottom: 16px;
-}
-.musicLibraryList {
-  display: grid;
-  gap: 8px;
-  max-height: 480px;
-  overflow-y: auto;
-}
-.musicLibraryRow {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 15px;
+  font-size: 11px;
+  color: var(--muted);
   border: 1px solid var(--edge);
-  border-radius: 10px;
-  background: var(--panel, #101622);
-}
-.musicLibraryInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.musicLibraryInfo span {
-  color: var(--muted);
-  font-size: 12px;
-}
-.musicLibraryRow > strong {
-  flex: 1;
-  overflow-wrap: anywhere;
-}
-.musicLibraryRow button {
-  font-size: 12px;
-  padding: 7px 12px;
-  min-width: 0;
-}
-.musicLibraryRow input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--accent);
-  flex-shrink: 0;
-}
-.musicEmptyState {
-  padding: 30px;
-  text-align: center;
-  color: var(--muted);
-  border: 1px dashed var(--edge);
-  border-radius: 12px;
-  line-height: 1.7;
-}
-.musicSavedManage label {
-  display: grid;
-  gap: 8px;
-  margin: 16px 0 8px;
-  max-width: 360px;
-}
-@media (max-width: 1100px) {
-  .musicQuickGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-@media (max-width: 700px) {
-  .musicHomeHero {
-    grid-template-columns: 1fr;
-    padding: 20px;
-    gap: 20px;
-  }
-  .musicQuickGrid,
-  .musicSongEditor {
-    grid-template-columns: 1fr;
-  }
-  .musicSectionHeading {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .musicLibraryRow {
-    flex-wrap: wrap;
-  }
-  .musicLibraryRow .actions {
-    margin-left: 32px;
-  }
-  .musicNavigation {
-    flex-wrap: wrap;
-  }
-  .musicNavigation button {
-    flex: 1;
-    min-width: 70px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .musicToggle input::before {
-    transition: none;
-  }
-}
-.musicWorkspace [hidden] {
-  display: none !important;
-}
-.musicSavedGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 18px;
-}
-.musicLightPicks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.musicLightPicks button {
-  background: transparent;
-  box-shadow: none;
-}
-.musicLightPicks button[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
-}
-.musicSavedCard {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 12px;
-  min-width: 0;
-  padding: 18px;
-  background: var(--panel, #0c1221);
-  border: 1px solid var(--edge, #2b3854);
-  border-radius: 10px;
-}
-.musicSavedCard h3,
-.musicSavedCard p {
-  margin: 0;
-}
-.musicSavedCard label {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-}
-.musicSavedCard input:not([type="checkbox"]),
-.musicSavedCard select {
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-}
-.musicSavedCard button {
-  align-self: flex-start;
-  white-space: normal;
-}
-.musicSavedManage {
-  padding-top: 12px;
-  border-top: 1px solid var(--edge, #2b3854);
-}
-.musicSavedManage summary {
-  cursor: pointer;
-}
-#music-savedEffectsStatus {
-  padding: 12px;
-  border-left: 3px solid var(--accent, #a90035);
-  overflow-wrap: anywhere;
-}
-#music-savedEffectsStatus[data-error="true"] {
-  color: #ffbdad;
-}
-@media (max-width: 650px) {
-  .musicSavedGrid {
-    grid-template-columns: 1fr;
-  }
-}
-.musicNavigation {
-  display: flex;
-  gap: 6px;
-  border-bottom: 1px solid var(--edge);
-  padding-bottom: 10px;
-}
-.musicNavigation button {
-  min-width: 100px;
-}
-.musicNavigation button[aria-pressed="true"] {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-.musicConnectionBar,
-.musicRunBar,
-.musicColorHeading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 14px;
-}
-.musicConnectionBar {
-  margin: 12px 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-.musicConnectionBar span {
-  overflow-wrap: anywhere;
-}
-.musicConnectionBar button,
-.musicEditLink {
-  background: transparent;
-  box-shadow: none;
-  font-size: 12px;
-}
-.musicRunBar {
-  padding-bottom: 16px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--edge);
-}
-.musicRunBar p {
-  margin: 6px 0 0;
-  font-size: 12px;
-}
-.musicRunBar .actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
 }
 .musicPlayGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: 28px;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
 }
-.musicPlayGrid > div {
+.musicPlayGrid > * {
   min-width: 0;
-}
-.musicPlayGrid h3 {
-  margin: 0 0 12px;
-  font-size: 15px;
 }
 .musicLookCards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 .musicLookCards button {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
-  gap: 9px;
-  min-height: 68px;
-  min-width: 0;
-  padding: 12px;
+  justify-content: flex-start;
+  gap: 8px;
   text-align: left;
-  white-space: normal;
-  background: var(--panel);
-  box-shadow: none;
+  min-width: 0;
+  padding: 14px 12px;
+  background: var(--bg);
+  border: 1px solid var(--edge);
+  border-radius: 9px;
 }
 .musicLookCards button[aria-pressed="true"] {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+  background: var(--music-selected);
 }
 .musicLookCards strong {
   font-size: 13px;
 }
-.musicLookCards > details {
-  grid-column: 1 / -1;
+.musicLookCards small {
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--muted);
-  font-size: 12px;
+  font-weight: 400;
+}
+.musicLookCards > details {
+  grid-column: 1/-1;
 }
 .musicLookCards > details > summary {
-  padding: 8px 0;
-  cursor: pointer;
-}
-.musicWorkspace > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-.musicWorkspace > header h2 {
-  margin: 0;
-}
-.musicWorkspace > header p {
   font-size: 12px;
-  margin: 0;
-}
-.musicWorkspace #music-notice {
-  margin: 6px 0 10px;
+  padding: 6px 0;
+  color: var(--muted);
 }
 .musicLookColors {
   display: flex;
-  gap: 4px;
+  gap: 3px;
+  width: 100%;
+  margin-bottom: 2px;
 }
 .musicLookColors span {
-  width: 22px;
-  height: 5px;
-  border-radius: 4px;
+  height: 4px;
+  flex: 1;
+  border-radius: 3px;
+}
+.musicWorkspace #music-lookHelp {
+  margin: 12px 0 0;
+  min-height: 38px;
+}
+.musicDivider {
+  height: 1px;
+  background: var(--edge);
+  margin: 18px 0;
 }
 .musicColorHeading {
-  margin: 16px 0 10px;
+  margin-bottom: 12px;
 }
 .musicColorHeading h3 {
   margin: 0;
 }
-.musicPlayControls > .musicIntensity {
-  margin-top: 18px;
-}
-.musicSmallHint,
-.musicPlayControls #music-lookHelp {
+.musicColorHeading button {
+  min-height: 30px;
   font-size: 12px;
-  line-height: 1.5;
-  color: var(--muted);
+  padding: 4px 10px;
 }
-.musicLiveMonitor {
-  border-left: 1px solid var(--edge);
-  padding-left: 28px;
+.musicPalette {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0 20px;
 }
-.musicLiveMonitor .musicScopeHead {
+.musicPalette > div {
+  position: relative;
+}
+.musicPalette input[type="color"] {
   display: block;
-  margin: 0 0 16px;
+  width: 58px;
+  height: 44px;
+  padding: 3px;
+  border: 1px solid var(--edge);
+  background: var(--bg);
+  border-radius: 9px;
+  cursor: pointer;
 }
-.musicLiveMonitor .musicPreview {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.musicLiveMonitor .musicPreview:empty::before {
-  content: "Start Preview to see how your music maps to light.";
-  grid-column: 1 / -1;
-  padding: 64px 20px;
-  text-align: center;
-  color: var(--muted);
+.musicPalette button {
+  position: absolute;
+  right: -5px;
+  top: -6px;
+  min-height: 19px;
+  width: 19px;
+  height: 19px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 12px;
   background: var(--panel);
+}
+.musicPalettePreview {
+  display: flex;
+  gap: 5px;
+  padding: 12px 0;
+}
+.musicPalettePreview span {
+  width: 32px;
+  height: 12px;
+  border-radius: 4px;
+}
+.musicIntensity {
+  display: grid !important;
+  grid-template-columns: 1fr auto;
+  margin-top: 18px;
+  gap: 4px !important;
+}
+.musicIntensity input {
+  grid-column: 1/-1;
+}
+.musicIntensity output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.musicPreview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-height: 200px;
+  align-content: start;
+}
+.musicPreviewEmpty {
+  grid-column: 1/-1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 215px;
+  padding: 24px;
+  background: var(--bg);
   border: 1px dashed var(--edge);
   border-radius: 10px;
 }
-.musicLiveMonitor .musicSwatchColor {
-  height: 42px;
-}
-.musicLiveMonitor .musicResponseTrace {
-  height: 24px;
-  margin-top: 6px;
-}
-.musicSessionLength {
-  margin-top: 18px;
-}
-.musicEditLink {
-  margin-top: 14px;
-  white-space: normal;
-}
-@media (max-width: 850px) {
-  .musicWorkspace > header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .musicPlayGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .musicLiveMonitor {
-    border-left: 0;
-    border-top: 1px solid var(--edge);
-    padding: 20px 0 0;
-  }
-  .musicRunBar,
-  .musicConnectionBar {
-    flex-wrap: wrap;
-  }
-  .musicNavigation button {
-    min-width: 0;
-    flex: 1;
-  }
-}
-.musicWorkspace {
-  margin: 0;
-  padding: 20px;
-  max-width: 1120px;
-  color: var(--text, #eaeaea);
-  background: var(--bg, #050507);
-}
-.musicWorkspace[data-music-controls] {
-  max-width: none;
-  padding: 8px 0;
-  background: transparent;
-}
-.musicWorkspace header h2 {
-  font-size: 24px;
-  letter-spacing: 0.02em;
-}
-.musicMain {
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--accent) 8%, var(--panel, #0b0e18)),
-    var(--panel, #0b0e18)
-  );
-}
-.musicPresetCards {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
-}
-.musicPresetCards button {
-  padding: 18px;
-  display: grid;
-  gap: 8px;
-  text-align: left;
-  border: 1px solid var(--edge);
-  background: var(--panel);
-  border-radius: 9px;
-  box-shadow: none;
-}
-.musicPresetCards button.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
-}
-.musicPresetCards strong {
-  font-size: 17px;
-}
-.musicPresetCards small {
+.musicPreviewEmpty > span {
+  font-size: 40px;
   color: var(--muted);
-  line-height: 1.4;
-  font-weight: 400;
+  line-height: 1;
+  margin-bottom: 18px;
 }
-.musicPresetIcon {
-  color: var(--text);
-  font-size: 26px;
-  height: 30px;
+.musicPreviewEmpty strong {
+  font-size: 13px;
+  font-weight: 500;
 }
-.musicPresetIcon svg {
-  width: 120px;
-  max-width: 100%;
-  height: 30px;
-  color: var(--accent);
+.musicPreviewEmpty p {
+  max-width: 260px;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 8px 0 0;
 }
-.musicResponseTrace {
+.musicSwatch {
+  min-width: 0;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  padding: 10px;
+  background: var(--bg);
+}
+.musicSwatch strong {
+  display: block;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  margin-bottom: 8px;
+}
+.musicSwatchColor {
+  height: 42px;
+  border-radius: 5px;
+}
+.musicSwatch p {
+  font-size: 12px;
+  margin: 5px 0;
+}
+.musicSwatch meter {
   display: block;
   width: 100%;
-  height: 56px;
-  margin-top: 14px;
-  border-bottom: 1px solid var(--edge);
+  height: 6px;
+}
+.musicSwatch small {
+  display: none;
+}
+.musicResponseTrace {
+  width: 100%;
+  height: 24px;
+  display: block;
+  margin-top: 4px;
 }
 .musicResponseTrace polyline {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--muted);
   stroke-width: 2;
-  vector-effect: non-scaling-stroke;
 }
 .musicInputLevel {
-  display: grid;
-  grid-template-columns: 90px 1fr 110px;
+  display: flex;
+  gap: 10px;
   align-items: center;
-  gap: 12px;
+  font-size: 11px;
   color: var(--muted);
-  font-size: 12px;
-  margin: 16px 0;
+  margin: 14px 0;
 }
 .musicInputLevel meter {
-  width: 100%;
+  flex: 1;
+  height: 9px;
+  min-width: 30px;
 }
-.musicPrimary .musicPresetSelect {
+.musicInputLevel output {
+  font-variant-numeric: tabular-nums;
+  min-width: 75px;
+  text-align: right;
+}
+.musicCalibrationCallout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--edge);
+  border-bottom: 1px solid var(--edge);
+  padding: 16px 0;
+  margin: 16px 0;
+}
+.musicCalibrationCallout strong {
+  font-size: 13px;
+}
+.musicCalibrationCallout p {
+  margin: 4px 0 0;
+  max-width: 270px;
+}
+.musicCalibrationCallout button {
+  border-color: var(--accent);
+  font-size: 12px;
+}
+.musicNowPlaying > p {
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.musicNowPlaying .actions {
+  margin-top: 12px;
+}
+.musicSessionActions button {
+  font-size: 12px;
+  min-height: 32px;
+  padding: 5px 10px;
+}
+.musicFormGrid,
+.musicEditor,
+.musicSource,
+.musicSongEditor,
+.musicSavedGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.musicFormGrid > label,
+.musicEditor > label {
+  padding: 0;
+}
+.musicFormGrid p {
+  grid-column: 1/-1;
+}
+.musicTextButton {
+  background: transparent;
+  padding: 4px 0;
+  border-color: transparent;
+  min-height: 30px !important;
+  font-size: 12px !important;
+  color: var(--muted);
+}
+.musicGroupsPanel > .musicSmallHint {
+  margin: 12px 0 0;
+}
+.musicWorkspace details > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.musicWorkspace details > summary::-webkit-details-marker {
   display: none;
 }
-.musicPrimary {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 180px !important;
-  align-items: end;
+.musicWorkspace details > summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg);
+  flex-shrink: 0;
+  margin-right: 3px;
+}
+.musicWorkspace details[open] > summary::before {
+  transform: rotate(45deg) translateY(-2px);
+}
+.musicWorkspace details[open] > summary {
+  margin-bottom: 18px;
+}
+.musicSummaryValue {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: auto;
+}
+.musicSubDetails {
+  padding-top: 14px;
+  margin-top: 16px;
+  border-top: 1px solid var(--edge);
+}
+.musicSubDetails > summary {
+  font-size: 12px !important;
+  color: var(--muted);
+}
+.musicWorkspace details.musicSurface:not([open]) {
+  padding: 16px 22px;
+}
+.musicSegmented {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  background: var(--bg);
+  flex-wrap: wrap;
+}
+.musicSegmented button {
+  flex: 1;
+  padding: 7px 10px;
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  background: transparent;
+  color: var(--muted);
+  text-align: center;
+}
+.musicSegmented button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--edge);
+}
+.musicChoiceTiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.musicChoiceTiles button {
+  min-height: 48px;
+  font-size: 12px;
+  background: var(--bg);
+  font-weight: 400;
+}
+.musicChoiceTiles button[aria-pressed="true"] {
+  background: var(--music-selected);
+  border-color: var(--accent);
+  color: var(--text);
 }
 .musicRecipeAxes {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
 }
-.musicRecipeAxes fieldset {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  align-content: start;
+.musicRecipeCard {
+  border: 1px solid var(--edge) !important;
+  border-radius: 10px;
+  padding: 16px !important;
+  background: var(--bg);
+}
+.musicRecipeCard .musicSegmented {
+  background: var(--music-card);
+}
+.musicRecipeCard .musicSegmented button {
+  font-size: 11px;
+}
+.musicRecipeCard .musicChoiceTiles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .musicRecipeHint {
-  margin: 0;
+  min-height: 40px;
+  font-size: 11px;
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
+  margin: 10px 0 12px !important;
+  font-weight: 400;
 }
 .musicRecipeChoices {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
-.musicWorkspace .musicRecipeChoice {
-  display: flex;
-  flex-direction: row;
+.musicRecipeChoice {
+  display: flex !important;
+  flex-direction: row !important;
   align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 7px;
-  font-size: 13px;
-  line-height: 1.35;
+  gap: 8px !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  padding: 8px;
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  background: var(--music-card);
   cursor: pointer;
 }
-.musicWorkspace .musicRecipeChoice input[type="checkbox"] {
-  appearance: auto;
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
-  min-height: 18px;
-  padding: 0;
-  margin: 0;
-  flex: 0 0 18px;
-  align-self: center;
-}
 .musicRecipeChoice:has(input:checked) {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  border-radius: 5px;
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--edge));
+  background: var(--music-selected);
+}
+.musicWorkspace #music-applyRecipe {
+  margin-top: 18px;
+}
+.musicWorkspace #music-randomRanges {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 .musicRandomRange {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 90px 90px;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 80px 80px;
   align-items: center;
-  margin: 10px 0;
-}
-.musicRandomRange input {
-  min-width: 0;
-}
-.musicScopeHead {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 24px 0 12px;
-  color: var(--muted);
-  font-size: 12px;
-  letter-spacing: 0.04em;
-}
-.musicWorkspace .musicSwatch {
-  background: var(--panel);
-}
-.musicWorkspace .musicSwatchColor {
-  height: 70px;
-}
-.musicWorkspace #music-live {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-.musicWorkspace #music-stop {
-  margin-left: auto;
-}
-.musicWorkspace input[type="range"],
-.musicWorkspace input[type="checkbox"] {
-  accent-color: var(--accent);
-}
-.musicWorkspace meter::-webkit-meter-bar {
-  background: var(--edge);
-  border: 0;
-}
-.musicWorkspace meter::-webkit-meter-optimum-value {
-  background: var(--accent);
-}
-.musicWorkspace meter::-moz-meter-bar {
-  background: var(--accent);
-}
-.musicWorkspace h2 {
-  margin-top: 0;
-}
-.musicWorkspace .muted {
-  color: var(--muted, #a8b3c9);
-  line-height: 1.5;
-}
-.musicSurface {
-  padding: 20px;
-  margin: 16px 0;
-  border: 1px solid var(--border, #293858);
-  border-radius: 12px;
-  background: var(--surface, #121a2f);
-}
-.musicSurface summary {
-  cursor: pointer;
-  font-weight: 700;
-}
-.musicPrimary,
-.musicEditor {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-.musicWorkspace label {
-  display: flex;
-  flex-direction: column;
   gap: 8px;
-  text-transform: none;
+}
+.musicRandomRange label {
+  border: 0;
+  background: transparent;
+}
+.musicUnit {
+  font-weight: 400;
+  color: var(--muted);
+}
+.musicQuickPanel .musicFormGrid {
+  margin-bottom: 18px;
+}
+.musicContrastPanel {
+  background: transparent;
+  border: 0;
+  padding: 14px 0 0;
+  margin: 0;
+}
+.musicContrastPanel h2 {
   font-size: 14px;
 }
-.musicWorkspace .musicCheck {
-  flex-direction: row;
-  align-items: center;
-  margin: 18px 0;
-}
-.musicWorkspace select,
-.musicWorkspace input {
-  min-width: 0;
-  max-width: 100%;
-}
-.musicWorkspace input[type="checkbox"] {
-  width: auto;
-}
-.musicIntensity output {
-  float: right;
-}
-.musicSource {
-  display: flex;
-  align-items: end;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.musicSource label {
-  flex: 1 1 240px;
-}
-.musicWorkspace fieldset {
-  border: 1px solid var(--border, #293858);
-  border-radius: 8px;
-  padding: 14px;
-  margin: 18px 0;
-}
-.musicFixture {
-  display: grid;
-  grid-template-columns: minmax(160px, 1fr) 130px 100px;
-  gap: 12px;
-  align-items: center;
-  margin: 12px 0;
-}
-.musicFixture .musicCheck {
-  margin: 0;
-  grid-column: 1/-1;
-}
-.musicFixture {
-  border: 1px solid var(--edge, #2b3854);
-  border-radius: 8px;
-  padding: 14px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.musicFixture > label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-.musicFixture > .musicCheck {
-  flex-direction: row;
-}
-.musicFixture > label[hidden] {
+.musicContrastPanel .musicEyebrow {
   display: none;
 }
-.musicFixture select,
-.musicFixture input[type="number"] {
-  width: 100%;
-  min-width: 0;
+.musicContrastPanel .musicSectionHeading {
+  margin-bottom: 10px;
 }
-.musicPreview {
+.musicContrastPanel .musicQuickGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr 2fr;
+  gap: 20px;
 }
-.musicSwatch {
-  border: 1px solid var(--border, #293858);
-  border-radius: 8px;
-  padding: 12px;
+.musicLightPicks {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
-.musicSwatchColor {
-  height: 56px;
-  border-radius: 5px;
-  margin: 10px 0;
+.musicLightPicks button[aria-pressed="true"] {
+  background: var(--music-selected);
+  border-color: var(--accent);
 }
-.musicSwatch meter {
-  width: 100%;
-  accent-color: var(--accent, #8b001f);
-}
-.musicPalette {
+.musicAutoCard {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px;
+  background: var(--bg);
+  border: 1px solid var(--edge);
+  border-radius: 10px;
 }
-.musicPalette input[type="color"] {
-  width: 52px;
-  height: 40px;
-  padding: 3px;
+.musicAutoCard[data-enabled="true"] {
+  border-color: var(--accent);
 }
-.musicPalette > div {
+.musicAutoCard p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 400px;
+}
+.musicWorkspace .musicToggle {
   display: flex;
-  gap: 4px;
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+  font-size: 16px;
 }
-.musicWorkspace button {
-  text-transform: none;
+.musicToggle input[type="checkbox"] {
+  appearance: none;
+  width: 38px;
+  height: 22px;
+  background: var(--edge);
+  border-radius: 14px;
+  position: relative;
+  margin: 0;
+  cursor: pointer;
 }
-#music-notice {
-  min-height: 24px;
+.musicToggle input::before {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  background: var(--text);
+  border-radius: 50%;
+  position: absolute;
+  top: 3px;
+  left: 3px;
 }
-#music-notice[data-error="true"] {
-  color: #ffbdad;
+.musicToggle input:checked {
+  background: var(--accent);
 }
-.musicPipeline,
-.musicLayerControls,
-.musicScenarioChoices {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
+.musicToggle input:checked::before {
+  left: 19px;
+}
+.musicSongEditor {
+  background: var(--bg);
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  padding: 18px;
   margin: 18px 0;
 }
-.musicPipeline {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.musicWide {
+  grid-column: 1/-1;
 }
-.musicPipeline button {
-  position: relative;
+.musicLibrarySearch {
+  max-width: 400px;
+  margin-bottom: 16px;
+}
+.musicLibraryList {
+  display: grid;
+  gap: 8px;
+}
+.musicLibraryRow {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  gap: 10px;
-  padding: 16px;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  padding: 14px;
+  background: var(--bg);
+}
+.musicLibraryInfo {
+  flex: 1;
   min-width: 0;
-  white-space: normal;
-  border-top: 3px solid var(--edge, #2b3854);
 }
-.musicPipeline button[data-active="true"] {
-  border-top-color: var(--accent, #a90035);
-}
-.musicPipeline button:not(:last-child)::after {
-  content: "→";
-  position: absolute;
-  right: -13px;
-  top: 10px;
-  z-index: 1;
-  color: var(--muted, #b4c2d9);
-}
-.musicPipeline output {
-  font-size: 13px;
-  line-height: 1.5;
+.musicLibraryInfo strong,
+.musicLibraryInfo span {
+  display: block;
   overflow-wrap: anywhere;
 }
-.musicPipeline small {
+.musicLibraryInfo span {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+.musicLibraryRow button {
+  font-size: 12px;
+  min-height: 30px;
+  padding: 4px 10px;
+}
+.musicEmptyState {
+  color: var(--muted);
+  border: 1px dashed var(--edge);
+  padding: 24px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+.musicSavedCard {
+  padding: 16px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.musicSavedCard > button,
+.musicSavedCard > .actions {
+  margin-top: 14px;
+}
+.musicSavedManage {
+  margin: 18px 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--edge);
+}
+.musicSource {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 18px 0;
+}
+.musicWorkspace #music-fixtureChoices {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+.musicFixture {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.3fr) repeat(3, minmax(90px, 1fr));
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--edge);
+  background: var(--bg);
+  border-radius: 9px;
+}
+.musicFixture > .musicCheck {
+  font-size: 12px !important;
+}
+.musicFixture label {
   font-size: 11px;
-  color: var(--muted, #b4c2d9);
 }
-.musicDurationStatus {
-  padding: 12px;
-  border: 1px solid var(--edge, #2b3854);
-  border-left: 3px solid var(--accent, #a90035);
-  border-radius: 6px;
+.musicWorkspace #music-tuning > .musicIntensity {
+  margin-top: 0;
 }
-@media (max-width: 900px) {
-  .musicPipeline {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.musicCalibrationButton {
+  background: var(--accent);
+  border-color: var(--accent);
+  margin: 12px 0;
 }
-@media (max-width: 500px) {
-  .musicPipeline {
-    grid-template-columns: 1fr;
-  }
-  .musicPipeline button:not(:last-child)::after {
-    content: "↓";
-    top: auto;
-    bottom: -15px;
-    right: 18px;
-  }
+.musicWorkspace #music-tuning > .musicCheck,
+.musicWorkspace #music-setup > .musicCheck {
+  margin: 16px 0;
 }
-.musicLayerControl,
-.musicScenario {
+.musicWorkspace #music-tuning > details {
+  border-top: 1px solid var(--edge);
+  padding-top: 14px;
+  margin: 16px 0;
+}
+.musicWorkspace #music-tuning > .musicEditor {
+  margin-top: 22px;
+}
+.musicLayerControls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.musicLayerControl {
+  padding: 14px;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  background: var(--bg);
+  display: grid !important;
+  grid-template-columns: 1fr auto;
+}
+.musicLayerControl small,
+.musicLayerControl output {
+  grid-column: 1/-1;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.musicWorkspace #music-behaviorControls > details {
+  margin: 18px 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--edge);
+}
+.musicEditor label small {
+  font-size: 11px;
+  font-weight: 400;
+}
+.musicEditor + button {
+  margin-top: 18px;
+}
+.musicPipeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0;
+}
+.musicPipeline button {
+  text-align: left;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 0;
-  padding: 14px;
-  border: 1px solid var(--edge, #2b3854);
-  border-radius: 10px;
-  background: var(--panel, #0c1221);
+  font-size: 11px;
+  background: var(--bg);
 }
-.musicLayerControl[data-active="true"] {
-  border-color: var(--accent, #a90035);
-  box-shadow: inset 3px 0 var(--accent, #a90035);
+.musicPipeline output {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
 }
-.musicLayerControl input[type="checkbox"] {
-  align-self: flex-start;
+.musicPipeline small {
+  display: none;
 }
-.musicLayerControl output,
-.musicScenario output {
+.musicDurationStatus {
   font-size: 12px;
-  line-height: 1.5;
-  color: var(--muted, #b4c2d9);
+  color: var(--muted);
 }
-#music-behaviorControls details {
-  border-top: 1px solid var(--edge, #2b3854);
-  padding: 12px 0;
-}
-#music-behaviorControls small {
-  line-height: 1.5;
-}
-#music-transitionControls {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-@media (max-width: 650px) {
+@media (max-width: 1050px) {
+  .musicPlayGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .musicRecipeAxes {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
-  #music-transitionControls {
-    grid-template-columns: 1fr;
+  .musicRecipeCard {
+    display: grid;
+    grid-template-columns: minmax(140px, 0.6fr) minmax(0, 1fr);
+    column-gap: 18px;
   }
-  .musicPresetCards {
-    gap: 6px;
+  .musicRecipeCard legend {
+    grid-column: 1/-1;
   }
-  .musicPresetCards button {
-    padding: 12px 8px;
+  .musicRecipeCard .musicRecipeHint {
+    grid-column: 1;
   }
-  .musicPresetCards small {
-    font-size: 11px;
+  .musicRecipeCard .musicRecipeChoices,
+  .musicRecipeCard > div[id*="recipePinWrap"] {
+    grid-column: 2;
+    grid-row: 2/4;
   }
-  .musicPrimary {
-    grid-template-columns: 1fr !important;
+  .musicLiveMonitor .musicPreview {
+    min-height: 0;
   }
-  .musicPrimary,
-  .musicEditor {
-    grid-template-columns: 1fr;
+}
+@media (max-width: 700px) {
+  .musicWorkspace {
+    padding: 8px 0;
   }
-  .musicPreview {
+  body.musicWorkspace {
+    padding: 16px;
+  }
+  .musicPageHeader {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .musicNavigation button {
+    flex: 1;
+  }
+  .musicSurface {
+    padding: 18px;
+  }
+  .musicRunBar > .actions {
+    width: 100%;
+  }
+  .musicRunBar .actions button {
+    flex: 1;
+  }
+  .musicFormGrid,
+  .musicEditor,
+  .musicSource,
+  .musicSavedGrid,
+  .musicSongEditor,
+  .musicLayerControls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .musicLookCards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .musicLookCards button {
+    min-height: 80px;
+  }
+  .musicRecipeCard {
+    display: block;
+  }
+  .musicRecipeHint {
+    min-height: 0;
+  }
+  .musicSegmented button {
+    flex-basis: 30%;
+  }
+  .musicWorkspace #music-randomRanges {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .musicRandomRange {
+    grid-template-columns: 1fr 64px 64px;
+  }
+  .musicPipeline {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .musicFixture {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .musicWorkspace {
-    padding: 12px;
+  .musicFixture > .musicCheck {
+    grid-column: 1/-1;
+  }
+  .musicSummaryValue {
+    margin-left: 19px;
+  }
+  .musicLibraryRow {
+    flex-wrap: wrap;
+  }
+  .musicLibraryRow .actions {
+    margin-left: auto;
+  }
+  .musicContrastPanel .musicQuickGrid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
-
-.musicContrastPanel {
-  border-left: 3px solid #7024ff;
-}
-.musicContrastPanel output {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: #c4b5fd;
-}
-.musicContrastPanel input[type="range"] {
-  accent-color: #a78bfa;
-  cursor: pointer;
-}
-.musicContrastPanel .musicLightPicks[hidden] {
-  display: none;
-}
-
-.musicPaletteMode {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.musicPaletteMode select {
-  width: 100%;
-}
-.musicPalette[hidden],
-.musicPalettePreview[hidden] {
-  display: none;
-}
-.musicPalettePreview {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 12px 0;
-}
-.musicPalettePreview span {
-  flex: 1 1 36px;
-  height: 40px;
-  border-radius: 8px;
-  border: 1px solid #526080;
+@media (prefers-reduced-motion: reduce) {
+  .musicWorkspace * {
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

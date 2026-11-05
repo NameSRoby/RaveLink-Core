@@ -52,6 +52,24 @@ module.exports = function createMusicToLightService({
     output: core
       ? {
           ownership: core.fixtureOutput.ownership,
+          planFixtures: (selected) => {
+            const configured =
+              core.fixtureRegistry.listConfigured?.() || core.fixtureRegistry.getFixtures();
+            const rest =
+              core.hueBridge?.getTelemetry?.()?.transportDesired === "rest" ||
+              typeof core.hueBridge?.prepareEntertainment !== "function";
+            return selected.map((f) => {
+              const native = configured.find((row) => row.id === f.id);
+              return {
+                ...f,
+                entertainmentActive:
+                  !rest &&
+                  f.brand === "hue" &&
+                  !!native?.entertainmentAreaId &&
+                  /^[a-f\d]{32}$/i.test(native?.clientKey || ""),
+              };
+            });
+          },
           prepare: async (selected, owner) => {
             const configured =
               core.fixtureRegistry.listConfigured?.() || core.fixtureRegistry.getFixtures();

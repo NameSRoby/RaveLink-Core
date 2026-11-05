@@ -38,6 +38,16 @@ function checkInstallation({ root = path.resolve(__dirname, ".."), music = true 
     }
     require(require.resolve("express", { paths: [root] }));
   });
+  check("Desktop viewer files", () => {
+    for (const name of [
+      "Microsoft.Web.WebView2.Core.dll",
+      "Microsoft.Web.WebView2.WinForms.dll",
+      "WebView2Loader.dll",
+      "LICENSE.WebView2.txt",
+    ])
+      if (!fs.statSync(path.join(root, "runtime/desktop", name)).isFile())
+        throw Error("Desktop viewer is incomplete. Repair this installation.");
+  });
   check("Hue Entertainment crypto", () => {
     require(require.resolve("node-dtls-client", { paths: [root] }));
     const crypto = require("node:crypto");

@@ -43,19 +43,29 @@ test("new activations combine independent axes; audio cannot redraw the combinat
     for (let i = 1; i <= 150; i++) m.update(sample(i), i * 20);
     assert.equal(draws, before);
     assert.deepEqual(m.inspect(3000).recipe, initial.recipe);
-    assert.equal(m.inspect(3000).scenario.id, "pulse");
+    assert.equal(m.inspect(3000).preset, "pulse");
     const r = initial.recipe;
     shapes.add(r.shape);
     palettes.add(r.palette);
     colors.add(r.color);
     feels.add(r.feel);
     combinations.add(JSON.stringify(r));
-    for (const [id, range] of Object.entries(mix.parameterRanges))
-      assert.ok(r.parameters[id] >= range.min && r.parameters[id] <= range.max);
+    for (const [id, value] of Object.entries(r.parameters)) {
+      const range = mix.parameterRanges[id];
+      assert.ok(value >= range.min && value <= range.max);
+      assert.ok(
+        require("../recipe-compatibility.cjs").parameterActive(
+          id,
+          [r.shape],
+          r.color,
+          initial.effective.behaviors,
+        ),
+      );
+    }
   }
   assert.equal(shapes.size, 6);
   assert.equal(palettes.size, 4);
-  assert.equal(colors.size, 3);
+  assert.ok(colors.size >= 3);
   assert.equal(feels.size, 3);
   assert.ok(combinations.size >= 35);
 });
@@ -111,7 +121,11 @@ test("pinning, empty choices, invalid ranges and disabled tasks are explicit", (
     return roll % 2 ? 0.1 : 0.9;
   });
   assert.ok(assigned.every((f) => ["reactive", "steady"].includes(f.raveBehavior)));
-  assert.ok(assigned.every((f) => ["low", "high"].includes(f.role)));
+  assert.ok(
+    assigned
+      .filter((f) => f.raveBehavior === "reactive")
+      .every((f) => ["low", "high"].includes(f.role)),
+  );
   assert.ok(rows.every((f) => f.role === "all" && !f.raveBehavior));
   assert.ok(
     recipe.fixtures(rows, config, false, () => 0.9).every((f) => f.raveBehavior === "reactive"),

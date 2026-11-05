@@ -307,7 +307,7 @@
     viewer:
       "Viewer controls: enable Rave, choose which lights viewers can use, and set command permissions. Connect the Channel Points reward through Twitch Integration.",
     music:
-      "Music-to-Light: use Main for playback, Library for songs and saved looks, Advanced for recipes, and Setup for capture and lights.",
+      "Choose a look in Play. Song triggers live in Automation; calibration and room setup are in Audio & lights.",
     profiles: "Light profiles: save and recall a room's colors, brightness and power states.",
     commands:
       "Light commands: copy instructions for viewers based on your saved routes and permissions.",
@@ -343,6 +343,7 @@
         row.tabIndex = row === button ? 0 : -1;
       });
       element("lightWorkspaceHelp").textContent = workspaceHelp[key];
+      element("lightWorkspaceHelp").hidden = key === "music";
       document.querySelectorAll("[data-light-panel]").forEach((panel) => {
         panel.hidden = panel.dataset.lightPanel !== button.dataset.lightTab;
       });

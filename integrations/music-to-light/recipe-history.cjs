@@ -1,22 +1,36 @@
 /** Activation-only weighted sampling without replacement. History is local to
  * one controller and bounded; changes to allowed choices/weights reset that bag.
  * Weights are odds among remaining candidates, not long-run frequency promises:
- * every candidate is visited once per completed bag. Boundary repeats can occur.
+ * every candidate is visited once per completed bag. Avoid boundary repeats
+ * whenever the allowed pool contains another choice.
  */
 module.exports = function createHistory() {
   const bags = new Map();
+  const memories = new Map();
+  function recent(key) {
+    return structuredClone(memories.get(key) || []);
+  }
+  function remember(key, value) {
+    const values = [...(memories.get(key) || []), structuredClone(value)].slice(-8);
+    memories.delete(key);
+    if (memories.size >= 128) memories.delete(memories.keys().next().value);
+    memories.set(key, values);
+  }
   function draw(key, values, random = Math.random) {
     const allowed = values.filter((v) => v.weight > 0);
     if (!allowed.length) return null;
     const signature = JSON.stringify(allowed);
     let bag = bags.get(key);
     if (!bag || bag.signature !== signature || bag.used.size === allowed.length) {
-      bag = { signature, used: new Set() };
+      bag = { signature, used: new Set(), last: bag?.last };
       bags.delete(key);
       if (bags.size >= 256) bags.delete(bags.keys().next().value);
       bags.set(key, bag);
     }
-    const remaining = allowed.filter((v) => !bag.used.has(v.id));
+    const remaining = allowed.filter(
+      (v) =>
+        !bag.used.has(v.id) && !(bag.used.size === 0 && allowed.length > 1 && v.id === bag.last),
+    );
     const total = remaining.reduce((sum, v) => sum + v.weight, 0);
     let winner = null;
     for (const value of remaining) {
@@ -27,6 +41,7 @@ module.exports = function createHistory() {
       if (!winner || priority < winner.priority) winner = { id: value.id, roll, priority };
     }
     bag.used.add(winner.id);
+    bag.last = winner.id;
     return {
       ...winner,
       probabilities: Object.fromEntries(
@@ -34,5 +49,5 @@ module.exports = function createHistory() {
       ),
     };
   }
-  return { draw };
+  return { draw, recent, remember };
 };

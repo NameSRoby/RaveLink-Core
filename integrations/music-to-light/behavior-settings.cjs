@@ -204,36 +204,6 @@ const fields = [
     "Audio-driven travel time at full calibrated loudness. Quiet audio slows movement; silence stops it.",
   ],
   [
-    "bandSeparation",
-    "Band separation",
-    "shape",
-    3,
-    1,
-    8,
-    0.25,
-    "Contrast between competing frequency zones. One keeps equal sharing; higher values spotlight stronger measured bands.",
-  ],
-  [
-    "ambientContrast",
-    "Ambient contrast",
-    "response",
-    2,
-    1,
-    4,
-    0.1,
-    "Fixed loudness curve: larger values separate quiet passages from loud passages. No automatic gain.",
-  ],
-  [
-    "bandSensitivity",
-    "Band sensitivity",
-    "analysis",
-    0.5,
-    0.25,
-    1,
-    0.05,
-    "Fixed band-share curve; smaller values reveal quieter bands. Overall loudness always caps brightness.",
-  ],
-  [
     "smoothing",
     "Smoothing",
     "response",
@@ -243,28 +213,8 @@ const fields = [
     0.05,
     "Softens envelope changes without delaying another brand.",
   ],
-  ["attackMs", "Attack", "response", 15, 5, 300, 5, "How quickly Pulse and Bands rise."],
-  ["releaseMs", "Release", "response", 100, 20, 1000, 10, "How quickly Pulse and Bands settle."],
-  [
-    "ambientAttackMs",
-    "Ambient attack",
-    "response",
-    70,
-    10,
-    1000,
-    10,
-    "Rise time for the sustained glow.",
-  ],
-  [
-    "ambientReleaseMs",
-    "Ambient release",
-    "response",
-    350,
-    20,
-    2000,
-    10,
-    "Settling time for the sustained glow.",
-  ],
+  ["attackMs", "Attack", "response", 15, 5, 300, 5, "How quickly Pulse rises."],
+  ["releaseMs", "Release", "response", 100, 20, 1000, 10, "How quickly Pulse settles."],
   ["literalAttackMs", "Literal attack", "response", 25, 5, 300, 5, "Rise time in Literal mode."],
   [
     "literalReleaseMs",
@@ -365,26 +315,6 @@ const fields = [
     1500,
     10,
     "How quickly sustained brightness falls when music becomes quieter. This does not hold old drum flashes.",
-  ],
-  [
-    "ambientBed",
-    "Ambient sustained glow",
-    "layers",
-    0.75,
-    0,
-    1,
-    0.05,
-    "Blend between sustained energy and its new rises.",
-  ],
-  [
-    "bandsBed",
-    "Bands sustained glow",
-    "layers",
-    0.65,
-    0,
-    1,
-    0.05,
-    "Blend between band energy and its new rises.",
   ],
   [
     "midTrimDb",
@@ -542,7 +472,11 @@ function behaviors(input = {}) {
     !input ||
     typeof input !== "object" ||
     Array.isArray(input) ||
-    Object.keys(input).some((k) => !catalog.some((f) => f.id === k))
+    Object.keys(input).some(
+      (k) =>
+        !catalog.some((f) => f.id === k) &&
+        !require("./legacy-response.cjs").retiredBehaviors.includes(k),
+    )
   )
     throw Error("invalid_music_behaviors");
   const result = {};

@@ -21,6 +21,7 @@ const OPTIONAL = Object.freeze({
 let context;
 let queue;
 let experimentalTidal, spotify, playerRouting, community, desktopChat, rewardOutcomes;
+let youtubeBrowser;
 let playlists, profileStorage, flushing, playerPreferences, soundcloud;
 let persistTimer;
 let dirty = false;
@@ -242,6 +243,22 @@ async function activate(nextContext) {
     schedulePersistence,
     publishChange,
   });
+  youtubeBrowser = require("./spotify-player")({
+    queue,
+    context,
+    providerName: "youtube",
+    hostCapability: "youtube.browser.host.v1",
+    featureCapability: "song.youtube.browser.v1",
+    isSelected: async () => {
+      const p = await playerPreferences("status", null);
+      return p.player === "youtube" && p.youtubePlayback === "browser";
+    },
+    changed: (result) => {
+      schedulePersistence();
+      publishChange(result, { method: "youtube-browser" });
+      publishPlayback(result);
+    },
+  });
   try {
     const stored = await context.callCapability(
       "ravelink.storage.v1",
@@ -289,6 +306,8 @@ async function activate(nextContext) {
     context,
     send: sendResponse,
     started: (entry) => rewardOutcomes.decide(entry, "FULFILLED"),
+    youtubeBrowserSelected: async () =>
+      (await playerPreferences("status", null)).youtubePlayback === "browser",
   });
   await desktopChat.load();
   await playlists.activate();
@@ -359,7 +378,13 @@ async function handleOperation(request) {
     try {
       return request.method === "query"
         ? await require("./chat-information")(
-            { queue, preferences: playerPreferences, tidal: experimentalTidal, spotify },
+            {
+              queue,
+              preferences: playerPreferences,
+              tidal: experimentalTidal,
+              spotify,
+              youtubeBrowser,
+            },
             request.payload,
           )
         : await context.callCapability("twitch.commands.host.v1", request.method, request.payload, {
@@ -377,6 +402,7 @@ async function handleOperation(request) {
     preferences: playerPreferences,
     tidal: experimentalTidal,
     spotify,
+    youtubeBrowser,
     context,
     changed: (result) => {
       schedulePersistence();
@@ -393,6 +419,8 @@ async function handleOperation(request) {
       : null;
   const spotifyRequest = await spotify.route(request, playerPreferences);
   if (spotifyRequest) return spotifyRequest.value;
+  const youtubeRequest = await youtubeBrowser.route(request, playerPreferences);
+  if (youtubeRequest) return youtubeRequest.value;
   if (request.capability === "song.soundcloud.player.v1")
     return soundcloud(request.method, request.payload || {});
   if (request.capability === "song.player.preferences.v1")
@@ -741,6 +769,7 @@ async function deactivate() {
   await rewardOutcomes?.stop();
   await community?.stop();
   spotify?.stop();
+  youtubeBrowser?.stop();
   experimentalTidal?.stop();
   playlists?.stop();
   if (persistTimer) clearTimeout(persistTimer);

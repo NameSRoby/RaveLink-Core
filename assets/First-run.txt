@@ -5,9 +5,17 @@ install Node, npm or Rust. Setup checks the runtime before offering Launch.
 Music-to-Light and Rave include the native audio helper when selected in Setup;
 application audio capture needs Windows build 20348 or later (Windows 11 recommended).
 
-Open RaveLink Core from your desktop or Start menu. A startup window shows the
-dashboard address, server status, Restart, Exit and the startup log. The default
-address is http://127.0.0.1:5050/. The tray can reopen this window at any time.
+Open RaveLink Core from your desktop or Start menu. The desktop window displays
+your workspace. Its RaveLink menu has Open in browser, Startup log, Restart Core
+and Exit. Closing the window keeps Core in the tray; Exit stops Core. The website
+also remains at http://127.0.0.1:5050/.
+
+Use the LAN button to enable full controls from another phone, tablet or computer
+on your private network. It shows the address to open there; localhost and the
+desktop window keep working. If Windows asks, allow Private network access.
+Complete account connections that require localhost callbacks on the Core PC.
+The desktop viewer uses Microsoft Edge WebView2, normally included with Windows.
+If missing, the window offers an installation link and Open in browser.
 
 Choose a new folder if you previously used RaveLink Bridge. Do not mix the two
 applications. Existing Core installations can be upgraded in their normal folder.

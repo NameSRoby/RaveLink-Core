@@ -32,15 +32,25 @@ const describe = (row, length = 180) => {
     ) + (artists ? " - " + clean(artists, artistBudget) : "")
   );
 };
-module.exports = async function chatInformation({ queue, preferences, tidal, spotify }, payload) {
+module.exports = async function chatInformation(
+  { queue, preferences, tidal, spotify, youtubeBrowser },
+  payload,
+) {
   const reply = (message) => ({ ok: true, message });
   const selection = await preferences("status", null);
   if (!selection.ok) return { ok: false, message: "Song information is temporarily unavailable." };
   const provider = selection.player,
-    native = ["tidal", "spotify"].includes(provider);
+    native =
+      ["tidal", "spotify"].includes(provider) ||
+      (provider === "youtube" && selection.youtubePlayback === "browser");
   const playback = queue.playbackStatus(),
     local = [];
-  const state = native ? await (provider === "tidal" ? tidal : spotify)("status", null) : null;
+  const state = native
+    ? await (provider === "tidal" ? tidal : provider === "youtube" ? youtubeBrowser : spotify)(
+        "status",
+        null,
+      )
+    : null;
   const receipts = state?.handoffs || [];
   const currentId = native
     ? state?.current?.entryId ||

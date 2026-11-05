@@ -51,6 +51,22 @@ function running() {
   return consume;
 }
 
+test("mixer telemetry crosses the native boundary only with bounded values", () => {
+  const volume = { key: "app-route", systemPercent: 50, systemDb: -12, appGain: 0.5, muted: false };
+  assert.deepEqual(running()({ ...measurement(), volume }).volume, volume);
+  assert.equal(running()(measurement()).volume, null, "older helpers remain readable");
+  for (const patch of [
+    { systemPercent: 101 },
+    { appGain: -1 },
+    { muted: "false" },
+    { systemDb: Infinity },
+  ])
+    assert.throws(
+      () => running()({ ...measurement(), volume: { ...volume, ...patch } }),
+      /invalid_music_volume/,
+    );
+});
+
 test("NDJSON delivery preserves Unicode and records at every byte split", () => {
   const expected = [{ label: "音楽 🎵" }, { signal: "silent", analysis: null }];
   const bytes = Buffer.from(expected.map((e) => JSON.stringify(e) + "\n").join(""));

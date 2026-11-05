@@ -16,6 +16,7 @@ module.exports = function chatPlayerCommands({
   preferences,
   tidal,
   spotify,
+  youtubeBrowser,
   context,
   changed,
 }) {
@@ -46,8 +47,15 @@ module.exports = function chatPlayerCommands({
         return null;
       const selected = await preferences("status", null);
       if (!selected.ok) return { value: fail("player_preferences_unavailable") };
-      const native = ["tidal", "spotify"].includes(selected.player),
-        player = selected.player === "tidal" ? tidal : spotify;
+      const native =
+          ["tidal", "spotify"].includes(selected.player) ||
+          (selected.player === "youtube" && selected.youtubePlayback === "browser"),
+        player =
+          selected.player === "tidal"
+            ? tidal
+            : selected.player === "youtube"
+              ? youtubeBrowser
+              : spotify;
       const finish = (value) => {
         if (value.ok) changed(value);
         return { value };
@@ -79,7 +87,7 @@ module.exports = function chatPlayerCommands({
       if (["pause", "resume"].includes(action)) {
         if (native) {
           const reply =
-            selected.player === "spotify"
+            selected.player !== "tidal"
               ? await player("control", { action })
               : await context.callCapability(
                   "media.windows.now-playing.v1",
@@ -172,7 +180,7 @@ module.exports = function chatPlayerCommands({
         !payload.entryId
       ) {
         if (!status?.current?.uid) return { value: fail("entry_not_found") };
-        if (selected.player === "spotify")
+        if (selected.player !== "tidal")
           return finish(
             await player("control", { action: "skip", currentUid: status.current.uid }),
           );

@@ -12,9 +12,17 @@
   "maximumBrightness": 60,
   "floorDb": -42,
   "ceilingDb": -18,
-  "behaviors": { "smoothing": 0, "colorBlendMs": 0 },
+  "behaviors": {
+    "smoothing": 0,
+    "colorBlendMs": 0
+  },
   "scenarioMode": "manual",
-  "scenarioWeights": { "wash": 1, "pulse": 1, "bands": 1, "wave": 1 },
+  "scenarioWeights": {
+    "pulse": 1,
+    "wave": 1,
+    "bounce": 0,
+    "handoff": 0
+  },
   "raveEnabled": false,
   "raveSeconds": 30
 }

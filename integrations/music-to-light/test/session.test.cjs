@@ -162,6 +162,38 @@ function environment(
     now: () => at,
   };
 }
+test("mixed fixture effects keep one capture listener, one writer per route and exact restoration", async (t) => {
+  const e = environment(t, {
+    extraHue: true,
+    settings: {
+      recipeOptions: {
+        effect: { mode: "random", value: "pulse", allowed: ["pulse", "bounce"] },
+        palette: { mode: "fixed", value: "generated", allowed: ["generated"] },
+        paletteScope: { mode: "fixed", value: "fixtures", allowed: ["fixtures"] },
+      },
+    },
+  });
+  e.session.start(e.probe);
+  await e.pump(1500);
+  const assignments = e.session.inspect().assignments;
+  assert.deepEqual([...new Set(assignments.map((f) => f.assignedEffect))].sort(), [
+    "bounce",
+    "pulse",
+  ]);
+  assert.equal(new Set(assignments.map((f) => f.assignedPalette.join(","))).size, 3);
+  assert.equal(e.probe.events.listenerCount("update"), 1);
+  assert.deepEqual([...new Set(e.writes.map((w) => w.id))].sort(), ["h", "h2", "w"]);
+  const seen = new Set();
+  for (const write of e.writes) {
+    const key = write.id + ":" + write.at;
+    assert.ok(!seen.has(key), "effect groups cannot write the same fixture twice in a slot");
+    seen.add(key);
+  }
+  await e.session.stop();
+  assert.deepEqual(e.states, e.initial);
+  assert.equal(e.stops, 1);
+});
+
 test("faster fixture slots cannot consume a slower fixture's new attack", async (t) => {
   const e = environment(t, {
     extraHue: true,
@@ -512,14 +544,14 @@ test("feel profiles never change the four-Hz output cap or hardware brightness b
   }
 });
 
-test("percussive presets do not add a second native fade after their audio envelope", async (t) => {
+test("Pulse and migrated responses do not add a second native fade after their audio envelope", async (t) => {
   for (const preset of ["ambient", "pulse", "bands"]) {
     const e = environment(t, { settings: { preset, interpretation: "musical" } });
     e.session.start(e.probe);
     await e.pump(600);
     const writes = e.writes.filter((w) => w.id === "h");
     assert.ok(writes.length > 0);
-    assert.ok(writes.every((w) => w.state.transitiontime === (preset === "ambient" ? 1 : 0)));
+    assert.ok(writes.every((w) => w.state.transitiontime === 0));
     await e.session.stop();
     assert.deepEqual(e.states, e.initial);
   }

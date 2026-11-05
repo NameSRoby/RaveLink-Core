@@ -179,12 +179,7 @@ function createSongQueue(options = {}) {
   }
 
   function expireLease() {
-    if (
-      managedPlayback &&
-      (managedPlayback.status === "loading" ||
-        managedPlayback.candidate.provider === "soundcloud") &&
-      managedPlayback.leaseExpiresAt <= Number(now())
-    ) {
+    if (managedPlayback && managedPlayback.leaseExpiresAt <= Number(now())) {
       managedPlayback = null;
       playbackRevision += 1;
     }
@@ -312,9 +307,7 @@ function createSongQueue(options = {}) {
     replay.acknowledge(state, managedPlayback.candidate);
     managedPlayback = {
       ...managedPlayback,
-      leaseExpiresAt:
-        Number(now()) +
-        (managedPlayback.candidate.provider === "soundcloud" ? 60000 : DRIVER_LEASE_MS),
+      leaseExpiresAt: Number(now()) + 60000,
       status: state === "started" || state === "progress" ? "playing" : state,
       started: managedPlayback.started === true || ["started", "progress"].includes(state),
       positionMs,

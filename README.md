@@ -6,29 +6,32 @@ RaveLink Core is a local Windows app that connects your music, lights and Twitch
 chat. Control compatible Hue, WiZ and Govee LAN lights, react to music, and let
 viewers request songs or change your lighting through Channel Points.
 
-It runs in the Windows tray, with a browser dashboard at
-`http://127.0.0.1:5050` by default. Twitch and Song Request are optional packages;
+It opens in a dedicated Windows desktop window and remains available in your
+browser at `http://127.0.0.1:5050`. Close the window to keep Core in the tray;
+choose **RaveLink > Exit** to stop it. The **network icon** enables optional full
+control from other devices on your private network and shows their access URLs.
+Twitch and Song Request are optional packages;
 local lighting works without them.
 
 [Download](https://github.com/NameSRoby/RaveLink-Core/releases/latest) ·
 [User guide](docs/USER_GUIDE.md) · [Contribute](CONTRIBUTING.md) ·
 [Report a bug](https://github.com/NameSRoby/RaveLink-Core/issues/new?template=bug_report.yml)
 
-## Install 0.7.4b
+## Install 0.7.5
 
 Choose the installer for guided setup or the self-contained ZIP for portable
 use. Both include Node, production dependencies, the tray launcher and an audio
 helper with its C runtime built in. No separate Node, npm, Rust, Visual C++ runtime
 installer or developer tools are needed.
 
-1. Download **RaveLink-Core-Windows-v0.7.4b-setup-installer.exe** from the [0.7.4b release](https://github.com/NameSRoby/RaveLink-Core/releases/tag/v0.7.4b).
+1. Download **RaveLink-Core-Windows-v0.7.5-setup-installer.exe** from the [0.7.5 release](https://github.com/NameSRoby/RaveLink-Core/releases/tag/v0.7.5).
 2. Choose an installation folder, Music-to-Light and optional features. Setup checks bundled prerequisites and downloads only your selected online features. Use a separate folder from an old RaveLink Bridge installation.
 3. Choose **Main**, **More** or **Hidden** placement for tabs. Change this later from the settings gear → **Choose tabs**.
-4. Launch from the Start menu or desktop shortcut. The startup window shows the dashboard address and connection status. Use it or the tray icon to reopen, restart or exit.
+4. Launch from the Start menu or desktop shortcut. RaveLink opens its desktop workspace. The window menu and tray can reopen, restart or exit it; **Open in browser** keeps the normal website available.
 
 Windows 10 build 19041 or later, or Windows 11, 64-bit, is required. Music-to-Light process capture requires build 20348 or later; Windows 11 is recommended. Setup checks .NET Framework 4.8 and explains any missing prerequisite. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-For portable use, extract **RaveLink-Core-Windows-v0.7.4b-self-contained.zip**
+For portable use, extract **RaveLink-Core-Windows-v0.7.5-self-contained.zip**
 completely and run `RaveLink-Core.exe`. Both release ZIPs contain the complete
 application and runtime. First extraction and launch can be done offline; optional
 package downloads and online services need internet. Install features later under
@@ -38,20 +41,22 @@ If you downloaded **Code > Download ZIP**, that is the source checkout. Extract
 it and run `Start-RaveLink.cmd`; first setup downloads a verified runtime bundle.
 See [source and offline setup](docs/USER_GUIDE.md#source-and-tests) for details.
 
-All 0.7.4b downloads include the fresh-PC audio helper fix. Upgrading from the
-original 0.7.3 installer or ZIP removes the separate Visual C++ runtime requirement.
+The Windows desktop window uses Microsoft WebView2. If its runtime is missing,
+Core provides an installation link and a browser fallback. Both ZIPs include the
+WebView2 loader files.
 
 ### First launch
 
 - Open **Fixtures** to discover or pair your lights. Hue Entertainment needs an
   area created in the Hue app; Govee needs a compatible model with LAN Control enabled.
-- Open **Lights > Music-to-Light > Setup** to select an audio source and lights.
+- Open **Lights > Music-to-Light > Audio & lights** to select an audio source and lights.
   Capture and light output require your permission; choosing Music-to-Light in
   the installer does not start either.
 - Install optional packages under **Packages**, then connect your own accounts.
   Device pairings and account credentials must be configured on each PC.
-- If the dashboard does not open, use the startup window or tray menu. The startup
-  window provides the dashboard address, connection status and **Startup log**.
+- If the dashboard does not open, the desktop window provides **Retry**, **Restart Core**,
+  **Open in browser**, and **Startup log**. If Microsoft WebView2 is missing, use
+  the displayed installation link or continue in your browser.
 
 See the [user guide](docs/USER_GUIDE.md) for detailed setup, source-checkout
 instructions and upgrades from older installations.
@@ -75,12 +80,13 @@ Control colors, brightness and supported white temperatures, save profiles, and
 route viewer effects to selected fixtures. Music-to-Light captures a chosen app
 or output device and turns its audio into reactive colors and pulses.
 
-- **Main:** start or stop lighting, choose looks and colors, adjust intensity,
-  brightness movement, smoothing and fixture contrast.
-- **Library:** save looks and songs, manage viewer submissions, and enable
-  Auto-Rave for selected songs. Auto-Rave is off by default and needs fresh song metadata.
-- **Setup:** choose the main app, two fallbacks, capture permissions and fixture roles.
-  Silent open apps retain priority; switching windows does not change a running capture.
+- **Play:** choose a look, preview it, adjust colors and response, and choose coordinated
+  lighting or mixed effect groups. Palette choices can be shared, per group or per light.
+- **Automation:** manage saved looks and songs, viewer submissions, and Auto-Rave.
+  Song automation is off by default and needs fresh matching song metadata.
+- **Audio & lights:** select the main app and fallbacks, grant capture/output permissions,
+  calibrate at your listening volume, and choose fixture jobs. Optional auto audio follow
+  uses the saved mixer reference when a matching app gain is available.
 - **Viewer Controls:** enable Chat Rave and configure viewer lighting commands.
   Viewers can redeem your connected Change my lights reward with `rave`.
 
@@ -144,28 +150,24 @@ StreamElements widget-only intake leaves refunds and fulfillment manual.
 - Room Layout remains Alpha. Community mods are optional third-party code; review
   them before enabling them. Java/JavaFX is not required to run Core.
 
-## New in 0.7.4b
+## New in 0.7.5
 
-The refreshed 0.7.4b download keeps native Song Request rewards refundable until
-confirmed playback starts. Use `!remove` beforehand to cancel and reclaim points.
-Queue handoff to TIDAL or Spotify alone does not complete the reward. Chat
-confirms successful refunds, explains Rave-blocked lighting commands, and includes
-artist names in song confirmations when the provider supplies them. Widget-only
-connections still require manual Twitch refunds. If you already installed
-0.7.4b, rerun the refreshed installer and update **Song Request** under **Packages**.
-
-A native startup window now shows connection status, a copyable dashboard address,
-and buttons to open the dashboard, restart, view the startup log or exit. Failed
-startup displays a useful error instead of opening an unreachable browser page.
-Tray Exit and Restart cancel startup checks; bounded HTTP requests and an
-independent exit deadline prevent a stalled server or frozen UI from keeping Core
-running indefinitely. Shutdown requests are sent only to a verified Core server.
-
-Setup now offers Music-to-Light explicitly and checks the bundled runtime,
-production dependencies, writable data folders and selected audio helper before
-launching. It reports optional feature download failures and blocks installation
-into an old RaveLink Bridge folder. No credentials, device pairings or local
-settings are included in the download.
+- A dedicated Windows desktop workspace, dark native navigation and tray recovery;
+  localhost stays available and optional private-network sharing provides full controls.
+- A clearer Music-to-Light workspace with **Play**, **Automation** and **Audio & lights**,
+  prominent calibration, compact controls, accessible choices and hover explanations.
+- Pulse is the single response engine. Older Ambient and Bands settings migrate to Pulse.
+  Smart random recipes choose compatible movement, color and pace, avoid recent repeats,
+  preserve scene jobs and respect the available lights and output transport.
+- Random fixture jobs support coordinated movement and mixed effect groups. Colors can
+  vary independently by group or light, with compatible palette and motion choices.
+- Calibration records system and app-mixer levels. Optional audio follow adapts the
+  reference to matching app-mixer changes and reports when it cannot safely follow.
+- Song Request 0.45.5 adds an optional YouTube Music browser connection alongside
+  embedded playback. Its temporary Firefox extension needs reloading after browser restart;
+  the integrated flow has automated coverage and still needs wider live-client validation.
+- Bundled Node 24.22.2, dependency fixes, interrupted LAN-upload handling and reduced
+  repeated UI work. The [health review](docs/REPOSITORY_HEALTH.md) records checks and limits.
 
 ## Privacy, updates and support
 

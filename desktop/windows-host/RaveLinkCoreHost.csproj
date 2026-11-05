@@ -18,5 +18,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="RaveLinkCoreHost.cs" />
+    <Compile Include="DashboardWindow.cs" />
+    <Compile Include="DesktopPolicy.cs" />
+    <Compile Include="DesktopBrowserActions.cs" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="Microsoft.Web.WebView2.Core"><HintPath>../../runtime/desktop/Microsoft.Web.WebView2.Core.dll</HintPath></Reference>
+    <Reference Include="Microsoft.Web.WebView2.WinForms"><HintPath>../../runtime/desktop/Microsoft.Web.WebView2.WinForms.dll</HintPath></Reference>
   </ItemGroup>
+  <Target Name="RestoreWebView2" BeforeTargets="ResolveAssemblyReferences">
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)/../../scripts/restore-webview2.ps1&quot;" />
+  </Target>
 </Project>

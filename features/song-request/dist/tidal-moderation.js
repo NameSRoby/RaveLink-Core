@@ -86,6 +86,10 @@ module.exports = function createTidalModeration({
         nativeError: removal?.error || providerName + "_remove_unconfirmed",
       };
     changed(result);
-    return { ...result, nativeRemoved: removal?.removed || 0 };
+    return {
+      ...result,
+      nativeRemoved: removal?.removed || 0,
+      ...(removal?.removedEntryIds ? { nativeEntryIds: removal.removedEntryIds } : {}),
+    };
   };
 };
