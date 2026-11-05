@@ -248,6 +248,23 @@ Core binds to loopback by default. Credentials, grants, playlists, exports, tab 
 
 Uninstall through Windows **Installed apps** or the Start menu; the uninstaller stops the tray host first.
 
+### Optional YouTube Music browser connection
+
+Song Request 0.45.5 offers **YouTube Music browser extension** in YouTube Setup.
+Embedded YouTube remains available. Open the extension folder from Setup, visit
+Firefox's `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**
+and select its `manifest.json`. Open YouTube Music and start a song once, then
+choose **Connect YouTube Music** in Core and select your music tab. Firefox needs
+the temporary add-on loaded again after a browser restart. Chromium folder access
+is under **Advanced / other browsers**; there is no signed store extension yet.
+
+Upcoming requests are inserted after the current song while preserving personal
+queue entries. Native rewards are fulfilled only after observed playback.
+Unconfirmed insertions are held for review rather than retried automatically.
+Check the queue before confirming a missing request or clearing a held record.
+Keep the local connection link private. Provider account, region, advertising and
+subscription restrictions still apply. Wider live-client validation is still needed.
+
 ## Source and tests
 
 Published source includes runtime code, first-party feature sources, licenses and relevant regression tests. Private state, logs, experiments and working archives are excluded.
@@ -302,20 +319,3 @@ Spotify and TIDAL also sync the saved list to the connected music account. TIDAL
 For StreamElements widget mode, create the reward in Twitch and paste its ID into **Widget > Add to playlist reward ID**, then regenerate the widget. Widget mode forwards requests only; reward fulfillment/refunds remain manual. YouTube and SoundCloud keep their community playlists in RaveLink.
 
 Spotify Premium setup requires a developer app whose owner has Premium and whose development allowlist includes the user. It uses OAuth PKCE without a client secret. Official-only queue entries cannot be removed individually; the desktop companion supplies that control for its own entries. Live Premium and native community-playlist validation remains limited.
-
-### Optional YouTube Music browser connection
-
-Song Request 0.45.5 offers **YouTube Music browser extension** in YouTube Setup.
-Embedded YouTube remains available. Open the extension folder from Setup, visit
-Firefox's `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**
-and select its `manifest.json`. Open YouTube Music and start a song once, then
-choose **Connect YouTube Music** in Core and select your music tab. Firefox needs
-the temporary add-on loaded again after a browser restart. Chromium folder access
-is under **Advanced / other browsers**; there is no signed store extension yet.
-
-Upcoming requests are inserted after the current song while preserving personal
-queue entries. Native rewards are fulfilled only after observed playback.
-Unconfirmed insertions are held for review rather than retried automatically.
-Check the queue before confirming a missing request or clearing a held record.
-Keep the local connection link private. Provider account, region, advertising and
-subscription restrictions still apply. Wider live-client validation is still needed.
