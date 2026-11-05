@@ -87,9 +87,10 @@ Pre-release CodeQL completed JavaScript, Actions and C# analysis with zero
 results, scan errors or warnings. Final source/runtime pins and subsequent merges
 remain subject to the same hosted gates. The overlay browser regression paces direct HTTP operator actions as well as
 Playwright actions: its bulk loops otherwise bypassed slowMo and could exhaust
-the real supervisor IPC rate limit. Production IPC limits remain enforced. The desktop fallback test now
-removes only its isolated native loader, avoiding machine-specific WebView runtime
-policy when simulating a missing viewer.
+the real supervisor IPC rate limit. Production IPC limits remain enforced. The desktop fallback test injects the SDK runtime-not-found exception at its
+initialization-task boundary. Hosted runners can resolve runtimes and loaders
+outside the test folder; separate coverage still renders the real WebView and
+exercises navigation, theme changes, popup handles and persistent profiles.
 
 ## Limits
 

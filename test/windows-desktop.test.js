@@ -144,7 +144,7 @@ test(
   },
 );
 test(
-  "an unavailable desktop viewer leaves Core available and shows a browser fallback",
+  "a failed WebView runtime initialization keeps Core available and offers browser recovery",
   { skip: process.platform !== "win32", timeout: 60000 },
   async (t) => {
     const server = await new Promise((resolve) => {
@@ -155,18 +155,10 @@ test(
         .listen(0, "127.0.0.1", () => resolve(listener));
     });
     t.after(() => new Promise((resolve) => server.close(resolve)));
-    // The runner may enforce its own browser runtime policy. Remove only the
-    // isolated harness loader so this exercises a real viewer failure everywhere.
-    const loader = path.join(compiled().directory, "runtime/desktop/WebView2Loader.dll");
-    fs.renameSync(loader, loader + ".test-disabled");
-    let result;
-    try {
-      result = await run(["fallback", compiled().directory, String(server.address().port)]);
-    } finally {
-      fs.renameSync(loader + ".test-disabled", loader);
-    }
+    const result = await run(["fallback", compiled().directory, String(server.address().port)]);
     assert.equal(result.visible, true);
     assert.match(result.fallback, /browser/i);
+    assert.equal(result.runtimeLink, true);
     assert.equal((await fetch(`http://127.0.0.1:${server.address().port}/health`)).status, 200);
   },
 );

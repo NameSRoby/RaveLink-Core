@@ -56,10 +56,19 @@ internal static class DesktopHarness
     }
     private static async Task Exercise(DashboardWindow window, string[] args)
     {
+        if (args[0] == "fallback") {
+            // Machine policy can resolve another installed runtime or loader.
+            // Inject the SDK fault at its asynchronous initialization boundary;
+            // the separate UI exercise uses the real SDK and browser process.
+            var failed = new TaskCompletionSource<bool>();
+            failed.SetException(new WebView2RuntimeNotFoundException());
+            typeof(DashboardWindow).GetField("initializing", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(window, failed.Task);
+        }
         await window.OpenDashboardAsync();
         if (args[0] == "fallback") {
             var message = (Label)typeof(DashboardWindow).GetField("message", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(window);
-            Console.WriteLine(new JavaScriptSerializer().Serialize(new { fallback = message.Text, visible = window.Visible })); return;
+            var link = (LinkLabel)typeof(DashboardWindow).GetField("runtimeLink", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(window);
+            Console.WriteLine(new JavaScriptSerializer().Serialize(new { fallback = message.Text, visible = window.Visible, runtimeLink = link.Visible })); return;
         }
         var browser = Browser(window);
         await Until(async delegate { return browser != null && browser.CoreWebView2 != null && await browser.ExecuteScriptAsync("document.readyState === 'complete' && typeof document.getElementById('themeBg')?.oninput === 'function'") == "true"; });
