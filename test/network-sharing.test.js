@@ -169,6 +169,23 @@ test("an interrupted LAN upload leaves the gateway available for the next reques
   request.destroy();
   assert.equal(await fetch(`http://127.0.0.1:${port}/health`).then((r) => r.text()), "ready");
 });
+
+test("oversized sharing preferences fall back to sharing off without opening a listener", async (t) => {
+  const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "rvl-lan-preferences-"));
+  fs.mkdirSync(path.join(runtimeDir, "system"));
+  fs.writeFileSync(
+    path.join(runtimeDir, "system/network-sharing.json"),
+    JSON.stringify({ enabled: true, port: 5051 }) + " ".repeat(2048),
+  );
+  const sharing = createSharing({ runtimeDir });
+  t.after(async () => {
+    await sharing.stop();
+    fs.rmSync(runtimeDir, { recursive: true, force: true });
+  });
+  assert.equal(sharing.snapshot().enabled, false);
+  await sharing.activate();
+  assert.equal(sharing.snapshot().active, false);
+});
 test("LAN browser edits the same Core settings and exposes sharing addresses on phone and desktop", async (t) => {
   const e = await environment(t),
     port = await freePort();

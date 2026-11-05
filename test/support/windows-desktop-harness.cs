@@ -36,10 +36,10 @@ internal static class DesktopHarness
     {
         return (WebView2)typeof(DashboardWindow).GetField("browser", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(window);
     }
-    private static async Task Until(Func<Task<bool>> check)
+    private static async Task Until(Func<Task<bool>> check, [System.Runtime.CompilerServices.CallerLineNumber] int line = 0)
     {
         for (int i = 0; i < 150; i++) { if (await check()) return; await Task.Delay(100); }
-        throw new Exception("WebView condition timed out");
+        throw new Exception("WebView condition timed out at harness line " + line);
     }
     private static bool PolishedToolbar(DashboardWindow window)
     {

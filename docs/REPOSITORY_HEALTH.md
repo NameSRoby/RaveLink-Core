@@ -6,18 +6,19 @@ The release retains the RaveLink Core name, icons, repository and local-data pat
 
 ## Findings and changes
 
-| Finding                                                                               | Change                                                                           | Verification                                                             |
-| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| An interrupted LAN upload could emit an unhandled request error                       | Drain the upstream request on input errors as well as aborts                     | Real interrupted-upload regression and a subsequent successful request   |
-| Private-address parsing accepted malformed dotted addresses                           | Require a valid IPv4 address before applying the private-range policy            | Private/public/malformed address regressions                             |
-| Corrupt sharing preferences could cause an unbounded read                             | Read only a regular settings file of at most 1 KiB                               | Startup fallback and sharing persistence tests                           |
-| Closing proxy listeners retained grace timers                                         | Clear the timer after the listener drains                                        | Streaming shutdown and enable/disable tests                              |
-| Assignment details were rebuilt on every pipeline poll                                | Reuse unchanged rows; index fixture names once per render                        | Browser regression retains row identity and hover state across polls     |
-| Removed effect cards still had duplicate render loops                                 | Remove both unused card-selection loops                                          | Native music browser flows and static checks                             |
-| The local exploration tool indexed three engines after Pulse became the only engine   | Derive the index and report from the actual engine list                          | Source review; the exploration tool stays outside publication            |
-| ESLint's transitive minimatch had GHSA-g3hv-75wg-m249                                 | Override minimatch to patched 11.0.1                                             | Full dependency audit, lint and locked installation                      |
-| Packaged Node could silently follow the developer's installed runtime                 | Permit an explicit runtime source; build this release with verified Node 24.22.2 | Official archive SHA-256, branded runtime execution and installer checks |
-| Service/capability inventories and switch geometry assertions lagged shipped behavior | Update the precise expectations, retaining independent behavior tests            | Core independence, HUD, feature and browser regressions                  |
+| Finding                                                                               | Change                                                                           | Verification                                                                 |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| An interrupted LAN upload could emit an unhandled request error                       | Drain the upstream request on input errors as well as aborts                     | Real interrupted-upload regression and a subsequent successful request       |
+| Private-address parsing accepted malformed dotted addresses                           | Require a valid IPv4 address before applying the private-range policy            | Private/public/malformed address regressions                                 |
+| Corrupt sharing preferences could cause an unbounded read                             | Read only a regular settings file of at most 1 KiB                               | Startup fallback and sharing persistence tests                               |
+| Closing proxy listeners retained grace timers                                         | Clear the timer after the listener drains                                        | Streaming shutdown and enable/disable tests                                  |
+| Assignment details were rebuilt on every pipeline poll                                | Reuse unchanged rows; index fixture names once per render                        | Browser regression retains row identity and hover state across polls         |
+| Removed effect cards still had duplicate render loops                                 | Remove both unused card-selection loops                                          | Native music browser flows and static checks                                 |
+| The local exploration tool indexed three engines after Pulse became the only engine   | Derive the index and report from the actual engine list                          | Source review; the exploration tool stays outside publication                |
+| ESLint's transitive minimatch had GHSA-g3hv-75wg-m249                                 | Override minimatch to patched 11.0.1                                             | Full dependency audit, lint and locked installation                          |
+| Packaged Node could silently follow the developer's installed runtime                 | Permit an explicit runtime source; build this release with verified Node 24.22.2 | Official archive SHA-256, branded runtime execution and installer checks     |
+| Silent setup error dialogs could block unattended installation                        | Use suppressible installer messages; retain rejection and diagnostic logs        | Isolated installer rejects an old Bridge folder promptly without changing it |
+| Service/capability inventories and switch geometry assertions lagged shipped behavior | Update the precise expectations, retaining independent behavior tests            | Core independence, HUD, feature and browser regressions                      |
 
 The earlier work included in this release consolidates the music engine around
 Pulse, migrates the old engines, filters random composition axes together, respects
@@ -55,6 +56,40 @@ outside the supported range. Device-output capture cannot infer one app's volume
 - Hosted repository health and CodeQL (JavaScript, Actions and C#) are release
   gates. The prior main-branch baseline had no open CodeQL alerts. New findings
   must be resolved before publishing the final release.
+
+## Measured pre-release evidence
+
+The published regression suite contains 906 tests, including five hardware checks
+that require explicit opt-in. Tests run on the release line of Node 24 and include
+the additional oversized-preferences guard.
+Native Rust analysis passed 19 tests. Production-path simulation completed 4,800
+cases, 286,752 frames and 4,205,696 fixture samples with zero detected failures.
+
+| Resource profile | Startup  | Shutdown | Idle RSS |
+| ---------------- | -------- | -------- | -------- |
+| Core             | 274 ms   | 56 ms    | 72.1 MiB |
+| Idle mod host    | 272 ms   | 63 ms    | 74.1 MiB |
+| Active mod       | 343 ms   | 60 ms    | 75.0 MiB |
+| Active feature   | 1,211 ms | 78 ms    | 89.5 MiB |
+
+All four profiles passed their budgets (two-second idle samples and 30 requests
+per workload). The installer and both ZIPs contain 3,960 matching application
+files; SHA-256 checks cover each download. Offline source bootstrap and isolated
+installer startup passed with Node, npm and Rust removed from PATH. Music helper
+selection/deselection preserves preferences and controls capture availability.
+
+Allowlist and Gitleaks scans cover the sanitized source, runtime payload and new
+Git commits. The only reviewed Gitleaks match was the already-public Twitch
+application client ID, not an access token or secret. First-party binaries were
+also checked for private user and workspace paths.
+
+Pre-release CodeQL completed JavaScript, Actions and C# analysis with zero
+results, scan errors or warnings. Final source/runtime pins and subsequent merges
+remain subject to the same hosted gates. The overlay browser regression paces direct HTTP operator actions as well as
+Playwright actions: its bulk loops otherwise bypassed slowMo and could exhaust
+the real supervisor IPC rate limit. Production IPC limits remain enforced. The desktop fallback test now
+removes only its isolated native loader, avoiding machine-specific WebView runtime
+policy when simulating a missing viewer.
 
 ## Limits
 
