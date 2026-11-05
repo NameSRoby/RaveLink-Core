@@ -62,9 +62,9 @@ internal static class DesktopHarness
             Console.WriteLine(new JavaScriptSerializer().Serialize(new { fallback = message.Text, visible = window.Visible })); return;
         }
         var browser = Browser(window);
-        await Until(async delegate { return browser != null && browser.CoreWebView2 != null && await browser.ExecuteScriptAsync("Boolean(document.getElementById('themeButton'))") == "true"; });
+        await Until(async delegate { return browser != null && browser.CoreWebView2 != null && await browser.ExecuteScriptAsync("document.readyState === 'complete' && typeof document.getElementById('themeBg')?.oninput === 'function'") == "true"; });
         uint process = browser.CoreWebView2.BrowserProcessId;
-        await browser.ExecuteScriptAsync("localStorage.setItem('desktop-test','retained');document.documentElement.style.setProperty('--bg','#101219');document.documentElement.style.setProperty('--accent','#2474bf');document.documentElement.style.setProperty('--text','#eef2ff');");
+        await browser.ExecuteScriptAsync("localStorage.setItem('desktop-test','retained');document.getElementById('themeBg').value='#101219';document.getElementById('themeAccent').value='#2474bf';document.getElementById('themeText').value='#eef2ff';document.getElementById('themeBg').dispatchEvent(new Event('input',{bubbles:true}));");
         await Until(delegate { return Task.FromResult(window.BackColor == ColorTranslator.FromHtml("#101219")); });
         await browser.CoreWebView2.CallDevToolsProtocolMethodAsync("Runtime.evaluate", new JavaScriptSerializer().Serialize(new { expression = "window.desktopPopup=window.open('about:blank','ravelink-desktop-test'); Boolean(window.desktopPopup)", userGesture = true, returnByValue = true }));
         await Until(async delegate { return await browser.ExecuteScriptAsync("Boolean(window.desktopPopup && !window.desktopPopup.closed)") == "true"; });

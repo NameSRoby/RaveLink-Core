@@ -5,6 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawn, spawnSync } = require("node:child_process");
 const crypto = require("node:crypto");
+const http = require("node:http");
 const createCoreServer = require("../src/app/core/create-core-server");
 const root = path.resolve(__dirname, "..");
 let built;
@@ -110,7 +111,14 @@ test(
       fixtureSecretVaultOptions: require("./support/fixture-vault-codec.cjs"),
     });
     const server = await new Promise((resolve) => {
-      const s = app.listen(0, "127.0.0.1", () => resolve(s));
+      // HTML controls can exist before their scripts finish. Exercise that
+      // ordering explicitly before changing the theme through its real input.
+      const s = http
+        .createServer((req, res) => {
+          if (req.url === "/core.js") setTimeout(() => app(req, res), 200);
+          else app(req, res);
+        })
+        .listen(0, "127.0.0.1", () => resolve(s));
     });
     t.after(async () => {
       await services.lifecycle.stopAll();
@@ -139,7 +147,6 @@ test(
   "an unavailable desktop viewer leaves Core available and shows a browser fallback",
   { skip: process.platform !== "win32", timeout: 60000 },
   async (t) => {
-    const http = require("node:http");
     const server = await new Promise((resolve) => {
       const listener = http
         .createServer((_req, res) =>
