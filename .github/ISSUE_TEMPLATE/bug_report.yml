@@ -9,7 +9,7 @@ body:
     id: version
     attributes:
       label: RaveLink version
-      placeholder: "For example: Core 0.7.4b, Song Request 0.45.4"
+      placeholder: "For example: Core 0.7.5, Song Request 0.45.4"
     validations:
       required: true
   - type: dropdown

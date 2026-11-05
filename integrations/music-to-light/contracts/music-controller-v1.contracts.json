@@ -157,7 +157,7 @@
                       },
                       "preset": {
                         "type": "string",
-                        "enum": ["ambient", "pulse", "bands"]
+                        "enum": ["pulse"]
                       },
                       "frames": {
                         "type": "array",
@@ -542,7 +542,7 @@
                       },
                       "preset": {
                         "type": "string",
-                        "enum": ["ambient", "pulse", "bands"]
+                        "enum": ["pulse"]
                       },
                       "frames": {
                         "type": "array",
@@ -917,7 +917,7 @@
                       },
                       "preset": {
                         "type": "string",
-                        "enum": ["ambient", "pulse", "bands"]
+                        "enum": ["pulse"]
                       },
                       "frames": {
                         "type": "array",
@@ -1193,7 +1193,7 @@
             },
             "preset": {
               "type": "string",
-              "enum": ["ambient", "pulse", "bands"]
+              "enum": ["pulse"]
             },
             "frames": {
               "type": "array",
@@ -1259,7 +1259,7 @@
               },
               "preset": {
                 "type": "string",
-                "enum": ["ambient", "pulse", "bands"]
+                "enum": ["pulse"]
               },
               "intensity": {
                 "type": "number",
@@ -1391,21 +1391,6 @@
                     "minimum": 1,
                     "maximum": 12
                   },
-                  "bandSeparation": {
-                    "type": "number",
-                    "minimum": 1,
-                    "maximum": 8
-                  },
-                  "ambientContrast": {
-                    "type": "number",
-                    "minimum": 1,
-                    "maximum": 4
-                  },
-                  "bandSensitivity": {
-                    "type": "number",
-                    "minimum": 0.25,
-                    "maximum": 1
-                  },
                   "smoothing": {
                     "type": "number",
                     "minimum": 0,
@@ -1420,16 +1405,6 @@
                     "type": "number",
                     "minimum": 20,
                     "maximum": 1000
-                  },
-                  "ambientAttackMs": {
-                    "type": "number",
-                    "minimum": 10,
-                    "maximum": 1000
-                  },
-                  "ambientReleaseMs": {
-                    "type": "number",
-                    "minimum": 20,
-                    "maximum": 2000
                   },
                   "literalAttackMs": {
                     "type": "number",
@@ -1462,16 +1437,6 @@
                     "maximum": 1500
                   },
                   "pulseBed": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "ambientBed": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "bandsBed": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1
@@ -1604,17 +1569,7 @@
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "wash": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10
-                  },
                   "pulse": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10
-                  },
-                  "bands": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 10
@@ -1650,7 +1605,7 @@
               },
               "raveScenario": {
                 "type": "string",
-                "enum": ["random", "wash", "pulse", "bands", "wave", "bounce", "handoff"]
+                "enum": ["random", "pulse", "wave", "bounce", "handoff"]
               },
               "layerMode": {
                 "type": "string",
@@ -1730,7 +1685,7 @@
                           "electric-pulse",
                           "ember-pulse",
                           "aurora-swell",
-                          "prism-bands",
+                          "prism-pulse",
                           "generated"
                         ]
                       },
@@ -1744,7 +1699,7 @@
                             "electric-pulse",
                             "ember-pulse",
                             "aurora-swell",
-                            "prism-bands",
+                            "prism-pulse",
                             "generated"
                           ]
                         }
@@ -1816,6 +1771,52 @@
                         "items": {
                           "type": "string",
                           "enum": ["all", "low", "mid", "high"]
+                        }
+                      }
+                    }
+                  },
+                  "effect": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["mode", "value", "allowed"],
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": ["configured", "fixed", "random"]
+                      },
+                      "value": {
+                        "type": "string",
+                        "enum": ["pulse", "wave", "bounce", "handoff"]
+                      },
+                      "allowed": {
+                        "type": "array",
+                        "maxItems": 4,
+                        "items": {
+                          "type": "string",
+                          "enum": ["pulse", "wave", "bounce", "handoff"]
+                        }
+                      }
+                    }
+                  },
+                  "paletteScope": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["mode", "value", "allowed"],
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": ["configured", "fixed", "random"]
+                      },
+                      "value": {
+                        "type": "string",
+                        "enum": ["shared", "effects", "fixtures"]
+                      },
+                      "allowed": {
+                        "type": "array",
+                        "maxItems": 3,
+                        "items": {
+                          "type": "string",
+                          "enum": ["shared", "effects", "fixtures"]
                         }
                       }
                     }
@@ -1979,57 +1980,6 @@
                       }
                     }
                   },
-                  "bandSeparation": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 8
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 8
-                      }
-                    }
-                  },
-                  "ambientContrast": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 4
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 4
-                      }
-                    }
-                  },
-                  "bandSensitivity": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 0.25,
-                        "maximum": 1
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 0.25,
-                        "maximum": 1
-                      }
-                    }
-                  },
                   "smoothing": {
                     "type": "object",
                     "additionalProperties": false,
@@ -2078,40 +2028,6 @@
                         "type": "number",
                         "minimum": 20,
                         "maximum": 1000
-                      }
-                    }
-                  },
-                  "ambientAttackMs": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 10,
-                        "maximum": 1000
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 10,
-                        "maximum": 1000
-                      }
-                    }
-                  },
-                  "ambientReleaseMs": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 20,
-                        "maximum": 2000
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 20,
-                        "maximum": 2000
                       }
                     }
                   },
@@ -2218,40 +2134,6 @@
                     }
                   },
                   "pulseBed": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    }
-                  },
-                  "ambientBed": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    }
-                  },
-                  "bandsBed": {
                     "type": "object",
                     "additionalProperties": false,
                     "required": ["min", "max"],
@@ -2399,6 +2281,38 @@
               },
               "warmCoolColors": {
                 "type": "boolean"
+              },
+              "autoAudioFollow": {
+                "type": "boolean"
+              },
+              "calibrationVolume": {
+                "type": ["object", "null"],
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "maxLength": 2048
+                  },
+                  "systemPercent": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "systemDb": {
+                    "type": "number",
+                    "minimum": -200,
+                    "maximum": 30
+                  },
+                  "appGain": {
+                    "type": ["number", "null"],
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "muted": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["key", "systemPercent", "systemDb", "appGain", "muted"]
               }
             },
             "required": []
@@ -2413,7 +2327,7 @@
               },
               "preset": {
                 "type": "string",
-                "enum": ["ambient", "pulse", "bands"]
+                "enum": ["pulse"]
               },
               "intensity": {
                 "type": "number",
@@ -2545,21 +2459,6 @@
                     "minimum": 1,
                     "maximum": 12
                   },
-                  "bandSeparation": {
-                    "type": "number",
-                    "minimum": 1,
-                    "maximum": 8
-                  },
-                  "ambientContrast": {
-                    "type": "number",
-                    "minimum": 1,
-                    "maximum": 4
-                  },
-                  "bandSensitivity": {
-                    "type": "number",
-                    "minimum": 0.25,
-                    "maximum": 1
-                  },
                   "smoothing": {
                     "type": "number",
                     "minimum": 0,
@@ -2574,16 +2473,6 @@
                     "type": "number",
                     "minimum": 20,
                     "maximum": 1000
-                  },
-                  "ambientAttackMs": {
-                    "type": "number",
-                    "minimum": 10,
-                    "maximum": 1000
-                  },
-                  "ambientReleaseMs": {
-                    "type": "number",
-                    "minimum": 20,
-                    "maximum": 2000
                   },
                   "literalAttackMs": {
                     "type": "number",
@@ -2616,16 +2505,6 @@
                     "maximum": 1500
                   },
                   "pulseBed": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "ambientBed": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "bandsBed": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1
@@ -2758,17 +2637,7 @@
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "wash": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10
-                  },
                   "pulse": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10
-                  },
-                  "bands": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 10
@@ -2804,7 +2673,7 @@
               },
               "raveScenario": {
                 "type": "string",
-                "enum": ["random", "wash", "pulse", "bands", "wave", "bounce", "handoff"]
+                "enum": ["random", "pulse", "wave", "bounce", "handoff"]
               },
               "layerMode": {
                 "type": "string",
@@ -2884,7 +2753,7 @@
                           "electric-pulse",
                           "ember-pulse",
                           "aurora-swell",
-                          "prism-bands",
+                          "prism-pulse",
                           "generated"
                         ]
                       },
@@ -2898,7 +2767,7 @@
                             "electric-pulse",
                             "ember-pulse",
                             "aurora-swell",
-                            "prism-bands",
+                            "prism-pulse",
                             "generated"
                           ]
                         }
@@ -2970,6 +2839,52 @@
                         "items": {
                           "type": "string",
                           "enum": ["all", "low", "mid", "high"]
+                        }
+                      }
+                    }
+                  },
+                  "effect": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["mode", "value", "allowed"],
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": ["configured", "fixed", "random"]
+                      },
+                      "value": {
+                        "type": "string",
+                        "enum": ["pulse", "wave", "bounce", "handoff"]
+                      },
+                      "allowed": {
+                        "type": "array",
+                        "maxItems": 4,
+                        "items": {
+                          "type": "string",
+                          "enum": ["pulse", "wave", "bounce", "handoff"]
+                        }
+                      }
+                    }
+                  },
+                  "paletteScope": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["mode", "value", "allowed"],
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": ["configured", "fixed", "random"]
+                      },
+                      "value": {
+                        "type": "string",
+                        "enum": ["shared", "effects", "fixtures"]
+                      },
+                      "allowed": {
+                        "type": "array",
+                        "maxItems": 3,
+                        "items": {
+                          "type": "string",
+                          "enum": ["shared", "effects", "fixtures"]
                         }
                       }
                     }
@@ -3133,57 +3048,6 @@
                       }
                     }
                   },
-                  "bandSeparation": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 8
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 8
-                      }
-                    }
-                  },
-                  "ambientContrast": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 4
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 4
-                      }
-                    }
-                  },
-                  "bandSensitivity": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 0.25,
-                        "maximum": 1
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 0.25,
-                        "maximum": 1
-                      }
-                    }
-                  },
                   "smoothing": {
                     "type": "object",
                     "additionalProperties": false,
@@ -3232,40 +3096,6 @@
                         "type": "number",
                         "minimum": 20,
                         "maximum": 1000
-                      }
-                    }
-                  },
-                  "ambientAttackMs": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 10,
-                        "maximum": 1000
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 10,
-                        "maximum": 1000
-                      }
-                    }
-                  },
-                  "ambientReleaseMs": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 20,
-                        "maximum": 2000
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 20,
-                        "maximum": 2000
                       }
                     }
                   },
@@ -3372,40 +3202,6 @@
                     }
                   },
                   "pulseBed": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    }
-                  },
-                  "ambientBed": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    }
-                  },
-                  "bandsBed": {
                     "type": "object",
                     "additionalProperties": false,
                     "required": ["min", "max"],
@@ -3553,6 +3349,38 @@
               },
               "warmCoolColors": {
                 "type": "boolean"
+              },
+              "autoAudioFollow": {
+                "type": "boolean"
+              },
+              "calibrationVolume": {
+                "type": ["object", "null"],
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "maxLength": 2048
+                  },
+                  "systemPercent": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "systemDb": {
+                    "type": "number",
+                    "minimum": -200,
+                    "maximum": 30
+                  },
+                  "appGain": {
+                    "type": ["number", "null"],
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "muted": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["key", "systemPercent", "systemDb", "appGain", "muted"]
               }
             },
             "required": [
@@ -3589,7 +3417,7 @@
               },
               "preset": {
                 "type": "string",
-                "enum": ["ambient", "pulse", "bands"]
+                "enum": ["pulse"]
               },
               "intensity": {
                 "type": "number",
@@ -3721,21 +3549,6 @@
                     "minimum": 1,
                     "maximum": 12
                   },
-                  "bandSeparation": {
-                    "type": "number",
-                    "minimum": 1,
-                    "maximum": 8
-                  },
-                  "ambientContrast": {
-                    "type": "number",
-                    "minimum": 1,
-                    "maximum": 4
-                  },
-                  "bandSensitivity": {
-                    "type": "number",
-                    "minimum": 0.25,
-                    "maximum": 1
-                  },
                   "smoothing": {
                     "type": "number",
                     "minimum": 0,
@@ -3750,16 +3563,6 @@
                     "type": "number",
                     "minimum": 20,
                     "maximum": 1000
-                  },
-                  "ambientAttackMs": {
-                    "type": "number",
-                    "minimum": 10,
-                    "maximum": 1000
-                  },
-                  "ambientReleaseMs": {
-                    "type": "number",
-                    "minimum": 20,
-                    "maximum": 2000
                   },
                   "literalAttackMs": {
                     "type": "number",
@@ -3792,16 +3595,6 @@
                     "maximum": 1500
                   },
                   "pulseBed": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "ambientBed": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "bandsBed": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1
@@ -3934,17 +3727,7 @@
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "wash": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10
-                  },
                   "pulse": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10
-                  },
-                  "bands": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 10
@@ -3980,7 +3763,7 @@
               },
               "raveScenario": {
                 "type": "string",
-                "enum": ["random", "wash", "pulse", "bands", "wave", "bounce", "handoff"]
+                "enum": ["random", "pulse", "wave", "bounce", "handoff"]
               },
               "layerMode": {
                 "type": "string",
@@ -4060,7 +3843,7 @@
                           "electric-pulse",
                           "ember-pulse",
                           "aurora-swell",
-                          "prism-bands",
+                          "prism-pulse",
                           "generated"
                         ]
                       },
@@ -4074,7 +3857,7 @@
                             "electric-pulse",
                             "ember-pulse",
                             "aurora-swell",
-                            "prism-bands",
+                            "prism-pulse",
                             "generated"
                           ]
                         }
@@ -4146,6 +3929,52 @@
                         "items": {
                           "type": "string",
                           "enum": ["all", "low", "mid", "high"]
+                        }
+                      }
+                    }
+                  },
+                  "effect": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["mode", "value", "allowed"],
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": ["configured", "fixed", "random"]
+                      },
+                      "value": {
+                        "type": "string",
+                        "enum": ["pulse", "wave", "bounce", "handoff"]
+                      },
+                      "allowed": {
+                        "type": "array",
+                        "maxItems": 4,
+                        "items": {
+                          "type": "string",
+                          "enum": ["pulse", "wave", "bounce", "handoff"]
+                        }
+                      }
+                    }
+                  },
+                  "paletteScope": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["mode", "value", "allowed"],
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": ["configured", "fixed", "random"]
+                      },
+                      "value": {
+                        "type": "string",
+                        "enum": ["shared", "effects", "fixtures"]
+                      },
+                      "allowed": {
+                        "type": "array",
+                        "maxItems": 3,
+                        "items": {
+                          "type": "string",
+                          "enum": ["shared", "effects", "fixtures"]
                         }
                       }
                     }
@@ -4309,57 +4138,6 @@
                       }
                     }
                   },
-                  "bandSeparation": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 8
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 8
-                      }
-                    }
-                  },
-                  "ambientContrast": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 4
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 4
-                      }
-                    }
-                  },
-                  "bandSensitivity": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 0.25,
-                        "maximum": 1
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 0.25,
-                        "maximum": 1
-                      }
-                    }
-                  },
                   "smoothing": {
                     "type": "object",
                     "additionalProperties": false,
@@ -4408,40 +4186,6 @@
                         "type": "number",
                         "minimum": 20,
                         "maximum": 1000
-                      }
-                    }
-                  },
-                  "ambientAttackMs": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 10,
-                        "maximum": 1000
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 10,
-                        "maximum": 1000
-                      }
-                    }
-                  },
-                  "ambientReleaseMs": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 20,
-                        "maximum": 2000
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 20,
-                        "maximum": 2000
                       }
                     }
                   },
@@ -4548,40 +4292,6 @@
                     }
                   },
                   "pulseBed": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    }
-                  },
-                  "ambientBed": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    }
-                  },
-                  "bandsBed": {
                     "type": "object",
                     "additionalProperties": false,
                     "required": ["min", "max"],
@@ -4729,6 +4439,38 @@
               },
               "warmCoolColors": {
                 "type": "boolean"
+              },
+              "autoAudioFollow": {
+                "type": "boolean"
+              },
+              "calibrationVolume": {
+                "type": ["object", "null"],
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "maxLength": 2048
+                  },
+                  "systemPercent": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "systemDb": {
+                    "type": "number",
+                    "minimum": -200,
+                    "maximum": 30
+                  },
+                  "appGain": {
+                    "type": ["number", "null"],
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "muted": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["key", "systemPercent", "systemDb", "appGain", "muted"]
               }
             },
             "required": [
@@ -4774,7 +4516,7 @@
               },
               "preset": {
                 "type": "string",
-                "enum": ["ambient", "pulse", "bands"]
+                "enum": ["pulse"]
               },
               "intensity": {
                 "type": "number",
@@ -4906,21 +4648,6 @@
                     "minimum": 1,
                     "maximum": 12
                   },
-                  "bandSeparation": {
-                    "type": "number",
-                    "minimum": 1,
-                    "maximum": 8
-                  },
-                  "ambientContrast": {
-                    "type": "number",
-                    "minimum": 1,
-                    "maximum": 4
-                  },
-                  "bandSensitivity": {
-                    "type": "number",
-                    "minimum": 0.25,
-                    "maximum": 1
-                  },
                   "smoothing": {
                     "type": "number",
                     "minimum": 0,
@@ -4935,16 +4662,6 @@
                     "type": "number",
                     "minimum": 20,
                     "maximum": 1000
-                  },
-                  "ambientAttackMs": {
-                    "type": "number",
-                    "minimum": 10,
-                    "maximum": 1000
-                  },
-                  "ambientReleaseMs": {
-                    "type": "number",
-                    "minimum": 20,
-                    "maximum": 2000
                   },
                   "literalAttackMs": {
                     "type": "number",
@@ -4977,16 +4694,6 @@
                     "maximum": 1500
                   },
                   "pulseBed": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "ambientBed": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "bandsBed": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1
@@ -5119,17 +4826,7 @@
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "wash": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10
-                  },
                   "pulse": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 10
-                  },
-                  "bands": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 10
@@ -5165,7 +4862,7 @@
               },
               "raveScenario": {
                 "type": "string",
-                "enum": ["random", "wash", "pulse", "bands", "wave", "bounce", "handoff"]
+                "enum": ["random", "pulse", "wave", "bounce", "handoff"]
               },
               "layerMode": {
                 "type": "string",
@@ -5245,7 +4942,7 @@
                           "electric-pulse",
                           "ember-pulse",
                           "aurora-swell",
-                          "prism-bands",
+                          "prism-pulse",
                           "generated"
                         ]
                       },
@@ -5259,7 +4956,7 @@
                             "electric-pulse",
                             "ember-pulse",
                             "aurora-swell",
-                            "prism-bands",
+                            "prism-pulse",
                             "generated"
                           ]
                         }
@@ -5331,6 +5028,52 @@
                         "items": {
                           "type": "string",
                           "enum": ["all", "low", "mid", "high"]
+                        }
+                      }
+                    }
+                  },
+                  "effect": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["mode", "value", "allowed"],
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": ["configured", "fixed", "random"]
+                      },
+                      "value": {
+                        "type": "string",
+                        "enum": ["pulse", "wave", "bounce", "handoff"]
+                      },
+                      "allowed": {
+                        "type": "array",
+                        "maxItems": 4,
+                        "items": {
+                          "type": "string",
+                          "enum": ["pulse", "wave", "bounce", "handoff"]
+                        }
+                      }
+                    }
+                  },
+                  "paletteScope": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["mode", "value", "allowed"],
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": ["configured", "fixed", "random"]
+                      },
+                      "value": {
+                        "type": "string",
+                        "enum": ["shared", "effects", "fixtures"]
+                      },
+                      "allowed": {
+                        "type": "array",
+                        "maxItems": 3,
+                        "items": {
+                          "type": "string",
+                          "enum": ["shared", "effects", "fixtures"]
                         }
                       }
                     }
@@ -5494,57 +5237,6 @@
                       }
                     }
                   },
-                  "bandSeparation": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 8
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 8
-                      }
-                    }
-                  },
-                  "ambientContrast": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 4
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 4
-                      }
-                    }
-                  },
-                  "bandSensitivity": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 0.25,
-                        "maximum": 1
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 0.25,
-                        "maximum": 1
-                      }
-                    }
-                  },
                   "smoothing": {
                     "type": "object",
                     "additionalProperties": false,
@@ -5593,40 +5285,6 @@
                         "type": "number",
                         "minimum": 20,
                         "maximum": 1000
-                      }
-                    }
-                  },
-                  "ambientAttackMs": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 10,
-                        "maximum": 1000
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 10,
-                        "maximum": 1000
-                      }
-                    }
-                  },
-                  "ambientReleaseMs": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 20,
-                        "maximum": 2000
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 20,
-                        "maximum": 2000
                       }
                     }
                   },
@@ -5733,40 +5391,6 @@
                     }
                   },
                   "pulseBed": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    }
-                  },
-                  "ambientBed": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["min", "max"],
-                    "properties": {
-                      "min": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      },
-                      "max": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    }
-                  },
-                  "bandsBed": {
                     "type": "object",
                     "additionalProperties": false,
                     "required": ["min", "max"],
@@ -5914,6 +5538,38 @@
               },
               "warmCoolColors": {
                 "type": "boolean"
+              },
+              "autoAudioFollow": {
+                "type": "boolean"
+              },
+              "calibrationVolume": {
+                "type": ["object", "null"],
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "maxLength": 2048
+                  },
+                  "systemPercent": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "systemDb": {
+                    "type": "number",
+                    "minimum": -200,
+                    "maximum": 30
+                  },
+                  "appGain": {
+                    "type": ["number", "null"],
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "muted": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["key", "systemPercent", "systemDb", "appGain", "muted"]
               }
             },
             "required": [

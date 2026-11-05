@@ -620,3 +620,24 @@ main {
   font-size: 13px;
   color: var(--muted);
 }
+
+#youtubeBrowserSetup .youtube-connection-step {
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 16px 0;
+}
+#youtubeBrowserSetup .youtube-connection-step h3 {
+  margin-top: 0;
+}
+#youtubeBrowserSetup p {
+  max-width: 76ch;
+  line-height: 1.5;
+}
+#youtubeBrowserSetup pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#youtubeBrowserSetup details {
+  margin-top: 20px;
+}

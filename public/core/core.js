@@ -1246,7 +1246,7 @@ byId("rollbackUpdate").onclick = async () => {
 async function boot() {
   try {
     const status = await request("/system/status");
-    byId("health").textContent = "CORE ONLINE";
+    byId("health").textContent = "Online";
     byId("health").className = "badge ok";
     byId("network").className = "badge ok";
     fixtures = status.fixtures?.items || [];
@@ -1278,7 +1278,7 @@ async function boot() {
       await import("/mods.js").then((module) => module.initModPlatform());
     }
   } catch (error) {
-    byId("health").textContent = "CORE OFFLINE";
+    byId("health").textContent = "Offline";
     byId("health").className = "badge bad";
     byId("network").className = "badge bad";
   }

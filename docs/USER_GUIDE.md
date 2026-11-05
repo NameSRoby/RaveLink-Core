@@ -4,6 +4,7 @@ Start with the [installation and feature overview](../README.md). This guide cov
 detailed controls, provider limitations, upgrades and source setup.
 
 - [Dashboard](#dashboard)
+- [Desktop and local network access](#desktop-and-local-network-access)
 - [Govee LAN compatibility](#govee-lan-compatibility)
 - [Hue Entertainment setup](#hue-entertainment-setup)
 - [Music controls, colors and Auto-Rave](#music-to-light-main-and-library)
@@ -13,6 +14,24 @@ detailed controls, provider limitations, upgrades and source setup.
 - [Updates, privacy and uninstall](#updates-privacy-and-uninstall)
 - [Source and offline setup](#source-and-tests)
 - [Community playlist reward](#community-playlist-reward)
+
+## Desktop and local network access
+
+Launch RaveLink Core to open the desktop workspace. The same UI stays available
+at http://127.0.0.1:5050/ in your usual browser. Use **RaveLink > Open in browser**
+to open it there. The window supports Reload, Back/Forward and F11 full screen.
+Closing the window keeps Core in the tray; **RaveLink > Exit** stops it.
+
+Select **LAN** in the header to enable **Allow full controls on my private
+network**. Save, then open one of the listed addresses on another device on the
+same Wi-Fi or Ethernet network. Everyone on that private network who has the
+address can use the controls. Changes reach the same Core instance and fixtures;
+this does not replace localhost or the desktop app. If Windows asks, allow Private
+network access. Disable sharing in the same dialog to close LAN connections.
+
+Provider sign-ins requiring localhost callbacks must be completed on the Core PC.
+The desktop viewer uses Microsoft Edge WebView2. If unavailable, its startup
+screen links to installation and offers **Open in browser**.
 
 ## Dashboard
 
@@ -64,13 +83,20 @@ must be released there before RaveLink can start its stream. Older saved fixture
 without a bridge ID resolve the bridge identity before HTTPS requests; certificate
 chain and bridge-name verification stay enabled.
 
-## Music-to-Light: Main and Library
+## Music-to-Light
 
-The **Main** tab brings playback, Auto-Rave, looks, intensity, brightness movement,
-color movement, smoothing, source order and light selection together. **Keep this
-look** bookmarks the exact running combination. **Library** holds editable songs,
-saved effects and optional viewer approvals; Advanced and Setup retain detailed
-tuning and calibration.
+**Play** holds looks, palettes, intensity, choreography and the preview. Choose
+**Smart random** for a compatible composition at each start. Open **Movement &
+random rules** to pin a choice or limit the random pool; color, movement and pace
+are selected together. Travelling groups use distinct positions and one audio
+role, and slow transport excludes movements it cannot display clearly. **Keep
+this look** saves the actual running composition, including assigned palettes.
+
+**Automation** holds Auto-Rave, saved songs and looks, viewer approvals and Rave
+timing. Enable Rave effects there before turning on song automation.
+**Audio & lights** is the single place for source order, capture/output access,
+fixture jobs, calibration and brightness limits. Calibration also has a shortcut
+beside the preview. Detailed rendering controls and diagnostics are collapsed.
 
 Save any song by artist/title or a supported track link. Each song can be enabled
 or disabled, assigned a saved effect and given an intensity override. Auto-Rave
@@ -97,14 +123,14 @@ The dashboard shows connection setup separately from waiting for audio.
 to start Rave** toggle and readiness check. Viewers redeem the connected Change
 my lights Channel Points reward with `rave` as input; `rave stop` ends it.
 Dynamic commands must be enabled and routed to music lights. The panel links to
-Music-to-Light Setup for audio access and sources; enabling Rave alone does not
+Music-to-Light > Audio & lights for audio access and sources; enabling Rave alone does not
 grant capture or start lights. Song/look submissions keep their Library policy. Viewer-triggered
 Rave also applies the operator's selected dim, off and steady background scene
 fixtures, even when they are outside the dynamic-command route. Extra reactive
 lights remain excluded. Background scene roles cannot be promoted by a saved
 look; Stop restores them with the rest of the session.
 
-Main's **Color selection** offers **Random contrasting colors**: a fresh palette
+Play's **Colors** offers **Fresh each start**: a fresh palette
 of 3-7 colors at activation, with pairwise color separation, bounded lightness
 and chroma, and both warm and cool stops. The draw stays locked during playback;
 your custom colors remain saved. Keep this look saves the actual generated
@@ -117,7 +143,7 @@ Overall lights follow the smoothed raw band balance. It uses the selected
 palette; when a custom palette lacks a family, it uses the nearest available
 color. Brightness and audio timing retain their existing behavior.
 
-Main's **Out of sync** slider adds visual contrast to all reactive lights or a
+Play's **Color temperature & separation** opens the **Out of sync** slider for all reactive lights or a
 selected subset, without delaying audio. At low percentages it separates colors
 within the current palette. Above 35% it gradually introduces mild frequency
 emphasis; above 65% it adds contrasting accents on the same measured attacks.
@@ -125,7 +151,7 @@ emphasis; above 65% it adds contrasting accents on the same measured attacks.
 capture restart and are remembered with fixture settings and saved looks.
 Dim, steady and off fixtures are excluded; brightness limits still apply.
 
-Main's **Loudness foundation, pulse accents** brightness mode keeps sustained
+Play's **Response & brightness > Loudness + Pulse accents** mode keeps sustained
 brightness tied to musical loudness. Quiet passages fade down; missing drum
 attacks do not dim a loud sustained passage. Color movement continues to follow
 measured spectral attacks. **Pulse accents** sets ordinary pulse depth (10% by
@@ -138,8 +164,7 @@ output envelope. Expressive Mix uses this balance; full effect brightness and
 steady brightness remain selectable. Steady level deliberately holds a fixed
 brightness and suppresses brightness pulses and spatial dimming. Brightness-mode
 changes apply immediately during locked recipes, without redrawing their colors. The loudness
-foundation retains measured drum accents in Pulse, Band conversation and Swell
-wash; it never removes them merely because another scenario was drawn.
+foundation retains measured drum accents with Pulse and its spatial movements.
 Expressive palette travel and cycling follow measured audio energy, novelty and
 onsets while preserving role offsets and the selected palette.
 
@@ -169,7 +194,7 @@ Lights workspaces support keyboard navigation with Left/Right, Home and End. Mus
 - **Active fullscreen / borderless app** selects its source once when capture starts. Alt+Tab and minimization keep capture pinned to that app; use Stop and Start to select another app. An app that mutes its own background audio will still produce silence.
 - Existing song requests, playlist transfers, chat commands and OBS overlays remain available through optional packages.
 
-**Updating from 0.7.1d or earlier:** use the 0.7.4b installer, or stop Core and extract the complete portable archive into your installation folder. Earlier built-in updaters do not copy the new Music-to-Light components. Keep your local data, restart Core and refresh the dashboard. Check **Packages** for Song Request and Twitch Integration updates. The capture helper, Node runtime and production dependencies are bundled; end users do not need Rust or Node installed.
+**Updating from 0.7.1d or earlier:** use the 0.7.5 installer, or stop Core and extract the complete portable archive into your installation folder. Earlier built-in updaters do not copy the new Music-to-Light components. Keep your local data, restart Core and refresh the dashboard. Check **Packages** for Song Request and Twitch Integration updates. The capture helper, Node runtime and production dependencies are bundled; end users do not need Rust or Node installed.
 
 Music-to-Light process capture requires a supported Windows build (build 20348 or later; Windows 11 recommended). Protected content may be unavailable. Application capture includes its process tree; browser capture does not promise isolation of one tab. TIDAL capture and Hue/WiZ output have had limited hardware validation; automated coverage uses synthetic signals and fixtures. Compatible Govee LAN fixtures participate in Music-to-Light, Rave, chat effects and profiles using whole-light controls. Model and firmware determine white-temperature support and response speed. Stop restores reported power, brightness and RGB/white state; Govee app animations, DreamView and segments are not reported or recreated by the LAN API. Govee integration coverage uses simulated UDP fixtures; physical model compatibility is not certified by these tests.
 
@@ -223,6 +248,23 @@ Core binds to loopback by default. Credentials, grants, playlists, exports, tab 
 
 Uninstall through Windows **Installed apps** or the Start menu; the uninstaller stops the tray host first.
 
+### Optional YouTube Music browser connection
+
+Song Request 0.45.5 offers **YouTube Music browser extension** in YouTube Setup.
+Embedded YouTube remains available. Open the extension folder from Setup, visit
+Firefox's `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**
+and select its `manifest.json`. Open YouTube Music and start a song once, then
+choose **Connect YouTube Music** in Core and select your music tab. Firefox needs
+the temporary add-on loaded again after a browser restart. Chromium folder access
+is under **Advanced / other browsers**; there is no signed store extension yet.
+
+Upcoming requests are inserted after the current song while preserving personal
+queue entries. Native rewards are fulfilled only after observed playback.
+Unconfirmed insertions are held for review rather than retried automatically.
+Check the queue before confirming a missing request or clearing a held record.
+Keep the local connection link private. Provider account, region, advertising and
+subscription restrictions still apply. Wider live-client validation is still needed.
+
 ## Source and tests
 
 Published source includes runtime code, first-party feature sources, licenses and relevant regression tests. Private state, logs, experiments and working archives are excluded.
@@ -238,7 +280,7 @@ is needed. Setup copies only Node, production dependencies and the compiled audi
 capture helper from the official release ZIP; application code runs from this
 source folder. The exact archive and checksum are recorded in
 [`scripts/source-runtime.json`](../scripts/source-runtime.json), currently
-`RaveLink-Core-Windows-v0.7.4b.zip`.
+`RaveLink-Core-Windows-v0.7.5.zip`.
 
 Internet is needed for the initial runtime download and installing optional
 packages. For offline source setup, download that exact standard ZIP on a
@@ -246,7 +288,7 @@ connected PC, copy it to the new PC, then run the following command from the
 source folder (adjust the download path):
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-source.ps1 -ReleaseArchive "C:\Downloads\RaveLink-Core-Windows-v0.7.4b.zip"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-source.ps1 -ReleaseArchive "C:\Downloads\RaveLink-Core-Windows-v0.7.5.zip"
 ```
 
 The self-contained ZIP is a separate ready-to-run download; it is not the archive

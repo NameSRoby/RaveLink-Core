@@ -103,6 +103,8 @@ pub fn run(source: Source, seconds: u32, generation: String) -> Result<(), Failu
     let began = Instant::now();
     let mut last_sample = None;
     let mut last_status = Instant::now();
+    let mut volume_at = Instant::now();
+    let mut volume = super::volume::read(&source).ok();
     let mut analyzer = Levels::new();
     let mut clock = SampleClock::new();
     let mut packets = 0_u64;
@@ -176,6 +178,10 @@ pub fn run(source: Source, seconds: u32, generation: String) -> Result<(), Failu
             frames += count as u64;
             last_sample = Some(Instant::now());
             drop(packet); // Always release driver memory before stdout work.
+            if volume_at.elapsed() >= Duration::from_millis(250) {
+                volume = super::volume::read(&source).ok();
+                volume_at = Instant::now();
+            }
             for level in levels {
                 let qpc_end = if timestamp_valid {
                     Some(
@@ -187,7 +193,7 @@ pub fn run(source: Source, seconds: u32, generation: String) -> Result<(), Failu
                     None
                 };
                 emit(
-                    json!({"v":2,"type":"level","generation":generation,"sample_rate":RATE,"level":level,"qpc_end_100ns":qpc_end,"discontinuities":discontinuities}),
+                    json!({"v":2,"type":"level","generation":generation,"sample_rate":RATE,"level":level,"qpc_end_100ns":qpc_end,"discontinuities":discontinuities,"volume":volume}),
                 )?;
             }
         }

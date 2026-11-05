@@ -26,7 +26,7 @@ $availablePath = Join-Path $updateRoot "available-rollback.json"
 $logPath = Join-Path $updateRoot "update.log"
 $managedDirectories = @("src", "public", "assets", "packages", "integrations", "node_modules", "scripts", "feature-packages", "optional-components")
 $managedFiles = @("package.json", "package-lock.json", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "RELEASE_BUILD.json", "RaveLink-Core.exe")
-$managedRuntimeFiles = @("RaveLink-Core-Node.exe", "NODE-LICENSE.txt", "music-to-light\cargo\release\ravelink-audio-probe.exe")
+$managedRuntimeFiles = @("RaveLink-Core-Node.exe", "NODE-LICENSE.txt", "music-to-light\cargo\release\ravelink-audio-probe.exe", "desktop\Microsoft.Web.WebView2.Core.dll", "desktop\Microsoft.Web.WebView2.WinForms.dll", "desktop\WebView2Loader.dll", "desktop\LICENSE.WebView2.txt")
 
 function Write-UpdateLog([string]$Value) {
   New-Item -ItemType Directory -Force -Path $updateRoot | Out-Null

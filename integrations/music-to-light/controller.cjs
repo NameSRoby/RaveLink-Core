@@ -343,6 +343,7 @@ module.exports = function createMusicController({
       output: {
         ownership: output.ownership,
         prepare: output.prepare,
+        planFixtures: output.planFixtures,
         stopTransport: output.stopTransport,
         fixtures,
         kind: "effect",
@@ -451,6 +452,7 @@ module.exports = function createMusicController({
             ownership: output.ownership,
             fixtures,
             prepare: output.prepare,
+            planFixtures: output.planFixtures,
             stopTransport: output.stopTransport,
           }
         : null,
@@ -544,6 +546,9 @@ module.exports = function createMusicController({
       );
       const ctx = context,
         samples = [];
+      let calibrationVolume = null,
+        volumeChanged = false,
+        volumeObserved = false;
       const measure = (e) => {
         if (
           e.type === "level" &&
@@ -551,8 +556,15 @@ module.exports = function createMusicController({
           !e.freshness.stale &&
           e.invalidSamples === 0 &&
           e.rms > 0
-        )
+        ) {
           samples.push(20 * Math.log10(e.rms));
+          if (!volumeObserved) {
+            calibrationVolume = e.volume ?? null;
+            volumeObserved = true;
+          } else if (JSON.stringify(calibrationVolume) !== JSON.stringify(e.volume ?? null)) {
+            volumeChanged = true;
+          }
+        }
       };
       ctx.probe.events.on("update", measure);
       let result;
@@ -571,7 +583,13 @@ module.exports = function createMusicController({
         throw fault("music_calibration_superseded");
       if (result.reason !== "capture_ended")
         throw fault(result.reason || "music_calibration_failed");
-      return client.configure({ ...design, ...require("./calibration.cjs")(samples, headroomDb) });
+      if (volumeChanged) throw fault("music_calibration_volume_changed");
+      if (calibrationVolume?.muted) throw fault("music_calibration_too_quiet");
+      return client.configure({
+        ...design,
+        ...require("./calibration.cjs")(samples, headroomDb),
+        calibrationVolume,
+      });
     },
     start,
     stop: () => {
@@ -581,6 +599,13 @@ module.exports = function createMusicController({
     configure(input) {
       enabled();
       const next = validateSettings(input);
+      const revokingLayer = [
+        "attacksEnabled",
+        "spatialEnabled",
+        "colorEnabled",
+        "balanceEnabled",
+      ].some((id) => design.behaviors[id] && !next.behaviors[id]);
+      if (!revokingLayer) require("./recipe-compatibility.cjs").validate(next);
       const overlay =
         raveContext && next.raveEnabled
           ? validateSettings({
@@ -692,6 +717,8 @@ module.exports = function createMusicController({
                   sceneBrightness = 10,
                   colorSlot = 0,
                   outOfSync = 0,
+                  assignedEffect,
+                  assignedPalette,
                 }) => ({
                   id,
                   role,
@@ -700,6 +727,8 @@ module.exports = function createMusicController({
                   sceneBrightness,
                   colorSlot,
                   outOfSync,
+                  ...(assignedEffect ? { assignedEffect } : {}),
+                  ...(assignedPalette ? { assignedPalette: [...assignedPalette] } : {}),
                 }),
               ) || [],
           }

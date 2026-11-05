@@ -5,11 +5,16 @@
  */
 // A desktop handoff confirms queue insertion, not playback. Announce only when
 // the companion identifies that exact request as the current native occurrence.
-module.exports = function createDesktopChatResponses({ context, send, started = async () => {} }) {
+module.exports = function createDesktopChatResponses({
+  context,
+  send,
+  started = async () => {},
+  youtubeBrowserSelected = async () => false,
+}) {
   const key = "desktop-chat-state-v1",
     entries = new Map();
   let checking = false;
-  const supported = (entry) => ["tidal", "spotify"].includes(entry?.candidate?.provider);
+  const supported = (entry) => ["tidal", "spotify", "youtube"].includes(entry?.candidate?.provider);
   const store = async () => {
     try {
       await context.callCapability(
@@ -40,6 +45,7 @@ module.exports = function createDesktopChatResponses({ context, send, started = 
     } catch {}
   }
   async function record(entry) {
+    if (entry?.candidate?.provider === "youtube" && !(await youtubeBrowserSelected())) return;
     if (!supported(entry) || !entry.chatNotify || entries.has(entry.id)) return;
     entries.set(entry.id, {
       id: entry.id,
@@ -56,19 +62,25 @@ module.exports = function createDesktopChatResponses({ context, send, started = 
   }
   async function observe(observation) {
     const provider = observation?.provider;
+    if (provider === "youtube" && !(await youtubeBrowserSelected())) return;
     if (
       checking ||
       observation?.available === false ||
       observation?.status !== "playing" ||
-      ![...entries.values()].some(
-        (entry) => !entry.announced && entry.candidate.provider === provider,
-      )
+      (provider !== "youtube" &&
+        ![...entries.values()].some(
+          (entry) => !entry.announced && entry.candidate.provider === provider,
+        ))
     )
       return;
     checking = true;
     try {
       const capability =
-        provider === "tidal" ? "tidal.desktop.experimental.v1" : "spotify.desktop.host.v1";
+        provider === "tidal"
+          ? "tidal.desktop.experimental.v1"
+          : provider === "youtube"
+            ? "youtube.browser.host.v1"
+            : "spotify.desktop.host.v1";
       const status = await context.callCapability(capability, "status", null, {
         timeoutMs: 1000,
       });
@@ -77,6 +89,10 @@ module.exports = function createDesktopChatResponses({ context, send, started = 
       const receipt = (status.handoffs || []).find(
         (row) => row.phase === "playing" && row.uid && row.uid === current.uid,
       );
+      if (provider === "youtube") {
+        if (!receipt?.entryId || receipt.entryId !== current.entryId) return;
+        await started({ id: receipt.entryId });
+      }
       const entry = entries.get(current.entryId || receipt?.entryId);
       if (!entry || entry.announced || entry.candidate.provider !== provider) return;
       await started(entry);

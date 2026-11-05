@@ -73,11 +73,11 @@ test("the complete recipe exists before audio and survives loudness, onsets, gap
 test("draw odds depend only on operator weights", () => {
   assert.deepEqual(
     chances(weights()).map((r) => r.chance),
-    [1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6],
+    [1 / 4, 1 / 4, 1 / 4, 1 / 4],
   );
   assert.deepEqual(
-    chances(weights({ wash: 0, pulse: 3, bands: 1, wave: 0 })).map((r) => r.chance),
-    [0, 0.75, 0.25, 0, 0, 0],
+    chances(weights({ pulse: 2, wave: 4, bounce: 1, handoff: 3 })).map((r) => r.chance),
+    [0.2, 0.4, 0.1, 0.3],
   );
 });
 test("random layer combinations are stable, respect hard blocks and keep the defining mechanism", () => {
@@ -106,7 +106,7 @@ test("random layer combinations are stable, respect hard blocks and keep the def
   assert.deepEqual(m.inspect(3980).scenario.layers, selected.layers);
   assert.equal(calls, 6);
 });
-test("a band scenario distributes ordinary all-role fixtures across frequency bands", () => {
+test("legacy band-only scenario weights migrate to Pulse without reviving removed choices", () => {
   const m = createMapper({
     scenarioMode: "random",
     scenarioWeights: { wash: 0, pulse: 0, wave: 0, bands: 1 },
@@ -116,8 +116,10 @@ test("a band scenario distributes ordinary all-role fixtures across frequency ba
   for (let i = 1; i <= 100; i++) m.update(event(i), i * 20);
   const low = m.render(2000, { role: "all", position: 0 }),
     high = m.render(2000, { role: "all", position: 1 });
-  assert.notDeepEqual(low.rgb, high.rgb);
-  assert.notEqual(low.brightness, high.brightness);
+  assert.equal(m.preset(), "pulse");
+  assert.equal(m.inspect(2000).scenario.id, "pulse");
+  assert.ok(m.inspect(2000).scenario.candidates.every((c) => !["wash", "bands"].includes(c.id)));
+  assert.deepEqual(low, high);
 });
 test("energy colors use the supplied palette independently of brightness and fixed roles retain assigned colors", () => {
   const m = createMapper({

@@ -34,7 +34,9 @@ module.exports = function registerMusicToLightRoutes(app, { host }) {
     res.json({
       ok: true,
       value: {
-        revision: 23,
+        revision: 27,
+        compositionRules: require("../../../integrations/music-to-light/recipe-compatibility.cjs")
+          .combinations,
         recipeAxes: require("../../../integrations/music-to-light/recipe.cjs").axes,
         looks: require("../../../integrations/music-to-light/looks.cjs"),
         behaviors: require("../../../integrations/music-to-light/behavior-settings.cjs").catalog,

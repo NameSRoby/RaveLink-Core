@@ -6,7 +6,7 @@ const { weights } = require("./scenarios.cjs");
 const recipe = require("./recipe.cjs");
 const DEFAULT = Object.freeze({
   version: 1,
-  preset: "ambient",
+  preset: "pulse",
   intensity: 0.6,
   outputHz: 4,
   outputRateMode: "fixed",
@@ -23,6 +23,8 @@ const DEFAULT = Object.freeze({
   maximumBrightness: 35,
   floorDb: -42,
   ceilingDb: -18,
+  autoAudioFollow: false,
+  calibrationVolume: null,
   behaviors: Object.freeze(behaviors()),
   scenarioMode: "manual",
   scenarioWeights: Object.freeze(weights()),
@@ -50,22 +52,26 @@ function settings(input = {}) {
   )
     throw fault("invalid_music_settings");
   const value = { ...DEFAULT, ...input };
+  const legacy = require("./legacy-response.cjs");
+  value.preset = legacy.preset(value.preset);
+  value.raveScenario = legacy.effect(value.raveScenario);
   const choice = (key, choices) => choices.includes(value[key]);
   const range = (key, min, max) =>
     Number.isFinite(value[key]) && value[key] >= min && value[key] <= max;
   if (
     value.version !== 1 ||
-    !choice("preset", ["ambient", "pulse", "bands"]) ||
+    !choice("preset", ["pulse"]) ||
     !choice("interpretation", ["musical", "literal"]) ||
     !choice("arrangement", ["unified", "roles", "spatial"]) ||
     typeof value.feel !== "string" ||
     !Object.hasOwn(FEELS, value.feel) ||
     !choice("colorMode", ["fixed", "travel", "onsets", "roles", "energy"]) ||
     typeof value.warmCoolColors !== "boolean" ||
+    typeof value.autoAudioFollow !== "boolean" ||
     !choice("raveColorPlan", ["configured", "frequency", "energy"]) ||
     !choice("scenarioMode", ["manual", "random"]) ||
     !choice("raveDurationMode", ["song", "dynamic", "separate"]) ||
-    !choice("raveScenario", ["random", "wash", "pulse", "bands", "wave", "bounce", "handoff"]) ||
+    !choice("raveScenario", ["random", "pulse", "wave", "bounce", "handoff"]) ||
     !choice("layerMode", ["fixed", "random"]) ||
     !choice("raveLayerMode", ["fixed", "random"]) ||
     typeof value.raveEnabled !== "boolean" ||
@@ -88,6 +94,8 @@ function settings(input = {}) {
   )
     throw fault("invalid_music_settings");
   value.behaviors = behaviors(value.behaviors);
+  if (value.calibrationVolume !== null)
+    value.calibrationVolume = require("./volume-follow.cjs").validate(value.calibrationVolume);
   value.recipeOptions = recipe.options(value.recipeOptions);
   value.parameterRanges = recipe.ranges(value.parameterRanges);
   value.scenarioWeights = weights(value.scenarioWeights);

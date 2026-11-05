@@ -50,7 +50,14 @@ test("overlay designer presets, profiles, undo and shared app colors work throug
     fs.rmSync(root, { recursive: true, force: true });
   });
   const base = "http://127.0.0.1:" + server.address().port;
+  let lastOperatorCall = 0;
   async function call(method, payload = {}, capability = "song.overlay.admin.v1") {
+    // These direct HTTP calls bypass Playwright's slowMo. Pace the bulk preset
+    // loop too: each edit fans out to three surfaces under the real IPC budget.
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.max(0, 150 - (Date.now() - lastOperatorCall))),
+    );
+    lastOperatorCall = Date.now();
     const r = await fetch(base + "/api/features/song-request/call", {
       method: "POST",
       headers: { "content-type": "application/json" },

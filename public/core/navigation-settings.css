@@ -6,6 +6,27 @@
 .navigationHidden {
   display: none !important;
 }
+.networkSharing {
+  width: min(590px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  padding: 24px;
+}
+.networkSharing::backdrop {
+  background: #000a;
+}
+.networkSharing p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+.networkSharing a {
+  color: var(--text);
+  word-break: break-all;
+}
 #navigationSettings {
   width: min(590px, 94vw);
   max-height: 90vh;

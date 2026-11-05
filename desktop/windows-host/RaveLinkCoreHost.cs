@@ -17,9 +17,9 @@ using Microsoft.Win32;
 [assembly: System.Reflection.AssemblyDescription("RaveLink Core Windows runtime host")]
 [assembly: System.Reflection.AssemblyCompany("NameSRoby")]
 [assembly: System.Reflection.AssemblyProduct("RaveLink Core")]
-[assembly: System.Reflection.AssemblyVersion("0.7.4.2")]
-[assembly: System.Reflection.AssemblyFileVersion("0.7.4.2")]
-[assembly: System.Reflection.AssemblyInformationalVersion("0.7.4b")]
+[assembly: System.Reflection.AssemblyVersion("0.7.5.0")]
+[assembly: System.Reflection.AssemblyFileVersion("0.7.5.0")]
+[assembly: System.Reflection.AssemblyInformationalVersion("0.7.5")]
 
 namespace RaveLink.Core.WindowsHost
 {
@@ -37,6 +37,7 @@ namespace RaveLink.Core.WindowsHost
         [STAThread]
         private static void Main(string[] args)
         {
+            AppDomain.CurrentDomain.AssemblyResolve += DesktopPolicy.ResolveDependency;
             if (HasArgument(args, "--stop"))
             {
                 SignalHostEvent(ExitEventName);
@@ -104,8 +105,7 @@ namespace RaveLink.Core.WindowsHost
         private bool stopping;
         private bool restarting;
         private CancellationTokenSource startupCancellation = new CancellationTokenSource();
-        private readonly Form launcher;
-        private readonly Label launcherStatus;
+        private readonly DashboardWindow launcher;
         private readonly EventWaitHandle openSignal;
         private readonly RegisteredWaitHandle openWait;
 
@@ -124,7 +124,7 @@ namespace RaveLink.Core.WindowsHost
                 uiContext.Post(async delegate { await ExitAsync(); }, null);
             }, null, Timeout.Infinite, false);
             statusItem = new ToolStripMenuItem("Starting...") { Enabled = false };
-            var openItem = new ToolStripMenuItem("Open dashboard / status", null, async delegate { await OpenOrExplainAsync(); });
+            var openItem = new ToolStripMenuItem("Open RaveLink", null, async delegate { await OpenOrExplainAsync(); });
             var restartItem = new ToolStripMenuItem("Restart server", null, async delegate { await RestartAsync(); });
             var exitItem = new ToolStripMenuItem("Exit RaveLink Core", null, async delegate { await ExitAsync(); });
             var menu = new ContextMenuStrip();
@@ -143,18 +143,7 @@ namespace RaveLink.Core.WindowsHost
                 ContextMenuStrip = menu,
                 Visible = true
             };
-            launcher = new Form { Text = "RaveLink Core", ClientSize = new Size(580, 240), StartPosition = FormStartPosition.CenterScreen, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, Icon = applicationIcon };
-            launcherStatus = new Label { Text = "Starting RaveLink Core...", Left = 20, Top = 20, Width = 540, Height = 66 };
-            var address = new TextBox { Text = ServerControl.DashboardUrl(ServerControl.Port()), ReadOnly = true, Left = 20, Top = 96, Width = 540 };
-            var openButton = new Button { Text = "Open dashboard", Left = 20, Top = 136, Width = 160, Height = 32 };
-            openButton.Click += async delegate { await OpenOrExplainAsync(); };
-            var restartButton = new Button { Text = "Restart server", Left = 190, Top = 136, Width = 150, Height = 32 };
-            restartButton.Click += async delegate { await RestartAsync(); };
-            var logButton = new Button { Text = "Startup log", Left = 350, Top = 136, Width = 100, Height = 32 };
-            logButton.Click += delegate { OpenLog(); };
-            var exitButton = new Button { Text = "Exit", Left = 460, Top = 136, Width = 100, Height = 32 };
-            exitButton.Click += async delegate { await ExitAsync(); };
-            launcher.Controls.AddRange(new Control[] { launcherStatus, address, openButton, restartButton, logButton, exitButton, new Label { Text = "You can reopen this window from the tray. Copy the address above if your browser does not open.", Left = 20, Top = 185, Width = 540, Height = 40 } });
+            launcher = new DashboardWindow(root, ServerControl.Port(), applicationIcon, RestartAsync, OpenLog, ExitAsync);
             launcher.FormClosing += delegate(object sender, FormClosingEventArgs e) { if (!exiting) { e.Cancel = true; launcher.Hide(); } };
             if (!background) launcher.Show();
             restartSignal = new EventWaitHandle(false, EventResetMode.AutoReset, Program.Scoped(Program.RestartEventName));
@@ -261,6 +250,7 @@ namespace RaveLink.Core.WindowsHost
         {
             if (exiting || restarting) return;
             restarting = true;
+            SetStatus("Restarting Core...", ToolTipIcon.Info);
             startupCancellation.Cancel();
             await lifecycle.WaitAsync();
             try { await StopServerAsync(); openedDashboard = false; }
@@ -326,8 +316,8 @@ namespace RaveLink.Core.WindowsHost
         private async Task OpenOrExplainAsync()
         {
             if (exiting) return;
-            launcher.Show(); launcher.WindowState = FormWindowState.Normal; launcher.Activate();
-            if (await ServerControl.IsHealthyAsync(ServerControl.Port())) ServerControl.OpenDashboard(ServerControl.Port());
+            launcher.Reveal();
+            if (await ServerControl.IsHealthyAsync(ServerControl.Port())) await launcher.OpenDashboardAsync();
             else if (!restarting) SetStatus("Dashboard unavailable while the server is starting or stopped. Check the startup log or restart.", ToolTipIcon.Warning);
         }
 
@@ -430,12 +420,14 @@ namespace RaveLink.Core.WindowsHost
         {
             if (openedDashboard || background) return;
             openedDashboard = true;
-            ServerControl.OpenDashboard(port);
+            ObserveDashboard(launcher.OpenDashboardAsync());
         }
+
+        private static async void ObserveDashboard(Task pending) { try { await pending; } catch { } }
 
         private void SetStatus(string value, ToolTipIcon icon)
         {
-            launcherStatus.Text = value;
+            launcher.SetServerStatus(value, value == "Server online");
             if (icon == ToolTipIcon.Error && !background) { launcher.Show(); launcher.Activate(); }
             statusItem.Text = value.Length > 90 ? value.Substring(0, 90) : value;
             tray.Text = value.Length > 63 ? value.Substring(0, 63) : value;

@@ -1,0 +1,111 @@
+:root {
+  color-scheme: dark;
+  font: 15px/1.5 system-ui;
+  background: #080b12;
+  color: #e7eaf3;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 880px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+h1 {
+  font-size: 30px;
+  margin-top: 0;
+}
+h2 {
+  font-size: 19px;
+}
+h3 {
+  font-size: 24px;
+  margin-bottom: 0;
+}
+p,
+footer {
+  color: #b0bed7;
+}
+.eyebrow {
+  color: #f1557a;
+  letter-spacing: 2px;
+  font-size: 12px;
+}
+section {
+  border: 1px solid #293450;
+  border-radius: 12px;
+  padding: 22px;
+  margin: 20px 0;
+  background: #0e1422;
+}
+button,
+input {
+  font: inherit;
+  border: 1px solid #374563;
+  border-radius: 6px;
+  padding: 9px;
+  color: inherit;
+  background: #182136;
+}
+button {
+  cursor: pointer;
+}
+button:hover {
+  border-color: #e44770;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.pair,
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+.pair label {
+  flex: 1;
+}
+.pair input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+#port,
+#volume {
+  width: 76px;
+}
+#code {
+  min-width: 260px;
+}
+#result {
+  min-height: 24px;
+}
+li {
+  margin: 8px 0;
+}
+
+#pairingTabs label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #303c56;
+  border-radius: 8px;
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+#pairingTabs input[type="radio"] {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  accent-color: #e44770;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid #e44770;
+  outline-offset: 3px;
+}

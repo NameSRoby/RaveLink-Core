@@ -6,6 +6,7 @@ mod capture;
 mod fullscreen;
 mod input;
 mod sources;
+mod volume;
 
 use crate::{cli::Command, emit, Failure};
 use serde_json::json;

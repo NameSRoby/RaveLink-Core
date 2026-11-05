@@ -516,8 +516,9 @@ test("native tab browser flow previews and drives simulated lights at desktop an
   await page.waitForFunction(() => !document.getElementById("music-look").disabled);
   const catalog = await fetch(e.base + "/api/music-to-light/catalog").then((r) => r.json());
   assert.equal(await page.locator("#music-look option").count(), catalog.value.looks.length + 1);
-  assert.equal(await page.locator("#music-catalogPanel").isVisible(), false);
-  assert.equal(await page.locator("#music-tuning").evaluate((el) => el.open), false);
+  assert.equal(await page.locator("#music-catalogPanel").evaluate((el) => el.open), false);
+  assert.equal(await page.locator(".musicNavigation button").count(), 3);
+  assert.equal(await page.locator("#music-tuning").evaluate((el) => el.open), true);
   assert.equal(await page.locator("#music-lookCards").isVisible(), true);
   assert.equal(await page.locator("#music-palette").isVisible(), true);
 
@@ -551,8 +552,10 @@ test("native tab browser flow previews and drives simulated lights at desktop an
   }
   assert.equal(await page.locator("#music-palette button").first().isDisabled(), true);
   assert.equal(e.host.view().design.palette.length, 2);
+  await page.locator(".musicGroupsPanel > details > summary").click();
   await page.locator("#music-warmCoolColors").check();
   await waitFor(() => e.host.view().design.warmCoolColors);
+  await page.locator("#music-moreLooks > summary").click();
   await page.locator('[data-look="expressive-mix"]').click();
   await page.waitForFunction(
     () =>
@@ -571,13 +574,20 @@ test("native tab browser flow previews and drives simulated lights at desktop an
     fullPage: true,
   });
   const openWorkspace = async (name) =>
-    page.locator('.musicNavigation [data-music-view-target="' + name + '"]').click();
-  await openWorkspace("setup");
+    page
+      .locator(
+        '.musicNavigation [data-music-view-target="' +
+          (name === "customize" ? "play" : name) +
+          '"]',
+      )
+      .click();
+  await page.locator("[data-music-calibration-shortcut]").click();
   assert.equal(await page.locator("#music-lookCards").isVisible(), false);
-  await openWorkspace("setup");
   assert.equal(await page.locator("#music-source").isVisible(), true);
-  assert.equal(e.captures, 0);
-  await page.locator("#music-tuning > summary").click();
+  assert.equal(await page.locator("#music-calibrate").isVisible(), true);
+  assert.equal(e.captures, 0, "opening calibration never starts capture");
+  await page.locator("#music-autoAudioFollow").check();
+  await waitFor(() => e.host.view().design.autoAudioFollow);
   const previousLimit = e.host.view().design.maximumBrightness;
   assert.equal(await page.locator("#music-calibrationSeconds").inputValue(), "30");
   assert.equal(await page.locator("#music-calibrationHeadroom").inputValue(), "3");
@@ -603,26 +613,14 @@ test("native tab browser flow previews and drives simulated lights at desktop an
   assert.equal(e.host.view().status.permissions.capture, false);
   assert.equal(e.captures, 0, "choosing a composition grants no capture or fixture access");
   await openWorkspace("play");
-  await page.locator("#music-moreLooks > summary").click();
   await page.locator('[data-look="rave-mix"]').click();
   await page.waitForFunction(() => !document.getElementById("music-applyDesign").disabled);
-  assert.equal(e.host.view().design.scenarioMode, "random");
-  await openWorkspace("customize");
-  await page.locator('[data-music-preset="ambient"]').click();
-  await page.waitForFunction(() => !document.getElementById("music-applyDesign").disabled);
-  assert.equal(e.host.view().design.preset, "ambient");
-  assert.equal(e.host.view().design.scenarioMode, "manual");
-  assert.equal(e.host.view().design.layerMode, "fixed");
-  assert.ok(
-    Object.values(e.host.view().design.recipeOptions).every((o) => o.mode === "configured"),
+  assert.equal(e.host.view().design.recipeOptions.shape.mode, "random");
+  assert.equal(await page.locator("#music-preset option").count(), 1);
+  assert.equal(
+    await page.locator("#music-recipeAllow-effect-wash, #music-recipeAllow-effect-bands").count(),
+    0,
   );
-  assert.deepEqual(e.host.view().design.parameterRanges, {});
-  assert.equal(e.host.view().design.warmCoolColors, true);
-  await openWorkspace("customize");
-  await page.locator('[data-music-preset="bands"]').click();
-  await page.waitForFunction(() => !document.getElementById("music-applyDesign").disabled);
-  assert.equal(e.host.view().design.preset, "bands");
-  assert.equal(e.host.view().design.scenarioMode, "manual");
   await openWorkspace("play");
   await page.locator('[data-look="smooth-reference"]').click();
   await page.waitForFunction(() => !document.getElementById("music-applyDesign").disabled);
@@ -689,12 +687,9 @@ test("native tab browser flow previews and drives simulated lights at desktop an
   );
   await openWorkspace("setup");
   assert.equal(await page.locator("#music-source").inputValue(), "process:10:20");
-  await openWorkspace("customize");
-  await page.locator('[data-music-preset="pulse"]').click();
-  await page.waitForFunction(() =>
-    document.querySelector('[data-music-preset="pulse"]').classList.contains("active"),
-  );
-  assert.equal(e.host.view().design.colorMode, "onsets");
+  await openWorkspace("play");
+  await page.locator('[data-look="electric-pulse"]').click();
+  await page.waitForFunction(() => !document.getElementById("music-look").disabled);
   await openWorkspace("play");
   await page.locator("#music-preview").click();
   await page.waitForFunction(() =>
@@ -763,34 +758,22 @@ test("native tab browser flow previews and drives simulated lights at desktop an
     false,
     "a theatre route keeps an already-off fixture off during manual playback",
   );
-  await openWorkspace("customize");
-  await page.locator("#music-recipeEditor").evaluate((el) => {
-    el.open = true;
-  });
-  await openWorkspace("customize");
+  await openWorkspace("library");
+  await page.locator("#music-recipeEditor > summary").click();
   await page.locator("#music-raveEnabled").check();
-  await openWorkspace("customize");
+  await page.waitForFunction(() => !document.getElementById("music-raveDurationMode").disabled);
   await page.locator("#music-raveDurationMode").selectOption("separate");
   await page.waitForFunction(() => !document.getElementById("music-raveSeconds").disabled);
-  await openWorkspace("customize");
   await page.locator("#music-raveSeconds").fill("8");
-  await openWorkspace("customize");
   await page.locator("#music-raveSeconds").dispatchEvent("change");
-  await page.waitForFunction(() => !document.getElementById("music-raveScenario").disabled);
-  await openWorkspace("customize");
-  await page.locator("#music-raveScenario").selectOption("pulse");
-  await page.waitForFunction(() => !document.getElementById("music-raveLayerMode").disabled);
-  await openWorkspace("customize");
-  await page.locator("#music-raveLayerMode").selectOption("fixed");
   await page.waitForFunction(() => !document.getElementById("music-raveColorPlan").disabled);
-  await openWorkspace("customize");
   await page.locator("#music-raveColorPlan").selectOption("frequency");
-  await openWorkspace("customize");
-  await page.locator("#music-scenarioEditor").evaluate((el) => {
-    el.open = true;
+  await page.waitForFunction(() => !document.getElementById("music-raveColorPlan").disabled);
+  await e.call("music.styles.v1", "configure", {
+    ...e.host.view().design,
+    scenarioWeights: { pulse: 1, wave: 0, bounce: 0, handoff: 0 },
+    raveLayerMode: "fixed",
   });
-  await openWorkspace("customize");
-  for (const id of ["wash", "bands", "wave"]) await page.locator("#music-allow-" + id).uncheck();
   const captures = e.captures;
   await e.host.rave({ fixtureIds: ["music-bulb"], seconds: 5 });
   assert.equal(e.host.view().status.duration.mode, "separate");
@@ -798,6 +781,22 @@ test("native tab browser flow previews and drives simulated lights at desktop an
   await e.pump();
   await page.waitForFunction(() =>
     document.getElementById("music-pipelineTitle").textContent.includes("Attack pulse"),
+  );
+  await page.waitForFunction(
+    () => document.getElementById("music-assignmentDetails").children.length > 0,
+  );
+  await page.evaluate(() => {
+    globalThis.assignmentBeforePoll = document.getElementById("music-assignmentDetails").firstChild;
+  });
+  await page.waitForTimeout(1100);
+  assert.equal(
+    await page.evaluate(
+      () =>
+        globalThis.assignmentBeforePoll ===
+        document.getElementById("music-assignmentDetails").firstChild,
+    ),
+    true,
+    "unchanged assignment rows retain their DOM and hover state across pipeline polls",
   );
   assert.equal(
     e.captures,
@@ -809,6 +808,7 @@ test("native tab browser flow previews and drives simulated lights at desktop an
   await page.locator("#music-recipeEditor").evaluate((el) => {
     el.open = false;
   });
+  await page.locator("#music-catalogPanel > summary").click();
   await page
     .locator("#music-catalogPanel")
     .screenshot({ path: path.resolve(__dirname, "../runtime/music-scenario-controls.png") });
@@ -818,7 +818,10 @@ test("native tab browser flow previews and drives simulated lights at desktop an
     () => document.getElementById("music-active-colorEnabled").textContent === "Blocked",
   );
   await openWorkspace("customize");
-  await page.locator("#music-allow-pulse").uncheck();
+  await e.call("music.styles.v1", "configure", {
+    ...e.host.view().design,
+    scenarioWeights: { pulse: 0, wave: 0, bounce: 0, handoff: 0 },
+  });
   await waitFor(() => e.host.raveIds().length === 0);
   await e.pump();
   assert.equal(
@@ -974,7 +977,7 @@ test("song library routes reject foreign origins and Auto-Rave follows a song wi
   await e.host.songPolicy({ enabled: false });
 });
 
-test("Main dashboard edits sources, lights and settings; Library edits any song and reviews viewer submissions", async (t) => {
+test("Play edits coherent choices; Audio & lights owns setup; Automation edits songs and approvals", async (t) => {
   const { chromium } = require("playwright");
   if (!fs.existsSync(chromium.executablePath())) {
     t.skip("optional browser binary unavailable");
@@ -990,15 +993,45 @@ test("Main dashboard edits sources, lights and settings; Library edits any song 
   await page.goto(e.base + "/");
   await page.locator('[data-tab="lights"]').click();
   await page.locator('[data-light-tab="music"]').click();
-  await page.waitForFunction(() => document.getElementById("music-quickCeiling").value !== "");
+  await page.waitForFunction(() => !document.getElementById("music-fixtureRandomization").disabled);
+  const choose = async (id, value) =>
+    page.locator("#music-" + id + ' + div button[data-value="' + value + '"]').click();
   assert.equal(
-    await page.getByRole("button", { name: "Main", exact: true }).getAttribute("aria-pressed"),
+    await page.getByRole("button", { name: "Play", exact: true }).getAttribute("aria-pressed"),
     "true",
   );
-  await page.locator("#music-quickCeiling").fill("45");
-  await page.locator("#music-quickCeiling").press("Tab");
+  const colorsBeforeAssignments = e.host.view().design.palette;
+  await choose("fixtureRandomization", "coordinated");
+  await waitFor(() => e.host.view().design.recipeOptions.role?.mode === "random");
+  assert.equal(e.host.view().design.recipeOptions.task.mode, "configured");
+  await page.waitForFunction(() => !document.getElementById("music-fixtureRandomization").disabled);
+  await choose("fixtureRandomization", "mixed");
+  await waitFor(() => e.host.view().design.recipeOptions.effect?.mode === "random");
+  assert.deepEqual(e.host.view().design.palette, colorsBeforeAssignments);
+  assert.equal(e.captures, 0, "assignment edits never start capture");
+  await page.waitForFunction(() => !document.getElementById("music-paletteGrouping").disabled);
+  await choose("paletteGrouping", "effects");
+  await waitFor(() => e.host.view().design.recipeOptions.paletteScope?.value === "effects");
+  assert.equal(e.host.view().design.recipeOptions.effect.mode, "random");
+  assert.deepEqual(e.host.view().design.palette, colorsBeforeAssignments);
+  await page.waitForFunction(() => !document.getElementById("music-paletteGrouping").disabled);
+  await choose("paletteGrouping", "fixtures");
+  await waitFor(() => e.host.view().design.recipeOptions.paletteScope?.value === "fixtures");
+  await page.waitForFunction(() => !document.getElementById("music-paletteGrouping").disabled);
+  await choose("paletteGrouping", "shared");
+  await waitFor(() => e.host.view().design.recipeOptions.paletteScope?.value === "shared");
+  await page.waitForFunction(() => !document.getElementById("music-fixtureRandomization").disabled);
+  await choose("fixtureRandomization", "configured");
+  await waitFor(() => e.host.view().design.recipeOptions.effect?.mode === "configured");
+  await page.waitForFunction(() => !document.getElementById("music-fixtureRandomization").disabled);
+  await page.getByRole("button", { name: "Audio & lights", exact: true }).click();
+  await page.locator("#music-outputCeiling").fill("45");
+  await page.locator("#music-outputCeiling").dispatchEvent("input");
+  await page.locator("#music-outputCeiling").dispatchEvent("change");
   await waitFor(() => e.host.view().design.maximumBrightness === 45);
-  await page.locator("#music-quickBrightness").selectOption("loudness");
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await page.locator("#music-responseAdjustments > summary").click();
+  await choose("quickBrightness", "loudness");
   await waitFor(() => e.host.view().design.behaviors.loudnessBrightness);
   await page.waitForFunction(() => !document.getElementById("music-quickAccent").disabled);
   assert.equal(await page.locator("#music-quickAccent").isEnabled(), true);
@@ -1023,21 +1056,22 @@ test("Main dashboard edits sources, lights and settings; Library edits any song 
   });
   await waitFor(() => e.host.view().design.behaviors.bodyAttackMs === 80);
   assert.equal(e.host.view().design.behaviors.outputAttackMs, originalAttack);
-  await page.locator("#music-quickBrightness").selectOption("steady");
+  await choose("quickBrightness", "steady");
   await waitFor(() => e.host.view().design.behaviors.steadyBrightness);
-  await page.locator("#music-mainCapture").check();
+  await page.getByRole("button", { name: "Audio & lights", exact: true }).click();
+  await page.locator("#music-capturePermission").check();
   await waitFor(() => e.host.view().status.permissions.capture);
-  await page.locator("#music-mainFindApps").click();
-  await page
-    .locator('#music-mainSource option[value="process:10:20"]')
-    .waitFor({ state: "attached" });
-  await page.locator("#music-mainSource").selectOption("process:10:20");
-  await page.locator("#music-mainSaveSources").click();
+  await page.locator("#music-refreshSources").click();
+  await page.locator('#music-source option[value="process:10:20"]').waitFor({ state: "attached" });
+  await page.locator("#music-source").selectOption("process:10:20");
+  await page.locator("#music-selectSource").click();
   await waitFor(() => e.host.view().bindings.source?.id === "process:10:20");
-  await page.locator("#music-mainOutput").check();
-  await waitFor(() => e.host.view().status.permissions.output);
-  await page.locator("#music-mainLights button").click();
+  await page.locator("#music-outputPermission").check();
+  await page.locator('.musicFixture input[type="checkbox"]').check();
+  await page.locator("#music-saveFixtures").click();
   await waitFor(() => e.host.view().bindings.fixtures.length === 1);
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await page.locator(".musicGroupsPanel > details > summary").click();
   await page.waitForFunction(() => !document.getElementById("music-contrastAmount").disabled);
   await page.locator("#music-contrastAmount").evaluate((input) => {
     input.value = "40";
@@ -1060,17 +1094,24 @@ test("Main dashboard edits sources, lights and settings; Library edits any song 
   );
   await page.locator("#music-contrastScope").selectOption("all");
   const customColors = [...e.host.view().design.palette];
-  await page.locator("#music-paletteSource").selectOption("generated");
+  await choose("paletteSource", "generated");
   await waitFor(() => e.host.view().design.recipeOptions.palette?.allowed[0] === "generated");
   assert.deepEqual(e.host.view().design.palette, customColors);
   await page.locator("#music-palette").waitFor({ state: "hidden" });
+  await page.locator("#music-randomRules > summary").click();
+  await choose("recipeMode-color", "fixed");
+  await page.waitForFunction(() => !document.getElementById("music-recipePin-color").disabled);
+  await choose("recipePin-color", "energy");
+  await waitFor(() => e.host.view().design.recipeOptions.color?.value === "energy");
   await page.locator("#music-warmCoolColors").check();
   await waitFor(() => e.host.view().design.warmCoolColors);
-  await page.locator("#music-quickColor").selectOption("energy");
-  await waitFor(() => e.host.view().design.colorMode === "energy");
   assert.equal(e.host.view().design.warmCoolColors, true);
-  assert.equal(e.host.view().design.recipeOptions.color.mode, "configured");
+  assert.equal(e.host.view().design.recipeOptions.color.mode, "fixed");
   assert.equal(e.captures, 0);
+  await page.getByRole("button", { name: "Automation", exact: true }).click();
+  await page.locator("#music-recipeEditor > summary").click();
+  await page.locator("#music-raveEnabled").check();
+  await page.waitForFunction(() => !document.getElementById("music-autoRave").disabled);
   await page.locator("#music-autoRave").check();
   await waitFor(async () => (await e.host.library()).enabled);
   await page.locator("#music-autoRave").uncheck();
@@ -1079,7 +1120,7 @@ test("Main dashboard edits sources, lights and settings; Library edits any song 
     path: path.resolve(__dirname, "../runtime/music-main-dashboard.png"),
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Library", exact: true }).click();
+  await page.getByRole("button", { name: "Automation", exact: true }).click();
   await page.locator("#music-songTitle").fill("Any song");
   await page.locator("#music-songArtist").fill("Any artist");
   await page.locator("#music-songSubmit").click();
@@ -1111,14 +1152,14 @@ test("Main dashboard edits sources, lights and settings; Library edits any song 
   });
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-  await page.getByRole("button", { name: "Main", exact: true }).click();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.locator("#music-preview").click();
   await waitFor(() => e.captures === 1);
   await e.pump();
   const drawnColors = e.host.pipeline().effective.palette;
   assert(drawnColors.length >= 3 && drawnColors.length <= 7);
-  assert.equal(e.host.pipeline().effective.colorMode, "energy");
+  assert.equal(e.host.pipeline().recipe.color, "energy");
   assert.equal(e.host.pipeline().effective.warmCoolColors, true);
   await page.waitForFunction(
     () => document.getElementById("music-randomPalette").children.length >= 3,
@@ -1128,15 +1169,15 @@ test("Main dashboard edits sources, lights and settings; Library edits any song 
   await waitFor(() => e.host.effects().profiles.length === 1);
   assert.deepEqual(e.host.effects().profiles[0].artistic.palette, drawnColors);
   await page.locator("#music-stop").click();
-  await page.locator("#music-paletteSource").selectOption("custom");
+  await choose("paletteSource", "custom");
   await waitFor(() => e.host.view().design.recipeOptions.palette.mode === "configured");
   assert.deepEqual(e.host.view().design.palette, customColors);
-  await page.getByRole("button", { name: "Library", exact: true }).click();
+  await page.getByRole("button", { name: "Automation", exact: true }).click();
   await page.locator(".musicSavedManage > summary").click();
   await page.locator("#music-renameEffectName").fill("Kept from Main");
   await page.locator("#music-renameEffect").click();
   await waitFor(() => e.host.effects().profiles[0].name === "Kept from Main");
-  await page.getByRole("button", { name: "Main", exact: true }).click();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
   await page.screenshot({
     path: path.resolve(__dirname, "../runtime/music-main-dashboard-mobile.png"),
     fullPage: true,

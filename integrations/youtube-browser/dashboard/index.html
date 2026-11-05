@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>RaveLink YouTube Music prototype</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">RAVELINK CORE · EXPERIMENTAL</p>
+        <h1>YouTube Music companion</h1>
+        <p>Connect one YouTube Music browser tab. Playback stays in that tab.</p>
+      </header>
+      <section>
+        <h2>1. Pair your browser</h2>
+        <p>
+          Open YouTube Music in Firefox or a Chromium browser. Open the RaveLink extension there,
+          then enter this port and pairing code.
+        </p>
+        <div class="pair">
+          <label>Port<input id="port" readonly /></label
+          ><label>Pairing code<input id="code" type="password" readonly /></label
+          ><button id="reveal" type="button">Show code</button>
+        </div>
+        <p>
+          Keep the code private. Use Disconnect in the extension before selecting another tab or
+          browser.
+        </p>
+      </section>
+      <section>
+        <h2>2. Check the connection</h2>
+        <p id="connection" role="status">Waiting for your browser…</p>
+        <p id="compatibility" role="status"></p>
+        <h3 id="song">No song observed</h3>
+        <p id="artist"></p>
+        <p id="time"></p>
+        <div id="controls">
+          <button data-action="pause">Pause</button><button data-action="resume">Resume</button
+          ><button data-action="skip">Next song</button
+          ><label>Volume <input id="volume" type="number" min="0" max="100" value="50" /></label
+          ><button id="set-volume" data-action="volume">Set volume</button>
+        </div>
+        <p id="result" role="status">
+          Manual controls affect your browser playback. No chat commands or requests are connected.
+        </p>
+      </section>
+      <section>
+        <h2>Observed queue</h2>
+        <p>
+          Internal queue entries are preferred; visible rows are a fallback. Autoplay
+          recommendations may be separate, so this is not a complete playback prediction.
+        </p>
+        <ol id="queue"></ol>
+      </section>
+      <footer>
+        Prototype only. Manual queue tests use the authenticated API. Automatic song requests and
+        playlist transfers are not connected.
+      </footer>
+    </main>
+    <script src="dashboard.js"></script>
+  </body>
+</html>

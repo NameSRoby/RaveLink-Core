@@ -192,13 +192,16 @@ function createYoutubeKeylessCatalogProvider(options = {}) {
     };
   }
 
-  async function validate(api, candidate, signal) {
+  async function validate(api, candidate, signal, playbackMode) {
     const info = await requestScope.run({ signal }, () =>
       api.getBasicInfo(candidate.id, { client: "ANDROID" }),
     );
     const basic = info?.basic_info || {};
     const playability = info?.playability_status || {};
-    if (playability.status !== "OK" || playability.embeddable === false)
+    if (
+      playability.status !== "OK" ||
+      (playbackMode !== "browser" && playability.embeddable === false)
+    )
       return { ok: false, reason: "not_embeddable" };
     return {
       ok: true,
@@ -316,7 +319,7 @@ function createYoutubeKeylessCatalogProvider(options = {}) {
           rejected,
         };
       for (const candidate of eligible.slice(0, MAX_VALIDATIONS)) {
-        const validated = await validate(api, candidate, input.signal);
+        const validated = await validate(api, candidate, input.signal, input.playbackMode);
         if (!validated.ok) {
           rejected[validated.reason] = (rejected[validated.reason] || 0) + 1;
           continue;

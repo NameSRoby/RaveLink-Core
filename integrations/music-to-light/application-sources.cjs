@@ -226,7 +226,7 @@ module.exports = function createApplicationSources({ native, known = [] } = {}) 
           resolution = { state: "ready", label: remembered.get(selected).source.label };
         } else root = resolveFrom(selected, data);
         resolution = { ...resolution, priority };
-        return { root, label: remembered.get(selected).source.label, priority };
+        return { root, selected, label: remembered.get(selected).source.label, priority };
       } catch (error) {
         // Only verified absence permits fallback. Ambiguity or failed catalog
         // verification must never silently broaden or change audio capture.
@@ -250,7 +250,21 @@ module.exports = function createApplicationSources({ native, known = [] } = {}) 
         child = native.capture(selected.root, options);
         current = { generation, label: selected.label, priority: selected.priority };
         child.events.on("update", (e) => {
-          if (!canceled) events.emit("update", { ...e, generation });
+          if (canceled) return;
+          let volume = e.volume;
+          if (volume && selected.selected.startsWith("app:")) {
+            // Keep a verified remembered app's reference across PID restarts,
+            // but fence it by the actual output route and fallback selection.
+            const route = volume.key.replace(/^process:\d+:\d+:/, "");
+            volume = {
+              ...volume,
+              key: crypto
+                .createHash("sha256")
+                .update(selected.selected + ":" + route)
+                .digest("hex"),
+            };
+          }
+          events.emit("update", { ...e, ...(volume ? { volume } : {}), generation });
         });
         return await child.done;
       } finally {

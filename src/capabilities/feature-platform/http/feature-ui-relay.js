@@ -17,6 +17,7 @@ module.exports = function installFeatureRelay(config) {
     "song.playlist.transfer.v1": 55000,
     "song.soundcloud.player.v1": 30000,
     "song.spotify.player.v1": 30000,
+    "song.youtube.browser.v1": 30000,
     "song.queue.submit.v1": 30000,
     "song.catalog.admin.v1": 30000,
     "song.tidal.experimental.v1": 30000,

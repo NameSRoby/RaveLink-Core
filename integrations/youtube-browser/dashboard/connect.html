@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="ravelink-browser-pairing" content="v1" />
+    <title>Connect YouTube Music to RaveLink</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">RAVELINK CORE</p>
+        <h1>Connect your music tab</h1>
+        <p>Choose the YouTube Music tab that will play your song requests.</p>
+      </header>
+      <section>
+        <p id="pairingStatus" role="status">
+          Waiting for the RaveLink companion. If it is not loaded yet, load the Firefox add-on shown
+          in RaveLink Setup, then choose Connect YouTube Music again in RaveLink.
+        </p>
+        <div id="pairingTabs"></div>
+        <button id="refreshMusicTabs" type="button">Find music tabs</button>
+        <button id="connectMusicTab" type="button" disabled>Connect selected tab</button>
+        <p id="pairingHelp">
+          No port or pairing code needs to be entered. Keep your music tab open after connecting.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

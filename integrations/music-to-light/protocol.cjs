@@ -194,6 +194,7 @@ function createProtocol({ generation, scope, seconds }) {
         discontinuities,
         qpcEnd100ns: event.qpc_end_100ns,
         analysis,
+        volume: event.volume == null ? null : require("./volume-follow.cjs").validate(event.volume),
       };
     }
     if (event.type === "ended") {

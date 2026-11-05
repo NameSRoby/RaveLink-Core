@@ -1936,6 +1936,9 @@
               },
               "player": {
                 "enum": ["youtube", "tidal", "soundcloud", "spotify"]
+              },
+              "youtubePlayback": {
+                "enum": ["embed", "browser"]
               }
             }
           }
@@ -1948,6 +1951,9 @@
             "properties": {
               "player": {
                 "enum": ["youtube", "tidal", "soundcloud", "spotify"]
+              },
+              "youtubePlayback": {
+                "enum": ["embed", "browser"]
               }
             }
           },
@@ -1960,6 +1966,9 @@
               },
               "player": {
                 "enum": ["youtube", "tidal", "soundcloud", "spotify"]
+              },
+              "youtubePlayback": {
+                "enum": ["embed", "browser"]
               }
             }
           }
@@ -2590,6 +2599,130 @@
               "message": {
                 "type": "string",
                 "maxLength": 450
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "capability": "song.youtube.browser.v1",
+      "methods": {
+        "status": {
+          "request": {
+            "type": ["object", "null"],
+            "additionalProperties": true,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok"],
+            "additionalProperties": true,
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "setup": {
+          "request": {
+            "type": ["object", "null"],
+            "additionalProperties": true,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok"],
+            "additionalProperties": true,
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "control": {
+          "request": {
+            "type": ["object", "null"],
+            "additionalProperties": true,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok"],
+            "additionalProperties": true,
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "review": {
+          "request": {
+            "type": ["object", "null"],
+            "additionalProperties": true,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok"],
+            "additionalProperties": true,
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "moderate": {
+          "request": {
+            "type": ["object", "null"],
+            "additionalProperties": true,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok"],
+            "additionalProperties": true,
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "flush": {
+          "request": {
+            "type": ["object", "null"],
+            "additionalProperties": true,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok"],
+            "additionalProperties": true,
+            "properties": {
+              "ok": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "monitor": {
+          "request": {
+            "type": ["object", "null"],
+            "additionalProperties": true,
+            "properties": {}
+          },
+          "response": {
+            "type": "object",
+            "required": ["ok"],
+            "additionalProperties": true,
+            "properties": {
+              "ok": {
+                "type": "boolean"
               }
             }
           }

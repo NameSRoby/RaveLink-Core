@@ -35,5 +35,5 @@ jobs:
         run: npm.cmd run verify:health
       - name: Run regression tests
         run: npm.cmd test
-      - name: Audit production dependencies
-        run: npm.cmd audit --omit=dev --audit-level=high
+      - name: Audit production and development dependencies
+        run: npm.cmd audit --audit-level=moderate

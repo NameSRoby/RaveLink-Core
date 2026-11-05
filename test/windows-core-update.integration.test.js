@@ -38,6 +38,8 @@ for (const targetVersion of ["0.6.2", "0.7.1a"])
       write(root, "runtime/music-to-light/cargo/release/ravelink-audio-probe.exe", "old probe");
       write(root, "runtime/music-to-light/operator.json", "private source selection");
       write(root, "runtime/user-state.json", "preserve runtime");
+      write(root, "runtime/desktop/WebView2Loader.dll", "old desktop loader");
+      write(root, "runtime/desktop-window.json", "preserve desktop position");
       write(root, "config/user.json", "preserve config");
       write(root, "features/installed/custom/state.json", "preserve feature");
 
@@ -50,6 +52,7 @@ for (const targetVersion of ["0.6.2", "0.7.1a"])
       write(release, "RaveLink-Core.exe", "new host");
       write(release, "packages/tidal-desktop/installer.cjs", "new companion");
       write(release, "runtime/RaveLink-Core-Node.exe", "new node");
+      write(release, "runtime/desktop/WebView2Loader.dll", "new desktop loader");
       write(release, "integrations/music-to-light/controller.cjs", "new controller");
       write(release, "runtime/music-to-light/cargo/release/ravelink-audio-probe.exe", "new probe");
       fs.mkdirSync(path.dirname(archive), { recursive: true });
@@ -126,6 +129,14 @@ for (const targetVersion of ["0.6.2", "0.7.1a"])
       );
       assert.equal(fs.existsSync(path.join(root, "src/old.js")), false);
       assert.equal(
+        fs.readFileSync(path.join(root, "runtime/desktop/WebView2Loader.dll"), "utf8"),
+        "new desktop loader",
+      );
+      assert.equal(
+        fs.readFileSync(path.join(root, "runtime/desktop-window.json"), "utf8"),
+        "preserve desktop position",
+      );
+      assert.equal(
         fs.readFileSync(path.join(root, "packages/tidal-desktop/installer.cjs"), "utf8"),
         "new companion",
       );
@@ -172,6 +183,10 @@ for (const targetVersion of ["0.6.2", "0.7.1a"])
         "private source selection",
       );
       assert.equal(fs.readFileSync(path.join(root, "src/old.js"), "utf8"), "old program");
+      assert.equal(
+        fs.readFileSync(path.join(root, "runtime/desktop/WebView2Loader.dll"), "utf8"),
+        "old desktop loader",
+      );
       assert.equal(fs.existsSync(path.join(root, "src/app/core/create-core-server.js")), false);
       assert.equal(fs.existsSync(path.join(root, "packages/tidal-desktop/installer.cjs")), false);
       assert.equal(

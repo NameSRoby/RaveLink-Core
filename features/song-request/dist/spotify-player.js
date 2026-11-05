@@ -6,13 +6,16 @@
  * Use host capabilities rather than giving the feature direct desktop/network access.
  */
 module.exports = function createSpotifyPlayer({
+  providerName = "spotify",
+  hostCapability = "spotify.desktop.host.v1",
+  featureCapability = "song.spotify.player.v1",
   queue,
   context,
   changed,
   isSelected = async () => true,
 }) {
   const provider = (method, payload) =>
-    context.callCapability("spotify.desktop.host.v1", method, payload, {
+    context.callCapability(hostCapability, method, payload, {
       timeoutMs: ["resolve", "enqueue", "remove"].includes(method)
         ? 20000
         : method === "setup"
@@ -28,7 +31,7 @@ module.exports = function createSpotifyPlayer({
       rows = [...first.queue];
     for (let offset = 25; offset < Math.min(200, first.counts.queued); offset += 25)
       rows.push(...queue.status({ offset, limit: 25 }).queue);
-    return rows.filter((row) => row.candidate.provider === "spotify");
+    return rows.filter((row) => row.candidate.provider === providerName);
   };
   async function run() {
     try {
@@ -55,7 +58,7 @@ module.exports = function createSpotifyPlayer({
           requesterRole: row.requesterRole,
         });
         if (!result.ok || !result.appended) {
-          lastError = result.error || "spotify_delivery_unconfirmed";
+          lastError = result.error || `${providerName}_delivery_unconfirmed`;
           return;
         }
         const settled = queue.settle({
@@ -65,7 +68,7 @@ module.exports = function createSpotifyPlayer({
         if (settled.ok) changed(settled);
       }
     } catch {
-      lastError = "spotify_companion_unavailable";
+      lastError = `${providerName}_companion_unavailable`;
     }
   }
   function trigger() {
@@ -83,7 +86,7 @@ module.exports = function createSpotifyPlayer({
     queue,
     provider,
     changed,
-    providerName: "spotify",
+    providerName,
     waitForDelivery: () => work || Promise.resolve(),
   });
   async function handle(method, payload = {}) {
@@ -131,7 +134,7 @@ module.exports = function createSpotifyPlayer({
           { timeoutMs: 2000 },
         )
         .catch(() => {});
-      const result = queue.configurePlaybackSource({ source: "spotify" });
+      const result = queue.configurePlaybackSource({ source: providerName });
       changed(result);
       return result;
     }
@@ -142,7 +145,7 @@ module.exports = function createSpotifyPlayer({
         requesterName: "Local Spotify operator",
         requesterRole: "moderator",
       });
-    return { ok: false, error: "spotify_method_invalid" };
+    return { ok: false, error: `${providerName}_method_invalid` };
   }
   async function submit(payload) {
     if (!(await isSelected())) return { ok: false, code: "rejected", reason: "player_inactive" };
@@ -160,14 +163,14 @@ module.exports = function createSpotifyPlayer({
       return {
         ok: false,
         code: "rejected",
-        reason: "spotify_search_unavailable",
+        reason: `${providerName}_search_unavailable`,
       };
     }
     if (!result.ok) return { ok: false, code: "rejected", reason: result.error };
     if (!(await isSelected())) return { ok: false, code: "rejected", reason: "player_inactive" };
     let submitted = queue.submit({ ...payload, candidate: result.candidate });
     if (submitted.ok) {
-      submitted = await require("./desktop-queue-position")(queue, "spotify", submitted, () =>
+      submitted = await require("./desktop-queue-position")(queue, providerName, submitted, () =>
         provider("status", null),
       );
       changed(submitted);
@@ -176,18 +179,19 @@ module.exports = function createSpotifyPlayer({
     return submitted;
   }
   handle.route = async (request, preferences) => {
-    if (request.capability === "song.spotify.player.v1")
+    if (request.capability === featureCapability)
       return { value: await handle(request.method, request.payload || {}) };
+    if (providerName === "youtube" && !(await isSelected())) return null;
     if (
       request.capability === "song.queue.admin.v1" &&
       request.method === "moderate" &&
-      request.payload?.provider === "spotify"
+      request.payload?.provider === providerName
     )
       return { value: await handle("moderate", request.payload) };
     if (
       request.capability === "song.queue.submit.v1" &&
       request.method === "submit" &&
-      (request.activePlayer || (await preferences("status", null)).player) === "spotify"
+      (request.activePlayer || (await preferences("status", null)).player) === providerName
     )
       return { value: await submit(request.payload || {}) };
     return null;

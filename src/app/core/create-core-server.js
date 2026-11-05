@@ -233,6 +233,10 @@ module.exports = function createCoreServer(options = {}) {
   });
   const widgetIntakeLimiter = createTokenBucket(options.widgetIntakeLimiterOptions);
   const app = express();
+  const networkSharing = require("../../domains/system/network-sharing.service")({
+    runtimeDir,
+    corePort: Number(options.port || process.env.PORT || 5050),
+  });
   installRequestSecurityMiddleware(app, {
     express,
     allowRemoteWrite: options.allowRemoteWrite === true,
@@ -241,6 +245,7 @@ module.exports = function createCoreServer(options = {}) {
     port: Number(options.port || process.env.PORT || 5050),
   });
   app.use(runtimeMetrics.requestMiddleware());
+  require("./register-network-sharing.routes")(app, networkSharing);
   registerPresentationRoutes(app, { runtimeDir });
   require("./register-music-to-light.routes")(app, { host: musicToLight });
   require("./register-navigation.routes")(app, { runtimeDir });
@@ -303,6 +308,12 @@ module.exports = function createCoreServer(options = {}) {
     });
   }
   app.use(clientApiErrors);
+  lifecycle.register({
+    owner: "core",
+    id: "network-sharing",
+    type: "network",
+    stop: networkSharing.stop,
+  });
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
     res.status(500).json({ ok: false, error: "internal_error" });
@@ -320,6 +331,7 @@ module.exports = function createCoreServer(options = {}) {
       runtimeMetrics,
       egressGovernor,
       lifecycle,
+      networkSharing,
     }),
     extension,
     profile,

@@ -22,7 +22,8 @@ RaveLink Core includes or interoperates with the following third-party component
   includes provenance and the complete license in `THIRD_PARTY_NOTICES.md` and
   `LICENSE.SimpleIcons.txt`.
 
-- **Node.js 24.13.0 Windows runtime** - Node.js license. The unmodified executable is renamed `RaveLink-Core-Node.exe`; its complete license is installed as `runtime/NODE-LICENSE.txt`.
+- **Microsoft.Web.WebView2 1.0.4314.35 SDK** - Microsoft redistribution license. The managed WinForms bindings and x64 loader are installed under `runtime/desktop`; the license also ships at `desktop/windows-host/LICENSE.WebView2.txt` in source. The separately installed Microsoft Edge WebView2 Evergreen Runtime renders the desktop UI and receives Microsoft's runtime updates. SDK: https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.4314.35 .
+- **Node.js 24.13.0 Windows runtime** - Node.js license. The executable is renamed `RaveLink-Core-Node.exe` and its Windows description is branded for RaveLink; its complete license is installed as `runtime/NODE-LICENSE.txt`.
 - **axios** - MIT License.
 - **bonjour-service** - MIT License. Used for bounded Philips Hue discovery.
 - **cross-fetch** - MIT License. Used by Hue Entertainment support.

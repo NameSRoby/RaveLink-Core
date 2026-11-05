@@ -52,6 +52,8 @@ test("clean HUD boots and remains usable on desktop and mobile", async (t) => {
           "/dashboard-layout.js",
           "/feature-navigation.js",
           "/usability.css",
+          "/app-polish.css",
+          "/music-choices.js",
           "/lighting.css",
           "/music-to-light.css",
           "/music-to-light.js",
@@ -65,6 +67,8 @@ test("clean HUD boots and remains usable on desktop and mobile", async (t) => {
           "/core.js",
           "/hue-entertainment-setup.js",
           "/action-feedback.js",
+          "/browser-clipboard.js",
+          "/network-sharing.js",
           "/visible-choices.js",
           "/theme-state.js",
           "/usability-tooltips.js",
@@ -152,7 +156,7 @@ test("clean HUD boots and remains usable on desktop and mobile", async (t) => {
       await page
         .locator("#fixtureEnabled")
         .evaluate((input) => getComputedStyle(input).borderRadius),
-      "999px",
+      "14px",
     );
     await page.locator("#fixtureRows").filter({ hasText: "NOT CONFIGURED" }).waitFor();
     assert.ok(apiRequests.includes("/api/presentation/theme"));

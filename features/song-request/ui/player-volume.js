@@ -35,7 +35,16 @@ function installPlayerVolumeControls(soundcloud) {
     nativeAvailable = false,
     generation = 0;
   const selected = () => $("songPlayerProvider").value;
+  const youtubeBrowser = () => selected() === "youtube" && window.ravelinkYouTubeBrowserActive?.();
   async function native() {
+    if (youtubeBrowser()) {
+      const reply = await call("song.youtube.browser.v1", "control", {
+        action: "volume",
+        value: outputVolume(),
+      });
+      if (!reply.ok) throw Error(reply.error || "YouTube Music volume could not be confirmed.");
+      return;
+    }
     if (selected() === "spotify") {
       if (!nativeAvailable) throw Error("Choose an active Premium playback device in Setup first.");
       const reply = await call("song.spotify.player.v1", "control", {
@@ -59,7 +68,7 @@ function installPlayerVolumeControls(soundcloud) {
   function preview() {
     const output = outputVolume();
     $("volumeOut").textContent = $("volume").value + " // OUTPUT " + output + "%";
-    if (selected() === "youtube") player?.setVolume?.(output);
+    if (selected() === "youtube" && !youtubeBrowser()) player?.setVolume?.(output);
     if (selected() === "soundcloud") soundcloud.setVolume(output);
   }
   async function applyRange() {
@@ -84,7 +93,8 @@ function installPlayerVolumeControls(soundcloud) {
       volumeDraftDirty = false;
       preview();
       note.textContent = "Output range saved.";
-      if (["tidal", "spotify"].includes(selected()) && nativeAvailable) await native();
+      if ((["tidal", "spotify"].includes(selected()) && nativeAvailable) || youtubeBrowser())
+        await native();
       await refreshState();
     } catch (error) {
       note.textContent = error.message;

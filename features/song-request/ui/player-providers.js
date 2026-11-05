@@ -9,6 +9,7 @@
   let view = "player",
     providerReady = false,
     savedPlayer = "youtube";
+  let youtubeBrowserUi;
   const picker = document.createElement("div");
   picker.className = "playerProviderPicker";
   picker.innerHTML =
@@ -19,7 +20,7 @@
   embedWarning.id = "youtubeEmbedWarning";
   embedWarning.setAttribute("role", "note");
   embedWarning.innerHTML =
-    "<strong>YouTube playback warning</strong><p>YouTube embeds can refuse songs because of uploader settings, account, age, region or content restrictions. A successful search does not guarantee playback.</p><p>Repeated failures and rapid automatic skips may overload playback and cause the server to stop or crash. Stop playback if songs keep skipping; try another source or restart Core if it stops responding.</p>";
+    "<strong>YouTube playback</strong><p>Uploader, account, age and region restrictions can prevent embedded playback. A successful search does not guarantee playback.</p><p>Unavailable videos are skipped at paced intervals. After three consecutive failures, automatic playback stops and keeps the remaining requests. Use Start Playback after checking the player. Autoplay or player-identification problems keep the current request.</p>";
   document.querySelector(".playerSide").prepend(embedWarning);
   const warningStyle = document.createElement("style");
   warningStyle.textContent =
@@ -224,7 +225,14 @@
     }
     if (view === "moderation" || (view === "setup" && selected() === "youtube"))
       void refreshCatalog();
-    if (providerReady && view === "player" && selected() === "youtube") ensureYoutubePlayer();
+    if (
+      providerReady &&
+      view === "player" &&
+      selected() === "youtube" &&
+      !youtubeBrowserUi?.active()
+    )
+      ensureYoutubePlayer();
+    youtubeBrowserUi?.update();
     void refreshTidal();
     void spotify.refresh();
     void refreshState();
@@ -649,12 +657,14 @@
 
     if (view === "moderation" || (view === "setup" && !tidal)) void refreshCatalog();
     if (tidal) void refreshTidal();
-    else if (selected() === "youtube" && view === "player") ensureYoutubePlayer();
+    else if (selected() === "youtube" && view === "player" && !youtubeBrowserUi?.active())
+      ensureYoutubePlayer();
     const staleControls = $("tidalNowControls");
     if (staleControls) staleControls.hidden = !tidal;
     void soundcloud.select();
     void volumeControls.select();
     spotify.select();
+    youtubeBrowserUi?.update();
     void refreshState();
   }
   $("songPlayerProvider").onchange = async () => {
@@ -744,6 +754,14 @@
     }
   });
   $("songPlayerProvider").disabled = true;
+  youtubeBrowserUi = installYoutubeBrowserPlayer({
+    selected,
+    view: () => view,
+    setupPage,
+    playbackPage,
+    choosePlayer,
+    warning: embedWarning,
+  });
   $("playerProviderHint").textContent = "Restoring your player selection...";
   const playerRestored = (async () => {
     try {
@@ -751,6 +769,7 @@
       if (!saved.ok)
         throw new Error("Could not restore your player selection. Choose a player to retry.");
       savedPlayer = saved.player;
+      youtubeBrowserUi.restore(saved);
       $("songPlayerProvider").value = saved.player;
       providerReady = true;
       choosePlayer();
@@ -784,9 +803,9 @@
       if (event.data.provider === "soundcloud") await $("soundcloudStart").onclick();
       else {
         const deadline = Date.now() + 12000;
-        while (!playerReady && Date.now() < deadline)
+        while (!youtubeBrowserUi.active() && !playerReady && Date.now() < deadline)
           await new Promise((resolve) => setTimeout(resolve, 100));
-        await startPlayer.onclick();
+        await (youtubeBrowserUi.active() ? $("youtubeBrowserPlay") : startPlayer).onclick();
       }
     } catch (error) {
       setNotice(error.message, true);

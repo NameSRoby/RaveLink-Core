@@ -39,16 +39,18 @@
           fields[key] = input;
           return input;
         }
-        field("role", "Frequency role", labels, binding.role || ["low", "mid", "high"][index % 3]);
-        field(
+        field("role", "Audio role", labels, binding.role || "all");
+        const position = field(
           "position",
-          "Position (0–1)",
+          "Position · left to right",
           null,
           binding.position ?? index / Math.max(1, view.fixtures.length - 1),
           0,
           1,
-          0.1,
+          0.05,
         );
+        position.type = "range";
+        position.title = "Place lights from left to right. Travelling effects follow this order.";
         const behavior = field(
           "raveBehavior",
           "During music / Rave",
@@ -88,7 +90,7 @@
       }),
     );
     if (!view.fixtures.length)
-      $("fixtureChoices").textContent = "No enabled Hue or WiZ lights. Add them in Fixtures first.";
+      $("fixtureChoices").textContent = "No enabled music lights. Add them in Fixtures first.";
   }
   function read($) {
     return [...$("fixtureChoices").querySelectorAll(".musicFixture")]

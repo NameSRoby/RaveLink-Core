@@ -64,9 +64,13 @@ module.exports = function createSavedEffects({ storePath, random = Math.random }
         Object.keys(p.artistic).some((k) => !artisticKeys.includes(k))
       )
         throw fault("invalid_music_effect_profile");
-      p.assignments?.forEach((a) => require("./fixture-behavior.cjs").validate(a));
+      p.assignments?.forEach((a) => {
+        if (a.assignedEffect)
+          a.assignedEffect = require("./legacy-response.cjs").effect(a.assignedEffect);
+        require("./fixture-behavior.cjs").validate(a);
+      });
       ids.add(p.id);
-      settings(p.artistic);
+      p.artistic = pickArt(settings(p.artistic));
       if (
         p.artistic.scenarioMode !== "manual" ||
         p.artistic.layerMode !== "fixed" ||
@@ -146,6 +150,8 @@ module.exports = function createSavedEffects({ storePath, random = Math.random }
             sceneFadeMs,
             colorSlot,
             outOfSync,
+            assignedEffect,
+            assignedPalette,
           }) => ({
             id,
             role,
@@ -154,6 +160,8 @@ module.exports = function createSavedEffects({ storePath, random = Math.random }
             ...(sceneFadeMs === undefined ? {} : { sceneFadeMs }),
             ...(colorSlot === undefined ? {} : { colorSlot }),
             ...(outOfSync === undefined ? {} : { outOfSync }),
+            ...(assignedEffect === undefined ? {} : { assignedEffect }),
+            ...(assignedPalette === undefined ? {} : { assignedPalette: [...assignedPalette] }),
           }),
         ),
     };

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>RaveLink YouTube Music</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>YouTube Music</h1>
+    <p>
+      To connect, open <strong>Song Request ? YouTube ? Setup</strong> in RaveLink and choose
+      <strong>Connect YouTube Music</strong>. Select your music tab on the page that opens.
+    </p>
+    <button type="button" id="disconnect">Disconnect music tab</button>
+    <details>
+      <summary>Advanced manual connection</summary>
+      <form id="pair">
+        <label
+          >Companion port<input
+            id="port"
+            type="number"
+            min="1024"
+            max="65535"
+            value="5051"
+            required
+        /></label>
+        <label>Pairing code<input id="token" type="password" autocomplete="off" required /></label>
+        <button>Connect this tab</button>
+      </form>
+    </details>
+    <p id="status" role="status">Experimental extension. Keep your connected music tab open.</p>
+    <script src="popup.js"></script>
+  </body>
+</html>

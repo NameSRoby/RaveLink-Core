@@ -132,6 +132,7 @@ function environment(t, overrides = {}) {
           invalidSamples: 0,
           freshness: { verified: true, maxAgeMs: 0, stale: false },
           analysis: { valid: true, bandRms: [0.1, 0.1, 0.1], onset: null },
+          ...(overrides.volume ? { volume: overrides.volume(at) } : {}),
         });
         for (const tick of [...intervals]) tick();
         await flush();
@@ -148,6 +149,27 @@ async function authorize(e) {
   await e.client.sources();
   await e.operator.selectSource(source.id);
 }
+
+test("incompatible random edits retain the saved design and start no capture", (t) => {
+  const e = environment(t);
+  e.operator.activate();
+  const prior = e.client.exportDesign();
+  assert.throws(
+    () =>
+      e.client.configure({
+        ...prior,
+        recipeOptions: {
+          shape: { mode: "fixed", value: "wave", allowed: ["wave"] },
+          color: { mode: "fixed", value: "travel", allowed: ["travel"] },
+          feel: { mode: "random", value: "normal", allowed: ["normal", "fast"] },
+        },
+      }),
+    /music_no_compatible_recipes/,
+  );
+  assert.deepEqual(e.client.exportDesign(), prior);
+  assert.equal(e.captures, 0);
+  assert.deepEqual(e.writes, []);
+});
 
 test("manual starts accept continuous lifetimes while explicit timed requests remain bounded", async (t) => {
   const e = environment(t);
@@ -187,6 +209,35 @@ test("calibration measures a preview and saves only its fixed audio reference", 
   assert.equal(e.client.status().permissions.output, false);
   assert.equal(e.client.status().state, "idle");
 });
+test("calibration stores stable mixer levels and rejects volume changes atomically", async (t) => {
+  const reference = {
+    key: "app-output",
+    systemPercent: 50,
+    systemDb: -12,
+    appGain: 0.5,
+    muted: false,
+  };
+  const stable = environment(t, { volume: () => reference });
+  await authorize(stable);
+  const pending = stable.client.calibrate();
+  await stable.pump(5000);
+  stable.endCapture();
+  assert.deepEqual((await pending).calibrationVolume, reference);
+  assert.equal(stable.writes.length, 0);
+  const changed = environment(t, {
+    volume: (at) => ({ ...reference, appGain: at > 1000 ? 0.25 : 0.5 }),
+  });
+  await authorize(changed);
+  const before = changed.client.exportDesign();
+  const sampling = changed.client.calibrate();
+  const rejected = assert.rejects(sampling, /music_calibration_volume_changed/);
+  await changed.pump(5000);
+  changed.endCapture();
+  await rejected;
+  assert.deepEqual(changed.client.exportDesign(), before);
+  assert.equal(changed.writes.length, 0);
+});
+
 test("canceling calibration retains the previous design and releases capture", async (t) => {
   const e = environment(t);
   await authorize(e);
@@ -554,8 +605,8 @@ test("versioned contracts compile and validate commands, snapshots and preview e
   assert.ok(frames.length > 0);
   assert.ok(frames.every(validatePreview));
   await e.client.call("music.session.v1", "status");
-  await e.client.call("music.styles.v1", "configure", { preset: "bands" });
-  assert.equal((await e.client.call("music.styles.v1", "export")).preset, "bands");
+  await e.client.call("music.styles.v1", "configure", { preset: "pulse" });
+  assert.equal((await e.client.call("music.styles.v1", "export")).preset, "pulse");
   await e.client.call("music.session.v1", "stop");
   assert.equal((await e.client.call("music.session.v1", "status")).state, "idle");
 });

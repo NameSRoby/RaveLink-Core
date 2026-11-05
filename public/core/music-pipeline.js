@@ -1,9 +1,61 @@
 /** Read-only pipeline presentation. No fetching, timers, capture or output authority.
  * Render authoritative choices and clocks supplied by the operator controller. */
 (() => {
+  const assignmentCache = new WeakMap();
   function render({ pipeline, view, behaviorCatalog, $ }) {
     if (!behaviorCatalog) return;
     const m = pipeline?.metrics;
+    const routing = pipeline?.routing || [];
+    const reactive = routing.filter((f) => f.behavior === "reactive");
+    const groups = new Set(reactive.map((f) => f.assignedEffect || "shared"));
+    const palettes = new Set(
+      reactive.map((f) => (f.assignedPalette || pipeline?.effective?.palette || []).join(",")),
+    );
+    $("assignmentStatus").textContent = routing.length
+      ? `${routing.length} ${routing.some((f) => f.id) ? "lights" : "virtual lights"} · ${groups.size} effect group${groups.size === 1 ? "" : "s"} · ${palettes.size} palette${palettes.size === 1 ? "" : "s"}${routing.length > reactive.length ? " · " + (routing.length - reactive.length) + " scene jobs" : ""}. Details are in Diagnostics.`
+      : "Chosen at the next start. Saved scene jobs stay fixed.";
+    const details = $("assignmentDetails");
+    const names = new Map(view.fixtures.map((fixture) => [fixture.id, fixture.name]));
+    const assignments = routing.map((f, index) => ({
+      name: names.get(f.id) || "Virtual " + (index + 1),
+      job:
+        f.behavior === "reactive"
+          ? (f.assignedEffect || "shared movement") + " · " + f.role
+          : f.behavior,
+      palette: f.assignedPalette,
+    }));
+    const signature = JSON.stringify(assignments);
+    if (assignmentCache.get(details) !== signature) {
+      details.replaceChildren(
+        ...assignments.map((f) => {
+          const row = document.createElement("li");
+          row.textContent = `${f.name}: ${f.job}`;
+          if (f.palette)
+            for (const color of f.palette) {
+              const swatch = document.createElement("span");
+              swatch.style.backgroundColor = color;
+              swatch.title = color;
+              swatch.setAttribute("aria-label", color);
+              row.append(swatch);
+            }
+          return row;
+        }),
+      );
+      assignmentCache.set(details, signature);
+    }
+    const saved = view.design.calibrationVolume;
+    const volume = pipeline?.volumeFollow?.current || saved;
+    const describe = (v) =>
+      `system ${Math.round(v.systemPercent)}% (${v.systemDb.toFixed(1)} dB), app mixer ${v.appGain === null ? "unavailable for mixed output" : Math.round(v.appGain * 100) + "%"}${v.muted ? ", muted" : ""}`;
+    const states = {
+      off: "Off",
+      following: "Following app mixer",
+      unavailable: "Fixed reference: matching mixer gain unavailable",
+      muted: "Muted: response held quiet",
+      out_of_range: "Fixed reference: gain change exceeds 36 dB; recalibrate",
+    };
+    $("volumeStatus").textContent =
+      `${volume ? "Current / last measured: " + describe(volume) + ". " : "Mixer readings unavailable. "}${saved ? "At calibration: " + describe(saved) + ". " : "No saved mixer reference. "}${states[pipeline?.volumeFollow?.state] || (view.design.autoAudioFollow ? "Auto-follow ready for capture." : "Auto-follow off.")}`;
     $("calibrationStatus").textContent =
       m?.referenceSamples >= 100
         ? `Recent input reaching the loud reference: ${Math.round(m.referenceSaturation * 100)}%.${m.referenceSamples >= 250 && m.referenceSaturation > 0.7 ? " Most input is being limited. Calibrate a louder passage or add headroom for more detail." : " The reference stays fixed; occasional peaks are expected."}`
@@ -61,11 +113,7 @@
         ? `${shape} · ${shapeDetail}`
         : pipeline?.scenario?.id === "wave"
           ? `Attack front · ${b.waveMs}ms · depth ${Math.round(b.waveDepth * 100)}%`
-          : pipeline?.preset === "ambient" && b.spatialEnabled
-            ? `Swell · depth ${Math.round(b.swellDepth * 100)}% · travel ${b.swellTravelSeconds}s · span ${Math.round(b.swellSpan * 100)}%`
-            : pipeline?.preset === "bands"
-              ? `Frequency zones · separation ${b.bandSeparation} · sensitivity ${b.bandSensitivity}`
-              : d.arrangement + " fixture response",
+          : d.arrangement + " fixture response",
       color: `${b.colorEnabled ? { roles: "Role-offset cycling", fixed: "Together cycling", onsets: "Attacks + gentle cycling", energy: "Energy + cycling", travel: "Travelling palette" }[d.colorMode] : "Color movement blocked"} · ${d.palette.length} colors${d.warmCoolColors ? " / warm bass, cool treble" : ""} · blend ${b.colorBlendMs}ms · vibrance ${Math.round((b.colorVibrance || 0) * 100)}%`,
       output: `${d.minimumBrightness}–${d.maximumBrightness}% brightness · intensity ${Math.round(d.intensity * 100)}% · ${pipeline?.outputCadence?.targetHz ?? d.outputHz} Hz · ${d.outputRateMode}`,
     };

@@ -8,7 +8,7 @@ const { settings, fault } = require("../integrations/music-to-light/mapping-sett
 async function main(args) {
   if (!args.length || (args.length === 1 && args[0] === "--help")) {
     console.log(
-      "Preview only; never controls lights.\nList sources: node scripts/music-to-light-probe.js --list\nPreview: node scripts/music-to-light-preview.js --source <exact-source-id> --seconds 15 [--preset ambient|pulse|bands] [--intensity 0.6]\nAdvanced portable design: --design <settings.json>\nStop: Ctrl+C. No audio or source identity is saved.",
+      "Preview only; never controls lights.\nList sources: node scripts/music-to-light-probe.js --list\nPreview: node scripts/music-to-light-preview.js --source <exact-source-id> --seconds 15 [--preset pulse] [--intensity 0.6]\nAdvanced portable design: --design <settings.json>\nStop: Ctrl+C. No audio or source identity is saved.",
     );
     return;
   }

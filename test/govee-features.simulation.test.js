@@ -358,7 +358,7 @@ for (const warmCoolColors of [false, true])
     test(`Govee music color ${colorMode}, warm/cool ${warmCoolColors}, contrast and generated palette keep bounds`, async (t) => {
       const e = await lab(t);
       const m = await music(t, e, [{ outOfSync: 0 }, { outOfSync: 100 }], {
-        preset: "bands",
+        preset: "pulse",
         colorMode,
         warmCoolColors,
         outputHz: 16,
@@ -572,7 +572,7 @@ test("Govee is selectable through the native Music-to-Light service/controller",
   assert.equal(host.view().status.musicFixtureCount, 2);
 });
 
-for (const scenario of ["wash", "pulse", "bands", "wave", "bounce", "handoff"]) {
+for (const scenario of ["pulse", "wave", "bounce", "handoff"]) {
   test(`Govee channel-point Rave ${scenario} includes an unrouted dim companion and restores`, async (t) => {
     const e = await lab(t),
       [reactive, dim] = e.fixtures;

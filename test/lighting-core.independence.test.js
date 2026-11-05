@@ -108,6 +108,7 @@ test("core HTTP server declares absent capabilities and applies color independen
     "runtimeMetrics",
     "egressGovernor",
     "lifecycle",
+    "networkSharing",
   ]);
   const loadedModules = Object.keys(require.cache).join("\n").replaceAll("\\", "/");
   for (const forbiddenModule of [
@@ -240,6 +241,7 @@ test("core HTTP server declares absent capabilities and applies color independen
       "lighting.transports:hue-wiz-adapters",
       "core:taught-color-preview",
       "core:music-to-light",
+      "core:network-sharing",
     ],
   );
   assert.equal(
