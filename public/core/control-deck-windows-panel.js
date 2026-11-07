@@ -47,7 +47,7 @@ export function createWindowsPanel({
     hiddenTargets = new Set(),
     editing = false,
     timer,
-    reading = false,
+    reading = null,
     saving = 0,
     revision = 0;
   const button = (text, fn) => {
@@ -379,18 +379,21 @@ export function createWindowsPanel({
   }
   async function read() {
     clearTimeout(timer);
-    if (reading || saving || !dialog.open || !visible() || document.hidden) return;
-    reading = true;
+    if (reading) return reading;
+    if (saving || !dialog.open || !visible() || document.hidden) return;
     const current = revision;
-    try {
-      const state = await request("/api/control-deck/windows/audio");
-      if (dialog.open && revision === current) render(state);
-    } catch (error) {
-      if (dialog.open) notice.textContent = explain(error);
-    } finally {
-      reading = false;
-      if (dialog.open) timer = setTimeout(() => void read(), 2000);
-    }
+    reading = Promise.resolve().then(async () => {
+      try {
+        const state = await request("/api/control-deck/windows/audio");
+        if (dialog.open && revision === current) render(state);
+      } catch (error) {
+        if (dialog.open && revision === current) notice.textContent = explain(error);
+      } finally {
+        reading = null;
+        if (dialog.open) timer = setTimeout(() => void read(), 2000);
+      }
+    });
+    return reading;
   }
   document.addEventListener("ravelink-deck-state", (event) => {
     if (!dialog.open || saving || !event.detail) return;
@@ -399,6 +402,7 @@ export function createWindowsPanel({
     timer = setTimeout(() => void read(), 2000);
   });
   dialog.addEventListener("close", () => {
+    if (dialog.open) return; // A queued close event can belong to the previous view.
     revision++;
     clearTimeout(timer);
     for (const card of cards.values()) sliderControl(card.slider).cancel();
@@ -418,8 +422,18 @@ export function createWindowsPanel({
     },
     refresh: read,
     async open(options = {}) {
-      revision++;
-      selected = options.target || "";
+      const previousRead = reading,
+        current = ++revision;
+      const nextTarget = options.target || "";
+      if (!dialog.open || selected !== nextTarget) {
+        for (const card of cards.values()) {
+          card.element.remove();
+          sliderControl(card.slider).close();
+        }
+        cards.clear();
+        nativeOrder = [];
+      }
+      selected = nextTarget;
       hiddenTargets = new Set(options.hiddenTargets || []);
       editing = options.editing === true;
       restore.hidden = !inline || !editing || !hiddenTargets.size;
@@ -433,7 +447,8 @@ export function createWindowsPanel({
           dialog.hidden = false;
         } else dialog.showModal();
       }
-      await read();
+      if (previousRead) await previousRead;
+      if (dialog.open && revision === current) await read();
     },
   };
 }

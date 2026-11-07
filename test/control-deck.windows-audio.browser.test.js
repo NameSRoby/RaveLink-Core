@@ -191,6 +191,51 @@ test("Windows controls work over LAN with live audio, safe pinning, media and ph
   await panel.getByRole("slider", { name: "Demo player volume", exact: true }).waitFor();
   assert.equal(await panel.getByRole("slider").count(), 1);
   await panel.getByRole("button", { name: "Close", exact: true }).click();
+  // A refresh from the previous view must not leave unrelated faders visible
+  // or postpone the selected app's first read until the next polling interval.
+  const racePage = await browser.newPage();
+  await racePage.goto(local + "/health");
+  const race = await racePage.evaluate(async (state) => {
+    const { createWindowsPanel } = await import("/control-deck-windows-panel.js");
+    let requests = 0,
+      release;
+    const ui = createWindowsPanel({
+      request: async () => {
+        requests++;
+        if (requests === 2) await new Promise((resolve) => (release = resolve));
+        return structuredClone(state);
+      },
+      add: async () => {},
+      explain: (error) => error.message,
+    });
+    await ui.open();
+    const oldRefresh = ui.refresh();
+    await Promise.resolve();
+    ui.close();
+    const reopening = ui.open({ target: state.apps[0].key });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    const during = [...ui.element.querySelectorAll('input[type="range"]')].map((input) =>
+      input.getAttribute("aria-label"),
+    );
+    const beforeRelease = requests;
+    release();
+    await oldRefresh;
+    await reopening;
+    const after = [...ui.element.querySelectorAll('input[type="range"]')].map((input) =>
+      input.getAttribute("aria-label"),
+    );
+    ui.close();
+    return { during, after, beforeRelease, requests };
+  }, state);
+  assert.deepEqual(race.during, [], "reopening cannot expose the previous view's controls");
+  assert.equal(race.beforeRelease, 2, "in-flight reads stay single flight");
+  assert.deepEqual(race.after, ["Demo player volume"]);
+  assert.equal(
+    race.requests,
+    3,
+    "selected target refreshes immediately after the old read settles",
+  );
+  await racePage.close();
   const denied = await fetch(base + "/api/control-deck/windows/audio", {
     method: "POST",
     headers: { "Content-Type": "application/json", Origin: "https://untrusted.invalid" },
