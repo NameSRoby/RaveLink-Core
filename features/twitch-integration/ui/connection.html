@@ -34,9 +34,9 @@
         letter-spacing: 0;
       }
       main {
-        max-width: none;
-        margin: 0;
-        padding: 18px;
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 14px;
       }
       .head {
         display: flex;
@@ -58,7 +58,9 @@
       .badge {
         padding: 6px 9px;
         border: 1px solid var(--edge);
+        border-radius: 6px;
         font-weight: 800;
+        font-size: 11px;
       }
       .badge.good {
         color: var(--good);
@@ -67,7 +69,7 @@
         color: var(--bad);
       }
       section {
-        padding: 18px 0;
+        padding: 14px 0;
         border-bottom: 1px solid var(--edge);
       }
       h2 {
@@ -92,8 +94,9 @@
         min-height: 40px;
       }
       button {
-        min-height: 40px;
-        padding: 0 14px;
+        min-height: 36px;
+        padding: 7px 12px;
+        border-radius: 7px;
         border: 1px solid var(--edge);
         background: var(--surface);
         color: var(--text);
@@ -198,6 +201,71 @@
         gap: 8px;
         flex-wrap: wrap;
       }
+      .permissionList {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+        margin: 12px 0;
+      }
+      .permissionCard {
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 9px;
+        padding: 10px;
+        border: 1px solid var(--edge);
+        border-radius: 8px;
+        background: var(--bg);
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .permissionCard:focus-within {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .permissionCard input {
+        width: 18px;
+        height: 18px;
+        min-height: 0;
+        padding: 0;
+        margin: 0;
+        accent-color: var(--accent);
+      }
+      .permissionCard strong,
+      .permissionCard small {
+        display: block;
+      }
+      .permissionCard strong {
+        color: var(--text);
+        font-size: 12px;
+      }
+      .permissionCard small {
+        margin-top: 3px;
+        font-size: 11px;
+        font-weight: 400;
+        line-height: 1.35;
+      }
+      .permissionCard .badge {
+        padding: 4px 6px;
+        font-size: 10px;
+        white-space: nowrap;
+      }
+      #permissionSummary {
+        margin: 7px 0 0;
+      }
+      #identity {
+        margin-top: 8px;
+        font-family: inherit;
+      }
+      details {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .scopes {
+        margin-top: 8px;
+      }
       .scope {
         border-left: 3px solid var(--accent);
         padding: 7px 10px;
@@ -251,6 +319,12 @@
           align-items: flex-start;
           gap: 12px;
         }
+        .permissionList {
+          grid-template-columns: 1fr;
+        }
+        .permissionCard {
+          padding: 9px;
+        }
       }
     </style>
     <style>
@@ -273,12 +347,38 @@
         <div id="state" class="badge">CHECKING</div>
       </header>
       <section data-task-panel="Connection">
-        <h2>CONNECTION</h2>
+        <h2>Choose your Twitch features</h2>
+        <p class="sectionHelp">
+          Select what RaveLink may request when you connect. Granted badges show what your current
+          connection can use.
+        </p>
+        <div
+          id="permissionGroups"
+          class="permissionList"
+          aria-label="Twitch feature permissions"
+        ></div>
+        <p id="permissionSelectionNote" class="sectionHelp">
+          Choices apply to your next authorization. Unchecking a feature does not revoke access
+          already granted in Twitch.
+        </p>
+        <p id="permissionSummary" class="sectionHelp" role="status"></p>
         <div class="actions">
           <button id="begin" class="primary">START DEVICE LOGIN</button
-          ><button id="refresh">REFRESH</button
+          ><button id="savePermissions">Save choices</button><button id="refresh">REFRESH</button
           ><button id="disconnect" class="danger">DISCONNECT</button>
         </div>
+        <div id="identity" class="url">NOT CONNECTED</div>
+        <details>
+          <summary>Connection details and granted scopes</summary>
+          <div id="scopes" class="scopes"></div>
+          <div id="roleDirectory" class="url">REQUESTER ROLES // NOT SYNCHRONIZED</div>
+          <a
+            href="https://dev.twitch.tv/docs/authentication/scopes/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Twitch permission reference</a
+          >
+        </details>
         <p id="authorizationRecovery" class="sectionHelp" role="status" hidden></p>
         <div id="notice" role="status"></div>
       </section>
@@ -325,15 +425,6 @@
           <button id="openActivation" class="primary">OPEN TWITCH AUTHORIZATION</button
           ><button id="check">I AUTHORIZED - CHECK</button>
         </div>
-      </section>
-      <section data-task-panel="Connection">
-        <h2>GRANTED ACCESS</h2>
-        <div id="identity" class="url">NOT CONNECTED</div>
-        <details>
-          <summary>Permissions granted to RaveLink</summary>
-          <div id="scopes" class="scopes"></div>
-        </details>
-        <div id="roleDirectory" class="url">REQUESTER ROLES // NOT SYNCHRONIZED</div>
       </section>
       <section data-task-panel="Event intake">
         <h2>TWITCH EVENT INTAKE</h2>
@@ -389,6 +480,7 @@
           The selected transport handles rewards. Authorized Twitch chat commands work with either
           intake mode.
         </div>
+        <p id="chatAccessNotice" class="sectionHelp" role="status"></p>
       </section>
       <section data-task-panel="Rewards" id="managedRewardSection">
         <h2>RAVELINK-MANAGED REWARDS</h2>
@@ -396,6 +488,7 @@
           Pick what the reward controls. RaveLink fills in a useful title and viewer prompt that you
           can edit before creating it.
         </p>
+        <p id="rewardAccessNotice" class="sectionHelp" role="status"></p>
         <select id="rewardPurpose" class="srOnly" aria-label="Reward function">
           <option value="lights">CHANGE LIGHTS</option>
           <option value="teach">TEACH COLOR</option>
@@ -463,7 +556,10 @@
         pending = new Map();
       let sequence = 0,
         last = {},
-        developerMode = false;
+        developerMode = false,
+        permissionDraft = null,
+        permissionDirty = false,
+        authBusy = false;
       const $ = (id) => document.getElementById(id);
       function reportHeight() {
         parent.postMessage(
@@ -508,7 +604,7 @@
           pending.set(id, { resolve, reject });
           parent.postMessage(
             { channel: CHANNEL, type: "call", id, capability, method, payload },
-            "*",
+            window.location.origin,
           );
         });
       }
@@ -527,7 +623,11 @@
           const select = $(grid.dataset.choiceFor);
           for (const card of grid.querySelectorAll("[data-value]")) {
             card.setAttribute("aria-pressed", String(card.dataset.value === select.value));
-            card.disabled = select.disabled;
+            card.disabled =
+              select.disabled ||
+              (select.id === "songRequestMode" &&
+                card.dataset.value === "chat" &&
+                !groupAvailable("chat-read"));
           }
         }
         const native = $("intakeMode").value === "native";
@@ -539,7 +639,7 @@
         for (const card of grid.querySelectorAll("[data-value]"))
           card.onclick = () => {
             const select = $(grid.dataset.choiceFor);
-            if (select.disabled) return;
+            if (select.disabled || card.disabled) return;
             select.value = card.dataset.value;
             select.dispatchEvent(new Event("change", { bubbles: true }));
             syncChoiceCards();
@@ -614,38 +714,172 @@
           }),
         );
       }
+      const permissionDefinitions = [
+        {
+          id: "rewards",
+          label: "Channel Points",
+          description: "Managed rewards, redemptions and refunds.",
+          scopes: ["channel:manage:redemptions"],
+        },
+        {
+          id: "chat-read",
+          label: "Read chat commands",
+          description: "Receive lighting, song and !clip commands.",
+          scopes: ["user:read:chat"],
+        },
+        {
+          id: "chat-send",
+          label: "Send chat replies",
+          description: "Send command replies, song updates and clip links.",
+          scopes: ["user:write:chat"],
+        },
+        {
+          id: "roles",
+          label: "Moderator and VIP roles",
+          description: "Identify roles for requester limits and command permissions.",
+          scopes: ["channel:read:vips", "moderation:read"],
+        },
+        {
+          id: "clips",
+          label: "Create stream clips",
+          description: "Clip your live broadcast from buttons or chat.",
+          scopes: ["clips:edit"],
+        },
+      ];
+      function permissionGroups() {
+        const granted = new Set(last.grantedScopes || last.scopes || []);
+        const definitions = last.permissionGroups?.length
+          ? last.permissionGroups
+          : permissionDefinitions;
+        return definitions.map((definition) => {
+          const provided = last.permissionGroups?.find((group) => group.id === definition.id);
+          return (
+            provided || {
+              ...definition,
+              selected: definition.id !== "clips",
+              granted: definition.scopes.every((scope) => granted.has(scope)),
+              available:
+                last.connected === true && definition.scopes.every((scope) => granted.has(scope)),
+            }
+          );
+        });
+      }
+      function groupAvailable(id) {
+        return (
+          last.connected === true &&
+          permissionGroups().some((group) => group.id === id && group.available === true)
+        );
+      }
+      function selectedPermissions() {
+        if (permissionDraft) return [...permissionDraft];
+        return Array.isArray(last.selectedPermissionGroups)
+          ? [...last.selectedPermissionGroups]
+          : permissionGroups()
+              .filter((group) => group.selected)
+              .map((group) => group.id);
+      }
+      function renderPermissions() {
+        const groups = permissionGroups(),
+          selected = selectedPermissions(),
+          box = $("permissionGroups");
+        for (const group of groups) {
+          let row = box.querySelector('[data-permission="' + group.id + '"]');
+          if (!row) {
+            row = document.createElement("label");
+            row.className = "permissionCard";
+            row.dataset.permission = group.id;
+            const input = document.createElement("input"),
+              copy = document.createElement("span"),
+              title = document.createElement("strong"),
+              description = document.createElement("small"),
+              badge = document.createElement("span");
+            input.type = "checkbox";
+            input.value = group.id;
+            input.setAttribute("aria-label", group.label);
+            copy.append(title, description);
+            badge.className = "badge";
+            row.append(input, copy, badge);
+            box.append(row);
+            input.onchange = () => {
+              permissionDraft = [...box.querySelectorAll("input:checked")].map(
+                (control) => control.value,
+              );
+              permissionDirty = true;
+              renderPermissions();
+            };
+          }
+          row.querySelector("strong").textContent = group.label;
+          row.querySelector("small").textContent = group.description;
+          const input = row.querySelector("input"),
+            badge = row.querySelector(".badge");
+          input.checked = selected.includes(group.id);
+          input.disabled = authBusy || last.authorizationPending === true;
+          badge.textContent = groupAvailable(group.id)
+            ? "Granted"
+            : last.connected
+              ? "Needs authorization"
+              : "Not connected";
+          badge.className = "badge " + (groupAvailable(group.id) ? "good" : "");
+        }
+        const count = groups.filter((group) => groupAvailable(group.id)).length;
+        const missing = groups.filter(
+          (group) => selected.includes(group.id) && !groupAvailable(group.id),
+        ).length;
+        $("permissionSummary").textContent = !selected.length
+          ? "Identity-only login selected. Existing granted access stays active until changed in Twitch."
+          : last.connected
+            ? count +
+              " of 5 features available now. " +
+              (missing
+                ? missing + " selected feature(s) need authorization."
+                : "Your selected features are already available.")
+            : "Connect to authorize your selected features.";
+        $("permissionSelectionNote").textContent =
+          last.permissionSelectionNote ||
+          "Choices apply to your next authorization. Unchecking a feature does not revoke access already granted in Twitch.";
+        unavailable(
+          "savePermissions",
+          !permissionDirty || !last.configured || authBusy || last.authorizationPending,
+          "Choose features before saving. Pending authorization must finish first.",
+        );
+        unavailable(
+          "begin",
+          !last.configured ||
+            last.authorizationPending ||
+            authBusy ||
+            (last.authorizationStored &&
+              !last.connected &&
+              !last.authorizationRecovery?.reauthorizationRequired),
+          "Finish the pending authorization or wait for the saved connection to restore.",
+        );
+        reportHeight();
+      }
       function renderScopes() {
-        const granted = new Set(last.scopes || []),
-          required = last.requiredScopes || [],
-          rows = last.connected
-            ? [
-                ...granted,
-                ...required
-                  .filter((scope) => !granted.has(scope))
-                  .map((scope) => `MISSING: ${scope}`),
-              ]
-            : required.map((scope) => `REQUIRED: ${scope}`);
+        const granted = last.grantedScopes || last.scopes || [];
         $("scopes").replaceChildren(
-          ...rows.map((scope) => {
+          ...granted.map((scope) => {
             const item = document.createElement("div");
-            item.className = `scope ${scope.startsWith("MISSING:") ? "missing" : ""}`;
+            item.className = "scope";
             item.textContent = scope;
             return item;
           }),
         );
-        const roles = last.roleDirectory || {},
-          roleMissing = (last.missingScopes || []).some(
-            (scope) => scope === "channel:read:vips" || scope === "moderation:read",
-          );
-        $("roleDirectory").textContent = !last.connected
-          ? "REQUESTER ROLES // NOT SYNCHRONIZED"
-          : roleMissing
-            ? "REQUESTER ROLES // REAUTHORIZE TO SYNCHRONIZE"
-            : roles.refreshing
-              ? "REQUESTER ROLES // SYNCHRONIZING"
-              : roles.lastError
-                ? `REQUESTER ROLES // RETRY PENDING (${roles.lastError})`
-                : `REQUESTER ROLES // ${Number(roles.moderators || 0)} MODERATORS // ${Number(roles.vips || 0)} VIPS`;
+        if (!granted.length)
+          $("scopes").textContent = last.connected
+            ? "Identity-only connection; no optional feature scopes granted."
+            : "No active grants.";
+        const roles = last.roleDirectory || {};
+        $("roleDirectory").textContent = !groupAvailable("roles")
+          ? "Requester roles unavailable: authorize Moderator and VIP roles."
+          : roles.refreshing
+            ? "Requester roles synchronizing."
+            : roles.lastError
+              ? "Requester role synchronization will retry."
+              : "Requester roles: " +
+                Number(roles.moderators || 0) +
+                " moderators / " +
+                Number(roles.vips || 0) +
+                " VIPs.";
       }
       $("saveMonitor")
         .closest(".actions")
@@ -668,55 +902,27 @@
               : last.configured
                 ? "READY TO AUTHORIZE"
                 : "CLIENT ID REQUIRED";
-        $("state").className = `badge ${last.connected ? "good" : restoring ? "" : "bad"}`;
+        $("state").className = "badge " + (last.connected ? "good" : restoring ? "" : "bad");
         $("activation").hidden = !last.authorizationPending;
         $("userCode").textContent = last.userCode || "";
         $("verificationUri").textContent = last.verificationUri || "";
         $("identity").textContent = last.connected
-          ? `${last.login || "TWITCH USER"}  //  ${last.userId || ""}`
+          ? "Connected as " + (last.login || "Twitch user")
           : restoring
-            ? "SAVED AUTHORIZATION // RESTORING"
-            : "NOT CONNECTED";
-        $("scopes").replaceChildren(
-          ...(last.scopes?.length ? last.scopes : last.requiredScopes || []).map((scope) => {
-            const item = document.createElement("div");
-            item.className = "scope";
-            item.textContent = scope;
-            return item;
-          }),
-        );
+            ? "Restoring saved authorization"
+            : "Not connected";
         const rewards = Array.isArray(last.managedRewards) ? last.managedRewards : [];
         renderManagedRewards(rewards);
         const config = last.monitorConfig || {},
-          intakeMode = config.intakeMode === "native" ? "native" : "streamelements";
-        $("intakeMode").value = intakeMode;
+          native = config.intakeMode === "native";
+        $("intakeMode").value = native ? "native" : "streamelements";
         $("songRequestMode").value =
           config.songRequestChatEnabled === true ? "chat" : "channel_points";
-        unavailable("saveMonitor", false, "");
-        unavailable(
-          "songRequestMode",
-          !last.connected || intakeMode !== "native",
-          intakeMode !== "native"
-            ? "StreamElements uses Channel Points reward IDs from the Widget tab."
-            : "Authorize Twitch first.",
-        );
-        const needsReauthorization =
-          reconnectRequired || (last.connected && (last.missingScopes || []).length > 0);
-        $("begin").textContent = needsReauthorization ? "REAUTHORIZE TWITCH" : "START DEVICE LOGIN";
-        unavailable(
-          "begin",
-          !last.configured ||
-            last.authorizationPending ||
-            restoring ||
-            (last.connected && !needsReauthorization),
-          !last.configured
-            ? "Enable Developer Mode from HUD theme settings and save a Twitch Client ID first."
-            : last.connected && !needsReauthorization
-              ? "Twitch is connected with every required permission."
-              : restoring
-                ? "A saved authorization is being restored."
-                : "Device authorization is already waiting for completion.",
-        );
+        $("begin").textContent = reconnectRequired
+          ? "REAUTHORIZE TWITCH"
+          : last.connected
+            ? "UPDATE TWITCH ACCESS"
+            : "START DEVICE LOGIN";
         unavailable(
           "openActivation",
           !safeActivationUrl(last.verificationUri),
@@ -724,74 +930,67 @@
         );
         unavailable(
           "check",
-          !last.authorizationPending,
+          !last.authorizationPending || authBusy,
           "Start Device Login before checking authorization.",
         );
         unavailable(
           "disconnect",
-          !last.connected && !last.authorizationPending && !restoring,
+          (!last.connected && !last.authorizationPending && !restoring) || authBusy,
           "No Twitch authorization is active.",
         );
-        const purpose = $("rewardPurpose").value,
-          alreadyExists = rewards.some((row) => row.purpose === purpose);
+        unavailable(
+          "songRequestMode",
+          !native || !last.connected,
+          !native ? "StreamElements uses reward IDs from the Widget tab." : "Connect Twitch first.",
+        );
+        const modeAvailable =
+          $("songRequestMode").value === "chat"
+            ? groupAvailable("chat-read")
+            : groupAvailable("rewards");
+        unavailable(
+          "saveMonitor",
+          native && !modeAvailable,
+          "Authorize the feature used by this intake mode in Connection.",
+        );
+        const alreadyExists = rewards.some((row) => row.purpose === $("rewardPurpose").value);
         unavailable(
           "createReward",
-          !last.connected || alreadyExists,
-          !last.connected
-            ? "Authorize Twitch before creating a managed reward."
-            : "A RaveLink-managed reward already exists for this function.",
+          !native || !groupAvailable("rewards") || alreadyExists,
+          !native
+            ? "Managed rewards use the server connection."
+            : !groupAvailable("rewards")
+              ? "Authorize Channel Points in Connection first."
+              : "A managed reward already exists for this function.",
         );
+        $("rewardAccessNotice").textContent = groupAvailable("rewards")
+          ? "Channel Points access granted."
+          : "Unavailable until Channel Points access is granted in Connection.";
+        $("chatAccessNotice").textContent = !groupAvailable("chat-read")
+          ? "Chat commands are unavailable until Read chat commands is granted in Connection."
+          : !groupAvailable("chat-send")
+            ? "Chat commands can be received. Send chat replies is not granted, so replies and clip links cannot be posted."
+            : "Chat reading and replies are available.";
+        for (const button of $("transactions").querySelectorAll("button"))
+          button.disabled = button.dataset.phaseBusy === "true" || !groupAvailable("rewards");
+        $("monitorState").textContent = last.eventSub?.connected ? "CONNECTED" : "STOPPED";
         syncClientControls();
-        if ((last.authorizationRefreshing || last.rewardSyncing) && !refresh.timer)
+        renderScopes();
+        renderPermissions();
+        renderRecovery();
+        syncChoiceCards();
+        if (
+          (last.authorizationRefreshing ||
+            last.rewardSyncing ||
+            last.authorizationValidating ||
+            last.roleDirectory?.refreshing) &&
+          !refresh.timer
+        )
           refresh.timer = setTimeout(() => {
             refresh.timer = null;
             void refresh();
           }, 1200);
         reportHeight();
       }
-      const renderStatus = render;
-      render = (value) => {
-        renderStatus(value);
-        renderScopes();
-        renderRecovery();
-        const missing = new Set(last.missingScopes || []),
-          manageMissing = missing.has("channel:manage:redemptions"),
-          readChatMissing = missing.has("user:read:chat"),
-          native = $("intakeMode").value === "native";
-        unavailable(
-          "songRequestMode",
-          !native || !last.connected || readChatMissing,
-          !native
-            ? "StreamElements uses Channel Points reward IDs from the Widget tab."
-            : !last.connected
-              ? "Authorize Twitch first."
-              : "Reauthorize Twitch with chat-read access.",
-        );
-        const purpose = $("rewardPurpose").value,
-          alreadyExists = (last.managedRewards || []).some((row) => row.purpose === purpose),
-          createReason = !native
-            ? "Managed rewards belong to Server OAuth + EventSub mode. In widget mode, enter your own reward IDs in the Widget tab."
-            : !last.connected
-              ? "Authorize Twitch before creating a managed reward."
-              : manageMissing
-                ? "Reauthorize Twitch with Channel Points access."
-                : "A RaveLink-managed reward already exists for this function.";
-        unavailable(
-          "createReward",
-          !native || !last.connected || manageMissing || alreadyExists,
-          createReason,
-        );
-      };
-      const renderValidation = render;
-      render = (value) => {
-        renderValidation(value);
-        syncChoiceCards();
-        if ((last.authorizationValidating || last.roleDirectory?.refreshing) && !refresh.timer)
-          refresh.timer = setTimeout(() => {
-            refresh.timer = null;
-            void refresh();
-          }, 1200);
-      };
       function renderRecovery() {
         const recovery = last.authorizationRecovery || {},
           rows = recovery.revocations || [],
@@ -817,7 +1016,7 @@
           $("begin").textContent = "REAUTHORIZE TWITCH";
           unavailable(
             "begin",
-            last.authorizationPending,
+            last.authorizationPending || authBusy,
             "Device authorization is already waiting for completion.",
           );
         }
@@ -843,6 +1042,7 @@
           render(
             await call("twitch.oauth.admin.v1", "configure", {
               clientId: $("clientId").value.trim(),
+              permissionGroups: selectedPermissions(),
             }),
           );
           $("clientId").value = "";
@@ -868,9 +1068,16 @@
         }
       };
       $("begin").onclick = async () => {
+        if (authBusy) return;
         const popup = openActivationWindow();
+        const permissionGroups = selectedPermissions();
+        authBusy = true;
+        render(last);
         try {
-          render(await call("twitch.oauth.admin.v1", "begin", null));
+          const result = await call("twitch.oauth.admin.v1", "begin", { permissionGroups });
+          permissionDraft = null;
+          permissionDirty = false;
+          render(result);
           const url = safeActivationUrl(last.verificationUri);
           if (popup && url) popup.location.href = url;
           else if (!popup)
@@ -880,6 +1087,30 @@
         } catch (error) {
           popup?.close();
           message("notice", error.message, true);
+        } finally {
+          authBusy = false;
+          render(last);
+        }
+      };
+      $("savePermissions").onclick = async () => {
+        if (authBusy || last.authorizationPending) return;
+        const permissionGroups = selectedPermissions();
+        authBusy = true;
+        render(last);
+        try {
+          const result = await call("twitch.oauth.admin.v1", "configure", { permissionGroups });
+          permissionDraft = null;
+          permissionDirty = false;
+          render(result);
+          message(
+            "notice",
+            "Choices saved for your next authorization. Current granted access has not changed.",
+          );
+        } catch (error) {
+          message("notice", error.message, true);
+        } finally {
+          authBusy = false;
+          render(last);
         }
       };
       $("openActivation").onclick = () => {
@@ -887,11 +1118,24 @@
           message("notice", "TWITCH AUTHORIZATION POPUP WAS BLOCKED", true);
       };
       $("check").onclick = async () => {
+        if (authBusy) return;
+        authBusy = true;
+        render(last);
         try {
           render(await call("twitch.oauth.admin.v1", "poll", null));
-          message("notice", last.connected ? "TWITCH CONNECTED" : "AUTHORIZATION PENDING");
+          message(
+            "notice",
+            last.authorizationPending
+              ? "AUTHORIZATION PENDING"
+              : last.connected
+                ? "TWITCH CONNECTED"
+                : "NOT CONNECTED",
+          );
         } catch (error) {
           message("notice", error.message, true);
+        } finally {
+          authBusy = false;
+          render(last);
         }
       };
       $("refresh").onclick = refresh;
@@ -1013,8 +1257,10 @@
             for (const [title, status] of actions) {
               const button = document.createElement("button");
               button.textContent = title;
-              button.disabled = ["executing", "sending"].includes(row.phase);
+              button.dataset.phaseBusy = String(["executing", "sending"].includes(row.phase));
+              button.disabled = button.dataset.phaseBusy === "true" || !groupAvailable("rewards");
               button.onclick = async () => {
+                button.dataset.phaseBusy = "true";
                 button.disabled = true;
                 try {
                   const result = await call("twitch.redemptions.v1", "reconcile", {
@@ -1031,7 +1277,8 @@
                   );
                 } catch (error) {
                   message("transactionNotice", error.message, true);
-                  button.disabled = false;
+                  button.dataset.phaseBusy = "false";
+                  button.disabled = !groupAvailable("rewards");
                 }
               };
               card.append(button);

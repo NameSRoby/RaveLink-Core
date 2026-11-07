@@ -29,7 +29,9 @@ module.exports = function chatPlayerCommands({
         !(
           request.capability === "song.queue.admin.v1" &&
           request.method === "moderate" &&
-          payload.notifyChat === true
+          (payload.notifyChat === true ||
+            (payload.operatorPlayback === true &&
+              ["pause", "resume", "volume"].includes(payload.action)))
         )
       )
         return null;

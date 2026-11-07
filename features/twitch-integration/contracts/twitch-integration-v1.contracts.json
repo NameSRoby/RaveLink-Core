@@ -131,6 +131,107 @@
                     }
                   }
                 }
+              },
+              "selectedPermissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "enum": [
+                    "rewards",
+                    "chat-read",
+                    "chat-send",
+                    "roles",
+                    "clips",
+                    "followers",
+                    "subscribers",
+                    "markers"
+                  ]
+                }
+              },
+              "requestedScopes": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "grantedScopes": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "permissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "label",
+                    "description",
+                    "scopes",
+                    "selected",
+                    "granted",
+                    "available",
+                    "missingScopes"
+                  ],
+                  "properties": {
+                    "id": {
+                      "enum": [
+                        "rewards",
+                        "chat-read",
+                        "chat-send",
+                        "roles",
+                        "clips",
+                        "followers",
+                        "subscribers",
+                        "markers"
+                      ]
+                    },
+                    "label": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 240
+                    },
+                    "scopes": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "selected": {
+                      "type": "boolean"
+                    },
+                    "granted": {
+                      "type": "boolean"
+                    },
+                    "available": {
+                      "type": "boolean"
+                    },
+                    "missingScopes": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    }
+                  }
+                }
+              },
+              "permissionSelectionNote": {
+                "type": "string",
+                "maxLength": 240
               }
             }
           }
@@ -144,12 +245,27 @@
           "request": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["clientId"],
             "properties": {
               "clientId": {
                 "type": "string",
                 "minLength": 10,
                 "maxLength": 80
+              },
+              "permissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "enum": [
+                    "rewards",
+                    "chat-read",
+                    "chat-send",
+                    "roles",
+                    "clips",
+                    "followers",
+                    "subscribers",
+                    "markers"
+                  ]
+                }
               }
             }
           },
@@ -274,6 +390,107 @@
                     }
                   }
                 }
+              },
+              "selectedPermissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "enum": [
+                    "rewards",
+                    "chat-read",
+                    "chat-send",
+                    "roles",
+                    "clips",
+                    "followers",
+                    "subscribers",
+                    "markers"
+                  ]
+                }
+              },
+              "requestedScopes": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "grantedScopes": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "permissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "label",
+                    "description",
+                    "scopes",
+                    "selected",
+                    "granted",
+                    "available",
+                    "missingScopes"
+                  ],
+                  "properties": {
+                    "id": {
+                      "enum": [
+                        "rewards",
+                        "chat-read",
+                        "chat-send",
+                        "roles",
+                        "clips",
+                        "followers",
+                        "subscribers",
+                        "markers"
+                      ]
+                    },
+                    "label": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 240
+                    },
+                    "scopes": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "selected": {
+                      "type": "boolean"
+                    },
+                    "granted": {
+                      "type": "boolean"
+                    },
+                    "available": {
+                      "type": "boolean"
+                    },
+                    "missingScopes": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    }
+                  }
+                }
+              },
+              "permissionSelectionNote": {
+                "type": "string",
+                "maxLength": 240
               }
             }
           }
@@ -405,6 +622,107 @@
                     }
                   }
                 }
+              },
+              "selectedPermissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "enum": [
+                    "rewards",
+                    "chat-read",
+                    "chat-send",
+                    "roles",
+                    "clips",
+                    "followers",
+                    "subscribers",
+                    "markers"
+                  ]
+                }
+              },
+              "requestedScopes": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "grantedScopes": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "permissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "label",
+                    "description",
+                    "scopes",
+                    "selected",
+                    "granted",
+                    "available",
+                    "missingScopes"
+                  ],
+                  "properties": {
+                    "id": {
+                      "enum": [
+                        "rewards",
+                        "chat-read",
+                        "chat-send",
+                        "roles",
+                        "clips",
+                        "followers",
+                        "subscribers",
+                        "markers"
+                      ]
+                    },
+                    "label": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 240
+                    },
+                    "scopes": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "selected": {
+                      "type": "boolean"
+                    },
+                    "granted": {
+                      "type": "boolean"
+                    },
+                    "available": {
+                      "type": "boolean"
+                    },
+                    "missingScopes": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    }
+                  }
+                }
+              },
+              "permissionSelectionNote": {
+                "type": "string",
+                "maxLength": 240
               }
             }
           }
@@ -424,10 +742,30 @@
                     "moderation:read",
                     "user:read:chat",
                     "user:write:chat",
+                    "clips:edit",
                     "channel:read:subscriptions",
                     "channel:read:hype_train",
                     "moderator:read:followers",
-                    "bits:read"
+                    "bits:read",
+                    "moderator:read:followers",
+                    "channel:read:subscriptions",
+                    "channel:manage:broadcast"
+                  ]
+                }
+              },
+              "permissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "enum": [
+                    "rewards",
+                    "chat-read",
+                    "chat-send",
+                    "roles",
+                    "clips",
+                    "followers",
+                    "subscribers",
+                    "markers"
                   ]
                 }
               }
@@ -554,6 +892,107 @@
                     }
                   }
                 }
+              },
+              "selectedPermissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "enum": [
+                    "rewards",
+                    "chat-read",
+                    "chat-send",
+                    "roles",
+                    "clips",
+                    "followers",
+                    "subscribers",
+                    "markers"
+                  ]
+                }
+              },
+              "requestedScopes": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "grantedScopes": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "permissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "label",
+                    "description",
+                    "scopes",
+                    "selected",
+                    "granted",
+                    "available",
+                    "missingScopes"
+                  ],
+                  "properties": {
+                    "id": {
+                      "enum": [
+                        "rewards",
+                        "chat-read",
+                        "chat-send",
+                        "roles",
+                        "clips",
+                        "followers",
+                        "subscribers",
+                        "markers"
+                      ]
+                    },
+                    "label": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 240
+                    },
+                    "scopes": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "selected": {
+                      "type": "boolean"
+                    },
+                    "granted": {
+                      "type": "boolean"
+                    },
+                    "available": {
+                      "type": "boolean"
+                    },
+                    "missingScopes": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    }
+                  }
+                }
+              },
+              "permissionSelectionNote": {
+                "type": "string",
+                "maxLength": 240
               }
             }
           }
@@ -685,6 +1124,107 @@
                     }
                   }
                 }
+              },
+              "selectedPermissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "enum": [
+                    "rewards",
+                    "chat-read",
+                    "chat-send",
+                    "roles",
+                    "clips",
+                    "followers",
+                    "subscribers",
+                    "markers"
+                  ]
+                }
+              },
+              "requestedScopes": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "grantedScopes": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "permissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "label",
+                    "description",
+                    "scopes",
+                    "selected",
+                    "granted",
+                    "available",
+                    "missingScopes"
+                  ],
+                  "properties": {
+                    "id": {
+                      "enum": [
+                        "rewards",
+                        "chat-read",
+                        "chat-send",
+                        "roles",
+                        "clips",
+                        "followers",
+                        "subscribers",
+                        "markers"
+                      ]
+                    },
+                    "label": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 240
+                    },
+                    "scopes": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "selected": {
+                      "type": "boolean"
+                    },
+                    "granted": {
+                      "type": "boolean"
+                    },
+                    "available": {
+                      "type": "boolean"
+                    },
+                    "missingScopes": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    }
+                  }
+                }
+              },
+              "permissionSelectionNote": {
+                "type": "string",
+                "maxLength": 240
               }
             }
           }
@@ -816,6 +1356,107 @@
                     }
                   }
                 }
+              },
+              "selectedPermissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "enum": [
+                    "rewards",
+                    "chat-read",
+                    "chat-send",
+                    "roles",
+                    "clips",
+                    "followers",
+                    "subscribers",
+                    "markers"
+                  ]
+                }
+              },
+              "requestedScopes": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "grantedScopes": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "permissionGroups": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "label",
+                    "description",
+                    "scopes",
+                    "selected",
+                    "granted",
+                    "available",
+                    "missingScopes"
+                  ],
+                  "properties": {
+                    "id": {
+                      "enum": [
+                        "rewards",
+                        "chat-read",
+                        "chat-send",
+                        "roles",
+                        "clips",
+                        "followers",
+                        "subscribers",
+                        "markers"
+                      ]
+                    },
+                    "label": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 240
+                    },
+                    "scopes": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "selected": {
+                      "type": "boolean"
+                    },
+                    "granted": {
+                      "type": "boolean"
+                    },
+                    "available": {
+                      "type": "boolean"
+                    },
+                    "missingScopes": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    }
+                  }
+                }
+              },
+              "permissionSelectionNote": {
+                "type": "string",
+                "maxLength": 240
               }
             }
           }

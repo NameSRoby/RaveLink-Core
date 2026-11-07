@@ -185,7 +185,9 @@ function setupCanvasControls() {
   grid.checked = true;
   grid.onchange = () => updateCanvasInspector();
   const gridLabel = node("label", "switchLabel");
-  gridLabel.append(grid, node("span", "", "24px grid & segment labels"));
+  gridLabel.title =
+    "Show the 24 px grid and shape labels while editing. These do not appear in OBS.";
+  gridLabel.append(grid, node("span", "", "Grid & labels"));
   toolbar.append(
     edit,
     labeled("Width", width),
@@ -200,7 +202,7 @@ function setupCanvasControls() {
   const help = node(
     "p",
     "canvas-help",
-    "Drag information to move it. Select its segment to resize everything together. Corner handles resize; ratio lock preserves proportions. Measurements are in overlay pixels. Arrows nudge 1px; Shift moves 10px; Alt bypasses snapping.",
+    "Drag to move; corner handles resize. Arrows nudge 1px, Shift moves 10px. Alt bypasses guides; Esc cancels a drag. Ctrl+D duplicates, Ctrl+Z undoes, Ctrl+Shift+Z redoes. Measurements use overlay pixels.",
   );
   toolbar.after(help);
   const library = node("section", "canvas-library");
@@ -292,16 +294,19 @@ function setupCanvasControls() {
 }
 function updateCanvasInspector() {
   if (updatingCanvasInspector) return;
+  const refocus = rememberSelectionFocus();
   updatingCanvasInspector = true;
   try {
     if (!$("canvas-toolbar")) return;
     document.body.dataset.canvasEditing = String(config.layoutMode === "canvas");
     const library = $("canvas-library");
+    const objectScroll = library.scrollTop;
     library.replaceChildren(node("h3", "", "Objects"));
     for (const row of config.segments) {
       const selectObject = (text, id) => {
         const button = node("button", "canvas-object", text);
         button.type = "button";
+        button.dataset.objectHidden = String(!row.enabled);
         button.setAttribute(
           "aria-pressed",
           String(
@@ -312,16 +317,26 @@ function updateCanvasInspector() {
           selectedShapeId = row.id;
           selectedPreviewPiece = id || "";
           updatePieceInspector();
+          library.querySelector('[aria-pressed="true"]')?.focus({ preventScroll: true });
         };
         return button;
       };
-      library.append(selectObject(row.name || "Shape"));
-      for (const b of row.blocks) library.append(selectObject("  " + NAMES[b.kind], b.id));
+      const shapeButton = selectObject(row.name || "Shape");
+      shapeButton.dataset.objectShape = row.id;
+      library.append(shapeButton);
+      for (const b of row.blocks) {
+        const button = selectObject(NAMES[b.kind], b.id);
+        button.dataset.objectPiece = b.id;
+        button.classList.add("canvas-object-child");
+        library.append(button);
+      }
     }
+    library.scrollTop = objectScroll;
     for (const key of ["width", "height"])
       if (document.activeElement !== $("canvas-" + key)) $("canvas-" + key).value = config[key];
     $("edit-canvas").textContent =
       config.layoutMode === "canvas" ? "Canvas editing active" : "Edit on canvas";
+    $("edit-canvas").disabled = config.layoutMode === "canvas";
     $("preview")
       .querySelectorAll(".canvas-selection,.canvas-guide,.canvas-segment-label,.canvas-grid")
       .forEach((n) => n.remove());
@@ -364,6 +379,7 @@ function updateCanvasInspector() {
     const heading = node("div", "inspector-heading");
     heading.append(title, done);
     panel.replaceChildren(heading);
+    addSelectionTools(panel, row);
     if (selectedPreviewPiece) {
       const parent = node("button", "", "Select segment");
       parent.id = "select-parent-segment";
@@ -485,6 +501,7 @@ function updateCanvasInspector() {
       return button;
     };
     const remove = node("button", "", "Delete selected");
+    remove.id = "canvas-delete";
     remove.onclick = () => {
       if (selectedPreviewPiece) row.blocks = row.blocks.filter((b) => b !== target);
       else {
@@ -565,6 +582,7 @@ function updateCanvasInspector() {
     }
   } finally {
     updatingCanvasInspector = false;
+    refocus();
   }
 }
 function startCanvasGesture(event, firstMove = null) {
@@ -593,6 +611,7 @@ function startCanvasGesture(event, firstMove = null) {
     const beginDrag = (move) => {
       if (Math.hypot(move.clientX - event.clientX, move.clientY - event.clientY) < 3) return;
       clear();
+      OverlayDesignerEditing.begin();
       enableCanvas();
       startCanvasGesture(event, move);
     };
@@ -601,9 +620,13 @@ function startCanvasGesture(event, firstMove = null) {
     window.addEventListener("pointercancel", clear);
     return;
   }
+  OverlayDesignerEditing.begin();
   enableCanvas();
   const target = canvasTarget();
-  if (!target?.frame) return;
+  if (!target?.frame) {
+    OverlayDesignerEditing.finish(true);
+    return;
+  }
   event.preventDefault();
   updatePieceInspector();
   const baseline = structuredClone(target),
@@ -648,18 +671,27 @@ function startCanvasGesture(event, firstMove = null) {
     config.preset = "custom";
     renderPreview();
   };
-  const end = () => {
+  const end = (event) => {
     canvasGuides = [];
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", end);
     window.removeEventListener("pointercancel", end);
-    changed(true);
+    window.removeEventListener("keydown", cancel);
+    OverlayDesignerEditing.finish(event?.type === "pointercancel" || event?.key === "Escape");
+    sync();
     focusCanvasTarget();
     setTimeout(() => (canvasGesture = null), 0);
+  };
+  const cancel = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      end(event);
+    }
   };
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", end);
   window.addEventListener("pointercancel", end);
+  window.addEventListener("keydown", cancel);
   if (firstMove) move(firstMove);
 }
 function snapCanvasFrame(target, corner, tolerance) {

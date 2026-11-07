@@ -534,6 +534,7 @@
  */
 body {
   font-family: "Segoe UI", Arial, sans-serif;
+  padding: 12px;
 }
 header {
   padding: 12px 0 !important;
@@ -1403,6 +1404,131 @@ body[data-canvas-editing="true"] .content-navigation,
 body[data-canvas-editing="true"] #content-controls,
 body[data-canvas-editing="true"] #composition {
   display: none !important;
+}
+/* Objects, canvas and selection use one workspace instead of stacked editors. */
+#designer-tasks .left {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  overflow: visible;
+  position: sticky;
+  top: 12px;
+}
+.designer-canvas-area {
+  min-width: 0;
+}
+#designer-tasks .canvas-library {
+  display: block;
+  padding: 14px 10px;
+  border-right: 1px solid var(--line);
+  max-height: 680px;
+  overflow: auto;
+}
+.canvas-library h3 {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.canvas-library .canvas-object {
+  min-height: 30px;
+  padding: 5px 8px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.canvas-library .canvas-object-child {
+  margin-left: 10px;
+  width: calc(100% - 10px);
+  background: transparent;
+}
+.canvas-library [data-object-hidden="true"] {
+  opacity: 0.5;
+}
+.selection-dock {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.selection-dock[hidden] {
+  display: none;
+}
+.selection-dock #canvas-inspector,
+.selection-dock #selection-inspector {
+  border: 0;
+  padding: 14px;
+}
+.selection-dock #selection-inspector {
+  border-top: 1px solid var(--line);
+}
+.selection-dock .canvas-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.selection-dock .format-tray {
+  margin-top: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.selection-dock input,
+.selection-dock select {
+  max-width: 100%;
+  min-width: 0;
+}
+.preview-wrap[data-zoomed="true"] {
+  overflow: auto;
+}
+.preview-heading {
+  flex-wrap: wrap;
+}
+.preview-heading {
+  padding: 12px 16px;
+  gap: 8px;
+}
+.preview-heading > div {
+  flex: 1;
+  min-width: 120px;
+}
+.edit-history {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.edit-state {
+  color: var(--muted);
+  font-size: 11px;
+  padding: 0 6px;
+}
+.edit-state[data-dirty="true"] {
+  color: var(--text);
+}
+#designer-tasks[data-active-task="Behavior"] .selection-dock,
+#designer-tasks[data-active-task="Profiles"] .selection-dock {
+  display: none;
+}
+@media (max-width: 1100px) {
+  #designer-tasks .left {
+    grid-template-columns: 125px minmax(0, 1fr);
+  }
+}
+@media (max-height: 800px), (max-width: 1000px) {
+  #designer-tasks .left {
+    position: static;
+  }
+}
+@media (max-width: 600px) {
+  #designer-tasks .left {
+    grid-template-columns: 1fr;
+  }
+  #designer-tasks .canvas-library {
+    max-height: 150px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .canvas-library .canvas-object {
+    display: inline-block;
+    width: auto;
+    margin: 3px;
+  }
+  .canvas-library .canvas-object-child {
+    margin-left: 3px;
+  }
 }
 </style>
 <!-- SONG_DESIGNER_STYLE_END -->
@@ -2972,6 +3098,7 @@ function updatePieceInspector() {
     .find((b) => b.id === selectedPreviewPiece);
   const inspector = $("selection-inspector");
   inspector.hidden = !selected;
+  if ($("selection-dock")) $("selection-dock").hidden = !canvasTarget();
   for (const el of $("preview").querySelectorAll("[data-block-id]")) {
     const piece = config.segments.flatMap((s) => s.blocks).find((b) => b.id === el.dataset.blockId);
     el.tabIndex = 0;
@@ -3116,6 +3243,7 @@ function setupDesignerControls() {
     updatePieceInspector();
   };
   setupCanvasControls();
+  setupEditingWorkspace();
   updateCanvasInspector();
   void renderPresetGallery();
 }
@@ -3459,7 +3587,9 @@ function setupCanvasControls() {
   grid.checked = true;
   grid.onchange = () => updateCanvasInspector();
   const gridLabel = node("label", "switchLabel");
-  gridLabel.append(grid, node("span", "", "24px grid & segment labels"));
+  gridLabel.title =
+    "Show the 24 px grid and shape labels while editing. These do not appear in OBS.";
+  gridLabel.append(grid, node("span", "", "Grid & labels"));
   toolbar.append(
     edit,
     labeled("Width", width),
@@ -3474,7 +3604,7 @@ function setupCanvasControls() {
   const help = node(
     "p",
     "canvas-help",
-    "Drag information to move it. Select its segment to resize everything together. Corner handles resize; ratio lock preserves proportions. Measurements are in overlay pixels. Arrows nudge 1px; Shift moves 10px; Alt bypasses snapping.",
+    "Drag to move; corner handles resize. Arrows nudge 1px, Shift moves 10px. Alt bypasses guides; Esc cancels a drag. Ctrl+D duplicates, Ctrl+Z undoes, Ctrl+Shift+Z redoes. Measurements use overlay pixels.",
   );
   toolbar.after(help);
   const library = node("section", "canvas-library");
@@ -3566,16 +3696,19 @@ function setupCanvasControls() {
 }
 function updateCanvasInspector() {
   if (updatingCanvasInspector) return;
+  const refocus = rememberSelectionFocus();
   updatingCanvasInspector = true;
   try {
     if (!$("canvas-toolbar")) return;
     document.body.dataset.canvasEditing = String(config.layoutMode === "canvas");
     const library = $("canvas-library");
+    const objectScroll = library.scrollTop;
     library.replaceChildren(node("h3", "", "Objects"));
     for (const row of config.segments) {
       const selectObject = (text, id) => {
         const button = node("button", "canvas-object", text);
         button.type = "button";
+        button.dataset.objectHidden = String(!row.enabled);
         button.setAttribute(
           "aria-pressed",
           String(
@@ -3586,16 +3719,26 @@ function updateCanvasInspector() {
           selectedShapeId = row.id;
           selectedPreviewPiece = id || "";
           updatePieceInspector();
+          library.querySelector('[aria-pressed="true"]')?.focus({ preventScroll: true });
         };
         return button;
       };
-      library.append(selectObject(row.name || "Shape"));
-      for (const b of row.blocks) library.append(selectObject("  " + NAMES[b.kind], b.id));
+      const shapeButton = selectObject(row.name || "Shape");
+      shapeButton.dataset.objectShape = row.id;
+      library.append(shapeButton);
+      for (const b of row.blocks) {
+        const button = selectObject(NAMES[b.kind], b.id);
+        button.dataset.objectPiece = b.id;
+        button.classList.add("canvas-object-child");
+        library.append(button);
+      }
     }
+    library.scrollTop = objectScroll;
     for (const key of ["width", "height"])
       if (document.activeElement !== $("canvas-" + key)) $("canvas-" + key).value = config[key];
     $("edit-canvas").textContent =
       config.layoutMode === "canvas" ? "Canvas editing active" : "Edit on canvas";
+    $("edit-canvas").disabled = config.layoutMode === "canvas";
     $("preview")
       .querySelectorAll(".canvas-selection,.canvas-guide,.canvas-segment-label,.canvas-grid")
       .forEach((n) => n.remove());
@@ -3638,6 +3781,7 @@ function updateCanvasInspector() {
     const heading = node("div", "inspector-heading");
     heading.append(title, done);
     panel.replaceChildren(heading);
+    addSelectionTools(panel, row);
     if (selectedPreviewPiece) {
       const parent = node("button", "", "Select segment");
       parent.id = "select-parent-segment";
@@ -3759,6 +3903,7 @@ function updateCanvasInspector() {
       return button;
     };
     const remove = node("button", "", "Delete selected");
+    remove.id = "canvas-delete";
     remove.onclick = () => {
       if (selectedPreviewPiece) row.blocks = row.blocks.filter((b) => b !== target);
       else {
@@ -3839,6 +3984,7 @@ function updateCanvasInspector() {
     }
   } finally {
     updatingCanvasInspector = false;
+    refocus();
   }
 }
 function startCanvasGesture(event, firstMove = null) {
@@ -3867,6 +4013,7 @@ function startCanvasGesture(event, firstMove = null) {
     const beginDrag = (move) => {
       if (Math.hypot(move.clientX - event.clientX, move.clientY - event.clientY) < 3) return;
       clear();
+      OverlayDesignerEditing.begin();
       enableCanvas();
       startCanvasGesture(event, move);
     };
@@ -3875,9 +4022,13 @@ function startCanvasGesture(event, firstMove = null) {
     window.addEventListener("pointercancel", clear);
     return;
   }
+  OverlayDesignerEditing.begin();
   enableCanvas();
   const target = canvasTarget();
-  if (!target?.frame) return;
+  if (!target?.frame) {
+    OverlayDesignerEditing.finish(true);
+    return;
+  }
   event.preventDefault();
   updatePieceInspector();
   const baseline = structuredClone(target),
@@ -3922,18 +4073,27 @@ function startCanvasGesture(event, firstMove = null) {
     config.preset = "custom";
     renderPreview();
   };
-  const end = () => {
+  const end = (event) => {
     canvasGuides = [];
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", end);
     window.removeEventListener("pointercancel", end);
-    changed(true);
+    window.removeEventListener("keydown", cancel);
+    OverlayDesignerEditing.finish(event?.type === "pointercancel" || event?.key === "Escape");
+    sync();
     focusCanvasTarget();
     setTimeout(() => (canvasGesture = null), 0);
+  };
+  const cancel = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      end(event);
+    }
   };
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", end);
   window.addEventListener("pointercancel", end);
+  window.addEventListener("keydown", cancel);
   if (firstMove) move(firstMove);
 }
 function snapCanvasFrame(target, corner, tolerance) {
@@ -3993,6 +4153,261 @@ function focusCanvasTarget() {
   [...$("preview").querySelectorAll(selector)]
     .find((el) => (el.dataset.blockId || el.dataset.segmentId) === id)
     ?.focus({ preventScroll: true });
+}
+
+/** Local editing commands and bounded history. Never writes the published OBS
+ * configuration; Save overlay remains the only apply operation.
+ */
+/* exported OverlayDesignerEditing, setupEditingWorkspace, addSelectionTools, rememberSelectionFocus */
+const OverlayDesignerEditing = (() => {
+  let states = [],
+    index = -1,
+    replaying = false,
+    gesture = null,
+    lastGroup = "",
+    lastAt = 0;
+  let serial = 0;
+  const serialize = () => JSON.stringify(config);
+  const snapshot = () => ({
+    value: serialize(),
+    shape: selectedShapeId,
+    piece: selectedPreviewPiece,
+  });
+  function buttons() {
+    if (!$("edit-undo")) return;
+    const blocked = document.querySelector("main").inert;
+    $("edit-undo").disabled = blocked || index <= 0;
+    $("edit-redo").disabled = blocked || index >= states.length - 1;
+    const dirty = baseline !== null && serialize() !== baseline;
+    $("edit-state").textContent = dirty ? "Unsaved changes" : "Saved";
+    $("edit-state").dataset.dirty = String(dirty);
+  }
+  function record() {
+    if (baseline === null || replaying || gesture) return;
+    const value = serialize();
+    if (states[index]?.value === value) {
+      Object.assign(states[index], snapshot());
+      return buttons();
+    }
+    const input = document.activeElement;
+    const group = input?.matches('input[type="range"],input[type="number"]')
+      ? input.id || input.dataset.geometry || ""
+      : "";
+    const at = performance.now();
+    const coalesce =
+      group && group === lastGroup && at - lastAt < 450 && index > 0 && index === states.length - 1;
+    states = states.slice(0, index + 1);
+    if (coalesce) states[index] = snapshot();
+    else {
+      states.push(snapshot());
+      index++;
+    }
+    while (
+      states.length > 40 ||
+      (states.length > 1 && states.reduce((n, s) => n + s.value.length, 0) > 1048576)
+    ) {
+      states.shift();
+      index--;
+    }
+    lastGroup = group;
+    lastAt = at;
+    buttons();
+  }
+  function apply(value) {
+    replaying = true;
+    try {
+      config = JSON.parse(value.value);
+      selectedShapeId = value.shape;
+      selectedPreviewPiece = value.piece;
+      inspectedPiece = null;
+      if (!config.segments.some((s) => s.id === selectedShapeId)) selectedShapeId = "";
+      if (!config.segments.some((s) => s.blocks.some((b) => b.id === selectedPreviewPiece)))
+        selectedPreviewPiece = "";
+      sync();
+    } finally {
+      replaying = false;
+      buttons();
+    }
+  }
+  function travel(delta) {
+    if (
+      document.querySelector("main").inert ||
+      gesture ||
+      index + delta < 0 ||
+      index + delta >= states.length
+    )
+      return;
+    index += delta;
+    lastGroup = "";
+    apply(states[index]);
+    status(
+      delta < 0 ? "Edit undone. Save overlay to apply." : "Edit restored. Save overlay to apply.",
+    );
+  }
+  function duplicate() {
+    if (document.querySelector("main").inert) return;
+    const target = canvasTarget();
+    if (!target) return;
+    const row = config.segments.find((s) => s.blocks.includes(target));
+    const count = config.segments.reduce((n, s) => n + s.blocks.length, 0);
+    if ((!row && config.segments.length >= 8) || count + (row ? 1 : target.blocks.length) > 32)
+      return status("This design supports up to eight shapes and 32 information pieces.");
+    begin();
+    enableCanvas();
+    const copy = structuredClone(canvasTarget());
+    const id = () => "copy-" + Date.now().toString(36) + "-" + (++serial).toString(36);
+    copy.id = id();
+    if (copy.blocks) for (const b of copy.blocks) b.id = id();
+    const parent = row?.frame || config;
+    copy.frame.x = bounded(copy.frame.x + 12, 0, Math.max(0, parent.width - copy.frame.width));
+    copy.frame.y = bounded(copy.frame.y + 12, 0, Math.max(0, parent.height - copy.frame.height));
+    if (row) {
+      row.blocks.splice(row.blocks.indexOf(target) + 1, 0, copy);
+      selectedPreviewPiece = copy.id;
+    } else {
+      copy.name = ((copy.name || "Shape") + " copy").slice(0, 40);
+      config.segments.splice(config.segments.indexOf(target) + 1, 0, copy);
+      selectedShapeId = copy.id;
+      selectedPreviewPiece = "";
+    }
+    changed(true);
+    finish();
+    status("Duplicated. Drag the copy into place, or use arrow keys.");
+    focusCanvasTarget();
+  }
+  function begin() {
+    if (!gesture) {
+      record();
+      gesture = snapshot();
+    }
+  }
+  function finish(cancel = false) {
+    const prior = gesture;
+    gesture = null;
+    lastGroup = "";
+    if (cancel && prior) apply(prior);
+    else record();
+  }
+  return {
+    record,
+    duplicate,
+    begin,
+    finish,
+    refresh: buttons,
+    reset() {
+      states = [];
+      index = -1;
+      lastGroup = "";
+    },
+    undo: () => travel(-1),
+    redo: () => travel(1),
+    get zoom() {
+      const input = $("edit-zoom");
+      return input?.value === "fit" || !input ? null : Number(input.value);
+    },
+  };
+})();
+function addSelectionTools(panel, row) {
+  const duplicate = node("button", "", "Duplicate");
+  duplicate.id = "canvas-duplicate";
+  duplicate.title = "Duplicate the selection (Ctrl+D)";
+  duplicate.onclick = () => OverlayDesignerEditing.duplicate();
+  panel.append(duplicate);
+  if (!selectedPreviewPiece) {
+    const name = node("input");
+    name.value = row.name || "Shape";
+    name.maxLength = 40;
+    name.dataset.editName = "shape";
+    name.onchange = () => {
+      row.name = name.value.trim() || "Shape";
+      changed(true);
+    };
+    panel.append(labeled("Shape name", name));
+    const visible = node("input");
+    visible.type = "checkbox";
+    visible.checked = row.enabled;
+    visible.onchange = () => {
+      row.enabled = visible.checked;
+      changed(true);
+    };
+    const show = node("label", "switchLabel");
+    show.append(visible, node("span", "", "Show shape"));
+    panel.append(show);
+  }
+}
+function rememberSelectionFocus() {
+  const active = document.activeElement;
+  const key = ["geometry", "constraint", "editName"].find((k) => active?.dataset[k]);
+  if (canvasGesture || !key || !active.closest("#canvas-inspector")) return () => {};
+  const value = active.dataset[key];
+  return () => {
+    const replacement = [...$("canvas-inspector").querySelectorAll("input")].find(
+      (el) => el.dataset[key] === value,
+    );
+    replacement?.focus({ preventScroll: true });
+  };
+}
+function setupEditingWorkspace() {
+  const actions = document.querySelector("header > div");
+  const history = node("div", "edit-history");
+  for (const [id, label, title, run] of [
+    ["edit-undo", "Undo", "Undo the last edit (Ctrl+Z)", OverlayDesignerEditing.undo],
+    [
+      "edit-redo",
+      "Redo",
+      "Restore the next edit (Ctrl+Shift+Z or Ctrl+Y)",
+      OverlayDesignerEditing.redo,
+    ],
+  ]) {
+    const button = node("button", "", label);
+    button.id = id;
+    button.title = title;
+    button.onclick = run;
+    history.append(button);
+  }
+  const state = node("span", "edit-state");
+  state.id = "edit-state";
+  history.append(state);
+  actions.prepend(history);
+  $("discard").textContent = "Discard draft";
+  $("discard").title = "Discard all local changes and load the latest saved overlay.";
+  const left = document.querySelector(".left");
+  const area = node("div", "designer-canvas-area");
+  const objects = $("canvas-library");
+  const dock = node("section", "selection-dock");
+  dock.id = "selection-dock";
+  document.querySelector(".designer-sidebar").prepend(dock);
+  dock.append($("canvas-inspector"), $("selection-inspector"));
+  area.append(...left.children);
+  left.append(objects, area);
+  objects.setAttribute("aria-label", "Overlay objects");
+  const zoom = select(["fit", "0.5", "0.75", "1", "1.5", "2"], "fit", () => renderPreview());
+  zoom.id = "edit-zoom";
+  for (const option of zoom.options)
+    option.textContent = option.value === "fit" ? "Fit" : Number(option.value) * 100 + "%";
+  document.querySelector(".preview-heading").append(labeled("Zoom", zoom));
+  document.addEventListener("keydown", (event) => {
+    const typing = event.target.closest("input,select,textarea,[contenteditable=true]");
+    if (typing || event.defaultPrevented || document.querySelector("main").inert || canvasGesture)
+      return;
+    const key = event.key.toLowerCase(),
+      command = event.ctrlKey || event.metaKey;
+    if (command && ["z", "y", "d"].includes(key)) {
+      event.preventDefault();
+      if (key === "d") OverlayDesignerEditing.duplicate();
+      else if (key === "y" || event.shiftKey) OverlayDesignerEditing.redo();
+      else OverlayDesignerEditing.undo();
+    } else if (event.key === "Escape") {
+      selectedPreviewPiece = "";
+      selectedShapeId = "";
+      updatePieceInspector();
+    } else if (event.key === "Delete" && canvasTarget()) {
+      event.preventDefault();
+      $("canvas-delete")?.click();
+    }
+  });
+  OverlayDesignerEditing.record();
+  updatePieceInspector();
 }
 </script>
 <!-- SONG_DESIGNER_SCRIPT_END -->
@@ -4553,14 +4968,18 @@ function focusCanvasTarget() {
         const host = document.querySelector(".preview-wrap"),
           canvas = $("preview-canvas"),
           scene = $("preview-mode").value === "scene",
+          zoom = scene ? null : OverlayDesignerEditing.zoom,
           scale = scene
             ? host.clientWidth / 1280
-            : Math.min(1, host.clientWidth / (config.width + 80));
-        canvas.style.width = host.clientWidth / scale + "px";
-        canvas.style.height = host.clientHeight / scale + "px";
+            : zoom || Math.min(1, host.clientWidth / (config.width + 80));
+        host.dataset.zoomed = String(!!zoom);
+        if ($("edit-zoom")) $("edit-zoom").disabled = scene;
+        canvas.style.width = (zoom ? Math.max(config.width + 80, host.clientWidth / scale) : host.clientWidth / scale) + "px";
+        canvas.style.height = (zoom ? Math.max(config.height + 80, host.clientHeight / scale) : host.clientHeight / scale) + "px";
         canvas.style.transform = "scale(" + scale + ")";
       }
       function renderPreview() {
+        OverlayDesignerEditing.record();
         fitPreview();
         recordDraft();
         $("preset").value = config.preset;
@@ -4720,6 +5139,7 @@ function focusCanvasTarget() {
         $("preset-library").inert = value;
         for (const id of ["save", "reset", "discard", "preset", "profile-select", "profile-new"])
           $(id).disabled = value;
+        OverlayDesignerEditing.refresh();
       }
       function draft(operation, value = null) {
         const id = `draft-${++sequence}`;
@@ -4900,6 +5320,7 @@ function focusCanvasTarget() {
       };
 
       function loadSaved(saved) {
+        OverlayDesignerEditing.reset();
         selectedPreviewPiece = "";
         selectedShapeId = "";
         inspectedPiece = null;
@@ -5039,7 +5460,7 @@ function focusCanvasTarget() {
           event.data.message?.capability === "song.overlay.events.v1" &&
           event.data.message.payload?.revision > serverRevision
         )
-          status("Saved overlay changed elsewhere. Undo changes loads the latest version.");
+          status("Saved overlay changed elsewhere. Discard draft loads the latest version.");
       });
 
       new ResizeObserver(() => {

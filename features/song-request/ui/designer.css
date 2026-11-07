@@ -5,6 +5,7 @@
  */
 body {
   font-family: "Segoe UI", Arial, sans-serif;
+  padding: 12px;
 }
 header {
   padding: 12px 0 !important;
@@ -874,4 +875,129 @@ body[data-canvas-editing="true"] .content-navigation,
 body[data-canvas-editing="true"] #content-controls,
 body[data-canvas-editing="true"] #composition {
   display: none !important;
+}
+/* Objects, canvas and selection use one workspace instead of stacked editors. */
+#designer-tasks .left {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  overflow: visible;
+  position: sticky;
+  top: 12px;
+}
+.designer-canvas-area {
+  min-width: 0;
+}
+#designer-tasks .canvas-library {
+  display: block;
+  padding: 14px 10px;
+  border-right: 1px solid var(--line);
+  max-height: 680px;
+  overflow: auto;
+}
+.canvas-library h3 {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.canvas-library .canvas-object {
+  min-height: 30px;
+  padding: 5px 8px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.canvas-library .canvas-object-child {
+  margin-left: 10px;
+  width: calc(100% - 10px);
+  background: transparent;
+}
+.canvas-library [data-object-hidden="true"] {
+  opacity: 0.5;
+}
+.selection-dock {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.selection-dock[hidden] {
+  display: none;
+}
+.selection-dock #canvas-inspector,
+.selection-dock #selection-inspector {
+  border: 0;
+  padding: 14px;
+}
+.selection-dock #selection-inspector {
+  border-top: 1px solid var(--line);
+}
+.selection-dock .canvas-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.selection-dock .format-tray {
+  margin-top: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.selection-dock input,
+.selection-dock select {
+  max-width: 100%;
+  min-width: 0;
+}
+.preview-wrap[data-zoomed="true"] {
+  overflow: auto;
+}
+.preview-heading {
+  flex-wrap: wrap;
+}
+.preview-heading {
+  padding: 12px 16px;
+  gap: 8px;
+}
+.preview-heading > div {
+  flex: 1;
+  min-width: 120px;
+}
+.edit-history {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.edit-state {
+  color: var(--muted);
+  font-size: 11px;
+  padding: 0 6px;
+}
+.edit-state[data-dirty="true"] {
+  color: var(--text);
+}
+#designer-tasks[data-active-task="Behavior"] .selection-dock,
+#designer-tasks[data-active-task="Profiles"] .selection-dock {
+  display: none;
+}
+@media (max-width: 1100px) {
+  #designer-tasks .left {
+    grid-template-columns: 125px minmax(0, 1fr);
+  }
+}
+@media (max-height: 800px), (max-width: 1000px) {
+  #designer-tasks .left {
+    position: static;
+  }
+}
+@media (max-width: 600px) {
+  #designer-tasks .left {
+    grid-template-columns: 1fr;
+  }
+  #designer-tasks .canvas-library {
+    max-height: 150px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .canvas-library .canvas-object {
+    display: inline-block;
+    width: auto;
+    margin: 3px;
+  }
+  .canvas-library .canvas-object-child {
+    margin-left: 3px;
+  }
 }

@@ -437,6 +437,9 @@
               "query": {
                 "type": "string",
                 "maxLength": 500
+              },
+              "operatorPlayback": {
+                "type": "boolean"
               }
             }
           },
@@ -566,7 +569,7 @@
                 "minimum": 0
               },
               "playbackSource": {
-                "enum": ["youtube", "tidal", "spotify", "apple-music", "soundcloud"]
+                "enum": ["auto", "youtube", "tidal", "spotify", "apple-music", "soundcloud"]
               },
               "primary": {
                 "type": ["object", "null"]
@@ -817,10 +820,10 @@
                 "maxLength": 40
               },
               "playbackSource": {
-                "enum": ["youtube", "tidal", "spotify", "apple-music", "soundcloud"]
+                "enum": ["auto", "youtube", "tidal", "spotify", "apple-music", "soundcloud"]
               },
               "selectedProvider": {
-                "enum": ["youtube", "soundcloud", "tidal", "spotify", "apple-music"]
+                "enum": ["auto", "youtube", "soundcloud", "tidal", "spotify", "apple-music"]
               },
               "error": {
                 "type": "string",
@@ -860,7 +863,7 @@
                 "enum": ["start", "stop", "select"]
               },
               "source": {
-                "enum": ["youtube", "tidal", "spotify", "apple-music", "soundcloud"]
+                "enum": ["auto", "youtube", "tidal", "spotify", "apple-music", "soundcloud"]
               }
             }
           },
@@ -879,10 +882,10 @@
                 "maxLength": 40
               },
               "playbackSource": {
-                "enum": ["youtube", "tidal", "spotify", "apple-music", "soundcloud"]
+                "enum": ["auto", "youtube", "tidal", "spotify", "apple-music", "soundcloud"]
               },
               "selectedProvider": {
-                "enum": ["youtube", "soundcloud", "tidal", "spotify", "apple-music"]
+                "enum": ["auto", "youtube", "soundcloud", "tidal", "spotify", "apple-music"]
               },
               "error": {
                 "type": "string",

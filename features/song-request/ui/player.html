@@ -3,6 +3,23 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <!-- PLAYER RANDOM ID START -->
+<script>
+/** Cryptographically random UUIDs also work on plain-HTTP LAN and sandbox pages.
+ * randomUUID requires a secure context; getRandomValues does not.
+ */
+function browserRandomId() {
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+if (typeof module !== "undefined" && module.exports) module.exports = browserRandomId;
+else globalThis.RaveLinkRandomId = browserRandomId;
+
+</script>
+<!-- PLAYER RANDOM ID END -->
     <title>Song Request Player</title>
     <style>
       :root {
@@ -465,7 +482,7 @@
       </section>
     </main>
     <script>
-      const DRIVER = `player-${crypto.randomUUID()}`;
+      const DRIVER = `player-${globalThis.RaveLinkRandomId()}`;
       const CHANNEL = "ravelink-feature-ui-v1";
       const PARENT_ORIGIN = location.origin;
       let sequence = 0;
@@ -1289,7 +1306,7 @@
               }
             : null;
           const result = await call("song.queue.submit.v1", "submit", {
-            requestId: crypto.randomUUID(),
+            requestId: globalThis.RaveLinkRandomId(),
             requesterId: "local-operator",
             requesterName: "Local operator",
             requesterRole: "moderator",
@@ -3947,7 +3964,7 @@ function installSoundCloudPlayer() {
         setRequestNotice("Searching SoundCloud for a matching track?");
         const result = await api("submit-query", {
           query,
-          requestId: crypto.randomUUID(),
+          requestId: globalThis.RaveLinkRandomId(),
         });
         $("videoInput").value = "";
         setRequestNotice(
@@ -3968,7 +3985,7 @@ function installSoundCloudPlayer() {
         throw new Error("Use a single public track link. Import playlists in Setup.");
       const result = await api("submit", {
         sound: sounds[0],
-        requestId: crypto.randomUUID(),
+        requestId: globalThis.RaveLinkRandomId(),
       });
       $("videoInput").value = "";
       setRequestNotice("Queued " + result.entry.candidate.title + ". Requests play in order.");
@@ -5099,7 +5116,7 @@ function installSpotifyPlayer({ showView, volumeControls }) {
     try {
       const result = await api("submit", {
         query,
-        requestId: crypto.randomUUID(),
+        requestId: globalThis.RaveLinkRandomId(),
       });
       if (!result.ok) throw new Error(result.reason || result.error || "Song could not be added.");
       $("videoInput").value = "";
@@ -5716,7 +5733,7 @@ function installSpotifyPlayer({ showView, volumeControls }) {
     try {
       const result = await call("song.tidal.experimental.v1", "submit", {
         query,
-        requestId: crypto.randomUUID(),
+        requestId: globalThis.RaveLinkRandomId(),
       });
       $("videoInput").value = "";
       setRequestNotice(

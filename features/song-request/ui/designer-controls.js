@@ -209,6 +209,7 @@ function updatePieceInspector() {
     .find((b) => b.id === selectedPreviewPiece);
   const inspector = $("selection-inspector");
   inspector.hidden = !selected;
+  if ($("selection-dock")) $("selection-dock").hidden = !canvasTarget();
   for (const el of $("preview").querySelectorAll("[data-block-id]")) {
     const piece = config.segments.flatMap((s) => s.blocks).find((b) => b.id === el.dataset.blockId);
     el.tabIndex = 0;
@@ -353,6 +354,7 @@ function setupDesignerControls() {
     updatePieceInspector();
   };
   setupCanvasControls();
+  setupEditingWorkspace();
   updateCanvasInspector();
   void renderPresetGallery();
 }

@@ -248,7 +248,9 @@ function createPlaylistService(options) {
     else if (payload.action === "play_random")
       result = library.selectRandom(
         Math.random,
-        queue.playbackStatus().playbackSource === "soundcloud" ? "soundcloud" : "youtube",
+        (request?.activePlayer || queue.playbackStatus().playbackSource) === "soundcloud"
+          ? "soundcloud"
+          : "youtube",
       );
     else if (["remove_track", "clear_tracks"].includes(payload.action)) {
       const selected = library.active();

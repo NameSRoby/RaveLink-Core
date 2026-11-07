@@ -337,7 +337,7 @@ function installSpotifyPlayer({ showView, volumeControls }) {
     try {
       const result = await api("submit", {
         query,
-        requestId: crypto.randomUUID(),
+        requestId: globalThis.RaveLinkRandomId(),
       });
       if (!result.ok) throw new Error(result.reason || result.error || "Song could not be added.");
       $("videoInput").value = "";

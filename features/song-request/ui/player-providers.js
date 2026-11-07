@@ -591,7 +591,7 @@
     try {
       const result = await call("song.tidal.experimental.v1", "submit", {
         query,
-        requestId: crypto.randomUUID(),
+        requestId: globalThis.RaveLinkRandomId(),
       });
       $("videoInput").value = "";
       setRequestNotice(

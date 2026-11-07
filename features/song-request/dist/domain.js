@@ -12,8 +12,10 @@ const { createOverlayProfiles } = require("./overlay-profiles");
 const { RESPONSE_KINDS } = require("./chat-responses");
 const { DEFAULT_CATALOG_POLICY, catalogPolicyFrom } = require("./catalog-policy");
 const requesterRestrictions = require("./requester-restrictions");
+const { requesterKey, requesterRole } = require("./requester-identity");
 const SNAPSHOT_VERSION = 12;
 const PLAYBACK_SOURCES = Object.freeze([
+  "auto",
   "youtube",
   "soundcloud",
   "tidal",
@@ -39,14 +41,6 @@ function stableId(value) {
     hash = Math.imul(hash, 16777619);
   }
   return (hash >>> 0).toString(36);
-}
-
-function requesterKey(value) {
-  return `req_${crypto.createHash("sha256").update(String(value)).digest("hex")}`;
-}
-
-function requesterRole(value) {
-  return ["moderator", "vip"].includes(value) ? value : "viewer";
 }
 
 function candidateFrom(input, query) {
@@ -120,7 +114,7 @@ function createSongQueue(options = {}) {
     overlayProfile = overlayProfiles.profile;
   let managedPlayback = null;
   let playbackEnabled = false;
-  let playbackSource = "youtube";
+  let playbackSource = "auto";
   let playlist = [];
   let playlistMode = "off";
   let playlistCursor = 0;
@@ -141,14 +135,26 @@ function createSongQueue(options = {}) {
       .slice(0, 4)
       .map(clonePlayback);
     const managed = clonePlayback(managedPlayback);
-    const selected = observed.filter((row) => row.provider === playbackSource && row.available);
+    const selected = observed.filter(
+      (row) =>
+        (playbackSource === "auto" || row.provider === playbackSource) &&
+        row.available &&
+        Number(now()) - row.observedAt < 15000,
+    );
     const playingObserved = selected.find((row) => row.status === "playing");
-    const primary = ["youtube", "soundcloud"].includes(playbackSource)
-      ? (managed?.candidate?.provider === playbackSource ? managed : null) ||
-        playingObserved ||
-        selected[0] ||
-        null
-      : playingObserved || selected[0] || null;
+    const primary =
+      playbackSource === "auto"
+        ? (managed?.status === "playing" ? managed : null) ||
+          playingObserved ||
+          managed ||
+          selected[0] ||
+          null
+        : ["youtube", "soundcloud"].includes(playbackSource)
+          ? (managed?.candidate?.provider === playbackSource ? managed : null) ||
+            playingObserved ||
+            selected[0] ||
+            null
+          : playingObserved || selected[0] || null;
     return {
       ok: true,
       revision: playbackRevision,
@@ -1125,7 +1131,7 @@ function createSongQueue(options = {}) {
     managedPlayback = null;
     playbackSource = PLAYBACK_SOURCES.includes(snapshot.playbackSource)
       ? snapshot.playbackSource
-      : "youtube";
+      : "auto";
     overlayProfiles.restore(snapshot);
     configure({
       limits: snapshot.limits,

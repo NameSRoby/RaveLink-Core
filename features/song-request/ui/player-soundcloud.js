@@ -200,7 +200,7 @@ function installSoundCloudPlayer() {
         setRequestNotice("Searching SoundCloud for a matching track?");
         const result = await api("submit-query", {
           query,
-          requestId: crypto.randomUUID(),
+          requestId: globalThis.RaveLinkRandomId(),
         });
         $("videoInput").value = "";
         setRequestNotice(
@@ -221,7 +221,7 @@ function installSoundCloudPlayer() {
         throw new Error("Use a single public track link. Import playlists in Setup.");
       const result = await api("submit", {
         sound: sounds[0],
-        requestId: crypto.randomUUID(),
+        requestId: globalThis.RaveLinkRandomId(),
       });
       $("videoInput").value = "";
       setRequestNotice("Queued " + result.entry.candidate.title + ". Requests play in order.");

@@ -7,6 +7,7 @@ module.exports = function playerRouting({ preferences, queue, tidal, changed }) 
   return async (request) => {
     const relevant =
       request.capability === "song.player.preferences.v1" ||
+      request.capability === "song.playlist.admin.v1" ||
       (request.capability === "song.queue.submit.v1" && request.method === "submit") ||
       (request.capability === "song.playback.driver.v1" && request.method === "pull") ||
       (request.capability === "song.queue.admin.v1" &&
@@ -21,7 +22,10 @@ module.exports = function playerRouting({ preferences, queue, tidal, changed }) 
     const selected = await preferences("status", null);
     if (!selected.ok) return { value: { ok: false, code: "player_preferences_unavailable" } };
     const payload = request.payload || {};
-    if (request.capability === "song.queue.submit.v1" && request.method === "submit")
+    if (
+      (request.capability === "song.queue.submit.v1" && request.method === "submit") ||
+      request.capability === "song.playlist.admin.v1"
+    )
       request.activePlayer = selected.player;
     if (request.capability === "song.player.preferences.v1" && request.method === "select") {
       const result = await preferences("select", payload);
@@ -29,7 +33,10 @@ module.exports = function playerRouting({ preferences, queue, tidal, changed }) 
         result.ok &&
         (result.player !== selected.player || result.youtubePlayback !== selected.youtubePlayback)
       ) {
-        queue.configurePlaybackSource({ source: result.player, suspend: true });
+        queue.configurePlaybackSource({
+          source: queue.playbackStatus().playbackSource,
+          suspend: true,
+        });
         changed(result);
       }
       return { value: result };

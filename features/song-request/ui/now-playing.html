@@ -236,10 +236,11 @@
       <section class="section">
         <h2>CHOOSE THE OVERLAY SOURCE</h2>
         <p class="sectionHelp">
-          Pick which player supplies the title, artist, and album shown in OBS. YouTube and
-          SoundCloud use RaveLink's players; desktop apps use Windows media information.
+          Automatic follows the player currently making music. Select a specific player to keep the
+          overlay on that source. Desktop apps use Windows media information.
         </p>
         <select id="source" class="srOnly" aria-label="Now playing source">
+          <option value="auto">AUTOMATIC // FOLLOW PLAYING AUDIO</option>
           <option value="youtube">YOUTUBE // LOCAL PLAYER</option>
           <option value="soundcloud">SOUNDCLOUD // RAVELINK PLAYER</option>
           <option value="tidal">TIDAL // WINDOWS APP</option>
@@ -247,6 +248,12 @@
           <option value="apple-music">APPLE MUSIC // WINDOWS APP</option>
         </select>
         <div class="sourceCards">
+          <button class="sourceCard" type="button" data-source="auto">
+            <strong>Automatic</strong>
+            <span
+              >Follows the active RaveLink player or supported Windows music app. Recommended.</span
+            >
+          </button>
           <button class="sourceCard" type="button" data-source="soundcloud">
             <strong>SoundCloud</strong
             ><span
@@ -263,9 +270,6 @@
             <strong>Apple Music</strong
             ><span>Reads the Apple Music Windows app media session.</span>
           </button>
-        </div>
-        <div class="actions">
-          <button id="select" class="primary" type="button">USE SELECTED SOURCE</button>
         </div>
         <p id="youtubeSourceNote" class="sectionHelp">
           YouTube playback is controlled from the Player tab, so no Windows observer controls are
@@ -362,10 +366,11 @@
         card.onclick = () => {
           $("source").value = card.dataset.source;
           syncSourceCards();
+          void control("select", { source: card.dataset.source });
         };
-      $("source").onchange = syncSourceCards;
+      $("source").onchange = () => void control("select", { source: $("source").value });
       function renderObserver(value) {
-        $("source").value = value.playbackSource || "youtube";
+        $("source").value = value.playbackSource || "auto";
         syncSourceCards();
         const desktop = !["youtube", "soundcloud"].includes(value.playbackSource);
         $("state").textContent = desktop
@@ -408,7 +413,7 @@
       function renderPlayback(value) {
         const current = value.primary,
           item = current?.candidate || current,
-          source = value.playbackSource || "youtube";
+          source = item?.provider || current?.provider || value.playbackSource || "auto";
         $("provider").textContent = source.toUpperCase();
         $("title").textContent = item?.title || "NOTHING PLAYING";
         $("artists").textContent =
@@ -451,6 +456,7 @@
         }
       }
       async function control(action, payload = {}) {
+        $("source").disabled = true;
         for (const button of document.querySelectorAll("button")) button.disabled = true;
         try {
           const result = await call("song.observer.admin.v1", "control", {
@@ -470,9 +476,9 @@
         } finally {
           for (const button of document.querySelectorAll("button")) button.disabled = false;
           await refresh();
+          $("source").disabled = false;
         }
       }
-      $("select").onclick = () => void control("select", { source: $("source").value });
       $("start").onclick = () => void control("start");
       $("stop").onclick = () => void control("stop");
       $("refresh").onclick = () => void refresh();
