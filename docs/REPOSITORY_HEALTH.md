@@ -76,7 +76,7 @@ button artwork and its upstream notices may be redistributed.
 | Check                            | Result                                                                                                                                                                          |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Maintained regression suite      | 1,059 passed; no failures                                                                                                                                                       |
-| Sanitized-source acceptance      | 21 targeted acceptance checks passed; complete sanitized-source regression is also required on Windows before publication                                                       |
+| Sanitized-source acceptance      | 1,176 passed, five optional skips; 21 targeted acceptance checks also passed                                                       |
 | Music domain / native Rust       | 273 passed with five optional skips / 19 passed                                                                                                                                 |
 | Production-path simulations      | 2,400 cases, 124,032 frames; no invalid-output failures                                                                                                                         |
 | Dependency audit                 | Zero production or development vulnerabilities                                                                                                                                  |
