@@ -3,6 +3,7 @@
  * through one fixture lane. See docs/DEVELOPMENT.md#fixture-output-ownership.
  */
 const crypto = require("node:crypto");
+const sameTarget = require("./fixture-output-target");
 const createQueue = require("./fixture-output-queue");
 const normalizeState = require("./fixture-output-state");
 const fault = (code) => Object.assign(new Error(code), { code });
@@ -60,6 +61,8 @@ module.exports = function createFixtureOutputOwnership({
         manual: null,
         manualRevision: 0,
         generation: 0,
+        delivered: null,
+        deliveredAt: -Infinity,
       };
       slots.set(id, slot);
     }
@@ -207,7 +210,22 @@ module.exports = function createFixtureOutputOwnership({
       (lease.kind !== "music" || now() - lease.latest.sampledAt <= 250)
     );
   }
-  async function write(token, state, { sampledAt } = {}) {
+  async function deliver(slot, state, restore = false) {
+    try {
+      const result = receipt(
+        await (restore ? restoreState : writeState)(slot.id, structuredClone(state)),
+      );
+      slot.delivered = structuredClone(state);
+      slot.deliveredAt = now();
+      return result;
+    } catch (error) {
+      // An unconfirmed write may have reached the device. Never deduplicate
+      // against a target whose physical delivery is uncertain.
+      slot.delivered = null;
+      throw error;
+    }
+  }
+  async function write(token, state, { sampledAt, holdUnchanged = false } = {}) {
     if (closed) throw fault("fixture_output_closed");
     const lease = tokenLease(token),
       slot = lease.slot;
@@ -225,7 +243,15 @@ module.exports = function createFixtureOutputOwnership({
       slot.id,
       () => {
         if (!fresh(lease)) return { suppressed: true };
-        return writeState(slot.id, structuredClone(lease.latest.state));
+        const unchanged = holdUnchanged && sameTarget(slot.delivered, lease.latest.state);
+        // Renew the fresh intent/lease above even while holding the target.
+        // Entertainment still needs occasional packets to keep its stream alive.
+        if (unchanged && (!lease.latest.state.__entertainment || now() - slot.deliveredAt < 1000))
+          return { held: true };
+        return deliver(slot, lease.latest.state).then((result) => ({
+          ...result,
+          refreshed: unchanged,
+        }));
       },
       () =>
         slots.get(slot.id) === slot &&
@@ -233,7 +259,12 @@ module.exports = function createFixtureOutputOwnership({
         current(slot) === lease &&
         isEligible(slot.id),
     );
-    return result?.suppressed ? { sent: 0, failed: 0, suppressed: true } : receipt(result);
+    if (result?.held) return { sent: 0, failed: 0, held: true };
+    return result?.suppressed
+      ? { sent: 0, failed: 0, suppressed: true }
+      : holdUnchanged
+        ? { ...receipt(result), refreshed: result.refreshed === true }
+        : receipt(result);
   }
   async function settle(slot, generation) {
     try {
@@ -241,10 +272,9 @@ module.exports = function createFixtureOutputOwnership({
         slot.id,
         async () => {
           const top = current(slot);
-          if (top && fresh(top))
-            return receipt(await writeState(slot.id, structuredClone(top.latest.state)));
+          if (top && fresh(top)) return deliver(slot, top.latest.state);
           if (!slot.baseline) return { suppressed: true };
-          return receipt(await restoreState(slot.id, structuredClone(slot.baseline)));
+          return deliver(slot, slot.baseline, true);
         },
         () => slots.get(slot.id) === slot && slot.generation === generation && isEligible(slot.id),
       );
@@ -281,7 +311,7 @@ module.exports = function createFixtureOutputOwnership({
     owner,
     { fadeMs = 0, style = 1, fixtureOrder = [], maxHz = 16 } = {},
   ) {
-    if (!Number.isInteger(fadeMs) || fadeMs < 0 || fadeMs > 4000 || ![1, 2].includes(style))
+    if (!Number.isInteger(fadeMs) || fadeMs < 0 || fadeMs > 4000 || ![1, 2, 4].includes(style))
       throw fault("invalid_fixture_return_animation");
     if (
       !Array.isArray(fixtureOrder) ||
@@ -340,11 +370,15 @@ module.exports = function createFixtureOutputOwnership({
                     layer !== lease && layer.ready && layer.expiresAt > now() && fresh(layer),
                 );
                 const target = lower?.latest.state || slot.baseline;
-                const offset = style === 2 ? (0.3 * index) / Math.max(1, rows.length - 1) : 0;
+                const position = rows.length > 1 ? index / (rows.length - 1) : 0.5;
+                const offset =
+                  style === 2
+                    ? 0.35 * position
+                    : style === 4
+                      ? 0.35 * Math.abs(position * 2 - 1)
+                      : 0;
                 const t = Math.max(0, (progress - offset) / (1 - offset));
-                return receipt(
-                  await writeState(slot.id, interpolate(starts.get(lease.token), target, t)),
-                );
+                return deliver(slot, interpolate(starts.get(lease.token), target, t));
               },
               eligible,
             );
@@ -398,7 +432,7 @@ module.exports = function createFixtureOutputOwnership({
     const operation = queue
       .submit(
         id,
-        () => writeState(id, value),
+        () => deliver(slot, value),
         () => slots.get(id) === slot && slot.manualRevision === revision && isEligible(id),
       )
       .then((result) =>

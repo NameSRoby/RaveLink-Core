@@ -66,7 +66,11 @@ test("constant randomness rotates whole compositions rather than alternating sta
   }
   assert.equal(new Set(chosen.map((r) => r.shape)).size, 6);
   assert.ok(chosen.every((row, i) => !i || JSON.stringify(row) !== JSON.stringify(chosen[i - 1])));
-  assert.ok(new Set(chosen.map((r) => [r.shape, r.color, r.feel].join(":"))).size > 8);
+  assert.ok(new Set(chosen.map((r) => [r.shape, r.color, r.feel].join(":"))).size >= 8);
+  assert.ok(
+    chosen.every((r) => r.feel === "normal"),
+    "Smart random retains the reference response timing",
+  );
 });
 
 test("one light and slow shared REST transport exclude unreadable spatial choices", () => {

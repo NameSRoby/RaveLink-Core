@@ -19,6 +19,27 @@ function response(status, body) {
   };
 }
 
+test("identity-only device authorization sends an explicit empty optional scope list", async () => {
+  let body;
+  const api = createTwitchApiClient({
+    fetch: async (_url, init) => {
+      body = init.body;
+      return response(200, {
+        device_code: "fixture-device",
+        user_code: "CODE",
+        verification_uri: "https://www.twitch.tv/activate",
+        expires_in: 600,
+        interval: 5,
+      });
+    },
+  });
+  const result = await api.beginDeviceAuthorization({ clientId: "clientid12345", scopes: [] });
+  assert.equal(result.ok, true);
+  assert.equal(body.has("scopes"), true);
+  assert.equal(body.get("scopes"), "");
+  assert.deepEqual(result.scopes, []);
+});
+
 test("Twitch Device Code flow requests only the bounded supported scopes", async () => {
   const calls = [];
   const api = createTwitchApiClient({

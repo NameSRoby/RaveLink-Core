@@ -15,11 +15,9 @@ module.exports = function createLoudnessBody() {
       // pulse halfway through its recovery. Below the crossover an upward
       // accent fits; above it a dip keeps the full transient visible.
       if (onset) {
-        directions[index] =
-          levels[index] * (1 + Math.max(behaviors.accentDepth, behaviors.impactDepth)) <= 1
-            ? 1
-            : -1;
-        if (impactWins) impactDirections[index] = directions[index];
+        directions[index] = levels[index] * (1 + behaviors.accentDepth) <= 1 ? 1 : -1;
+        if (impactWins)
+          impactDirections[index] = levels[index] * (1 + behaviors.impactDepth) <= 1 ? 1 : -1;
       }
     },
     mix(index, accent, behaviors, impact = null, energy = 1) {

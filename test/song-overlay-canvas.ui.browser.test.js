@@ -200,6 +200,12 @@ test("overlay canvas dragging, snapping, resizing and persistence work through t
   await editor.locator("#canvas-add-information").click();
   await editor.locator('[data-geometry="x"]').fill("15");
   await editor.locator('[data-geometry="x"]').dispatchEvent("change");
+  await editor.locator('[data-geometry="x"]').waitFor();
+  assert.equal(
+    await editor.locator('[data-geometry="x"]').evaluate((el) => el === document.activeElement),
+    true,
+    "numeric edits retain keyboard focus after the inspector updates",
+  );
   await editor.locator("#canvas-height").fill("100");
   await editor.locator("#canvas-height").dispatchEvent("change");
   await editor.locator("#save").click();
@@ -214,6 +220,63 @@ test("overlay canvas dragging, snapping, resizing and persistence work through t
   await editor.locator("#edit-canvas").filter({ hasText: "Canvas editing active" }).waitFor();
   assert.equal(await editor.locator("#canvas-height").inputValue(), "100");
   assert.equal(await editor.locator("#preview .shape-ellipse").count(), 1);
+  // The object list is available in the same workspace as the canvas.
+  assert.equal(await editor.locator("#canvas-library").isVisible(), true);
+  await editor.locator("[data-object-shape]").first().click();
+  await editor.locator('[data-edit-name="shape"]').fill("Main card");
+  await editor.locator('[data-edit-name="shape"]').dispatchEvent("change");
+  await editor.locator("#canvas-duplicate").click();
+  const duplicated = await editor.locator("#preview").evaluate(() => structuredClone(config));
+  assert.equal(duplicated.segments.length, 3);
+  assert.equal(duplicated.segments[1].name, "Main card copy");
+  const ids = duplicated.segments.flatMap((s) => [s.id, ...s.blocks.map((b) => b.id)]);
+  assert.equal(new Set(ids).size, ids.length, "duplicated groups have independent object IDs");
+  await editor.locator("#edit-undo").click();
+  assert.equal(await editor.locator("#preview").evaluate(() => config.segments.length), 2);
+  await editor.locator("#edit-redo").click();
+  assert.deepEqual(
+    await editor.locator("#preview").evaluate(() => structuredClone(config)),
+    duplicated,
+  );
+  await editor.locator("#canvas-delete").click();
+  assert.equal(await editor.locator("#preview").evaluate(() => config.segments.length), 2);
+  assert.equal(
+    (await call("status", null, "song.overlay.read.v1")).config.segments.length,
+    2,
+    "local undo and duplicate never publish to OBS",
+  );
+  await editor.locator('[data-object-piece="song-title"]').click();
+  await editor.locator("#edit-zoom").selectOption("1.5");
+  assert.equal(await editor.locator(".preview-wrap").getAttribute("data-zoomed"), "true");
+  const beforeCancel = await editor.locator("#preview").evaluate(() => structuredClone(config));
+  const moving = await editor.locator('#preview [data-block-id="song-title"]').boundingBox();
+  await page.mouse.move(moving.x + 12, moving.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(moving.x + 40, moving.y + 20, { steps: 3 });
+  await page.keyboard.press("Escape");
+  await page.mouse.up();
+  assert.deepEqual(
+    await editor.locator("#preview").evaluate(() => structuredClone(config)),
+    beforeCancel,
+    "Escape cancels a drag exactly at manual zoom",
+  );
+  await editor.locator("#edit-zoom").selectOption("fit");
+  assert.equal(await editor.locator("#edit-state").textContent(), "Unsaved changes");
+  const geometry = await editor.locator("#canvas-inspector").evaluate((el) => ({
+    left: el.getBoundingClientRect().left,
+    previewRight: document.querySelector(".preview-wrap").getBoundingClientRect().right,
+  }));
+  assert(geometry.left >= geometry.previewRight, "selection inspector stays beside the canvas");
+  await page.screenshot({
+    path: path.resolve(__dirname, "../runtime/overlay-editing-workspace.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(
+    await editor.locator("body").evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+    "editing controls fit a narrow window",
+  );
   assert.deepEqual(errors, []);
 });
 

@@ -20,10 +20,11 @@
     <header class="musicPageHeader">
       <div>
         <h2>Music-to-Light</h2>
-        <p class="muted">Pulse lighting. Your music, your room.</p>
+        <p class="muted">Audio-led colors. Your music, your room.</p>
       </div>
       <nav class="musicNavigation" aria-label="Music lighting workspace">
         <button type="button" data-music-view-target="play" aria-pressed="true">Play</button>
+        <button type="button" data-music-view-target="create" aria-pressed="false">Create</button>
         <button type="button" data-music-view-target="library" aria-pressed="false">
           Automation
         </button>
@@ -65,22 +66,37 @@
           <div class="musicSectionHeading">
             <div>
               <span class="musicEyebrow">01 · THE LOOK</span>
-              <h3 id="music-lookTitle">Choose a starting point</h3>
+              <h3 id="music-lookTitle">Choose an effect profile</h3>
             </div>
-            <span class="musicPill">Pulse</span>
+            <span class="musicPill">10 profiles</span>
           </div>
           <select id="music-look" hidden="" aria-hidden="true" tabindex="-1">
             <option value="">Custom settings</option>
           </select>
           <div id="music-lookCards" class="musicLookCards" role="group" aria-label="Lighting looks">
             <details id="music-moreLooks">
-              <summary>More looks</summary>
+              <summary>Palette choices</summary>
               <div id="music-extraLookCards" class="musicLookCards"></div>
             </details>
           </div>
-          <p id="music-lookHelp" class="musicSmallHint">
-            Choose a look, then adjust its colors and movement.
+          <label
+            class="musicCheck"
+            title="One profile per new Rave, including Auto-Rave and viewer Rave. Every profile is visited before repeating. Saved effects take priority; normal Start lights uses your selected profile."
+            ><input id="music-behavior-randomProfileEnabled" type="checkbox" />Shuffle profiles when
+            Rave starts</label
+          >
+          <p class="musicSmallHint">
+            Profile and palette shuffle work independently. Saved-effect playback takes priority.
           </p>
+          <p id="music-lookHelp" class="musicSmallHint">
+            All profiles share the accepted audio response. Your chosen palette stays yours.
+          </p>
+          <div id="music-savedPlaybackNotice" hidden>
+            <p id="music-savedPlaybackSummary" class="musicSmallHint" role="status"></p>
+            <button id="music-useCurrentProfile" type="button">
+              Use the selected profile instead
+            </button>
+          </div>
           <div class="musicDivider"></div>
           <div class="musicColorHeading">
             <h3>Palette</h3>
@@ -88,12 +104,20 @@
           </div>
           <label
             >Colors<select id="music-paletteSource" data-music-choice aria-label="Color selection">
+              <option value="profile">Profile colors</option>
               <option value="custom">Your colors</option>
               <option value="generated">Fresh each start</option>
               <option value="advanced" disabled>From look</option>
             </select></label
           >
           <p id="music-paletteHint" class="musicSmallHint"></p>
+          <div
+            id="music-profilePalette"
+            class="musicPalettePreview"
+            aria-label="Profile colors"
+            hidden
+          ></div>
+          <p id="music-profileStatus" class="musicSmallHint" role="status"></p>
           <div id="music-palette" class="musicPalette" aria-label="Effect palette"></div>
           <div
             id="music-randomPalette"
@@ -101,11 +125,10 @@
             aria-label="Current session colors"
             hidden=""
           ></div>
-          <label class="musicIntensity"
-            >Intensity <output id="music-intensityValue">60%</output
-            ><input id="music-intensity" type="range" min="0" max="100" value="60"
-          /></label>
-          <p class="musicSmallHint">Stays within the brightness limit set in Audio &amp; lights.</p>
+          <p class="musicSmallHint">
+            Brightness follows the music across the calibrated range. Set its maximum in Audio &amp;
+            lights.
+          </p>
         </section>
         <aside class="musicLiveMonitor musicSurface">
           <div class="musicSectionHeading">
@@ -158,6 +181,30 @@
           </div>
         </aside>
       </div>
+      <p class="musicSmallHint">
+        Want to make it yours?
+        <button type="button" class="musicTextButton" data-music-view-target="create">
+          Create &amp; fine tune →
+        </button>
+      </p>
+    </div>
+    <div data-music-view="create" hidden>
+      <section class="musicSurface musicCreatorIntro">
+        <span class="musicEyebrow">YOUR EFFECT WORKSHOP</span>
+        <h3>Make a profile your own</h3>
+        <p class="musicSmallHint">
+          1. Choose a profile in Play. 2. Adjust how the room responds below. 3. Preview, then name
+          and save your effect. Custom and fresh palettes are both supported.
+        </p>
+        <div id="music-profileControls" class="musicProfileControls"></div>
+        <p id="music-profileDescription" class="musicSmallHint"></p>
+        <p class="musicSmallHint">
+          Choreography counts real measured hits. Bass / detail and spectrum use frequency ranges,
+          not isolated instruments. With one light, room motion falls back to the shared audio
+          response.
+        </p>
+        <button id="music-applyProfile" type="button">Apply choreography</button>
+      </section>
       <section class="musicSurface musicGroupsPanel" aria-labelledby="music-groupsTitle">
         <div class="musicSectionHeading">
           <div>
@@ -195,8 +242,8 @@
           >
         </div>
         <p class="musicSmallHint">
-          Mixed groups get their own movement. Travelling groups share one audio role; scene lights
-          keep their saved jobs.
+          Mixed groups get different audio-driven color styles. Brightness stays coordinated; scene
+          lights keep their saved jobs.
         </p>
         <p id="music-assignmentStatus" class="musicSmallHint" role="status">
           Chosen at the next start.
@@ -213,15 +260,30 @@
             <div class="musicSectionHeading">
               <div>
                 <span class="musicEyebrow">ONE SONG, DIFFERENT EXPRESSIONS</span>
-                <h2 id="music-contrastTitle">Out of sync</h2>
+                <h2 id="music-contrastTitle">Color separation</h2>
               </div>
               <output id="music-contrastValue" for="music-contrastAmount">0%</output>
             </div>
             <p class="musicSmallHint">
-              Create visual contrast without delaying the music. Start with color separation; turn
-              it up for different frequency emphasis and contrasting accents on the same beats.
+              Give lights different palette positions without delaying the music or changing their
+              brightness response.
             </p>
             <div class="musicQuickGrid">
+              <label
+                >Color layout<select id="music-arrangement">
+                  <option value="unified">Together</option>
+                  <option value="roles">Frequency roles</option>
+                  <option value="spatial">Palette positions</option>
+                </select></label
+              >
+              <label
+                title="Time for audio flow to travel through the palette at full audio activity. Other color styles do not use this control."
+                >Audio flow travel time (seconds)<input
+                  id="music-colorSeconds"
+                  type="number"
+                  min="2"
+                  max="60"
+              /></label>
               <label
                 >Apply to<select id="music-contrastScope">
                   <option value="all">All involved lights</option>
@@ -229,7 +291,7 @@
                 </select></label
               >
               <label
-                >Visual contrast<input
+                >Color separation<input
                   id="music-contrastAmount"
                   type="range"
                   min="0"
@@ -246,8 +308,8 @@
               hidden=""
             ></div>
             <p id="music-contrastHint" class="musicSmallHint">
-              0% keeps the original response. Audio timing stays aligned at every setting. Dim,
-              steady and off lights are excluded.
+              0% keeps the shared palette position. Audio timing stays aligned at every setting.
+              Dim, steady and off lights are excluded.
             </p>
             <p id="music-contrastStatus" class="musicSmallHint" role="status"></p>
           </section>
@@ -255,12 +317,12 @@
       </section>
       <details class="musicSurface" id="music-randomRules">
         <summary>
-          <span>Movement &amp; random rules</span
+          <span>Color &amp; assignment rules</span
           ><span id="music-randomSummary" class="musicSummaryValue">From your look</span>
         </summary>
         <p class="musicSmallHint">
-          Movement, color and pace are chosen together. Incompatible combinations are skipped. Each
-          start keeps its composition until Stop.
+          Color styles, palettes and color pace are chosen together. Brightness keeps its accepted
+          response. Each start keeps its composition until Stop.
         </p>
         <div id="music-recipeAxes" class="musicRecipeAxes"></div>
         <details id="music-assignmentRules" class="musicSubDetails">
@@ -272,50 +334,36 @@
           <div id="music-extraRecipeAxes" class="musicRecipeAxes"></div>
         </details>
         <details class="musicSubDetails">
-          <summary>Parameter variation</summary>
+          <summary>Color variation</summary>
           <p class="musicSmallHint">
-            Only parameters used by the chosen movement are varied. Values stay within both your
-            range and compatible timing limits.
+            Only color fade and vibrance may vary. Brightness timing and calibration stay fixed.
+            Values stay within your range and compatible timing limits.
           </p>
           <div id="music-randomRanges"></div>
         </details>
         <button id="music-applyRecipe" type="button">Save random rules</button>
       </details>
       <details class="musicSurface musicQuickPanel" id="music-responseAdjustments">
-        <summary>Response &amp; brightness</summary>
+        <summary>Brightness smoothing</summary>
         <div class="musicFormGrid">
           <label
-            >Brightness response<select
-              id="music-quickBrightness"
-              data-music-choice
-              aria-label="Brightness response"
-            >
-              <option value="loudness">Loudness + Pulse accents</option>
-              <option value="reactive">Pulse-led</option>
-              <option value="steady">Steady brightness</option>
-            </select></label
-          ><label
-            >Pulse accents <span class="musicUnit" id="music-quickAccentValue">10%</span
-            ><input id="music-quickAccent" type="range" min="0" max="100" step="1" /></label
-          ><label
-            >Strong pulses <span class="musicUnit" id="music-quickImpactValue">35%</span
-            ><input id="music-quickImpact" type="range" min="0" max="100" step="1" /></label
-          ><label
-            >Rise smoothing <span class="musicUnit" id="music-quickRiseValue">0 ms</span
-            ><input id="music-quickRise" type="range" min="0" max="200" step="5" /></label
-          ><label
-            >Release smoothing <span class="musicUnit" id="music-quickReleaseValue">0 ms</span
-            ><input id="music-quickRelease" type="range" min="0" max="500" step="10"
+            >Normal brightness rise <span class="musicUnit" id="music-quickRiseValue">35 ms</span>
+            <input id="music-quickRise" type="range" min="5" max="300" step="5"
+          /></label>
+          <label
+            >Brightness fall <span class="musicUnit" id="music-quickReleaseValue">100 ms</span>
+            <input id="music-quickRelease" type="range" min="20" max="1000" step="10"
           /></label>
         </div>
         <p id="music-quickBrightnessHint" class="musicSmallHint" role="status"></p>
       </details>
       <div id="music-mainTransitions">
         <details class="musicSurface" id="music-transitions">
-          <summary>Opening &amp; ending animations</summary>
+          <summary>Intro &amp; outro</summary>
           <p class="muted">
-            A short room introduction, then your music. Random draws once per activation. Changes
-            apply on the next start. Scene roles keep their own behavior.
+            Start smoothly from your existing lights, then hand over to the music. End with a paced
+            return to their exact previous state. Random draws once per activation. Changes apply on
+            the next start. Scene roles keep their own behavior.
           </p>
           <div class="musicEditor" id="music-transitionControls"></div>
           <button id="music-applyTransitions" type="button">Apply animations</button>
@@ -328,12 +376,80 @@
         </p>
         <div id="music-layerControls" class="musicLayerControls"></div>
         <details id="music-fineControls">
-          <summary>Envelope, motion &amp; color values</summary>
+          <summary>Brightness, color &amp; output values</summary>
           <div id="music-behaviorControls"></div>
           <button id="music-applyBehaviors" type="button">Apply values</button
-          ><button id="music-baseline" type="button">Reset to Pulse baseline</button>
+          ><button id="music-baseline" type="button">Reset to Color-led audio</button>
         </details>
       </details>
+      <section class="musicSurface" aria-labelledby="music-savedEffectsTitle">
+        <h2 id="music-savedEffectsTitle">Saved effects</h2>
+        <p class="musicSmallHint">Keep a favourite, or choose what can play on the next start.</p>
+        <div class="musicSavedGrid">
+          <div class="musicSavedCard">
+            <h3>Keep this combination</h3>
+            <p class="musicSmallHint">Save during a preview or while your lights are playing.</p>
+            <label
+              >Combination name<input
+                id="music-savedEffectName"
+                maxlength="80"
+                placeholder="My room · call &amp; response"
+            /></label>
+            <button id="music-saveCurrentEffect" type="button">Save current effect</button>
+            <p class="musicSmallHint">
+              Saves movement, colors, feel and light roles. Your current brightness limits and
+              calibration still apply.
+            </p>
+          </div>
+          <div class="musicSavedCard">
+            <h3>Playback selection</h3>
+            <label
+              >Playback mode<select
+                id="music-savedEffectMode"
+                aria-describedby="music-savedEffectModeHelp"
+              >
+                <option value="full-random">Current profile &amp; rules</option>
+                <option value="single">Only one saved effect</option>
+                <option value="saved-random">Random from selected saved effects</option>
+              </select></label
+            >
+            <p id="music-savedEffectModeHelp" class="musicSmallHint"></p>
+            <label id="music-savedEffectSingleField" hidden=""
+              ><span id="music-savedEffectSingleLabel">Saved effect</span
+              ><select id="music-savedEffectSingle"></select
+            ></label>
+            <div
+              id="music-savedEffectPool"
+              class="musicRecipeChoices"
+              hidden=""
+              aria-label="Allowed saved effects"
+            ></div>
+            <div class="actions">
+              <button id="music-applySavedEffectPolicy" type="button">Apply playback mode</button>
+            </div>
+          </div>
+        </div>
+        <p id="music-savedEffectsStatus" class="musicSmallHint" role="status"></p>
+        <details class="musicSavedManage">
+          <summary>Manage saved effects</summary>
+          <p id="music-savedEffectDeleteHelp" class="musicSmallHint">
+            Choose a saved effect above to remove it from your library.
+          </p>
+          <button
+            id="music-deleteSavedEffect"
+            type="button"
+            aria-describedby="music-savedEffectDeleteHelp"
+          >
+            Delete selected saved effect
+          </button>
+          <label>Rename selected effect<input id="music-renameEffectName" maxlength="80" /></label>
+          <button id="music-renameEffect" type="button">Rename effect</button>
+        </details>
+        <p class="musicSmallHint">
+          Saved-only modes also apply to channel-points Rave. A saved combination stays fixed; the
+          audio still drives its response.
+        </p>
+      </section>
     </div>
     <div data-music-view="library" hidden>
       <section class="musicSurface">
@@ -432,14 +548,6 @@
               <option value="">Use current playback selection</option>
             </select></label
           >
-          <label
-            >Intensity override (%)<input
-              id="music-songIntensity"
-              type="number"
-              min="0"
-              max="100"
-              placeholder="Use current intensity"
-          /></label>
           <div class="actions musicWide">
             <button type="submit" id="music-songSubmit">Add song</button
             ><button type="button" id="music-songCancel" hidden="">Cancel edit</button>
@@ -453,74 +561,6 @@
         /></label>
         <div id="music-songList" class="musicLibraryList" aria-label="Saved Rave songs"></div>
         <p id="music-libraryStatus" class="musicSmallHint" role="status" aria-live="polite"></p>
-      </section>
-      <section class="musicSurface" aria-labelledby="music-savedEffectsTitle">
-        <h2 id="music-savedEffectsTitle">Saved effects</h2>
-        <p class="musicSmallHint">Keep a favourite, or choose what can play on the next start.</p>
-        <div class="musicSavedGrid">
-          <div class="musicSavedCard">
-            <h3>Keep this combination</h3>
-            <p class="musicSmallHint">Save during a preview or while your lights are playing.</p>
-            <label
-              >Combination name<input
-                id="music-savedEffectName"
-                maxlength="80"
-                placeholder="My favourite wave"
-            /></label>
-            <button id="music-saveCurrentEffect" type="button">Save current effect</button>
-            <p class="musicSmallHint">
-              Saves movement, colors, feel and light roles. Your current brightness limits and
-              calibration still apply.
-            </p>
-          </div>
-          <div class="musicSavedCard">
-            <h3>Playback selection</h3>
-            <label
-              >Playback mode<select
-                id="music-savedEffectMode"
-                aria-describedby="music-savedEffectModeHelp"
-              >
-                <option value="full-random">Full random</option>
-                <option value="single">Only one saved effect</option>
-                <option value="saved-random">Random from selected saved effects</option>
-              </select></label
-            >
-            <p id="music-savedEffectModeHelp" class="musicSmallHint"></p>
-            <label id="music-savedEffectSingleField" hidden=""
-              ><span id="music-savedEffectSingleLabel">Saved effect</span
-              ><select id="music-savedEffectSingle"></select
-            ></label>
-            <div
-              id="music-savedEffectPool"
-              class="musicRecipeChoices"
-              hidden=""
-              aria-label="Allowed saved effects"
-            ></div>
-            <div class="actions">
-              <button id="music-applySavedEffectPolicy" type="button">Apply playback mode</button>
-            </div>
-          </div>
-        </div>
-        <p id="music-savedEffectsStatus" class="musicSmallHint" role="status"></p>
-        <details class="musicSavedManage">
-          <summary>Manage saved effects</summary>
-          <p id="music-savedEffectDeleteHelp" class="musicSmallHint">
-            Choose a saved effect above to remove it from your library.
-          </p>
-          <button
-            id="music-deleteSavedEffect"
-            type="button"
-            aria-describedby="music-savedEffectDeleteHelp"
-          >
-            Delete selected saved effect
-          </button>
-          <label>Rename selected effect<input id="music-renameEffectName" maxlength="80" /></label>
-          <button id="music-renameEffect" type="button">Rename effect</button>
-        </details>
-        <p class="musicSmallHint">
-          Saved-only modes also apply to channel-points Rave. A saved combination stays fixed; the
-          audio still drives its response.
-        </p>
       </section>
       <section class="musicSurface musicViewerSaves">
         <div class="musicSectionHeading">
@@ -616,7 +656,7 @@
           ><input id="music-outputCeiling" type="range" min="10" max="100" value="35"
         /></label>
         <p class="muted">
-          The highest output your lights may use. Intensity stays within this limit.
+          The highest output your lights may use. Loud audio and impacts can reach this limit.
         </p>
         <button
           id="music-calibrate"
@@ -633,7 +673,7 @@
         </p>
         <details>
           <summary id="music-calibrationSummary">
-            Calibration options · 30 seconds with 3 dB headroom
+            Calibration options · 30 seconds with 0 dB headroom
           </summary>
           <div class="musicEditor">
             <label
@@ -651,8 +691,8 @@
                 id="music-calibrationHeadroom"
                 title="Reserve response for passages louder than the sample. More headroom reduces clipping at the loud reference."
               >
-                <option value="0">0 dB · sampled peaks reach the ceiling</option>
-                <option value="3" selected="">3 dB · recommended</option>
+                <option value="0" selected="">0 dB · full response to sampled peaks</option>
+                <option value="3">3 dB · reserve for louder audio</option>
                 <option value="6">6 dB · more headroom</option>
               </select></label
             >
@@ -683,30 +723,36 @@
         <div class="musicEditor">
           <label
             >Output rate<select id="music-outputRateMode">
-              <option value="fixed">Fixed rate</option>
-              <option value="adaptive">Adaptive · energy, rises and attacks</option>
+              <option value="fixed">Steady evaluation · recommended</option>
+              <option value="adaptive">Adaptive cadence · experimental</option>
             </select></label
           >
           <label
             >Update limit<select id="music-outputHz">
               <option value="2">2 per second</option>
-              <option value="4">4 per second · standard</option>
+              <option value="4">4 per second</option>
               <option value="6">6 per second</option>
-              <option value="8">8 per second · smooth</option>
-              <option value="12">12 per second</option>
-              <option value="16">16 per second · smoothest</option>
+              <option value="8">8 per second</option>
+              <option value="12">12 per second · maximum</option>
             </select></label
           >
         </div>
         <p class="muted">
-          Higher limits can make movement smoother. Adaptive adjusts demand to the audio. Core still
-          respects each device’s transport budget and drops late frames rather than building a
-          backlog.
+          Steady evaluation checks the audio up to the selected limit and holds the lights when
+          their target barely changes. Brightness follows sustained audio; color reactivity
+          increases with intensity and slows through sustained quiet. The maximum is 12 per second.
+          Adaptive cadence is experimental and varies the evaluation rate with the audio. Hue over
+          REST shares a bridge budget; Entertainment streaming allows faster Hue updates. Actual
+          deliveries and held targets appear in Diagnostics.
         </p>
-        <p id="music-presetHelp" class="muted">Measured attacks with room to breathe.</p>
+        <p id="music-presetHelp" class="muted">Gentle brightness with audio-led color changes.</p>
       </details>
       <details class="musicSurface" id="music-responseEditor">
         <summary>Manual audio reference &amp; limits</summary>
+        <p class="musicSmallHint">
+          Calibrate at your listening level first. These reference presets describe player output,
+          not the musical intensity of a song. Changing them replaces your calibrated dBFS range.
+        </p>
         <div class="musicFormGrid">
           <label
             >Response range<select id="music-responseRange">
@@ -714,17 +760,6 @@
               <option value="quiet">Quiet player output</option>
               <option value="loud">Loud player output</option>
               <option value="custom">Custom dBFS range</option>
-            </select></label
-          ><label
-            >Interpretation<select id="music-interpretation">
-              <option value="musical">Musical</option>
-              <option value="literal">Literal</option>
-            </select></label
-          ><label
-            >Arrangement<select id="music-arrangement">
-              <option value="unified">Together</option>
-              <option value="roles">Frequency roles</option>
-              <option value="spatial">Palette positions</option>
             </select></label
           ><label
             >Minimum brightness (%)<input
@@ -745,9 +780,7 @@
               min="-100"
               max="-20" /></label
           ><label
-            >Loud level (dBFS)<input id="music-ceilingDb" type="number" min="-60" max="0" /></label
-          ><label
-            >Color step time (seconds)<input id="music-colorSeconds" type="number" min="2" max="60"
+            >Loud level (dBFS)<input id="music-ceilingDb" type="number" min="-60" max="0"
           /></label>
         </div>
         <button id="music-applyDesign" type="button">Apply response</button>
@@ -763,8 +796,11 @@
       </details>
     </div>
     <div id="music-internalSettings" hidden>
+      <select id="music-interpretation">
+        <option value="literal">Audio brightness</option>
+      </select>
       <select id="music-preset">
-        <option value="pulse">Pulse</option></select
+        <option value="pulse">Audio brightness</option></select
       ><select id="music-feel">
         <option value="slow">Slow</option>
         <option value="normal">Normal</option>
@@ -782,7 +818,7 @@
       ><select id="music-raveScenario">
         <option value="random">Draw from allowed scenarios</option>
 
-        <option value="pulse">Pin: Attack pulse</option>
+        <option value="pulse">Pin: Together</option>
 
         <option value="wave">Pin: Attack wave</option>
         <option value="bounce">Pin: Room bounce</option>

@@ -27,6 +27,42 @@
   color: var(--text);
   word-break: break-all;
 }
+.networkSharing [hidden] {
+  display: none !important;
+}
+.lanConnect {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin: 16px 0;
+}
+.lanConnect > div {
+  min-width: 0;
+  flex: 1;
+}
+#lanQr {
+  width: 200px;
+  height: 200px;
+  flex: none;
+  border-radius: 8px;
+}
+#lanQrStatus:empty {
+  display: none;
+}
+#lanNetwork {
+  width: 100%;
+  margin-top: 6px;
+}
+@media (max-width: 560px) {
+  .lanConnect {
+    flex-direction: column;
+    align-items: start;
+    gap: 12px;
+  }
+  #lanQr {
+    align-self: center;
+  }
+}
 #navigationSettings {
   width: min(590px, 94vw);
   max-height: 90vh;

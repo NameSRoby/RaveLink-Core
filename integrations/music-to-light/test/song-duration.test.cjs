@@ -29,6 +29,36 @@ const make = (p = playback(), design = {}) =>
     now: 0,
     wallNow: 100000,
   });
+
+test("manual until-restored lifetime ignores track changes and elapsed time", () => {
+  const lifetime = createLifetime({
+    design: settings(),
+    request: { origin: "manual", untilStopped: true },
+    source,
+    playback: playback(),
+    now: 0,
+    wallNow: 100000,
+  });
+  assert.equal(lifetime.seconds, null);
+  for (const at of [0, 60000, 3600000, 86400000]) {
+    assert.equal(lifetime.update(playback("Another", 0, 100000 + at), at, 100000 + at), null);
+    assert.equal(lifetime.snapshot(at).remainingSeconds, null);
+    assert.equal(lifetime.snapshot(at).mode, "manual");
+  }
+  const timed = createLifetime({
+    design: settings(),
+    request: { origin: "viewer", untilStopped: true, seconds: 40 },
+    source,
+    playback: null,
+    now: 0,
+    wallNow: 100000,
+  });
+  assert.notEqual(
+    timed.seconds,
+    null,
+    "the lifetime helper cannot grant viewers an unbounded lease",
+  );
+});
 test("song clocks end on the first boundary, with no two-minute truncation", () => {
   const l = make();
   assert.equal(l.seconds, MAX_SECONDS);

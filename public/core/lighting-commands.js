@@ -8,6 +8,71 @@
   if (!ui) return;
   const element = (id) => document.getElementById(id);
   let loading = null;
+  let activeGuide = null;
+  let format = "plain";
+  let length = "compact";
+  let part = 0;
+  function formatted(text) {
+    if (format === "plain") return [text];
+    const lines = text.split("\n");
+    if (format === "twitch")
+      return [
+        lines
+          .map((line) => {
+            if (!line) return "";
+            const escaped = line
+              .replace(/[\\`*_\[\]#]/g, "\\$&")
+              .replaceAll("<", "&lt;")
+              .replaceAll(">", "&gt;");
+            return /^[A-Z][A-Z /—-]+$/.test(line) ? `\n**${escaped}**\n` : `${escaped}  `;
+          })
+          .join("\n"),
+      ];
+    const chunks = [];
+    let current = "";
+    for (const line of lines) {
+      const safe = line.replaceAll("`", "'").replaceAll("@", "@\u200b");
+      for (let offset = 0; offset < Math.max(safe.length, 1); offset += 1750) {
+        const slice = safe.slice(offset, offset + 1750);
+        if (current.length + slice.length + 1 > 1800) {
+          chunks.push(current);
+          current = "";
+        }
+        current += `${slice}\n`;
+      }
+    }
+    if (current) chunks.push(current);
+    return chunks.map((chunk) => `\`\`\`text\n${chunk}\`\`\``);
+  }
+  function renderGuide() {
+    if (!activeGuide) return;
+    for (const key of ["compact", "detailed"]) {
+      const chunks = formatted(activeGuide[key]);
+      if (key === length) part = Math.min(part, chunks.length - 1);
+      element(key + "LightCommands").textContent = chunks[key === length ? part : 0];
+      document.querySelector(`[data-guide-card="${key}"]`).hidden = key !== length;
+    }
+    document
+      .querySelectorAll("[data-guide-format]")
+      .forEach((button) =>
+        button.setAttribute("aria-pressed", String(button.dataset.guideFormat === format)),
+      );
+    document
+      .querySelectorAll("[data-guide-length]")
+      .forEach((button) =>
+        button.setAttribute("aria-pressed", String(button.dataset.guideLength === length)),
+      );
+    const total = formatted(activeGuide[length]).length;
+    element("lightGuideFormatHint").textContent =
+      format === "discord"
+        ? `Discord message ${part + 1} of ${total}. Copy each part in order.`
+        : format === "twitch"
+          ? "Markdown for a Twitch About panel. Use Plain text for a chat command."
+          : "Plain text works in chat commands and unformatted notes.";
+    element("lightGuideNextPart").hidden = total === 1;
+    element("lightGuideNextPart").textContent =
+      part + 1 === total ? "First message" : "Next message";
+  }
 
   const fixtureNames = (ids) => {
     const names = new Map(ui.fixtures().map((row) => [row.id, row.name || row.id]));
@@ -187,8 +252,8 @@
     ])
       .then(([routing, effects, colors]) => {
         const guide = buildGuides(routing, effects, colors);
-        element("compactLightCommands").textContent = guide.compact;
-        element("detailedLightCommands").textContent = guide.detailed;
+        activeGuide = guide;
+        renderGuide();
         element("lightCommandsStatus").textContent =
           "GUIDE READY // REFRESH AFTER CHANGING ROUTES OR COMMAND SETTINGS";
       })
@@ -215,6 +280,26 @@
     }
   }
   element("refreshLightCommands").onclick = load;
+  document.querySelectorAll("[data-guide-format]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        format = button.dataset.guideFormat;
+        part = 0;
+        renderGuide();
+      }),
+  );
+  document.querySelectorAll("[data-guide-length]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        length = button.dataset.guideLength;
+        part = 0;
+        renderGuide();
+      }),
+  );
+  element("lightGuideNextPart").onclick = () => {
+    part = (part + 1) % formatted(activeGuide[length]).length;
+    renderGuide();
+  };
   element("copyCompactLightCommands").onclick = (event) =>
     copy("compactLightCommands", event.currentTarget);
   element("copyDetailedLightCommands").onclick = (event) =>

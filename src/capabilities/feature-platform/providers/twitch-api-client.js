@@ -12,7 +12,13 @@ const DEFAULT_SCOPES = Object.freeze([
   "user:read:chat",
   "user:write:chat",
 ]);
-const ALLOWED_SCOPES = new Set(DEFAULT_SCOPES);
+const ALLOWED_SCOPES = new Set([
+  ...DEFAULT_SCOPES,
+  "clips:edit",
+  "moderator:read:followers",
+  "channel:read:subscriptions",
+  "channel:manage:broadcast",
+]);
 
 function text(value, maximum = 512) {
   return String(value ?? "")
@@ -65,7 +71,7 @@ function createTwitchApiClient(options = {}) {
   async function beginDeviceAuthorization(input = {}) {
     const clientId = text(input.clientId, 80);
     const scopes = normalizeScopes(input.scopes);
-    if (!clientId || !scopes.length) return { ok: false, error: "twitch_client_id_required" };
+    if (!clientId) return { ok: false, error: "twitch_client_id_required" };
     const body = new URLSearchParams({
       client_id: clientId,
       scopes: scopes.join(" "),
@@ -694,6 +700,8 @@ function createTwitchApiClient(options = {}) {
   }
 
   return Object.freeze({
+    ...require("./twitch-dashboard-api")({ request, text, base: TWITCH_HELIX }),
+    ...require("./twitch-clips-api")({ request, text, base: TWITCH_HELIX }),
     beginDeviceAuthorization,
     pollDeviceAuthorization,
     refreshUserAccessToken,

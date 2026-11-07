@@ -7,7 +7,7 @@
 // still control their own activation and supervised worker lifecycle.
 const path = require("node:path");
 const startCoreServer = require("../runtime/start-core-server");
-const createFeaturePlatformExtension = require("./create-feature-platform-extension");
+const createFeaturePlatformExtension = require("./create-default-platform-extension");
 const rootDir = path.resolve(__dirname, "../../..");
 startCoreServer({
   rootDir,

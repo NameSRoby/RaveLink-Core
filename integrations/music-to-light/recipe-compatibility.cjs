@@ -80,6 +80,7 @@ function timingValid(shape, config, fixtures) {
   return true;
 }
 function bounds(id, shape, feel, config, fixtures) {
+  if (config.interpretation === "literal" && id === "colorBlendMs") return [0, 300];
   const stepMs = interval(config, fixtures);
   const speed = motion[feel];
   const values = {
@@ -134,7 +135,9 @@ function candidates(config, inherited, fixtures) {
             ? config.recipeOptions.color.value
             : config.colorMode,
         ]
-      : grouped && (!config.recipeOptions.color || config.recipeOptions.color.mode === "configured")
+      : config.interpretation !== "literal" &&
+          grouped &&
+          (!config.recipeOptions.color || config.recipeOptions.color.mode === "configured")
         ? [["fixed", "onsets"].includes(config.colorMode) ? config.colorMode : "fixed"]
         : pool(config, "color", config.colorMode);
   const feels =
@@ -153,16 +156,23 @@ function candidates(config, inherited, fixtures) {
         const rule = combinations[shape];
         if (!spatial(shape, config, fixtures)) continue;
         if (!rule.feels.includes(feel)) continue;
-        if (grouped && feel !== "normal") continue;
+        if (config.interpretation !== "literal" && grouped && feel !== "normal") continue;
         if (b.colorEnabled && !config.warmCoolColors && !rule.colors.includes(color)) continue;
         if (
+          config.interpretation !== "literal" &&
           grouped &&
           b.colorEnabled &&
           !config.warmCoolColors &&
           !["fixed", "onsets"].includes(color)
         )
           continue;
-        if (!b.attacksEnabled && color === "onsets" && b.colorEnabled && !config.warmCoolColors)
+        if (
+          config.interpretation !== "literal" &&
+          !b.attacksEnabled &&
+          color === "onsets" &&
+          b.colorEnabled &&
+          !config.warmCoolColors
+        )
           continue;
         if (config.recipeOptions.paletteScope?.value === "fixtures" && color === "travel") continue;
         if (

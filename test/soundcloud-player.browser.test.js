@@ -176,7 +176,7 @@ test("SoundCloud player imports public playlists, confirms PLAY, preserves FIFO,
   const observer = sources.locator("#surface").contentFrame();
   await observer.locator("[data-source=soundcloud][aria-pressed=true]").waitFor();
   assert.equal(await observer.locator("#observerControls").isHidden(), true);
-  await observer.locator("#select").click();
+  await observer.locator('[data-source="soundcloud"]').click();
   await observer
     .locator("#notice")
     .filter({ hasText: "SOUNDCLOUD is now the overlay source" })

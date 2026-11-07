@@ -20,7 +20,14 @@
       name: names.get(f.id) || "Virtual " + (index + 1),
       job:
         f.behavior === "reactive"
-          ? (f.assignedEffect || "shared movement") + " · " + f.role
+          ? ({
+              pulse: "Audio attacks",
+              wave: "Frequency colors",
+              bounce: "Energy colors",
+              handoff: "Audio flow",
+            }[f.assignedEffect] || "Shared color style") +
+            " · " +
+            ({ all: "overall", low: "bass", mid: "midrange", high: "treble" }[f.role] || f.role)
           : f.behavior,
       palette: f.assignedPalette,
     }));
@@ -84,52 +91,30 @@
         " · Song Request has no fresh matching song clock; using timer.";
     const d = pipeline?.effective || view.design;
     const b = d.behaviors || {};
-    const activeLayers = (pipeline?.layers || []).filter((l) => l.active);
-    const selectedLayers = (pipeline?.layers || []).filter((l) => l.selected ?? l.enabled);
     const scenarioLabel = behaviorCatalog.scenarios.find(
       (s) => s.id === pipeline?.scenario?.id,
     )?.label;
-    const shape = pipeline?.recipe?.shape;
-    const shapeDetail = {
-      wave: `${b.waveVoices} measured fronts · ${b.waveMs}ms · depth ${Math.round(b.waveDepth * 100)}%`,
-      bounce: `${b.bounceSeconds}s travel at full energy · depth ${Math.round(b.interactionDepth * 100)}%`,
-      mirror: `Paired inner / outer motion · ${b.bounceSeconds}s · depth ${Math.round(b.interactionDepth * 100)}%`,
-      handoff: `${b.handoffHits} attacks per side · ${b.handoffMs}ms continuous crossfade`,
-      swell: `${b.swellTravelSeconds}s at full energy · depth ${Math.round(b.swellDepth * 100)}% · span ${Math.round(b.swellSpan * 100)}%`,
-    }[shape];
     const steps = {
       source: view.bindings.source?.label || "Choose an audio app",
       analysis: m
         ? `Level ${Math.round(m.level * 100)}% · Low / Mid / High ${(pipeline.bands || []).map((n) => Math.round(n * 100) + "%").join(" / ")}`
         : "Waiting for verified samples",
-      response: `${d.feel} · smoothing ${Math.round((b.smoothing || 0) * 100)}% · ${pipeline?.preset || d.preset}`,
+      response: `${b.literalAttackMs} ms normal rise · prompt large impacts · ${b.literalReleaseMs} ms fall`,
       scenario:
         scenarioLabel ||
-        (pipeline?.mode === "manual" ? "Manual: " + pipeline.preset : "Waiting to draw once"),
+        (pipeline?.mode === "manual" ? "Color-led audio" : "Waiting for color selection"),
       layers: pipeline
-        ? `${selectedLayers.length} selected · ${activeLayers.length} acting now`
-        : "Allowed layers await a request",
-      shape: shapeDetail
-        ? `${shape} · ${shapeDetail}`
-        : pipeline?.scenario?.id === "wave"
-          ? `Attack front · ${b.waveMs}ms · depth ${Math.round(b.waveDepth * 100)}%`
-          : d.arrangement + " fixture response",
-      color: `${b.colorEnabled ? { roles: "Role-offset cycling", fixed: "Together cycling", onsets: "Attacks + gentle cycling", energy: "Energy + cycling", travel: "Travelling palette" }[d.colorMode] : "Color movement blocked"} · ${d.palette.length} colors${d.warmCoolColors ? " / warm bass, cool treble" : ""} · blend ${b.colorBlendMs}ms · vibrance ${Math.round((b.colorVibrance || 0) * 100)}%`,
-      output: `${d.minimumBrightness}–${d.maximumBrightness}% brightness · intensity ${Math.round(d.intensity * 100)}% · ${pipeline?.outputCadence?.targetHz ?? d.outputHz} Hz · ${d.outputRateMode}`,
+        ? b.colorEnabled
+          ? "Audio color changes allowed"
+          : "Audio color changes blocked"
+        : "Color permission applies at the next start",
+      shape: `${{ unified: "Together", roles: "Frequency roles", spatial: "Palette positions" }[d.arrangement]} · shared audio brightness`,
+      color: `${b.colorEnabled ? { roles: "Frequency colors", fixed: "Static color", onsets: "Audio attacks", energy: "Audio energy", travel: "Audio-driven flow" }[d.colorMode] : "Color movement blocked"} · ${d.palette.length} colors${d.warmCoolColors ? " / warm bass, cool treble" : ""} · ${Math.round(m?.colorIntervalMs || 0)}ms reaction interval · ${Math.round(m?.colorBlendMs || b.colorBlendMs)}ms fade`,
+      output: `${d.minimumBrightness}–${d.maximumBrightness}% brightness · full calibrated range · ${pipeline?.outputCadence?.targetHz ?? d.outputHz} Hz · ${d.outputRateMode}`,
     };
-    if (b.expressiveEnabled) {
-      if (b.smoothShapesEnabled)
-        steps.shape += ` · bounded mix · companion ${Math.round(b.spatialAccentShare * 100)}%`;
-      if (b.perceptualColorsEnabled) steps.color += " · OKLCH";
-      if (b.shuffleChoicesEnabled) steps.scenario += " · shuffle when randomized";
-      if (b.logAttacksEnabled)
-        steps.analysis +=
-          " · " +
-          (pipeline?.layers?.find((row) => row.id === "attacksEnabled")?.reason ||
-            "log-spectral attacks awaiting audio");
-    }
+    if (b.shuffleChoicesEnabled) steps.scenario += " · explore before repeating";
     if (pipeline?.recipe)
-      steps.scenario += ` + ${pipeline.recipe.shape} + ${pipeline.recipe.palette} + ${pipeline.recipe.color} + ${pipeline.recipe.feel}`;
+      steps.scenario += ` · ${pipeline.recipe.palette} · ${pipeline.recipe.color} · ${pipeline.recipe.feel} color pace`;
     if (pipeline?.outputCadence?.fixtureHz)
       steps.output +=
         " · " +
@@ -137,7 +122,7 @@
           ...new Set(
             pipeline.outputCadence.fixtureHz.map(
               (f) =>
-                `${f.brand} cap ${f.hz.toFixed(1)} Hz${f.delivery ? ` / completed ${f.delivery.completedHz.toFixed(1)} Hz / ${f.delivery.lastLatencyMs === null ? "waiting" : Math.round(f.delivery.lastLatencyMs) + "ms"}` : ""}`,
+                `${f.brand} cap ${f.hz.toFixed(1)} Hz${f.delivery ? ` / delivered ${f.delivery.completedHz.toFixed(1)} Hz / held ${f.delivery.held ?? 0} / refreshes ${f.delivery.refreshed ?? 0} / ${f.delivery.lastLatencyMs === null ? "waiting" : Math.round(f.delivery.lastLatencyMs) + "ms"}` : ""}`,
             ),
           ),
         ].join(" / ");
@@ -160,14 +145,14 @@
       $("pipe-" + id).closest("button").dataset.active = String(!!pipeline?.fresh);
     }
     $("metrics").textContent = m
-      ? `Calibrated loudness ${Math.round(m.level * 100)}% · new rise ${Math.round(m.rise * 100)}% · band contrast ${Math.round(m.spread * 100)}% · ${m.attack ? "recent measured attack" : "no recent attack"}`
+      ? `Calibrated energy ${Math.round(m.level * 100)}% · new rise ${Math.round(m.rise * 100)}% · band contrast ${Math.round(m.spread * 100)}% · ${m.attack ? "recent measured attack" : "no recent attack"}`
       : "Waiting for fresh audio measurements.";
     $("pipelineTitle").textContent = !pipeline
-      ? "Idle · choose a preset or enable a scenario draw, then Preview."
+      ? "Idle · choose colors and assignments, then Preview."
       : !pipeline.fresh
         ? "No fresh audio · no active behaviors"
         : pipeline.mode === "manual"
-          ? "Manual preset · " + pipeline.preset
+          ? "Color-led audio"
           : pipeline.scenario
             ? "Locked recipe: " +
               (behaviorCatalog.scenarios.find((s) => s.id === pipeline.scenario.id)?.label ||
@@ -175,13 +160,15 @@
             : "Recipe is chosen at activation";
     if (pipeline?.savedEffect)
       $("pipelineTitle").textContent =
-        `Saved effect: ${pipeline.savedEffect.name} ? ${pipeline.fresh ? "responding to audio" : "waiting for fresh audio"} ? combination stays fixed`;
+        `Saved effect: ${pipeline.savedEffect.name} · ${pipeline.fresh ? "responding to audio" : "waiting for fresh audio"} · combination stays fixed`;
     if (pipeline?.recipeLocked)
       $("pipelineTitle").textContent +=
-        " · #" + pipeline.recipeId + " · changes apply next activation";
+        " · #" + pipeline.recipeId + " · colors locked; brightness smoothing applies live";
     if (pipeline?.sceneOnly)
       $("pipelineTitle").textContent += " · scene-only routes; music response bypassed";
-    for (const f of behaviorCatalog.behaviors.filter((f) => f.type === "boolean")) {
+    for (const f of behaviorCatalog.behaviors.filter(
+      (f) => f.type === "boolean" && f.stage !== "profileSelection",
+    )) {
       const layer = pipeline?.layers.find((l) => l.id === f.id);
       const enabled = $("behavior-" + f.id).checked;
       $("active-" + f.id).textContent = !enabled

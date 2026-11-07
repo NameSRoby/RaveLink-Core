@@ -19,11 +19,15 @@ const CADENCE_MS = 250,
   WATCHDOG_MS = 25;
 function targets(output, previewFixtures) {
   if (!output)
-    return ["all", "low", "mid", "high"].map((role, i) => ({
-      role,
-      position: i / 3,
-      outOfSync: previewFixtures[i % previewFixtures.length]?.outOfSync || 0,
-      contrastSourceId: previewFixtures[i % previewFixtures.length]?.id,
+    return (
+      previewFixtures.length
+        ? previewFixtures
+        : ["all", "low", "mid", "high"].map((role, i) => ({ role, position: i / 3 }))
+    ).map((fixture, i) => ({
+      ...fixture,
+      id: fixture.id || "preview-" + i,
+      outOfSync: fixture.outOfSync || 0,
+      contrastSourceId: fixture.id,
     }));
   if (
     !output.ownership ||
@@ -87,7 +91,10 @@ module.exports = function createMusicSession({
         baseMapper.inspect(now()).recipe.palette,
       ),
     ),
-    mapper = require("./fixture-renderers.cjs")(baseMapper, selected),
+    mapper = require("./profile-renderer.cjs")(
+      require("./fixture-renderers.cjs")(baseMapper, selected),
+      selected,
+    ),
     cadence = createCadence(selected),
     motion = createOutputMotion(),
     deliveries = new Map(
@@ -96,6 +103,8 @@ module.exports = function createMusicSession({
         {
           attempted: 0,
           completed: 0,
+          held: 0,
+          refreshed: 0,
           suppressed: 0,
           failed: 0,
           busySkipped: 0,
@@ -107,6 +116,7 @@ module.exports = function createMusicSession({
       ]),
     ),
     lastSentAt = new Map(),
+    lastEnergyAt = new Map(),
     leases = new Map(),
     baselines = new Map(),
     admittedAt = new Map(),
@@ -152,7 +162,17 @@ module.exports = function createMusicSession({
     if (closed) return;
     // Wake at the next render deadline, with a 25 ms freshness/rate watchdog.
     // A late callback renders current audio once; there is no catch-up queue.
-    const remaining = lastOutputAt === null ? WATCHDOG_MS : lastOutputAt + 1000 / targetHz - now();
+    const at = now();
+    let remaining = lastOutputAt === null ? WATCHDOG_MS : lastOutputAt + 1000 / targetHz - at;
+    if (output)
+      for (const fixture of selected) {
+        if (!leases.has(fixture.id) || writing.has(fixture.id)) continue;
+        const due =
+          (lastSentAt.get(fixture.id) ?? -Infinity) +
+          1000 / cadence.fixtureRate(fixture, targetHz) -
+          at;
+        if (due > 0) remaining = Math.min(remaining, due);
+      }
     timer = schedule(
       () => {
         cancel(timer);
@@ -305,6 +325,7 @@ module.exports = function createMusicSession({
       if (ready) {
         lastUsableAt = now();
         acquire();
+        if (state === "running") tick();
       }
     } catch (error) {
       void stop(error.code || "music_input_failed", true);
@@ -324,7 +345,6 @@ module.exports = function createMusicSession({
       delivery.busySkipped++;
       return;
     }
-    lastSentAt.set(fixture.id, at);
     const token = leases.get(fixture.id);
     if (output.allowed && !output.allowed(fixture.id)) {
       leases.delete(fixture.id);
@@ -344,12 +364,13 @@ module.exports = function createMusicSession({
       return;
     }
     const config = mapper.settings();
+    const targetBrightness = frame.entranceTargetBrightness ?? frame.brightness;
     const falling = delivery.lastBrightness !== null && frame.brightness < delivery.lastBrightness;
     let native =
       frame.sceneNative ||
       (fixture.brand === "hue"
         ? createHueStateFromRgb(frame.rgb, {
-            brightness: Math.round((frame.brightness * 254) / 100),
+            brightness: Math.round((targetBrightness * 254) / 100),
             // Only falling Pulse targets get the optional native glide.
             // Rising accents remain immediate; no brand-sync delay is added.
             transitiontime:
@@ -361,7 +382,7 @@ module.exports = function createMusicSession({
                   ? Math.round(config.behaviors.hueGlideMs / 100)
                   : 0,
           })
-        : createWizStateFromRgb(frame.rgb, { dimming: frame.brightness }));
+        : createWizStateFromRgb(frame.rgb, { dimming: targetBrightness }));
     if (frame.entranceMix !== undefined && baselines.has(fixture.id)) {
       const initial = { ...baselines.get(fixture.id) };
       const key = fixture.brand === "hue" ? "bri" : "dimming";
@@ -387,25 +408,38 @@ module.exports = function createMusicSession({
       .then(() => {
         if (closed) return;
         delivery.attempted++;
-        delivery.lastCommand = {
-          atMs: Math.max(0, at - startedAt),
-          // Transport markers authorize adapter behavior; they are not part of
-          // the public, contract-validated native light-state diagnostics.
-          state: Object.fromEntries(
-            Object.entries(structuredClone(native)).filter(([key]) => !key.startsWith("__")),
-          ),
-        };
-        delivery.lastBrightness = frame.brightness;
-        return output.ownership.write(token, native, { sampledAt: frame.sampledAt });
+        const scale = fixture.brand === "hue" ? 2.54 : 1;
+        const atLimit =
+          frame.brightness <= Math.ceil(config.minimumBrightness * scale) / scale ||
+          frame.brightness >= Math.floor(config.maximumBrightness * scale) / scale;
+        return output.ownership.write(token, native, {
+          sampledAt: frame.sampledAt,
+          // Always reach an exact configured endpoint, even if the final step
+          // is smaller than the normal hold threshold.
+          holdUnchanged: !atLimit || frame.brightness === delivery.lastBrightness,
+        });
       })
       .then((result) => {
         if (!result) return;
+        if (result.sent === 1 || result.held) lastEnergyAt.set(fixture.id, frame.sampledAt);
         if (result.sent === 1) {
+          lastSentAt.set(fixture.id, now());
+          delivery.lastCommand = {
+            atMs: Math.max(0, at - startedAt),
+            // Transport markers authorize adapter behavior; they are not part of
+            // the public, contract-validated native light-state diagnostics.
+            state: Object.fromEntries(
+              Object.entries(structuredClone(native)).filter(([key]) => !key.startsWith("__")),
+            ),
+          };
+          delivery.lastBrightness = frame.brightness;
           delivery.completed++;
+          if (result.refreshed) delivery.refreshed++;
           delivery.lastLatencyMs = Math.max(0, now() - at);
           delivery.times.push(now());
           if (delivery.times.length > 64) delivery.times.shift();
-        } else delivery.suppressed++;
+        } else if (result.held) delivery.held++;
+        else delivery.suppressed++;
       })
       .catch(async () => {
         // Isolate an offline fixture. Do not stall another brand or silently
@@ -419,7 +453,10 @@ module.exports = function createMusicSession({
       .catch(() => {
         failed++;
       })
-      .finally(() => writing.delete(fixture.id));
+      .finally(() => {
+        writing.delete(fixture.id);
+        if (!closed && sampledAt > frame.sampledAt) tick();
+      });
     writing.set(fixture.id, task);
   }
   function tick() {
@@ -440,7 +477,8 @@ module.exports = function createMusicSession({
       }
       if (output && state === "preheating") return;
       const config = mapper.settings();
-      targetHz = cadence.rate(config, mapper.inspect(at), at);
+      const inspection = mapper.inspect(at);
+      targetHz = cadence.rate(config, inspection, at);
       const openingStart = output ? Math.min(...admittedAt.values()) : startedAt;
       if (
         transitionPlan.openingStyle &&
@@ -448,7 +486,18 @@ module.exports = function createMusicSession({
         selected.some((fixture) => !fixture.raveBehavior || fixture.raveBehavior === "reactive")
       )
         targetHz = config.outputHz;
-      if (lastOutputAt !== null && at - lastOutputAt < 1000 / targetHz) return;
+      const previewDue = lastOutputAt === null || at - lastOutputAt >= 1000 / targetHz;
+      const writeDue =
+        output &&
+        state === "running" &&
+        selected.some(
+          (fixture) =>
+            leases.has(fixture.id) &&
+            !writing.has(fixture.id) &&
+            at - (lastSentAt.get(fixture.id) ?? -Infinity) >=
+              1000 / cadence.fixtureRate(fixture, targetHz),
+        );
+      if (!previewDue && !writeDue) return;
       const rendered = selected.map((f) => {
         // Each fixture retains a new measured attack until its own output slot.
         // A faster WiZ slot cannot consume a slower Hue fixture's attack. Bound
@@ -456,7 +505,13 @@ module.exports = function createMusicSession({
         const retainedSince = output
           ? Math.max(lastSentAt.get(f.id) ?? startedAt - 1, at - cadence.retentionMs(f, targetHz))
           : (lastOutputAt ?? startedAt - 1);
-        let frame = mapper.render(at, { ...f, onsetSince: retainedSince });
+        const energySince = output
+          ? Math.max(
+              lastEnergyAt.get(f.id) ?? startedAt - 1,
+              at - Math.min(250, cadence.retentionMs(f, targetHz)),
+            )
+          : (lastOutputAt ?? startedAt - 1);
+        let frame = mapper.render(at, { ...f, onsetSince: retainedSince, energySince });
         if (!frame) return frame;
         if (!output)
           return opening(
@@ -501,22 +556,24 @@ module.exports = function createMusicSession({
         if (leases.size && at - lastUsableAt > 250) void stop("music_analysis_unavailable", true);
         return;
       }
-      frames++;
-      lastOutputAt = at;
-      lastPreview = {
-        sequence: frames,
-        preset: mapper.preset(),
-        frames: rendered.map((f) => ({
-          role: f.role,
-          rgb: f.rgb,
-          brightness: f.brightness,
-          quiet: f.quiet,
-        })),
-      };
-      const callback = onFrame(structuredClone(lastPreview));
-      if (callback && typeof callback.then === "function") {
-        Promise.resolve(callback).catch(() => {});
-        throw fault("music_preview_callback_must_be_sync");
+      if (previewDue) {
+        frames++;
+        lastOutputAt = at;
+        lastPreview = {
+          sequence: frames,
+          preset: mapper.preset(),
+          frames: rendered.map((f) => ({
+            role: f.role,
+            rgb: f.rgb,
+            brightness: f.brightness,
+            quiet: f.quiet,
+          })),
+        };
+        const callback = onFrame(structuredClone(lastPreview));
+        if (callback && typeof callback.then === "function") {
+          Promise.resolve(callback).catch(() => {});
+          throw fault("music_preview_callback_must_be_sync");
+        }
       }
       if (output && state === "running") {
         selected.forEach((f, i) => dispatch(f, rendered[i]));
@@ -584,6 +641,8 @@ module.exports = function createMusicSession({
             return {
               attempted: d.attempted,
               completed: d.completed,
+              held: d.held,
+              refreshed: d.refreshed,
               suppressed: d.suppressed,
               failed: d.failed,
               busySkipped: d.busySkipped,
@@ -639,7 +698,7 @@ module.exports = function createMusicSession({
       for (const f of selected)
         if (
           (!f.raveBehavior || f.raveBehavior === "reactive") &&
-          (ids === null || ids.includes(f.id || f.contrastSourceId))
+          (ids === null || ids.includes(f.contrastSourceId || f.id))
         )
           f.outOfSync = percent;
     },

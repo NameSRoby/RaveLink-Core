@@ -78,6 +78,7 @@ module.exports = function createMusicLibraryRuntime({
     return kind === "song" ? library.upsert(value) : savedEffects.add(value);
   }
   return {
+    enabled: library.enabled,
     snapshot,
     async configure(value) {
       library.configure(value);

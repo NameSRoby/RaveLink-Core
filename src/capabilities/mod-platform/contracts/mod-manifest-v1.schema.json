@@ -21,36 +21,68 @@
     "integrity"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": {
+      "const": 1
+    },
     "id": {
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9-]{0,31}\\.[a-z0-9][a-z0-9-]{0,31}$",
       "maxLength": 64
     },
-    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
-    "description": { "type": "string", "maxLength": 500 },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500
+    },
     "version": {
       "type": "string",
       "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$",
       "maxLength": 64
     },
-    "publisher": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
-    "license": { "type": "string", "minLength": 1, "maxLength": 80 },
-    "entry": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "publisher": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "entry": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
     "engine": {
       "type": "object",
       "additionalProperties": false,
       "required": ["ravelinkModApi", "node"],
       "properties": {
-        "ravelinkModApi": { "type": "string", "minLength": 1, "maxLength": 40 },
-        "node": { "type": "string", "minLength": 1, "maxLength": 40 }
+        "ravelinkModApi": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "node": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        }
       }
     },
     "activationEvents": {
       "type": "array",
       "maxItems": 16,
       "uniqueItems": true,
-      "items": { "type": "string", "minLength": 1, "maxLength": 100 }
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      }
     },
     "consumes": {
       "type": "array",
@@ -80,29 +112,43 @@
           "type": "array",
           "maxItems": 32,
           "uniqueItems": true,
-          "items": { "type": "string", "maxLength": 253 }
+          "items": {
+            "type": "string",
+            "maxLength": 253
+          }
         },
-        "storage": { "type": "boolean" },
+        "storage": {
+          "type": "boolean"
+        },
         "secrets": {
           "type": "array",
           "maxItems": 32,
           "uniqueItems": true,
-          "items": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{0,79}$" }
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._-]{0,79}$"
+          }
         },
-        "ui": { "type": "boolean" },
-        "process": { "type": "boolean" },
+        "ui": {
+          "type": "boolean"
+        },
+        "process": {
+          "type": "boolean"
+        },
         "hardware": {
           "type": "array",
           "maxItems": 16,
           "uniqueItems": true,
-          "items": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{0,79}$" }
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._-]{0,79}$"
+          }
         }
       }
     },
     "contributes": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["panels"],
       "properties": {
         "panels": {
           "type": "array",
@@ -112,13 +158,68 @@
             "additionalProperties": false,
             "required": ["id", "title", "entry"],
             "properties": {
-              "id": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{0,39}$" },
-              "title": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9._-]{0,39}$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
               "entry": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 240,
                 "pattern": "^[^\\\\/](?:.*[^\\\\/])?\\.html$"
+              }
+            }
+          }
+        },
+        "actions": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "title", "capability", "method"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9._-]{0,39}$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 240
+              },
+              "symbol": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "capability": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "method": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9._-]{0,39}$"
+              },
+              "stateMethod": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9._-]{0,39}$"
+              },
+              "defaults": {
+                "type": "object",
+                "maxProperties": 32
+              },
+              "parameters": {
+                "type": "object",
+                "maxProperties": 16
               }
             }
           }
@@ -143,10 +244,26 @@
         "shutdownGraceMs"
       ],
       "properties": {
-        "idleCpuPercent": { "type": "number", "minimum": 0, "maximum": 0.25 },
-        "idleRssMiB": { "type": "integer", "minimum": 8, "maximum": 64 },
-        "activeRssMiB": { "type": "integer", "minimum": 8, "maximum": 192 },
-        "timers": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "idleCpuPercent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.25
+        },
+        "idleRssMiB": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 64
+        },
+        "activeRssMiB": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 192
+        },
+        "timers": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8
+        },
         "minTimerMs": {
           "type": "integer",
           "minimum": 1000,
@@ -157,11 +274,31 @@
           "minimum": 1024,
           "maximum": 65536
         },
-        "inFlightCalls": { "type": "integer", "minimum": 1, "maximum": 4 },
-        "queuedCalls": { "type": "integer", "minimum": 0, "maximum": 32 },
-        "externalInFlight": { "type": "integer", "minimum": 0, "maximum": 2 },
-        "storageBytes": { "type": "integer", "minimum": 0, "maximum": 8388608 },
-        "historyEntries": { "type": "integer", "minimum": 0, "maximum": 250 },
+        "inFlightCalls": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "queuedCalls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "externalInFlight": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "storageBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8388608
+        },
+        "historyEntries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 250
+        },
         "shutdownGraceMs": {
           "type": "integer",
           "minimum": 100,
@@ -174,7 +311,9 @@
       "additionalProperties": false,
       "required": ["algorithm", "files"],
       "properties": {
-        "algorithm": { "const": "sha256" },
+        "algorithm": {
+          "const": "sha256"
+        },
         "files": {
           "type": "object",
           "minProperties": 1,

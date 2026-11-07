@@ -228,8 +228,8 @@ test("faster fixture slots cannot consume a slower fixture's new attack", async 
   );
   for (let i = 1; i < hue.length; i++) assert.ok(hue[i].at - hue[i - 1].at >= 250);
 });
-test("sixteen-Hz intent keeps independent Hue limits and restores every fixture", async (t) => {
-  const e = environment(t, { extraHue: true, settings: { outputHz: 16 } });
+test("twelve-Hz intent keeps independent Hue limits and restores every fixture", async (t) => {
+  const e = environment(t, { extraHue: true, settings: { outputHz: 12 } });
   e.session.start(e.probe);
   for (let step = 0; step < 80; step++) {
     e.advance(12.5);
@@ -239,9 +239,18 @@ test("sixteen-Hz intent keeps independent Hue limits and restores every fixture"
   }
   const wiz = e.writes.filter((w) => w.id === "w"),
     hue = e.writes.filter((w) => w.id === "h");
-  assert.ok(wiz.length >= 15 && wiz.length <= 16);
-  assert.ok(hue.length >= 3 && hue.length <= 4);
-  for (let i = 1; i < wiz.length; i++) assert.ok(wiz[i].at - wiz[i - 1].at >= 62.5);
+  const deliveries = e.session.snapshot().outputCadence.fixtureHz;
+  const wizAttempts = deliveries.find((f) => f.brand === "wiz").delivery.attempted;
+  const hueAttempts = deliveries.find((f) => f.brand === "hue").delivery.attempted;
+  assert.ok(wizAttempts >= wiz.length && wizAttempts >= 10);
+  assert.ok(hueAttempts >= hue.length && hueAttempts >= 3);
+  assert.ok(
+    wiz.length <= 12 && hue.length <= 4,
+    "held checks cannot consume physical write budget",
+  );
+  assert.ok(wiz.length > 0 && wiz.length <= wizAttempts);
+  assert.ok(hue.length > 0 && hue.length <= hueAttempts);
+  for (let i = 1; i < wiz.length; i++) assert.ok(wiz[i].at - wiz[i - 1].at >= 1000 / 12);
   for (let i = 1; i < hue.length; i++) assert.ok(hue[i].at - hue[i - 1].at >= 250);
   await e.session.stop();
   assert.deepEqual(e.states, e.initial);
@@ -249,22 +258,103 @@ test("sixteen-Hz intent keeps independent Hue limits and restores every fixture"
   assert.equal(e.session.snapshot().ownedFixtures, 0);
 });
 
-test("deadline scheduling reaches near sixteen Hz without catch-up bursts after a stall", async (t) => {
-  const e = environment(t, { extraHue: true, settings: { outputHz: 16 } });
+test("a fresh impact after held output does not wait for the next preview frame", async (t) => {
+  const e = environment(t, {
+    settings: {
+      interpretation: "literal",
+      intensity: 1,
+      outputHz: 12,
+      colorMode: "fixed",
+      minimumBrightness: 10,
+      maximumBrightness: 100,
+      floorDb: -44,
+      ceilingDb: -20,
+      behaviors: { literalAttackMs: 5, literalReleaseMs: 100, colorEnabled: false, hueGlideMs: 0 },
+    },
+  });
+  e.session.start(e.probe);
+  for (let i = 0; i < 100; i++) {
+    e.advance(20);
+    e.sample({ rms: 0.03 });
+    e.session.tick();
+    await flush();
+  }
+  const before = e.writes.filter((w) => w.id === "w").at(-1);
+  assert(e.now() - before.at > 200, "the fixture must be holding a stable target");
+  const frameCount = e.frames.length;
+  e.advance(1);
+  await flush();
+  const hitAt = e.now();
+  e.sample({ rms: 0.12 });
+  await flush();
+  const impact = e.writes.filter((w) => w.id === "w").at(-1);
+  assert.equal(impact.at, hitAt, "an available physical slot must react on the fresh sample");
+  assert(impact.state.dimming > before.state.dimming + 50);
+  assert.equal(e.frames.length, frameCount, "preview throttling stays independent");
+});
+
+test("an impact shorter than the physical write interval survives the next slot exactly once", async (t) => {
+  const e = environment(t, {
+    settings: {
+      interpretation: "literal",
+      intensity: 1,
+      outputHz: 12,
+      colorMode: "fixed",
+      minimumBrightness: 10,
+      maximumBrightness: 100,
+      floorDb: -44,
+      ceilingDb: -20,
+      behaviors: { literalAttackMs: 35, literalReleaseMs: 100, colorEnabled: false, hueGlideMs: 0 },
+    },
+  });
+  e.session.start(e.probe);
+  async function feed(rms, advance = 20) {
+    e.advance(advance);
+    e.sample({ rms });
+    await flush();
+  }
+  for (let i = 0; i < 100; i++) await feed(0.03);
+  await feed(0.04);
+  const charged = e.writes.filter((w) => w.id === "w").at(-1);
+  await feed(0.13);
+  await feed(0.03);
+  await feed(0.03);
+  await feed(0.03);
+  e.advance(4);
+  await flush();
+  const impact = e.writes.filter((w) => w.id === "w").at(-1);
+  assert(impact.at - charged.at >= 1000 / 12);
+  assert(
+    impact.state.dimming >= 70,
+    "the output slot must retain the measured peak rather than miss it",
+  );
+  for (let i = 0; i < 8; i++) await feed(0.03);
+  const settled = e.writes.filter((w) => w.id === "w").at(-1);
+  assert(settled.state.dimming < impact.state.dimming - 20);
+  const writes = e.writes.filter((w) => w.id === "w");
+  for (let i = 1; i < writes.length; i++) assert(writes[i].at - writes[i - 1].at >= 1000 / 12);
+});
+
+test("deadline scheduling reaches near twelve Hz without catch-up bursts after a stall", async (t) => {
+  const e = environment(t, { extraHue: true, settings: { outputHz: 12 } });
   e.session.start(e.probe);
   await e.scheduled(1200);
   const wiz = e.writes.filter((w) => w.id === "w");
-  assert.ok(wiz.length >= 17 && wiz.length <= 19, JSON.stringify(wiz.map((w) => w.at)));
-  for (let i = 1; i < wiz.length; i++)
-    assert.ok(wiz[i].at - wiz[i - 1].at >= 62.5 && wiz[i].at - wiz[i - 1].at <= 65);
+  assert.ok(e.frameTimes.length >= 13 && e.frameTimes.length <= 15);
+  for (let i = 1; i < e.frameTimes.length; i++)
+    assert.ok(
+      e.frameTimes[i] - e.frameTimes[i - 1] >= 1000 / 12 &&
+        e.frameTimes[i] - e.frameTimes[i - 1] <= 85,
+    );
+  assert.ok(wiz.length > 0 && wiz.length <= e.frameTimes.length);
   await e.scheduled(600, 1250, 1550);
   const after = e.writes.filter((w) => w.id === "w");
   for (let i = 1; i < after.length; i++)
-    assert.ok(after[i].at - after[i - 1].at >= 62.5, "late timers must not burst");
+    assert.ok(after[i].at - after[i - 1].at >= 1000 / 12, "late timers must not burst");
   const snapshot = e.session.snapshot();
   const telemetry = snapshot.outputCadence.fixtureHz.find((f) => f.brand === "wiz").delivery;
   assert.equal(telemetry.completed, after.length);
-  assert.equal(telemetry.attempted, after.length);
+  assert.equal(telemetry.attempted, after.length + telemetry.held + telemetry.suppressed);
   assert.equal(telemetry.failed, 0);
   assert.ok(telemetry.completedHz > 0 && Number.isFinite(telemetry.completedHz));
   assert.deepEqual(telemetry.lastCommand.state, after.at(-1).state);
@@ -623,14 +713,14 @@ test("Stop waits for confirmed helper exit and reports an unconfirmed exit hones
   e.close();
 });
 
-test("Entertainment preheat gates all frames and enables independent sixteen-Hz Hue slots", async (t) => {
+test("Entertainment preheat gates all frames and enables independent twelve-Hz Hue slots", async (t) => {
   let finish,
     stopped = 0;
   const barrier = new Promise((r) => {
     finish = r;
   });
   const e = environment(t, {
-    settings: { outputHz: 16 },
+    settings: { outputHz: 12 },
     extraHue: true,
     prepare: () => barrier,
     stopTransport: () => {
@@ -657,7 +747,7 @@ test("Entertainment preheat gates all frames and enables independent sixteen-Hz 
   await e.pump(1000);
   assert.equal(e.session.snapshot().state, "running");
   const hue = e.session.snapshot().outputCadence.fixtureHz.filter((f) => f.brand === "hue");
-  assert.ok(hue.every((f) => f.hz === 16 && f.delivery.completed >= 12));
+  assert.ok(hue.every((f) => f.hz === 12 && f.delivery.attempted >= 10 && f.delivery.failed === 0));
   assert.ok(
     e.writes.filter((f) => f.id.startsWith("h")).every((f) => f.state.__entertainment === true),
   );
@@ -683,7 +773,7 @@ test("failed Entertainment preheat emits no frames, acquires no lights and stops
 test("Entertainment transport markers stay private and status remains valid after Stop", async (t) => {
   const e = environment(t, {
     prepare: async () => ({ ok: true, activeIds: ["h"] }),
-    settings: { preset: "pulse", outputHz: 16, maximumBrightness: 100 },
+    settings: { preset: "pulse", outputHz: 12, maximumBrightness: 100 },
   });
   const schema = require("../contracts/music-controller-v1.contracts.json").contracts.find(
     (c) => c.capability === "music.session.v1",
@@ -696,16 +786,17 @@ test("Entertainment transport markers stay private and status remains valid afte
     "the adapter still receives the stream authorization marker",
   );
   const running = e.session.snapshot();
+  const delivered = e.writes.filter((w) => w.id === "h").at(-1);
   assert.deepEqual(
-    e.writes.filter((w) => w.id === "h").at(-1).state.__rgb,
-    running.lastPreview.frames[0].rgb,
+    delivered.state.__rgb,
+    e.frames[e.frameTimes.indexOf(delivered.at)].frames[0].rgb,
     "Hue streaming preserves the same mapped color as the preview",
   );
   assert.equal(
     Object.hasOwn(running.outputCadence.fixtureHz[0].delivery.lastCommand.state, "__rgb"),
     false,
   );
-  assert.equal(running.outputCadence.fixtureHz[0].hz, 16);
+  assert.equal(running.outputCadence.fixtureHz[0].hz, 12);
   assert.equal(
     Object.hasOwn(running.outputCadence.fixtureHz[0].delivery.lastCommand.state, "__entertainment"),
     false,

@@ -46,9 +46,13 @@ module.exports = function createMusicToLightService({
   const instance = createController({
     savedEffects,
     ...controllerOptions,
+    designPolicy: require("../../../integrations/music-to-light/direct-brightness-settings.cjs"),
     probeApi: appSources,
     readPlayback: readPlayback || controllerOptions.readPlayback,
-    initialSettings: controllerOptions.initialSettings || saved,
+    initialSettings:
+      controllerOptions.initialSettings ||
+      saved ||
+      require("../../../integrations/music-to-light/profiles/accepted-color-led-v1.json"),
     output: core
       ? {
           ownership: core.fixtureOutput.ownership,
@@ -242,7 +246,9 @@ module.exports = function createMusicToLightService({
     view() {
       return {
         installed,
+        autoRaveEnabled: library.enabled(),
         status: instance.client.status(),
+        rave: instance.operator.raveInfo(),
         design: instance.client.exportDesign(),
         bindings: instance.operator.bindings(),
         fixtures: fixtures(),
@@ -255,10 +261,11 @@ module.exports = function createMusicToLightService({
     permissions: operatorChange("permissions"),
     pipeline: () => instance.operator.pipeline(),
     rave: (value) => instance.operator.rave(value),
-    manualRave: () =>
+    manualRave: (value = {}) =>
       instance.operator.rave({
         fixtureIds: instance.operator.bindings().fixtures.map((f) => f.id),
         origin: "manual",
+        ...(value?.untilStopped === undefined ? {} : { untilStopped: value.untilStopped }),
         brightnessLimit: core?.lightingLab?.settings?.().brightnessLimit ?? 100,
       }),
     checkRave: (value) => instance.operator.checkRave(value),

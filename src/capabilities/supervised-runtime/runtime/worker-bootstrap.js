@@ -14,6 +14,7 @@
 // [TITLE] - deactivate and exit within a bounded shutdown window
 
 const path = require("node:path");
+const { AsyncLocalStorage } = require("node:async_hooks");
 const { parseBrokerFrameV1 } = require("../contracts/broker-envelope-v1");
 
 function readBootConfig() {
@@ -47,7 +48,15 @@ let active = false;
 let shuttingDown = false;
 const pending = new Map();
 const outbound = new Map();
+const requestScope = new AsyncLocalStorage();
+// Mod actions are request-owned. Reviewed features also own accepted background
+// delivery and persistence jobs; their existing lifecycle handles that work.
+const scopedRequests = identityField === "modId";
 let outboundSequence = 0;
+const featureCalls = require("./capability-call-queue")({
+  limit: Math.max(1, Math.min(64, Number(config.outboundConcurrency) || 1)),
+  capacity: Math.max(0, Math.min(256, Number(config.outboundQueueCapacity) || 0)),
+});
 
 function send(envelope) {
   const validation = parseBrokerFrameV1(JSON.stringify(envelope), {
@@ -72,10 +81,29 @@ function response(replyTo, ok, payload, error) {
 }
 
 function callCapability(capability, method, payload = null, options = {}) {
+  if (!scopedRequests && !shuttingDown) {
+    const timeoutMs = Math.min(60000, Math.max(10, Number(options.timeoutMs) || 5000));
+    return featureCalls.run(
+      (remaining) =>
+        callCapabilityNow(capability, method, payload, { ...options, timeoutMs: remaining }),
+      timeoutMs,
+    );
+  }
+  return callCapabilityNow(capability, method, payload, options);
+}
+function callCapabilityNow(capability, method, payload = null, options = {}) {
   if (!workload) return Promise.reject(new Error("workload_unavailable"));
   if (!consumedCapabilities.has(capability))
     return Promise.reject(new Error("capability_not_declared"));
-  const timeoutMs = Math.min(60000, Math.max(10, Number(options.timeoutMs) || 5000));
+  const parent = scopedRequests ? requestScope.getStore() : null;
+  if (parent && (!pending.has(parent.id) || parent.signal.aborted))
+    return Promise.reject(new Error("request_cancelled"));
+  const timeoutMs = Math.min(
+    60000,
+    Math.max(10, Number(options.timeoutMs) || 5000),
+    parent ? parent.deadlineAt - Date.now() : 60000,
+  );
+  if (timeoutMs <= 0) return Promise.reject(new Error("request_deadline_exceeded"));
   outboundSequence += 1;
   const id = `w_${outboundSequence}_${Date.now().toString(36)}`;
   const envelope = {
@@ -89,17 +117,46 @@ function callCapability(capability, method, payload = null, options = {}) {
     payload,
   };
   if (options.providerId) envelope.providerId = String(options.providerId);
+  if (parent) envelope.parentRequestId = parent.id;
   return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timer);
+      parent?.signal.removeEventListener("abort", cancel);
+    };
+    const cancel = () => {
+      if (!outbound.delete(id)) return;
+      cleanup();
+      try {
+        send({ protocolVersion: 1, type: "cancel", sentAt: Date.now(), replyTo: id });
+      } catch {}
+      reject(new Error("request_cancelled"));
+    };
     const timer = setTimeout(() => {
       outbound.delete(id);
+      cleanup();
+      try {
+        send({ protocolVersion: 1, type: "cancel", sentAt: Date.now(), replyTo: id });
+      } catch {}
       reject(new Error("broker_timeout"));
     }, timeoutMs);
-    outbound.set(id, { resolve, reject, timer });
+    outbound.set(id, {
+      resolve: (v) => {
+        cleanup();
+        resolve(v);
+      },
+      reject: (e) => {
+        cleanup();
+        reject(e);
+      },
+      timer,
+    });
+    parent?.signal.addEventListener("abort", cancel, { once: true });
     try {
       send(envelope);
     } catch (error) {
       clearTimeout(timer);
       outbound.delete(id);
+      cleanup();
       reject(error);
     }
   });
@@ -195,13 +252,17 @@ async function handleRequest(envelope) {
   try {
     const result = await Promise.race([
       Promise.resolve(
-        workload.handleRequest({
-          capability: envelope.capability,
-          method: envelope.method,
-          payload: envelope.payload,
-          signal: controller.signal,
-          deadlineAt: envelope.deadlineAt,
-        }),
+        requestScope.run(
+          { id: envelope.id, signal: controller.signal, deadlineAt: envelope.deadlineAt },
+          () =>
+            workload.handleRequest({
+              capability: envelope.capability,
+              method: envelope.method,
+              payload: envelope.payload,
+              signal: controller.signal,
+              deadlineAt: envelope.deadlineAt,
+            }),
+        ),
       ),
       new Promise((resolve, reject) =>
         controller.signal.addEventListener("abort", () => reject(controller.signal.reason), {
@@ -221,6 +282,7 @@ async function handleRequest(envelope) {
     });
   } finally {
     clearTimeout(timer);
+    if (scopedRequests) controller.abort(new Error("request_completed"));
     pending.delete(envelope.id);
   }
 }
@@ -229,6 +291,7 @@ async function shutdown(deadlineAt) {
   if (shuttingDown) return;
   shuttingDown = true;
   active = false;
+  featureCalls.close();
   for (const entry of pending.values()) entry.controller.abort(new Error("workload_shutdown"));
   for (const entry of outbound.values()) {
     clearTimeout(entry.timer);

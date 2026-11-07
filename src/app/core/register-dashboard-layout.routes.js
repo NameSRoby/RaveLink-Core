@@ -36,8 +36,11 @@ module.exports = function registerDashboardLayout(app, { runtimeDir }) {
   const file = path.join(runtimeDir, "system", "dashboard.json");
   let layout = defaults();
   try {
+    const stat = fs.lstatSync(file);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 16384)
+      throw Error("dashboard_layout_file_invalid");
     const stored = JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, ""));
-    if (valid(stored.layout)) layout = stored.layout;
+    if (stored.version === 1 && valid(stored.layout)) layout = stored.layout;
   } catch {
     /* New or invalid state uses the defaults. */
   }

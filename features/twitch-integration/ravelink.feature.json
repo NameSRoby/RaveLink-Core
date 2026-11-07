@@ -78,7 +78,6 @@
     "files": {
       "contracts/twitch-integration-v1.contracts.json": "62e40e6be4a6420e19d882845b29726b24b1792752b22ae098186c8be8ea5e0a",
       "dist/main.js": "0a404c12adb4b996b81badef92db31837f39864adf18c12e2d65bdd4e208a94a",
-      "README.md": "d230203fe240e20d85033fd6d22b8f8aae584d3bcc0b43e5af5fdd967244a4c4",
       "ui/connection.html": "b4b8dcf65ea8f4d5f1c2866661446ad0eb6bdfb1cf97f32825113514418aa521"
     }
   }

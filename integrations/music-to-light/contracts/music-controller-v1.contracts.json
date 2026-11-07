@@ -223,12 +223,12 @@
                       "requestedHz": {
                         "type": "number",
                         "minimum": 2,
-                        "maximum": 16
+                        "maximum": 12
                       },
                       "targetHz": {
                         "type": "number",
                         "minimum": 2,
-                        "maximum": 16
+                        "maximum": 12
                       },
                       "busySkipped": {
                         "type": "integer",
@@ -247,12 +247,12 @@
                             },
                             "brand": {
                               "type": "string",
-                              "enum": ["hue", "wiz", "preview"]
+                              "enum": ["hue", "wiz", "preview", "govee"]
                             },
                             "hz": {
                               "type": "number",
                               "minimum": 0,
-                              "maximum": 16
+                              "maximum": 12
                             },
                             "delivery": {
                               "type": "object",
@@ -349,6 +349,14 @@
                                       }
                                     }
                                   }
+                                },
+                                "held": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "refreshed": {
+                                  "type": "integer",
+                                  "minimum": 0
                                 }
                               }
                             }
@@ -379,7 +387,7 @@
                       "endingStyle": {
                         "type": "number",
                         "minimum": 0,
-                        "maximum": 2
+                        "maximum": 4
                       }
                     }
                   }
@@ -608,12 +616,12 @@
                       "requestedHz": {
                         "type": "number",
                         "minimum": 2,
-                        "maximum": 16
+                        "maximum": 12
                       },
                       "targetHz": {
                         "type": "number",
                         "minimum": 2,
-                        "maximum": 16
+                        "maximum": 12
                       },
                       "busySkipped": {
                         "type": "integer",
@@ -632,12 +640,12 @@
                             },
                             "brand": {
                               "type": "string",
-                              "enum": ["hue", "wiz", "preview"]
+                              "enum": ["hue", "wiz", "preview", "govee"]
                             },
                             "hz": {
                               "type": "number",
                               "minimum": 0,
-                              "maximum": 16
+                              "maximum": 12
                             },
                             "delivery": {
                               "type": "object",
@@ -734,6 +742,14 @@
                                       }
                                     }
                                   }
+                                },
+                                "held": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "refreshed": {
+                                  "type": "integer",
+                                  "minimum": 0
                                 }
                               }
                             }
@@ -764,7 +780,7 @@
                       "endingStyle": {
                         "type": "number",
                         "minimum": 0,
-                        "maximum": 2
+                        "maximum": 4
                       }
                     }
                   }
@@ -983,12 +999,12 @@
                       "requestedHz": {
                         "type": "number",
                         "minimum": 2,
-                        "maximum": 16
+                        "maximum": 12
                       },
                       "targetHz": {
                         "type": "number",
                         "minimum": 2,
-                        "maximum": 16
+                        "maximum": 12
                       },
                       "busySkipped": {
                         "type": "integer",
@@ -1007,12 +1023,12 @@
                             },
                             "brand": {
                               "type": "string",
-                              "enum": ["hue", "wiz", "preview"]
+                              "enum": ["hue", "wiz", "preview", "govee"]
                             },
                             "hz": {
                               "type": "number",
                               "minimum": 0,
-                              "maximum": 16
+                              "maximum": 12
                             },
                             "delivery": {
                               "type": "object",
@@ -1109,6 +1125,14 @@
                                       }
                                     }
                                   }
+                                },
+                                "held": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "refreshed": {
+                                  "type": "integer",
+                                  "minimum": 0
                                 }
                               }
                             }
@@ -1139,7 +1163,7 @@
                       "endingStyle": {
                         "type": "number",
                         "minimum": 0,
-                        "maximum": 2
+                        "maximum": 4
                       }
                     }
                   }
@@ -1520,7 +1544,7 @@
                   "endingStyle": {
                     "type": "number",
                     "minimum": 0,
-                    "maximum": 3,
+                    "maximum": 4,
                     "enum": [0, 1, 2, 3]
                   },
                   "endingMs": {
@@ -1558,6 +1582,39 @@
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1
+                  },
+                  "profileMotion": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 9,
+                    "enum": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                  },
+                  "profileDepth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "profileBeats": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 16,
+                    "enum": [1, 2, 3, 4, 6, 8, 12, 16]
+                  },
+                  "profileSpread": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "profileBlendMs": {
+                    "type": "number",
+                    "minimum": 80,
+                    "maximum": 800
+                  },
+                  "randomProfileEnabled": {
+                    "type": "boolean"
+                  },
+                  "profilePaletteEnabled": {
+                    "type": "boolean"
                   }
                 }
               },
@@ -2588,7 +2645,7 @@
                   "endingStyle": {
                     "type": "number",
                     "minimum": 0,
-                    "maximum": 3,
+                    "maximum": 4,
                     "enum": [0, 1, 2, 3]
                   },
                   "endingMs": {
@@ -2626,6 +2683,39 @@
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1
+                  },
+                  "profileMotion": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 9,
+                    "enum": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                  },
+                  "profileDepth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "profileBeats": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 16,
+                    "enum": [1, 2, 3, 4, 6, 8, 12, 16]
+                  },
+                  "profileSpread": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "profileBlendMs": {
+                    "type": "number",
+                    "minimum": 80,
+                    "maximum": 800
+                  },
+                  "randomProfileEnabled": {
+                    "type": "boolean"
+                  },
+                  "profilePaletteEnabled": {
+                    "type": "boolean"
                   }
                 }
               },
@@ -3678,7 +3768,7 @@
                   "endingStyle": {
                     "type": "number",
                     "minimum": 0,
-                    "maximum": 3,
+                    "maximum": 4,
                     "enum": [0, 1, 2, 3]
                   },
                   "endingMs": {
@@ -3716,6 +3806,39 @@
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1
+                  },
+                  "profileMotion": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 9,
+                    "enum": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                  },
+                  "profileDepth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "profileBeats": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 16,
+                    "enum": [1, 2, 3, 4, 6, 8, 12, 16]
+                  },
+                  "profileSpread": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "profileBlendMs": {
+                    "type": "number",
+                    "minimum": 80,
+                    "maximum": 800
+                  },
+                  "randomProfileEnabled": {
+                    "type": "boolean"
+                  },
+                  "profilePaletteEnabled": {
+                    "type": "boolean"
                   }
                 }
               },
@@ -4777,7 +4900,7 @@
                   "endingStyle": {
                     "type": "number",
                     "minimum": 0,
-                    "maximum": 3,
+                    "maximum": 4,
                     "enum": [0, 1, 2, 3]
                   },
                   "endingMs": {
@@ -4815,6 +4938,39 @@
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1
+                  },
+                  "profileMotion": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 9,
+                    "enum": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                  },
+                  "profileDepth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "profileBeats": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 16,
+                    "enum": [1, 2, 3, 4, 6, 8, 12, 16]
+                  },
+                  "profileSpread": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "profileBlendMs": {
+                    "type": "number",
+                    "minimum": 80,
+                    "maximum": 800
+                  },
+                  "randomProfileEnabled": {
+                    "type": "boolean"
+                  },
+                  "profilePaletteEnabled": {
+                    "type": "boolean"
                   }
                 }
               },

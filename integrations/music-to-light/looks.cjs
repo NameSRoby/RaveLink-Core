@@ -5,6 +5,7 @@
  */
 const { behaviors } = require("./behavior-settings.cjs");
 const smooth = require("./profiles/accepted-smooth-v2.json");
+const reference = require("./profiles/reference-pulse-v1.json");
 const artisticKeys = [
   "preset",
   "interpretation",
@@ -22,16 +23,26 @@ const artisticKeys = [
 const looks = [
   {
     id: "smooth-reference",
-    label: "Accepted smooth reference",
+    label: "Reference Pulse",
     scenario: "pulse",
-    help: "The approved smooth Pulse handoff, with its palette and feel pinned. Restores the artistic recipe while preserving your calibration, brightness limits, pacing and light access.",
+    help: "Original Pulse timing: 30% smoothing, 260 ms decay and 300 ms color blending. Softer falling light, measured accent strength and restrained color changes. Calibration, brightness limits and output pacing remain yours.",
+    design: {
+      ...Object.fromEntries(artisticKeys.map((key) => [key, reference[key]])),
+      behaviors: { ...reference.behaviors, outputReleaseMs: 180, outputColorMs: 120 },
+    },
+  },
+  {
+    id: "smooth-handoff",
+    label: "Smooth Handoff",
+    scenario: "pulse",
+    help: "A slower crossfade between room ends, using the earlier smooth handoff composition.",
     design: Object.fromEntries(artisticKeys.map((key) => [key, smooth[key]])),
   },
   {
     id: "rave-mix",
     label: "Rave Mix",
     scenario: "pulse",
-    help: "A new combination at activation: Pulse dynamics, independent room interaction, vivid palette, color motion and bounded response parameters. The recipe stays locked.",
+    help: "The reference Pulse response with fresh colors and a compatible room movement. Pulse decay, smoothing and response feel stay consistent. One composition is chosen at each start.",
     design: {
       preset: "pulse",
       scenarioMode: "manual",
@@ -54,20 +65,23 @@ const looks = [
         color: {
           mode: "random",
           value: "onsets",
-          allowed: ["fixed", "onsets", "travel", "roles", "energy"],
+          allowed: ["onsets", "travel", "roles"],
         },
-        feel: { mode: "random", value: "normal", allowed: ["slow", "normal", "fast"] },
+        feel: { mode: "fixed", value: "normal", allowed: ["normal"] },
       },
       parameterRanges: {
-        pulseDecayMs: { min: 250, max: 500 },
-        colorBlendMs: { min: 250, max: 600 },
-        waveWidth: { min: 0.35, max: 0.7 },
-        bounceSeconds: { min: 1.1, max: 2.5 },
-        handoffMs: { min: 250, max: 600 },
-        interactionDepth: { min: 0.65, max: 0.95 },
-        waveVoices: { min: 2, max: 4 },
+        waveWidth: { min: 0.45, max: 0.6 },
+        bounceSeconds: { min: 1.5, max: 2.5 },
+        handoffMs: { min: 300, max: 450 },
+        interactionDepth: { min: 0.3, max: 0.55 },
       },
-      behaviors: { colorVibrance: 1, outputReleaseMs: 160, hueGlideMs: 100 },
+      behaviors: {
+        ...reference.behaviors,
+        outputReleaseMs: 180,
+        outputColorMs: 120,
+        waveDepth: 0.45,
+        swellDepth: 0.45,
+      },
     },
   },
   {
@@ -227,8 +241,9 @@ module.exports = Object.freeze(
         ...look.design,
         behaviors: {
           ...behaviors(),
-          outputReleaseMs: 160,
-          hueGlideMs: 100,
+          ...reference.behaviors,
+          outputReleaseMs: 180,
+          outputColorMs: 120,
           ...look.design.behaviors,
         },
       },

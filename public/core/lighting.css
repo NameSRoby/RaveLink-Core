@@ -183,31 +183,222 @@
 }
 .fixtureBoard {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 24px;
   margin-top: 12px;
 }
-.fixtureDropZone {
-  min-width: 0;
-  min-height: 130px;
-  padding: 10px;
-  border: 1px solid var(--edge);
-  background: #080d18;
-}
-.fixtureDropZone.dragOver {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-.fixtureZoneHead {
+.viewerWorkspaceHeader,
+.viewerPaneHeading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 16px;
 }
-.fixtureZoneHead h4 {
+.viewerWorkspaceHeader h2 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: 0;
+}
+.viewerWorkspaceHeader p {
   margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.viewerWorkspaceHeader .actions {
+  margin: 0;
+}
+.viewerSettingsWorkspace {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 30px;
+  margin-top: 20px;
+}
+.viewerSettingsNav,
+.viewerGroupList {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+.viewerSettingsNav button {
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  padding: 12px;
+  border-radius: 10px;
+}
+.viewerSettingsNav [aria-pressed="true"] {
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: inset 3px 0 var(--accent);
+}
+#twitchProgramControls {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+[data-viewer-pane] > h3,
+.viewerPaneHeading h3 {
+  margin: 0;
+}
+.viewerPaneHeading p {
+  margin: 5px 0 0;
+}
+[data-viewer-pane][hidden],
+#viewerModeHost[hidden] {
+  display: none !important;
+}
+.viewerPermissionRow {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--edge);
+  margin-bottom: 20px;
+}
+.viewerGroupChoice {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  padding: 12px;
+  border: 0;
+  border-radius: 11px;
+  box-shadow: none;
+  background: transparent;
+}
+.viewerGroupChoice small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.viewerGroupChoice[aria-pressed="true"] {
+  background: var(--surface);
+}
+.viewerGroupEditor {
+  min-width: 0;
+  border-left: 1px solid var(--edge);
+  padding-left: 24px;
+}
+.viewerGroupEditor h4 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+.viewerGroupEditor .fixtureZoneSettings {
+  display: flex;
+  justify-content: flex-start;
+  align-items: end;
+  gap: 12px;
+}
+.viewerGroupEditor .fixtureZoneSettings input:not([type="checkbox"]) {
+  width: 100%;
+  max-width: 200px;
+}
+.viewerFixtureList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+.viewerFixtureRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #ffffff03;
+  border: 1px solid var(--edge);
+}
+.viewerFixtureRow input {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  accent-color: var(--accent);
+}
+.viewerFixtureRow > span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.viewerFixtureRow strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.viewerFixtureRow small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.viewerOptionRows {
+  display: grid;
+  max-width: 620px;
+  gap: 18px;
+  margin-top: 24px;
+}
+.viewerOptionRows label {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--edge);
+}
+[data-viewer-pane] .effectProgram {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+}
+[data-viewer-pane] .cluster {
+  padding: 0;
+  border: 0;
+  margin: 0;
+}
+[data-viewer-pane="rave"] .switchLabel {
+  margin: 20px 0;
+}
+[data-viewer-pane="rave"] .actions {
+  margin: 16px 0;
+}
+#twitchProgramNotice:empty {
+  display: none;
+}
+#twitchProgramNotice {
+  margin: 12px 0 0;
+  min-height: 0;
   font-size: 12px;
+}
+@media (max-width: 800px) {
+  .viewerSettingsWorkspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+  .viewerSettingsNav {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  .viewerSettingsNav button {
+    flex-shrink: 0;
+    padding: 10px;
+  }
+}
+@media (max-width: 560px) {
+  .fixtureBoard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .viewerGroupList {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .viewerGroupEditor {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .viewerFixtureList {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .viewerWorkspaceHeader {
+    flex-wrap: wrap;
+  }
 }
 .fixtureZoneSettings {
   display: flex;
@@ -237,46 +428,11 @@
   min-height: 34px;
   padding: 0;
 }
-.fixtureChipList {
-  display: flex;
-  gap: 7px;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  min-height: 68px;
-}
-.fixtureChip {
-  width: auto;
-  max-width: 100%;
-  min-height: 34px;
-  padding: 7px 10px;
-  overflow-wrap: anywhere;
-  cursor: grab;
-}
-.fixtureChip.selected {
-  border-color: var(--accent);
-  background: #1c2942;
-}
 .emptyDropZone {
   color: var(--muted);
   font-size: 11px;
   align-self: center;
 }
-.selectedFixtureMove {
-  display: flex;
-  align-items: end;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-  padding: 10px;
-  border: 1px solid var(--accent);
-}
-.selectedFixtureMove[hidden] {
-  display: none;
-}
-.selectedFixtureMove label {
-  width: min(280px, 100%);
-}
-
 .featureSubtabs {
   margin: 12px 0;
   flex-wrap: wrap;
@@ -292,6 +448,7 @@
   border-bottom: 1px solid var(--edge);
 }
 .featurePageFrame {
+  color-scheme: normal;
   display: block;
   width: 100%;
   height: 78vh;
@@ -356,7 +513,7 @@
 }
 .commandGuideGrid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.72fr) minmax(360px, 1.28fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 .commandGuideCard {
@@ -688,7 +845,7 @@
 }
 .profileToolbar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(150px, 1fr) minmax(180px, 1fr) auto;
   gap: 10px;
   align-items: end;
 }
@@ -697,13 +854,11 @@
 }
 .profileSharedTarget {
   margin: 12px 0;
-  padding: 12px;
-  border: 1px solid var(--accent);
-  background: #080d18;
+  padding: 0;
 }
 .profileFixtureGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 .profileFixtureCard {
@@ -711,6 +866,7 @@
   padding: 12px;
   border: 1px solid var(--edge);
   background: #080d18;
+  border-radius: 12px;
 }
 .profileFixtureCard.routed {
   border-color: #47618e;
@@ -720,7 +876,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 0;
 }
 .profileFixtureHead .sub {
   display: block;
@@ -740,9 +896,148 @@
   color: var(--muted);
   font-size: 10px;
 }
-.profileFixtureCard:not(.routed) .profileTargetControls {
-  opacity: 0.42;
-  pointer-events: none;
+.profileFixtureSelect {
+  flex: 1;
+  min-width: 0;
+  padding: 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  text-align: left;
+  box-shadow: none;
+}
+.profileFixtureSelect[aria-pressed="true"] {
+  background: var(--surface);
+}
+.profileEditingLayout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+  gap: 24px;
+}
+.profileFixtureInspector {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: #080d18;
+}
+.profileSaveActions {
+  padding-top: 20px;
+}
+.lightingProfileCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+  margin: 16px 0 24px;
+}
+.lightingProfileCard {
+  display: grid;
+  gap: 8px;
+  min-height: 106px;
+  border-radius: 18px;
+  padding: 16px;
+  text-align: left;
+  background: linear-gradient(145deg, #ffffff0b, transparent), var(--surface);
+  box-shadow:
+    inset 0 1px 0 #ffffff18,
+    0 4px 10px #0003;
+}
+.lightingProfileCard[aria-pressed="true"] {
+  background: linear-gradient(145deg, #a900362a, #ffffff08), var(--surface);
+}
+.lightingProfileCard small {
+  color: var(--muted);
+}
+.profilePalettePreview {
+  display: flex;
+  gap: 5px;
+}
+.profilePalettePreview i {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px #ffffff25;
+}
+.lightGuideToolbar,
+.lightFormatChoices {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lightGuideToolbar {
+  justify-content: space-between;
+  margin: 20px 0 12px;
+}
+.lightFormatChoices button {
+  border-radius: 9px;
+}
+.lightFormatChoices button[aria-pressed="true"] {
+  background: var(--surface);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.lightSettingsSection {
+  margin: 22px 0;
+  padding: 18px 0;
+  border-top: 1px solid var(--edge);
+}
+.lightSettingsSection > summary,
+.lightInlineHelp > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.lightInlineHelp {
+  margin: 14px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+[data-light-panel="viewer"] {
+  min-width: 0;
+}
+[data-light-panel="viewer"] p {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+[data-light-panel="viewer"] .effectProgram {
+  padding: 18px;
+  border-radius: 12px;
+  margin: 24px 0;
+}
+[data-light-panel="viewer"] .cluster {
+  padding-block: 22px;
+}
+[data-light-panel="viewer"] h3,
+[data-light-panel="profiles"] h3 {
+  font-size: 16px;
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+[data-light-panel="viewer"] summary {
+  padding-block: 5px;
+}
+[data-light-panel="viewer"] .checkLabel {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+[data-light-panel="profiles"] input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+}
+.profileToolbar > [hidden],
+.profileSharedTarget[hidden],
+.commandGuideCard[hidden] {
+  display: none;
+}
+@media (max-width: 760px) {
+  .profileEditingLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .profileFixtureInspector {
+    padding: 14px;
+  }
 }
 
 .swatchRow,
@@ -830,4 +1125,21 @@
   .profileTargetControls {
     grid-template-columns: 1fr;
   }
+}
+
+.featurePageFrame[data-surface="panel"] {
+  min-height: 240px;
+}
+.featurePageFrame[data-surface="overlay"] {
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 16 / 9;
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(45deg, #ffffff05 25%, transparent 25%, transparent 75%, #ffffff05 75%),
+    linear-gradient(45deg, #ffffff05 25%, transparent 25%, transparent 75%, #ffffff05 75%);
+  background-size: 24px 24px;
+  background-position:
+    0 0,
+    12px 12px;
 }

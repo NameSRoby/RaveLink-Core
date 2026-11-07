@@ -160,6 +160,36 @@ test("browser bridge requires pairing, rejects web origins and locks to one tab 
   assert.equal((await f.request("pair", { clientId: "two" })).status, 200);
   assert.equal((await f.request("exchange", { ...body, clientId: "two" })).status, 200);
 });
+test("console asset reads are bounded without consuming authenticated bridge capacity", async (t) => {
+  const f = await fixture(t);
+  const resource = (file, headers = {}) => fetch(f.connection.base + file, { headers });
+  const helper = await resource("/browser-random-id.js");
+  assert.equal(helper.status, 200);
+  assert.equal(helper.headers.get("cache-control"), "public, max-age=300");
+  assert.equal(helper.headers.get("x-content-type-options"), "nosniff");
+  assert.match(await helper.text(), /RaveLinkRandomId/);
+  assert.equal(
+    (await resource("/browser-random-id.js", { Origin: "https://evil.example" })).status,
+    403,
+  );
+  assert.equal((await resource("/")).status, 200);
+  const script = await resource("/dashboard.js");
+  assert.equal(script.status, 200);
+  assert.equal(script.headers.get("cache-control"), "public, max-age=300");
+  for (let index = 3; index < 120; index++) {
+    const response = await resource("/browser-random-id.js");
+    assert.equal(response.status, 200);
+    await response.arrayBuffer();
+  }
+  const limited = await resource("/browser-random-id.js");
+  assert.equal(limited.status, 429);
+  assert.ok(Number(limited.headers.get("retry-after")) > 0);
+  assert.equal((await resource("/style.css")).status, 429, "console files share the same bound");
+  assert.equal((await f.request("status")).status, 200, "asset reads do not exhaust API admission");
+  assert.equal(f.bridge.status().paired, false);
+  assert.equal(f.bridge.status().lastCommand, null);
+});
+
 test("commands execute once, preserve uncertain outcomes and reject changed payloads/current songs", async (t) => {
   const f = await fixture(t, { timeoutMs: 150 });
   await f.request("pair", { clientId: "one" });

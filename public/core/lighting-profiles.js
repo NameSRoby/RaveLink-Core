@@ -12,6 +12,8 @@
   let layoutLoader = null;
   let labLoader = null;
   let editorDirty = false;
+  let selectedFixture = "";
+  const fixtureEditors = new Map();
 
   const blankTarget = () => ({
     on: true,
@@ -71,10 +73,18 @@
 
   function setStrategyVisibility() {
     const shared = element("lightingProfileStrategy").value === "shared";
-    element("sharedLightingTarget").hidden = !shared;
-    document.querySelectorAll("#lightingProfileFixtures .profileTargetControls").forEach((row) => {
-      row.hidden = shared;
-    });
+    const selected = fixtureEditors.get(selectedFixture);
+    element("sharedLightingTarget").hidden = !shared || !selected?.route.checked;
+    element("lightingProfileFixtureSettings").replaceChildren();
+    if (selected?.route.checked) {
+      element("lightingProfileFixtureTitle").textContent = shared
+        ? "All profile fixtures"
+        : selected.name;
+      if (!shared) element("lightingProfileFixtureSettings").append(selected.controls);
+    } else element("lightingProfileFixtureTitle").textContent = "Select a fixture to edit";
+    element("lightingProfileFixtureHint").hidden = !!selected?.route.checked;
+    for (const [id, row] of fixtureEditors)
+      row.select.setAttribute("aria-pressed", String(id === selectedFixture));
   }
 
   function render() {
@@ -95,11 +105,15 @@
     );
     const grid = element("lightingProfileFixtures");
     grid.replaceChildren();
+    const available = element("lightingProfileAvailableFixtures");
+    available.replaceChildren();
+    fixtureEditors.clear();
+    selectedFixture = "";
     const currentFixtures = ui.fixtures();
     if (!currentFixtures.length) {
       const empty = document.createElement("p");
       empty.textContent = "Add a fixture first, then return here to route it into a profile.";
-      grid.append(empty);
+      available.append(empty);
     }
     for (const fixture of currentFixtures) {
       const target = profile?.fixtureTargets?.[fixture.id] || blankTarget();
@@ -108,7 +122,10 @@
       card.dataset.fixtureId = fixture.id;
       const head = document.createElement("div");
       head.className = "profileFixtureHead";
-      const name = document.createElement("div");
+      const name = document.createElement("button");
+      name.type = "button";
+      name.className = "profileFixtureSelect";
+      name.setAttribute("aria-pressed", "false");
       const strong = document.createElement("strong");
       strong.textContent = fixture.name || fixture.id;
       const detail = document.createElement("span");
@@ -118,22 +135,36 @@
       const route = document.createElement("label");
       route.className = "checkLabel";
       route.title = "Include this fixture whenever this profile is applied.";
-      route.innerHTML = `<input data-route type="checkbox" ${profile?.fixtureTargets?.[fixture.id] ? "checked" : ""}> ROUTED`;
-      route.querySelector("input").onchange = (event) =>
-        card.classList.toggle("routed", event.target.checked);
-      head.append(name, route);
-      card.append(
-        head,
-        targetControls(
-          target,
-          fixture.temperatureRange || {
-            minimumKelvin: 2000,
-            maximumKelvin: 6500,
-          },
-          fixture.id,
-        ),
+      route.innerHTML = `<input data-route type="checkbox" ${profile?.fixtureTargets?.[fixture.id] ? "checked" : ""}> Include`;
+      const checkbox = route.querySelector("input");
+      const controls = targetControls(
+        target,
+        fixture.temperatureRange || { minimumKelvin: 2000, maximumKelvin: 6500 },
+        fixture.id,
       );
-      grid.append(card);
+      fixtureEditors.set(fixture.id, {
+        controls,
+        route: checkbox,
+        select: name,
+        name: fixture.name || fixture.id,
+      });
+      name.onclick = () => {
+        if (!checkbox.checked) {
+          checkbox.checked = true;
+          checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        selectedFixture = fixture.id;
+        setStrategyVisibility();
+      };
+      checkbox.onchange = () => {
+        card.classList.toggle("routed", checkbox.checked);
+        (checkbox.checked ? grid : available).append(card);
+        if (!checkbox.checked && selectedFixture === fixture.id) selectedFixture = "";
+        setStrategyVisibility();
+      };
+      head.append(name, route);
+      card.append(head);
+      (checkbox.checked ? grid : available).append(card);
     }
     setStrategyVisibility();
   }
@@ -147,6 +178,38 @@
       ),
     );
     select.value = selectedId;
+    const cards = element("lightingProfileCards");
+    cards.replaceChildren();
+    for (const profile of profiles) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "lightingProfileCard";
+      button.setAttribute("aria-pressed", String(profile.id === selectedId));
+      const title = document.createElement("strong"),
+        detail = document.createElement("small"),
+        swatches = document.createElement("span");
+      title.textContent = profile.name;
+      detail.textContent = `${Object.keys(profile.fixtureTargets || {}).length} fixtures${profile.isDefault ? " · Default" : ""}`;
+      swatches.className = "profilePalettePreview";
+      for (const target of Object.values(profile.fixtureTargets || {}).slice(0, 6)) {
+        const dot = document.createElement("i");
+        dot.style.background =
+          target.on === false
+            ? "#334155"
+            : /^#[0-9a-f]{6}$/i.test(target.color)
+              ? target.color
+              : "#ffffff";
+        swatches.append(dot);
+      }
+      button.append(swatches, title, detail);
+      button.onclick = () => {
+        selectedId = profile.id;
+        editorDirty = false;
+        populateSelect();
+        render();
+      };
+      cards.append(button);
+    }
   }
 
   function renderQuickBar() {
@@ -199,13 +262,11 @@
   function draft() {
     const existing = activeProfile();
     const name = element("lightingProfileName").value.trim();
-    const fixtureTargets = {};
-    document.querySelectorAll("#lightingProfileFixtures .profileFixtureCard").forEach((card) => {
-      if (card.querySelector("[data-route]").checked)
-        fixtureTargets[card.dataset.fixtureId] = readTarget(
-          card.querySelector(".profileTargetControls"),
-        );
-    });
+    const fixtureTargets = { ...existing?.fixtureTargets };
+    for (const [id, row] of fixtureEditors) {
+      if (row.route.checked) fixtureTargets[id] = readTarget(row.controls);
+      else delete fixtureTargets[id];
+    }
     return {
       id: existing?.id || slug(name),
       name,
@@ -241,6 +302,8 @@
     try {
       const payload = draft();
       if (!payload.name) throw new Error("Give this profile a name first.");
+      if (!Object.keys(payload.fixtureTargets).length)
+        throw new Error("Add at least one fixture to this profile.");
       const result = await ui.request("/lighting-profiles", {
         method: "POST",
         body: JSON.stringify(payload),
@@ -311,7 +374,7 @@
     profiles: "Light profiles: save and recall a room's colors, brightness and power states.",
     commands:
       "Light commands: copy instructions for viewers based on your saved routes and permissions.",
-    layout: "Room layout: place fixtures in your room for spatial effects. This editor is Alpha.",
+    layout: "Place fixtures in your room to direct spatial effects.",
   };
   lightTabs.forEach((button, index) => {
     const key = button.dataset.lightTab;
@@ -343,7 +406,7 @@
         row.tabIndex = row === button ? 0 : -1;
       });
       element("lightWorkspaceHelp").textContent = workspaceHelp[key];
-      element("lightWorkspaceHelp").hidden = key === "music";
+      element("lightWorkspaceHelp").hidden = ["music", "viewer"].includes(key);
       document.querySelectorAll("[data-light-panel]").forEach((panel) => {
         panel.hidden = panel.dataset.lightPanel !== button.dataset.lightTab;
       });

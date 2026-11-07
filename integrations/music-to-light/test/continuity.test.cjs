@@ -146,7 +146,7 @@ test("composition selections reset artistic overrides and preserve host-owned li
     assert.equal(merged.maximumBrightness, 42);
     assert.equal(merged.floorDb, -47);
     assert.equal(merged.ceilingDb, -23);
-    assert.equal(merged.outputHz, 16);
+    assert.equal(merged.outputHz, 12);
     const m = create(merged);
     assert.equal(m.preset(), look.design.preset);
     assert.equal(m.inspect(0).recipeLocked, false);

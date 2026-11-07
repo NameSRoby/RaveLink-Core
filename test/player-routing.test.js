@@ -4,7 +4,7 @@ const { createFeatureRuntimeHarness } = require("./support/feature-runtime-harne
 const { createSongQueue } = require("../features/song-request/dist/domain");
 const feature = require("../features/song-request/dist/main");
 
-test("startup restores the saved desktop player and observer even with a missing or conflicting playback snapshot", async () => {
+test("startup restores Automatic independently of the request player without launching playback", async () => {
   for (const player of ["tidal", "spotify", "youtube", "soundcloud"]) {
     const snapshot = createSongQueue().exportSnapshot();
     const storage = new Map([
@@ -32,13 +32,8 @@ test("startup restores the saved desktop player and observer even with a missing
     try {
       await harness.start();
       const state = await harness.request("song.playback.read.v1", "status", {});
-      assert.equal(state.playbackSource, player);
-      assert.deepEqual(
-        controls,
-        ["tidal", "spotify"].includes(player)
-          ? [{ action: "select", provider: player }, { action: "start" }]
-          : [{ action: "stop" }],
-      );
+      assert.equal(state.playbackSource, "auto");
+      assert.deepEqual(controls, [{ action: "select", provider: "auto" }, { action: "start" }]);
     } finally {
       await harness.stop();
     }

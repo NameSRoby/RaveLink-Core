@@ -4,6 +4,56 @@
  */
 const fields = [
   [
+    "profileMotion",
+    "Room profile",
+    "choreography",
+    0,
+    0,
+    9,
+    1,
+    "How the selected lights share colors and musical energy. Scene jobs stay unchanged.",
+  ],
+  [
+    "profileDepth",
+    "Lead / ambient contrast",
+    "choreography",
+    0,
+    0,
+    1,
+    0.05,
+    "How far companions step back from the leading lights. Zero keeps every light equally responsive.",
+  ],
+  [
+    "profileBeats",
+    "Hits before handover",
+    "choreography",
+    4,
+    1,
+    16,
+    1,
+    "Count measured musical hits before moving the lead. Never invents beats during silence.",
+  ],
+  [
+    "profileSpread",
+    "Palette separation",
+    "choreography",
+    0,
+    0,
+    1,
+    0.05,
+    "Offset the chosen palette between lights. Your custom or freshly generated colors stay in use.",
+  ],
+  [
+    "profileBlendMs",
+    "Room handover",
+    "choreography",
+    240,
+    80,
+    800,
+    20,
+    "Smooth changes of lead between lights. Does not slow the shared brightness response or beat color fade.",
+  ],
+  [
     "openingStyle",
     "Opening animation",
     "output",
@@ -29,7 +79,7 @@ const fields = [
     "output",
     0,
     0,
-    3,
+    4,
     1,
     "Smoothly return to the previous native state on normal Stop or timer expiry. Failures and shutdown restore immediately. Manual changes always win.",
   ],
@@ -419,7 +469,7 @@ for (const [id, label, stage, help] of [
     "shuffleChoicesEnabled",
     "Explore before repeating",
     "choice",
-    "Expressive model: sample permitted choices without replacement between activations. Weights describe odds among remaining choices; bag boundaries may repeat. A running recipe never redraws.",
+    "Rotate permitted choices before repeating, independently of the Expressive renderer. Weights describe odds among remaining choices. Avoid immediate repeats when alternatives exist. A running recipe never redraws.",
   ],
   [
     "spatialEnabled",
@@ -435,7 +485,7 @@ fields.push({
   stage: "analysis",
   value: false,
   type: "boolean",
-  help: "Keep every qualified attack visible, with stronger novelty adding accent headroom. Continuous musical color travel keeps smooth render pacing between attacks. Also enables smooth shapes and activation-only shuffle history. Off preserves the reference model. Calibration, brightness limits and transport caps stay unchanged.",
+  help: "Keep every qualified attack visible, with stronger novelty adding accent headroom. Continuous musical color travel and smooth shapes form an alternative renderer. Palette rotation is independent. Off uses the reference Pulse path. Calibration, brightness limits and transport caps stay unchanged.",
 });
 fields.push({
   id: "loudnessBrightness",
@@ -455,17 +505,40 @@ fields.push({
 });
 fields.find((f) => f.id === "openingStyle").choices = {
   0: "None",
-  1: "Surround sweep",
-  2: "Aurora bloom",
-  3: "Spotlight return",
+  1: "Room reveal",
+  2: "Center bloom",
+  3: "Reverse reveal",
   4: "Random each activation",
 };
+fields.find((f) => f.id === "profileMotion").choices = Object.fromEntries(
+  require("./effect-profiles.cjs").map((p) => [p.value, p.label]),
+);
+fields.find((f) => f.id === "profileBeats").choices = Object.fromEntries(
+  [1, 2, 3, 4, 6, 8, 12, 16].map((v) => [v, String(v)]),
+);
 fields.find((f) => f.id === "endingStyle").choices = {
   0: "Immediate restore",
   1: "Soft return",
   2: "Room sweep return",
   3: "Random each activation",
+  4: "Center-out return",
 };
+fields.push({
+  id: "randomProfileEnabled",
+  label: "Shuffle profiles when Rave starts",
+  stage: "profileSelection",
+  type: "boolean",
+  value: false,
+  help: "Pick one of the ten profiles for each new Rave. Visits every profile before repeating. Custom and random palettes stay independent. Saved-effect playback takes priority.",
+});
+fields.push({
+  id: "profilePaletteEnabled",
+  label: "Use profile colors",
+  stage: "paletteSelection",
+  type: "boolean",
+  value: false,
+  help: "Use colors matched to this profile. Your custom palette is retained separately; random palettes override profile colors.",
+});
 const catalog = Object.freeze(fields.map(Object.freeze));
 function behaviors(input = {}) {
   if (

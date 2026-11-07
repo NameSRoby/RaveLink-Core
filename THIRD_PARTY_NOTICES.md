@@ -17,6 +17,8 @@ RaveLink Core includes or interoperates with the following third-party component
 
 ## Bundled Runtime And Libraries
 
+- **Lucide Icons 1.70.0** - ISC License, with MIT terms for Feather-derived icons. A curated set of 250 button icons is bundled locally in `public/core/button-icons/catalog.json`; the complete upstream notice is in `public/core/button-icons/LICENSE.txt`. Upstream: https://github.com/lucide-icons/lucide .
+
 - **Simple Icons** — YouTube, TIDAL and SoundCloud provider glyphs, CC0-1.0.
   Source: https://github.com/simple-icons/simple-icons . The Song Request package
   includes provenance and the complete license in `THIRD_PARTY_NOTICES.md` and
@@ -26,6 +28,8 @@ RaveLink Core includes or interoperates with the following third-party component
 - **Node.js 24.13.0 Windows runtime** - Node.js license. The executable is renamed `RaveLink-Core-Node.exe` and its Windows description is branded for RaveLink; its complete license is installed as `runtime/NODE-LICENSE.txt`.
 - **axios** - MIT License.
 - **bonjour-service** - MIT License. Used for bounded Philips Hue discovery.
+- **qrcode** - MIT License. Generates LAN sharing QR codes locally; no external QR service is used. Upstream: https://github.com/soldair/node-qrcode .
+- **obscenity** (0.4.6) - MIT License. Offline clip title moderation, including the English dataset adapted from the MIT-licensed cuss project. Upstream: https://github.com/jo3-l/obscenity . Package license and dataset attribution remain in the installed dependency.
 - **cross-fetch** - MIT License. Used by Hue Entertainment support.
 - **express** - MIT License.
 - **express-rate-limit** - MIT License. Bounds local settings saves and Spotify companion requests.
@@ -50,3 +54,10 @@ Transitive production packages currently use MIT, ISC, BSD-2-Clause, BSD-3-Claus
 
 - WiZ local control documentation was used to implement the local `setPilot` protocol. No WiZ source code is included.
 - Twitch, YouTube, StreamElements, Philips Hue, WiZ, Spotify, and OBS are trademarks or services of their respective owners. RaveLink Core is not endorsed by them.
+
+# Fullscreen screen-awake compatibility media
+
+The silent WebM/MP4 files in `public/core/wake-media` are from
+**NoSleep.js** v0.12.0, Copyright (c) Rich Tibbett, MIT License.
+Source: https://github.com/richtr/NoSleep.js/tree/v0.12.0/src
+The full license accompanies the media as `LICENSE.txt`.

@@ -137,6 +137,8 @@ test(
       "toolbar stays dark and aligned after resize and tray hide/show",
     );
     assert.equal(result.retained, true);
+    assert.equal(result.fullscreenKeys, true, "Escape and F11 exit both DOM and native fullscreen");
+    assert.equal(result.retried, true, "Retry must recover after the SDK loader has already run");
     assert.equal(result.blocked, true);
     assert.equal(result.stored, '"retained"');
     assert.equal(result.clipboard, "true");

@@ -93,6 +93,8 @@ function settings(input = {}) {
     !value.palette.every((color) => typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color))
   )
     throw fault("invalid_music_settings");
+  // Keep saved 16-Hz designs readable while enforcing the current hard ceiling.
+  value.outputHz = Math.min(12, value.outputHz);
   value.behaviors = behaviors(value.behaviors);
   if (value.calibrationVolume !== null)
     value.calibrationVolume = require("./volume-follow.cjs").validate(value.calibrationVolume);

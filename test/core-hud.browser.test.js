@@ -27,6 +27,7 @@ test("clean HUD boots and remains usable on desktop and mobile", async (t) => {
   let browser;
   t.after(async () => {
     if (browser) await browser.close();
+    await services.lifecycle.stopAll();
     await new Promise((resolve) => server.close(resolve));
     fs.rmSync(runtimeDir, { recursive: true, force: true });
   });
@@ -49,6 +50,35 @@ test("clean HUD boots and remains usable on desktop and mobile", async (t) => {
           "/core.css",
           "/dashboard.css",
           "/dashboard.js",
+          "/control-deck.js",
+          "/control-deck-reorder.js",
+          "/control-deck-feedback.js",
+          "/control-deck-display.js",
+          "/control-deck-editor.js",
+          "/control-deck-steps.js",
+          "/control-deck-integrations.js",
+          "/control-deck-layout.js",
+          "/control-deck-screen.js",
+          "/control-deck-screen-editor.js",
+          "/control-deck-fullscreen.js",
+          "/control-deck-awake.js",
+          "/control-deck-toggle-editor.js",
+          "/control-deck-keys.js",
+          "/control-deck-pager.js",
+          "/control-deck-screen-layout.js",
+          "/control-deck-slider.js",
+          "/control-deck-slider-layout.js",
+          "/control-deck-audio-ui.js",
+          "/control-deck-settings.js",
+          "/control-deck-id.js",
+          "/browser-random-id.js",
+          "/control-deck-panels.js",
+          "/control-deck-windows-panel.js",
+          "/control-deck-feed.js",
+          "/control-deck-widgets.js",
+          "/deck-widget-card.js",
+          "/deck-widget-editor.js",
+          "/control-deck.css",
           "/dashboard-layout.js",
           "/feature-navigation.js",
           "/usability.css",
@@ -169,6 +199,11 @@ test("clean HUD boots and remains usable on desktop and mobile", async (t) => {
             "/api/presentation/navigation",
             "/api/presentation/dashboard",
             "/api/dashboard",
+            "/api/control-deck/state",
+            "/api/control-deck",
+            "/api/control-deck/catalog",
+            "/control-deck-profile-light.js",
+            "/viewer-fixture-groups.js",
           ].includes(url),
       ),
       ["/system/status", "/lighting-profiles", "/system/update/status"],
@@ -184,6 +219,12 @@ test("clean HUD boots and remains usable on desktop and mobile", async (t) => {
     assert.match(await page.locator("#lightWorkspaceHelp").textContent(), /Channel Points/);
     await page.keyboard.press("Home");
     assert.equal(await page.locator('[data-light-panel="control"]').isVisible(), true);
+    assert.equal(await page.locator("#controlRoutingTestInput").isVisible(), true);
+    const swatch = await page.locator('.swatchRow [data-color="red"]').boundingBox();
+    assert(
+      swatch && Math.abs(swatch.width - swatch.height) <= 1,
+      "original color presets stay square",
+    );
     assert.deepEqual(errors, []);
     await page.close();
   }
@@ -198,7 +239,7 @@ test("Viewer controls exposes and saves Rave permission without granting audio o
   const browser = await chromium.launch({ headless: true });
   t.after(async () => {
     await browser.close();
-    await services.musicToLight.shutdown();
+    await services.lifecycle.stopAll();
     await new Promise((resolve) => server.close(resolve));
     const relative = path.relative(os.tmpdir(), runtimeDir);
     assert(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
@@ -221,6 +262,7 @@ test("Viewer controls exposes and saves Rave permission without granting audio o
   await page.goto(url, { waitUntil: "networkidle" });
   await page.locator('[data-tab="lights"]').click();
   await page.locator('[data-light-tab="viewer"]').click();
+  await page.locator('[data-viewer-section="rave"]').click();
   await page.waitForFunction(() => !document.getElementById("viewerRaveEnabled").disabled);
   assert.equal(await page.locator("#viewerRaveEnabled").isChecked(), false);
   await page
@@ -233,7 +275,7 @@ test("Viewer controls exposes and saves Rave permission without granting audio o
       !document.getElementById("viewerRaveEnabled").disabled,
   );
   assert.equal(services.musicToLight.view().design.raveEnabled, true);
-  assert.equal(services.musicToLight.view().design.intensity, 0.43);
+  assert.equal(services.musicToLight.view().design.intensity, before.design.intensity);
   assert.equal(services.musicToLight.view().design.warmCoolColors, true);
   assert.deepEqual(services.musicToLight.view().status.permissions, before.status.permissions);
   assert.equal(services.musicToLight.view().status.session, null);
@@ -242,6 +284,7 @@ test("Viewer controls exposes and saves Rave permission without granting audio o
   await page.reload({ waitUntil: "networkidle" });
   await page.locator('[data-tab="lights"]').click();
   await page.locator('[data-light-tab="viewer"]').click();
+  await page.locator('[data-viewer-section="rave"]').click();
   await page.waitForFunction(() => !document.getElementById("viewerRaveEnabled").disabled);
   assert.equal(await page.locator("#viewerRaveEnabled").isChecked(), true);
   await page

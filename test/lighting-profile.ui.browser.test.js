@@ -49,14 +49,23 @@ test("operator can route mixed fixtures and apply a default profile from the HUD
   });
   await page.locator('[data-tab="lights"]').click();
   await page.locator('[data-light-tab="profiles"]').click();
-  await page.locator("#lightingProfileFixtures .profileFixtureCard").first().waitFor();
-  assert.equal(await page.locator("#lightingProfileFixtures .profileFixtureCard").count(), 2);
+  await page.locator("#lightingProfileAvailableFixtures .profileFixtureCard").first().waitFor();
+  assert.equal(
+    await page.locator("#lightingProfileFixtureSettings .profileTargetControls").count(),
+    0,
+  );
   await page.locator("#lightingProfileName").fill("Streaming default");
   await page.locator("#lightingProfileDefault").check();
   await page.locator('[data-fixture-id="hue-desk"] [data-route]').check();
-  await page.locator('[data-fixture-id="hue-desk"] [data-choice-value="temperature"]').click();
+  await page.locator('[data-fixture-id="hue-desk"] .profileFixtureSelect').click();
+  await page.locator('#lightingProfileFixtureSettings [data-choice-value="temperature"]').click();
   await page.locator('[data-fixture-id="wiz-wall"] [data-route]').check();
-  await page.locator('[data-fixture-id="wiz-wall"] [data-field="color"]').fill("#123456");
+  await page.locator('[data-fixture-id="wiz-wall"] .profileFixtureSelect').click();
+  await page.locator('#lightingProfileFixtureSettings [data-field="color"]').fill("#123456");
+  assert.equal(
+    await page.locator("#lightingProfileFixtureSettings .profileTargetControls").count(),
+    1,
+  );
   await page.locator("#saveLightingProfile").click();
   await page.locator("#lightingProfileResult").filter({ hasText: "Profile saved" }).waitFor();
   await page.locator("#applyDefaultLightingProfile").click();
@@ -70,5 +79,73 @@ test("operator can route mixed fixtures and apply a default profile from the HUD
     .filter({ hasText: "Streaming default" });
   await quickProfile.click();
   await page.locator("#lightingProfileQuickStatus").filter({ hasText: "2 APPLIED" }).waitFor();
+  await page.locator('[data-tab="dashboard"]').click();
+  await page.locator("#deckButtonMode").click();
+  await page.locator("#deckAddButton").click();
+  await page.locator('[data-deck-action="lighting.profile:streaming-default"]').click();
+  assert.equal(await page.locator("#deckButtonSymbol").inputValue(), "💡");
+  assert.equal(
+    await page
+      .locator('#deckEditor [aria-label="Button appearance preview"]')
+      .getAttribute("data-profile-leds"),
+    "2",
+  );
+  await page.locator("#deckSaveButton").click();
+  const profileButton = page
+    .locator("#deckGrid .deckButton")
+    .filter({ hasText: "Streaming default" });
+  await profileButton.waitFor();
+  assert.equal(await profileButton.getAttribute("data-profile-leds"), "2");
+  assert.equal(await profileButton.getAttribute("data-profile-lighting"), "true");
+  await profileButton.click();
+  await page.waitForFunction(
+    () =>
+      document.querySelector('#deckGrid [data-profile-lighting="true"]')?.dataset.ledState ===
+      "active",
+  );
+  await page.waitForFunction(
+    () =>
+      document.querySelector('#deckGrid [data-profile-lighting="true"]')?.dataset.ledState ===
+      "rest",
+    undefined,
+    { timeout: 2000 },
+  );
+  const origin = new URL(page.url()).origin;
+  const saved = await (await fetch(origin + "/lighting-profiles")).json();
+  const changed = saved.profiles[0];
+  changed.fixtureTargets["wiz-wall"].color = "#ff00aa";
+  assert.equal(
+    (
+      await fetch(origin + "/lighting-profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: origin },
+        body: JSON.stringify(changed),
+      })
+    ).status,
+    200,
+  );
+  await page.waitForFunction(() =>
+    document
+      .querySelector('#deckGrid [data-profile-lighting="true"] .deckLedSource')
+      ?.style.getPropertyValue("--profile-leds")
+      .includes("#ff00aaff"),
+  );
+  await page.locator("#deckEdit").click();
+  await profileButton.click();
+  await page.locator("#deckButtonColor").fill("#abcdef");
+  assert.equal(await page.locator("#deckButtonProfileColors").isChecked(), false);
+  await page.locator("#deckSaveButton").click();
+  await page.locator("#deckEditor").waitFor({ state: "hidden" });
+  assert.equal(await profileButton.getAttribute("data-profile-lighting"), "false");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('[data-tab="lights"]').click();
+  await page.locator('[data-light-tab="profiles"]').click();
+  await page.locator("#lightingProfileCards .lightingProfileCard").click();
+  await page.locator('[data-fixture-id="wiz-wall"] .profileFixtureSelect').click();
+  assert(await page.locator("#lightingProfileFixtureSettings").isVisible());
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+    true,
+  );
   assert.deepEqual(errors, []);
 });

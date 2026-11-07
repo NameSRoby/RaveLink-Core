@@ -191,6 +191,8 @@ module.exports = function createModCapabilityBroker(options = {}) {
   }
 
   async function dispatch(requester, capability, method, payload, callOptions = {}) {
+    if (callOptions.signal?.aborted)
+      return failure("request_cancelled", "Capability call was cancelled", true);
     const requesterId = String(requester?.id || "");
     const contract = contracts.get(capability);
     const methodContract = contract?.methods.get(method);
@@ -214,7 +216,13 @@ module.exports = function createModCapabilityBroker(options = {}) {
     const requesterInFlight = inFlightByRequester.get(requesterId) || 0;
     if (globalInFlight >= globalLimit || requesterInFlight >= requesterLimit(requester))
       return failure("broker_busy", "Capability concurrency limit reached", true);
-    const timeoutMs = Math.min(60000, Math.max(10, Number(callOptions.timeoutMs) || 5000));
+    const timeoutMs = Math.min(
+      60000,
+      Math.max(10, Number(callOptions.timeoutMs) || 5000),
+      Number.isFinite(callOptions.deadlineAt)
+        ? Math.max(1, callOptions.deadlineAt - Number(now()))
+        : 60000,
+    );
     const startedAt = Number(now());
     lastActivity.set(requesterId, startedAt);
     lastActivity.set(selected.provider.providerId, startedAt);
@@ -229,14 +237,24 @@ module.exports = function createModCapabilityBroker(options = {}) {
       outcome: "accepted",
     });
     const controller = new AbortController();
-    let timer;
+    let timer, onAbort;
     try {
+      const cancelled = new Promise((resolve) => {
+        onAbort = () => {
+          controller.abort(new Error("request_cancelled"));
+          resolve(failure("request_cancelled", "Capability call was cancelled", true));
+        };
+        callOptions.signal?.addEventListener("abort", onAbort, { once: true });
+        if (callOptions.signal?.aborted) onAbort();
+      });
       const timeout = new Promise((resolve) => {
         timer = setTimeout(() => {
           controller.abort(new Error("broker_deadline_exceeded"));
           resolve(failure("broker_timeout", "Capability call exceeded its deadline", true));
         }, timeoutMs);
       });
+      if (controller.signal.aborted)
+        return failure("request_cancelled", "Capability call was cancelled", true);
       const invoked = Promise.resolve(
         selected.provider.invoke(capability, method, payload, {
           timeoutMs,
@@ -252,7 +270,7 @@ module.exports = function createModCapabilityBroker(options = {}) {
               value: result?.ok === true && "value" in result ? result.value : result,
             },
       );
-      const result = await Promise.race([invoked, timeout]);
+      const result = await Promise.race([invoked, timeout, cancelled]);
       if (!result.ok) {
         const rawCode = String(result.error?.code || "provider_failed");
         const code = /^[a-z][a-z0-9_]{0,63}$/.test(rawCode) ? rawCode : "provider_failed";
@@ -298,9 +316,12 @@ module.exports = function createModCapabilityBroker(options = {}) {
       return result;
     } catch {
       counters.failed += 1;
+      if (callOptions.signal?.aborted)
+        return failure("request_cancelled", "Capability call was cancelled", true);
       return failure("provider_failed", "Capability provider failed", true);
     } finally {
       clearTimeout(timer);
+      callOptions.signal?.removeEventListener("abort", onAbort);
       globalInFlight -= 1;
       const remaining = (inFlightByRequester.get(requesterId) || 1) - 1;
       if (remaining > 0) inFlightByRequester.set(requesterId, remaining);

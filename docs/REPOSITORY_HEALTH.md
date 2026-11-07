@@ -1,107 +1,106 @@
-# Repository health review - 0.7.5 - 2026-11-05
+# Repository health review - 0.7.6 - 2026-11-07
 
-This pass covers maintained Core services, Music-to-Light, the Windows host,
-first-party feature packages, browser companions, release assembly and source setup.
-The release retains the RaveLink Core name, icons, repository and local-data paths.
+This release covers maintained Core services, Music-to-Light, overlay editing,
+the Windows desktop bridge, customizable dashboard controls, OBS, status widgets,
+bundled mods, optional feature packages and release assembly. RaveLink branding
+and local-data paths are retained.
 
-## Findings and changes
+## Changes reviewed
 
-| Finding                                                                               | Change                                                                           | Verification                                                                 |
-| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| An interrupted LAN upload could emit an unhandled request error                       | Drain the upstream request on input errors as well as aborts                     | Real interrupted-upload regression and a subsequent successful request       |
-| Private-address parsing accepted malformed dotted addresses                           | Require a valid IPv4 address before applying the private-range policy            | Private/public/malformed address regressions                                 |
-| Corrupt sharing preferences could cause an unbounded read                             | Read only a regular settings file of at most 1 KiB                               | Startup fallback and sharing persistence tests                               |
-| Closing proxy listeners retained grace timers                                         | Clear the timer after the listener drains                                        | Streaming shutdown and enable/disable tests                                  |
-| Assignment details were rebuilt on every pipeline poll                                | Reuse unchanged rows; index fixture names once per render                        | Browser regression retains row identity and hover state across polls         |
-| Removed effect cards still had duplicate render loops                                 | Remove both unused card-selection loops                                          | Native music browser flows and static checks                                 |
-| The local exploration tool indexed three engines after Pulse became the only engine   | Derive the index and report from the actual engine list                          | Source review; the exploration tool stays outside publication                |
-| ESLint's transitive minimatch had GHSA-g3hv-75wg-m249                                 | Override minimatch to patched 11.0.1                                             | Full dependency audit, lint and locked installation                          |
-| Packaged Node could silently follow the developer's installed runtime                 | Permit an explicit runtime source; build this release with verified Node 24.22.2 | Official archive SHA-256, branded runtime execution and installer checks     |
-| Silent setup error dialogs could block unattended installation                        | Use suppressible installer messages; retain rejection and diagnostic logs        | Isolated installer rejects an old Bridge folder promptly without changing it |
-| Service/capability inventories and switch geometry assertions lagged shipped behavior | Update the precise expectations, retaining independent behavior tests            | Core independence, HUD, feature and browser regressions                      |
+- One Core-owned OBS connection, source-first action construction, exact scene
+  collection/source matching, protected passwords and no uncertain command replay.
+  OBS setup is visible on the Dashboard, with explicit one-click local import.
+- Shared live button status, bounded provider reads and local widget clocks avoid
+  polling multiplication across phones, tablets and desktop windows.
+- Fullscreen paging packs complete rows using measured space, shares slider docks
+  with edit mode, and changes pages without a drag animation. Touch faders wait
+  for movement in their own direction; screen swipes cannot send volume writes.
+  Native mixer writes reuse their confirmed snapshot rather than immediately
+  making another full read. Request-volume writes wait for actual macro completion.
+- Private shared image/video backdrops use one media surface clipped to button
+  faces. Media stays in runtime, and video playback stops when hidden or removed.
+- Feature capability dispatch uses a bounded outbound queue aligned with declared
+  concurrency and deadlines. Dispatch happens once; uncertain writes are not replayed.
+  This fixes command starvation during concurrent player background work.
+- Fullscreen screen protection releases on exit/background and handles browser
+  refusal without retry loops. HTTP LAN uses bundled silent compatibility media.
+  Manual Rave / restore is an owner-confirmed toggle; only manual admission may
+  retain an untimed capture lease. Viewer and automatic durations remain bounded.
+- Now Playing automatically follows the available player; silent or absent sources
+  withdraw stale observations and recover with bounded retries.
+- Direct Windows mixer controls discover current devices and app sessions. Generic
+  system/microphone targets follow the current defaults. Discord lifecycle control
+  was removed; existing mute/deafen buttons migrate to native keyboard macros.
+  The legacy accessibility adapter stays disabled by default, without status polling.
+- The button icon catalog loads only when opened, works offline and saves bounded
+  raster media through the normal private media store. Reusable artwork is generic.
+- Light profiles use a fixture-selection inspector and contribute discovered bulb
+  actions with fixture-derived LED previews. Preview colors follow shared/individual
+  settings without copying device bindings into source. Custom backlights remain explicit.
+- Viewer controls group advanced settings and readiness details. Command guides
+  export Twitch panel Markdown or bounded Discord message parts as well as plain text.
+- Timestamps capture press time against confirmed stream timing. Local marks do not
+  create Twitch writes. Remote markers require explicit optional authorization.
+- Optional account groups preserve existing grants and default choices. Read-only
+  totals and user-triggered account mutations retain separate owners.
+- Requester hash/role helpers were extracted without changing queue identities,
+  replay policy or migrations. Release metadata uses 0.7.6 to preserve existing updater compatibility;
+  package and Windows file versions remain valid.
 
-The earlier work included in this release consolidates the music engine around
-Pulse, migrates the old engines, filters random composition axes together, respects
-transport cadence and fixture geometry, and removes conflicting global controls
-when fixture groups or warm/cool routing own those choices. Scene jobs remain fixed.
-Color and fixture draws can operate independently and avoid recent combinations.
+## Publication boundary
 
-Calibration stores system and app-mixer readings privately. Auto audio follow is
-optional. It follows a matching app gain, retains a fixed reference when that gain
-is unavailable, handles mute explicitly, and requires recalibration for changes
-outside the supported range. Device-output capture cannot infer one app's volume.
+Clip-title policy is enforced once in Core for chat, deck and mod callers.
+Offline English filtering defaults to fixed `****` replacement, with bounded
+literal custom word lists, allowed exceptions and rejection mode. Rejected titles
+cannot create a job or consume cooldown, and draft previews cannot save settings
+or create clips. Legacy clipping preferences adopt safe defaults without losing
+chat choices. Private word lists remain outside publication.
 
-## Release gates
+The source tree is assembled from an explicit inventory. Downloads contain only
+consumer runtime material, production dependencies, licenses and selected online
+feature installers. Runtime preferences, personal scene buttons, OBS bindings,
+account grants, credentials, clips, timestamps, captures, exports, logs, screenshots
+of the operator workspace and development tools are excluded. Tests use synthetic
+fixtures and belong in the source checkout, not the installed application. Generic
+button artwork and its upstream notices may be redistributed.
 
-- Formatting, ESLint, inline-script checks, literal imports, source structure,
-  generated bytes and feature integrity must pass on the sanitized source.
-- Published regression coverage includes Core HTTP/lifecycle, desktop WebView2,
-  LAN full controls and origin restrictions, Music-to-Light, provider companions,
-  supervised features, setup and update preservation. Native analysis also has
-  Rust unit tests; physical-audio tests require explicit opt-in.
-- Offline simulations use the production composition and group-rendering paths,
-  covering silence, quiet passages, percussion, sustained signals, bass and treble,
-  heterogeneous lights, scene jobs and changing transport capacity.
-- All four existing server resource profiles are checked against their budgets.
-  These are short local benchmarks, not long-duration performance guarantees.
-- The source and each release payload pass an allowlist and sensitive-data audit.
-  Runtime settings, account grants, fixture pairings, playlists, exports, logs,
-  private captures and development experiments are excluded. README screenshots
-  use demonstration data.
-- The installer, standard ZIP and self-contained ZIP use the same application
-  payload. Production dependencies, the audio helper, Node and WebView2 loaders
-  are bundled. Third-party licenses remain included.
-- Source setup pins one release archive checksum; optional feature downloads pin
-  one immutable Git tree. Optional packages stay remote-only in the base download.
-- Hosted repository health and CodeQL (JavaScript, Actions and C#) are release
-  gates. The prior main-branch baseline had no open CodeQL alerts. New findings
-  must be resolved before publishing the final release.
+## Validation
 
-## Measured pre-release evidence
+| Check                            | Result                                                                                                                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Maintained regression suite      | 1,050 passed; no failures                                                                                                                                                       |
+| Sanitized-source acceptance      | 1,167 passed, five optional skips; no failures                                                                                                                                  |
+| Music domain / native Rust       | 273 passed with five optional skips / 19 passed                                                                                                                                 |
+| Production-path simulations      | 2,400 cases, 124,032 frames; no invalid-output failures                                                                                                                         |
+| Dependency audit                 | Zero production or development vulnerabilities                                                                                                                                  |
+| Source health                    | Formatting, lint, imports, generated assets, package inventories and structural budgets passed                                                                                  |
+| Resource budgets                 | All four profiles passed absolute and applicable baseline gates; active Core RSS 77.7-83.2 MiB, startup 305-1,559 ms and shutdown below 83 ms in the measured run               |
+| Artifact privacy and consistency | Installer and both ZIPs contain the same 4,415 application files; private credential values were checked against candidate contents without printing them                       |
+| Offline install and source setup | Standard ZIP, self-contained ZIP, extracted installer and source bootstrap passed; native helper ABI, all profiles, bundled mods, LAN controls and restart persistence verified |
+| Upgrade and rollback             | Real updater Apply/Rollback in an isolated NoLaunch fixture preserved layout, media and clip preferences                                                                        |
+| Local CodeQL                     | Actions: zero findings; C#: zero findings across all five production C# sources; JavaScript: three reviewed OBS protocol/test warnings described below                          |
+| Hosted checks                    | Candidate source and security scans will be verified before the release is published                                                                                            |
 
-The published regression suite contains 906 tests, including five hardware checks
-that require explicit opt-in. Tests run on the release line of Node 24 and include
-the additional oversized-preferences guard.
-Native Rust analysis passed 19 tests. Production-path simulation completed 4,800
-cases, 286,752 frames and 4,205,696 fixture samples with zero detected failures.
+The local CodeQL password-hash rule flags the OBS 5 challenge-response exchange
+in obs-client and its two independent protocol fixtures. OBS requires
+SHA-256 plus its supplied salt and per-connection challenge; these hashes are
+transient authentication messages, not stored password hashes. The saved OBS
+password uses Windows user protection (DPAPI). The fixtures use synthetic values.
+See the [OBS authentication protocol](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md#authentication).
+These protocol-specific findings are reviewed separately from password-storage
+issues. The default security query suites remain enabled.
 
-| Resource profile | Startup  | Shutdown | Idle RSS |
-| ---------------- | -------- | -------- | -------- |
-| Core             | 274 ms   | 56 ms    | 72.1 MiB |
-| Idle mod host    | 272 ms   | 63 ms    | 74.1 MiB |
-| Active mod       | 343 ms   | 60 ms    | 75.0 MiB |
-| Active feature   | 1,211 ms | 78 ms    | 89.5 MiB |
+The C# analysis build includes the Core Audio helper normally compiled by
+PowerShell, as well as the four desktop-host sources. Private SARIF, test logs,
+source fingerprints and capture data remain outside the published tree. Test
+totals overlap across suites and must not be added as a combined test count.
 
-All four profiles passed their budgets (two-second idle samples and 30 requests
-per workload). The installer and both ZIPs contain 3,960 matching application
-files; SHA-256 checks cover each download. Offline source bootstrap and isolated
-installer startup passed with Node, npm and Rust removed from PATH. Music helper
-selection/deselection preserves preferences and controls capture availability.
+## Practical limits
 
-Allowlist and Gitleaks scans cover the sanitized source, runtime payload and new
-Git commits. The only reviewed Gitleaks match was the already-public Twitch
-application client ID, not an access token or secret. First-party binaries were
-also checked for private user and workspace paths.
-
-Pre-release CodeQL completed JavaScript, Actions and C# analysis with zero
-results, scan errors or warnings. Final source/runtime pins and subsequent merges
-remain subject to the same hosted gates. The overlay browser regression paces direct HTTP operator actions as well as
-Playwright actions: its bulk loops otherwise bypassed slowMo and could exhaust
-the real supervisor IPC rate limit. Production IPC limits remain enforced. The desktop fallback test injects the SDK runtime-not-found exception at its
-initialization-task boundary. Hosted runners can resolve runtimes and loaders
-outside the test folder; separate coverage still renders the real WebView and
-exercises navigation, theme changes, popup handles and persistent profiles.
-
-## Limits
-
-Automated synthetic audio, simulated fixtures and mocked providers cannot certify
-all physical lighting hardware, protected audio, signed-in accounts or clean-PC
-installations. The optional YouTube Music browser connection has integrated
-synthetic and loaded-extension coverage; wider live-client validation is still
-needed. Firefox temporary extensions need reloading after restart. No extension
-store signing is supplied.
-
-The installer is unsigned. WebView2 must be installed for the desktop workspace;
-a browser fallback remains available. LAN sharing gives full operator controls
-and should be enabled only on a trusted private network. Local state remains on
-the user's PC. The audit does not claim to prove the absence of every defect.
+Local tests and protocol fixtures do not establish compatibility with every
+Windows audio driver or future OBS build. Keyboard macros send host PC input
+without claiming to know the receiving application's state. OBS requires its WebSocket server to be enabled. Network
+controls run on the Windows PC hosting Core; account connections and bindings
+are configured separately on each installation. Twitch writes require a valid
+grant and eligible live broadcast. Experimental adaptive lighting cadence stays
+separate from the accepted steady-rate baseline.

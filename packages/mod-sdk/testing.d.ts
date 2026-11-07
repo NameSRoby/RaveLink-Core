@@ -1,4 +1,4 @@
-import type { Json, ModContext, ModDefinition } from "./index";
+import type { Json, ModContext, ModDefinition, CapabilityClient } from "./index";
 
 export interface TestHarnessOptions {
   modId?: string;
@@ -11,6 +11,7 @@ export interface ModTestHarness {
   readonly calls: Array<Record<string, unknown>>;
   readonly events: Array<Record<string, unknown>>;
   now(): number;
+  createClient(): CapabilityClient;
   advance(ms: number): number;
   start(): Promise<ModContext>;
   request(capability: string, method: string, payload: Json, signal?: AbortSignal): Promise<Json>;

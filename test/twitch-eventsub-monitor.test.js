@@ -352,3 +352,58 @@ test("EventSub monitor rejects reconnect URLs outside Twitch's fixed secure orig
   assert.equal(FakeSocket.instances.length, 1);
   monitor.stop();
 });
+
+test("EventSub reconnects retain Twitch's opaque path/query but reject authority and fragment changes", () => {
+  FakeSocket.instances.length = 0;
+  const monitor = createMonitor({
+    WebSocket: FakeSocket,
+    getCredentials: () => ({ userId: "fixture" }),
+    createSubscription: async () => ({ ok: true }),
+  });
+  monitor.start();
+  const original = FakeSocket.instances[0];
+  for (const [index, url] of [
+    "ws://eventsub.wss.twitch.tv/ws",
+    "wss://eventsub.wss.twitch.tv:8443/ws",
+    "wss://user:pass@eventsub.wss.twitch.tv/ws",
+    "wss://eventsub.wss.twitch.tv@127.0.0.1/ws",
+    "wss://eventsub.wss.twitch.tv.attacker.invalid/ws",
+    "wss://eventsub.wss.twitch.tv/ws#fragment",
+  ].entries()) {
+    original.emit({
+      metadata: { message_id: "rejected-" + index, message_type: "session_reconnect" },
+      payload: { session: { reconnect_url: url } },
+    });
+  }
+  assert.equal(FakeSocket.instances.length, 1);
+  const reconnectUrl = "wss://eventsub.wss.twitch.tv/?opaque=a%2Bb&keepalive_timeout_seconds=30";
+  original.emit({
+    metadata: { message_id: "approved-reconnect", message_type: "session_reconnect" },
+    payload: { session: { reconnect_url: reconnectUrl } },
+  });
+  assert.equal(FakeSocket.instances.length, 2);
+  assert.equal(FakeSocket.instances[1].url, reconnectUrl);
+  monitor.stop();
+});
+
+test("fixed EventSub destination retains encoded and repeated-slash reconnect paths exactly", () => {
+  for (const reconnectUrl of [
+    "wss://eventsub.wss.twitch.tv/ws?reconnect=%2b%26opaque",
+    "wss://eventsub.wss.twitch.tv/opaque%2fpath//session?reconnect=%2b%26opaque",
+  ]) {
+    FakeSocket.instances.length = 0;
+    const monitor = createMonitor({
+      WebSocket: FakeSocket,
+      getCredentials: () => ({ userId: "fixture" }),
+      createSubscription: async () => ({ ok: true }),
+    });
+    monitor.start();
+    FakeSocket.instances[0].emit({
+      metadata: { message_id: "opaque-reconnect", message_type: "session_reconnect" },
+      payload: { session: { reconnect_url: reconnectUrl } },
+    });
+    assert.equal(FakeSocket.instances.length, 2);
+    assert.equal(FakeSocket.instances[1].url, reconnectUrl);
+    monitor.stop();
+  }
+});

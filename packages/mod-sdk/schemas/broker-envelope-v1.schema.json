@@ -13,6 +13,7 @@
     "sentAt": { "type": "integer", "minimum": 0 },
     "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
     "replyTo": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+    "parentRequestId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
     "capability": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*(?:\\.[a-z][a-z0-9-]*)+\\.v[1-9][0-9]*$",

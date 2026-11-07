@@ -4,25 +4,14 @@
     fields = [];
   const $ = (id) => document.getElementById("music-" + id);
   const names = {
-    shape: [
-      "Movement",
-      {
-        unison: "All lights together",
-        wave: "Travelling wave",
-        bounce: "Bouncing spot",
-        handoff: "Call & response",
-        swell: "Slow swell",
-        mirror: "Mirror pairs",
-      },
-    ],
     color: [
       "Color motion",
       {
-        fixed: "Slow cycle",
-        onsets: "On hits",
-        travel: "Color sweep",
+        fixed: "Static color",
+        onsets: "Audio attacks",
+        travel: "Audio flow",
         energy: "By energy",
-        roles: "Offset colors",
+        roles: "Frequency colors",
       },
     ],
     palette: [
@@ -36,20 +25,26 @@
         "prism-pulse": "Prism",
       },
     ],
-    feel: ["Pace", { slow: "Calm", normal: "Balanced", fast: "Lively", aggressive: "Sharp" }],
+    feel: [
+      "Color pace",
+      { slow: "Calm", normal: "Balanced", fast: "Lively", aggressive: "Intense" },
+    ],
     task: [
       "Light jobs during Rave",
       { reactive: "React to music", dim: "Dim & hold", steady: "Hold a color", off: "Switch off" },
     ],
-    role: ["Audio bands", { all: "Overall", low: "Bass", mid: "Midrange", high: "Treble" }],
+    role: [
+      "Color frequency focus",
+      { all: "Overall", low: "Bass", mid: "Midrange", high: "Treble" },
+    ],
     effect: [
-      "Effects across lights",
+      "Color styles across lights",
       {
-        pulse: "Pulse",
+        pulse: "Audio attacks",
 
-        wave: "Travelling wave",
-        bounce: "Bouncing spot",
-        handoff: "Call & response",
+        wave: "Frequency colors",
+        bounce: "Energy colors",
+        handoff: "Audio flow",
       },
     ],
     paletteScope: [
@@ -62,21 +57,23 @@
     ],
   };
   const explanations = {
-    unison: "The room follows one brightness envelope. Works with a single light too.",
-    wave: "Measured hits travel through the lights in room order. Needs two distinct positions.",
-    bounce: "One focus moves across the group and back. Color stays coordinated with it.",
-    handoff: "Measured hits pass the lead between opposite sides, using a smooth crossfade.",
-    swell: "Slow, energy-driven swells. Random pairs these with a calm or balanced pace.",
-    mirror: "Paired lights move together around the center of the room.",
-    fixed: "Colors cycle together through the palette at a steady pace.",
+    pulse:
+      "Measured audio attacks change palette colors. Brightness keeps the shared sustained-audio envelope.",
+    wave: "Frequency balance moves through palette colors. Brightness stays on the shared audio envelope.",
+    bounce: "Color follows measured audio intensity; brightness is independent.",
+    handoff: "Audio energy carries color through fixture positions; quiet passages slow the flow.",
+    fixed: "Keep a selected palette color while brightness follows sustained audio.",
     onsets: "Qualified audio hits start a continuous color transition; there are no guessed beats.",
-    travel: "Colors sweep through room positions. Random avoids competing travelling movements.",
+    travel:
+      "Audio-driven color flow across fixture positions. It stops advancing below the calibrated audio floor.",
     energy: "Measured loudness guides the color flow while brightness keeps its own response.",
-    roles: "Offset the palette across lights, with one coordinated cycle.",
-    slow: "Longer, gentler response and motion.",
-    normal: "Balanced response; also keeps mixed effect groups at one pace.",
-    fast: "Quicker response, used only where the movement stays readable.",
-    aggressive: "Short, sharp response, reserved for the room moving together.",
+    roles:
+      "Changing frequency balance chooses colors, with optional bass/mid/treble focus per light.",
+    slow: "Slower color gestures. Brightness timing stays unchanged.",
+    normal:
+      "The selected color fade, with equal hit timing in quiet and loud passages. Brightness timing stays unchanged.",
+    fast: "Quicker color gestures. Brightness timing stays unchanged.",
+    aggressive: "Fast color response, within the output cap. Brightness timing stays unchanged.",
   };
   function input(type, id) {
     const el = document.createElement("input");
@@ -91,7 +88,7 @@
     $("recipeHint-" + axis.id).textContent =
       mode === "random"
         ? ["task", "role", "effect"].includes(axis.id)
-          ? "Balanced across eligible lights. Travelling groups stay together; saved scene jobs stay fixed."
+          ? "Balanced across eligible lights. Saved dim, steady and off jobs stay fixed."
           : "Allow several choices. Core picks a compatible combination at the next start."
         : mode === "fixed"
           ? "Keep this choice on each start. Random choices on other controls adapt to it."
@@ -165,34 +162,10 @@
         $("applyRecipe").click();
       };
       group.append(legend, mode, help, pinnedWrap, pool);
-      (["shape", "color", "feel"].includes(axis.id)
-        ? $("recipeAxes")
-        : $("extraRecipeAxes")
-      ).append(group);
+      (["color", "feel"].includes(axis.id) ? $("recipeAxes") : $("extraRecipeAxes")).append(group);
     }
     fields = catalog.behaviors.filter(
-      (f) =>
-        f.type === "number" &&
-        [
-          "pulseDecayMs",
-          "pulseBed",
-          "colorBlendMs",
-          "colorVibrance",
-          "waveMs",
-          "waveWidth",
-          "waveDepth",
-          "waveVoices",
-          "bounceSeconds",
-          "handoffHits",
-          "handoffMs",
-          "interactionDepth",
-          "swellSpan",
-          "swellDepth",
-          "swellTravelSeconds",
-          "spatialAccentShare",
-          "accentDepth",
-          "impactDepth",
-        ].includes(f.id),
+      (f) => f.type === "number" && ["colorBlendMs", "colorVibrance"].includes(f.id),
     );
     for (const f of fields) {
       const row = document.createElement("div");
@@ -257,7 +230,7 @@
         range?.max ?? Math.min(f.max, Number((value * 1.2).toFixed(3)));
       for (const end of ["min", "max"]) $("random-" + f.id + "-" + end).hidden = !range;
     }
-    const randomized = ["shape", "color", "feel"].filter((id) => options[id]?.mode === "random");
+    const randomized = ["color", "palette", "feel"].filter((id) => options[id]?.mode === "random");
     $("randomSummary").textContent = randomized.length
       ? "Compatible choices · " + randomized.map((id) => names[id][0].toLowerCase()).join(", ")
       : "From your look";
@@ -305,32 +278,23 @@
         $("recipeAllow-" + id + "-" + choice).checked = defaults.includes(choice);
       showMode(axes.find((a) => a.id === id));
     }
-    if (mode === "mixed") {
-      $("recipeMode-color").value = "random";
-      for (const choice of axes.find((a) => a.id === "color").choices)
-        $("recipeAllow-color-" + choice).checked = ["fixed", "onsets"].includes(choice);
-      $("recipeMode-feel").value = "fixed";
-      $("recipePin-feel").value = "normal";
-      $("recipeAllow-feel-normal").checked = true;
-      showMode(axes.find((a) => a.id === "color"));
-      showMode(axes.find((a) => a.id === "feel"));
-    }
   }
   function controls(busy, design) {
     if (!design || !axes.length) return;
-    for (const id of ["shape", "color"]) {
+    for (const id of ["color"]) {
+      if (!axes.some((axis) => axis.id === id)) continue;
       const blocked =
-        id === "shape"
-          ? design.recipeOptions.effect && design.recipeOptions.effect.mode !== "configured"
-          : design.warmCoolColors || !design.behaviors.colorEnabled;
+        design.warmCoolColors ||
+        !design.behaviors.colorEnabled ||
+        (design.recipeOptions.effect && design.recipeOptions.effect.mode !== "configured");
       const card = $("recipeMode-" + id).closest("fieldset");
       card.querySelectorAll("input,select,button").forEach((el) => {
         el.disabled = busy || !!blocked;
       });
       if (blocked)
         $("recipeHint-" + id).textContent =
-          id === "shape"
-            ? "Movement comes from each effect group. Edit its allowed effects under Advanced color & light pools."
+          design.recipeOptions.effect && design.recipeOptions.effect.mode !== "configured"
+            ? "Assigned color styles provide their own audio mapping. Edit them under Advanced color & light pools."
             : design.warmCoolColors
               ? "Warm bass / cool treble takes over color motion. Turn it off in Color temperature & separation to use these choices."
               : "Color movement is disabled in Advanced response controls.";

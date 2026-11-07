@@ -64,8 +64,9 @@ test(
 test("bundled Node crypto supports Hue without loading optional Visual C++ addons", () => {
   const entry = require.resolve("node-dtls-client");
   const aead = require.resolve("node-dtls-client/build/lib/AEADCrypto");
-  const script = `require.extensions['.node']=()=>{throw Error('External native addons unavailable');}; require(${JSON.stringify(entry)}); const c=require(${JSON.stringify(aead)}); if(typeof c.ccm.encrypt!=='function'||typeof c.gcm.encrypt!=='function')process.exit(2);`;
-  const result = spawnSync(process.execPath, ["-e", script], {
+  const script =
+    "require.extensions['.node']=()=>{throw Error('External native addons unavailable');}; require(process.argv[1]); const c=require(process.argv[2]); if(typeof c.ccm.encrypt!=='function'||typeof c.gcm.encrypt!=='function')process.exit(2);";
+  const result = spawnSync(process.execPath, ["-e", script, entry, aead], {
     encoding: "utf8",
     windowsHide: true,
   });

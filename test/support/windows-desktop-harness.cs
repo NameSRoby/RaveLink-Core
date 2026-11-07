@@ -86,6 +86,15 @@ internal static class DesktopHarness
         window.Size = originalSize;
         chrome &= PolishedToolbar(window);
         bool retained = process == browser.CoreWebView2.BrowserProcessId;
+        bool fullscreenKeys = true;
+        foreach (var key in new[] { Keys.Escape, Keys.F11 }) {
+            await browser.CoreWebView2.CallDevToolsProtocolMethodAsync("Runtime.evaluate", new JavaScriptSerializer().Serialize(new { expression = "document.documentElement.requestFullscreen()", userGesture = true, returnByValue = true }));
+            await Until(delegate { return Task.FromResult(browser.CoreWebView2.ContainsFullScreenElement && window.FormBorderStyle == FormBorderStyle.None); });
+            object[] command = { new Message(), key };
+            typeof(DashboardWindow).GetMethod("ProcessCmdKey", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(window, command);
+            await Until(async delegate { return !browser.CoreWebView2.ContainsFullScreenElement && window.FormBorderStyle == FormBorderStyle.Sizable && await browser.ExecuteScriptAsync("!document.fullscreenElement") == "true"; });
+            fullscreenKeys &= !browser.CoreWebView2.ContainsFullScreenElement;
+        }
         browser.CoreWebView2.Navigate("file:///C:/Windows/win.ini");
         await Task.Delay(350);
         bool blocked = DesktopPolicy.IsWorkspace(browser.CoreWebView2.Source, Int32.Parse(args[2]));
@@ -100,7 +109,17 @@ internal static class DesktopHarness
             IntPtr dc = graphics.GetHdc(); try { PrintWindow(window.Handle, dc, 2); } finally { graphics.ReleaseHdc(dc); }
             bitmap.Save(Path.ChangeExtension(args[3], ".frame.png"), System.Drawing.Imaging.ImageFormat.Png);
         }
-        Console.WriteLine(new JavaScriptSerializer().Serialize(new { rendered = true, popup = true, theme = true, chrome, retained, blocked, stored, clipboard, source = browser.CoreWebView2.Source }));
+        // Retry after the real SDK has already loaded: setting its loader path
+        // again would permanently replace recovery with InvalidOperationException.
+        var retryFault = new TaskCompletionSource<bool>();
+        retryFault.SetException(new InvalidOperationException("Simulated browser initialization failure"));
+        typeof(DashboardWindow).GetField("initializing", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(window, retryFault.Task);
+        await window.OpenDashboardAsync();
+        await window.OpenDashboardAsync();
+        browser = Browser(window);
+        await Until(async delegate { return browser != null && !browser.IsDisposed && browser.CoreWebView2 != null && await browser.ExecuteScriptAsync("document.readyState === 'complete' && Boolean(document.getElementById('themeButton'))") == "true"; });
+        bool retried = await browser.ExecuteScriptAsync("localStorage.getItem('desktop-test')") == stored;
+        Console.WriteLine(new JavaScriptSerializer().Serialize(new { rendered = true, popup = true, theme = true, chrome, retained, fullscreenKeys, blocked, stored, clipboard, retried, source = browser.CoreWebView2.Source }));
     }
 
     private static void Policy()

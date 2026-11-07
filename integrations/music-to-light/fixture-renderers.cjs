@@ -6,14 +6,24 @@ const crypto = require("node:crypto");
 const { EFFECTS, compatible } = require("./fixture-planner.cjs");
 function groupDesign(config, id) {
   const effect = EFFECTS[id];
+  const direct = config.interpretation === "literal";
   return {
     ...config,
+    behaviors: { ...config.behaviors, profilePaletteEnabled: false },
     preset: effect.preset,
     scenarioMode: "manual",
     layerMode: "fixed",
+    ...(direct && id === "handoff" ? { arrangement: "spatial" } : {}),
+    ...(direct
+      ? { colorMode: { pulse: "onsets", wave: "roles", bounce: "energy", handoff: "travel" }[id] }
+      : {}),
     parameterRanges: {},
     recipeOptions: {
-      shape: { mode: "fixed", value: effect.shape, allowed: [effect.shape] },
+      shape: {
+        mode: "fixed",
+        value: direct ? "unison" : effect.shape,
+        allowed: [direct ? "unison" : effect.shape],
+      },
       ...(config.recipeOptions.role ? { role: config.recipeOptions.role } : {}),
     },
   };
@@ -79,6 +89,15 @@ module.exports = function renderers(base, fixtures) {
               ...metrics.map((m) => m[key] || 0),
             );
       if (main.metrics) main.metrics.attack = main.metrics.attack || metrics.some((m) => m.attack);
+      if (main.metrics)
+        main.metrics.attackAt = Math.max(
+          main.metrics.attackAt ?? -Infinity,
+          ...metrics.map((m) => m.attackAt ?? -Infinity),
+        );
+      if (main.metrics && !Number.isFinite(main.metrics.attackAt)) main.metrics.attackAt = null;
+      if (main.metrics)
+        for (const key of ["colorMotion", "brightnessMotion", "spatialMotion"])
+          main.metrics[key] = main.metrics[key] || metrics.some((m) => m[key]);
       main.fixtureEffects = effects.map(({ id, preset, recipe, metrics }) => ({
         id,
         preset,

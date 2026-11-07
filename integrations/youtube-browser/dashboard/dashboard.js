@@ -97,7 +97,7 @@ buttons.forEach((button) =>
     render();
     try {
       const result = await request("control", {
-        id: crypto.randomUUID(),
+        id: globalThis.RaveLinkRandomId(),
         action: button.dataset.action,
         expectedVideoId: state?.snapshot?.current?.videoId,
         ...(button.dataset.action === "volume"

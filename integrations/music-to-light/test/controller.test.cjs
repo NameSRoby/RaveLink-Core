@@ -196,6 +196,70 @@ async function authorizeRave(e) {
     scenarioWeights: { wash: 0, pulse: 1, bands: 0, wave: 0 },
   });
 }
+test("only manual Rave can retain an untimed lease and restore its fixture state", async (t) => {
+  const e = environment(t);
+  await authorizeRave(e);
+  for (const origin of ["viewer", "auto", undefined])
+    await assert.rejects(
+      e.operator.rave({ fixtureIds: ["bulb"], origin, untilStopped: true }),
+      /invalid_music_start/,
+    );
+  const original = structuredClone(e.state.get("bulb"));
+  const result = await e.operator.rave({
+    fixtureIds: ["bulb"],
+    origin: "manual",
+    untilStopped: true,
+  });
+  assert.equal(result.seconds, null);
+  assert.equal(result.duration.mode, "manual");
+  await e.pump(500);
+  assert.equal(e.operator.raveInfo().timing.remainingSeconds, null);
+  assert.equal(e.operator.raveInfo().lighting.length, 1);
+  assert.equal(e.stops, 0);
+  await e.client.call("music.session.v1", "stop");
+  assert.equal(e.operator.raveInfo(), null);
+  assert.deepEqual(e.state.get("bulb"), original);
+  assert.equal(e.stops, 1);
+});
+
+test("Rave shuffles profiles once per start, keeps custom/generated palettes independent and gives saved effects priority", async (t) => {
+  const savedEffects = require("../saved-effects.cjs")();
+  const e = environment(t, { savedEffects });
+  await authorizeRave(e);
+  const accepted = require("../profiles/accepted-color-led-v1.json");
+  e.client.configure({
+    ...e.client.exportDesign(),
+    ...accepted,
+    raveEnabled: true,
+    behaviors: { ...accepted.behaviors, randomProfileEnabled: true, profilePaletteEnabled: true },
+  });
+  const picks = [];
+  for (let i = 0; i < 10; i++) {
+    await e.operator.rave({ fixtureIds: ["bulb"], seconds: 10 });
+    await e.pump(100);
+    const pipeline = e.operator.pipeline();
+    const id = pipeline.effective.behaviors.profileMotion;
+    picks.push(id);
+    assert.deepEqual(pipeline.effective.palette, require("../effect-profiles.cjs")[id].palette);
+    await e.pump(100);
+    assert.equal(e.operator.pipeline().effective.behaviors.profileMotion, id);
+    if (i === 9) {
+      const saved = savedEffects.save({ name: "Exact shuffled profile" }, pipeline);
+      savedEffects.policy({ mode: "single", ids: [saved.id] });
+    }
+    await e.operator.stopRave();
+  }
+  assert.equal(new Set(picks).size, 10);
+  await e.operator.rave({ fixtureIds: ["bulb"], seconds: 10 });
+  await e.pump(100);
+  assert.equal(e.operator.pipeline().effective.behaviors.profileMotion, picks[9]);
+  assert.equal(e.client.exportDesign().behaviors.randomProfileEnabled, true);
+  await e.operator.stopRave();
+  savedEffects.policy({ mode: "full-random", ids: [] });
+  await e.operator.rave({ fixtureIds: ["bulb"], seconds: 10, palette: ["#ff0000", "#0000ff"] });
+  await e.pump(100);
+  assert.deepEqual(e.operator.pipeline().effective.palette, ["#ff0000", "#0000ff"]);
+});
 test("calibration measures a preview and saves only its fixed audio reference", async (t) => {
   const e = environment(t);
   await authorize(e);
@@ -616,7 +680,7 @@ test("continuous session status, preview events and Stop remain valid beyond 512
   await authorize(e);
   await e.client.call("music.styles.v1", "configure", { outputHz: 16 });
   await e.client.call("music.session.v1", "start", { mode: "preview" });
-  await e.pump(50000);
+  await e.pump(60000);
   const status = await e.client.call("music.session.v1", "status");
   assert(status.session.frames > 512);
   assert(status.session.lastPreview.sequence > 512);

@@ -25,12 +25,19 @@ function groups(palette) {
 }
 function create() {
   let balance = 0.5;
+  let shares = [1 / 3, 1 / 3, 1 / 3];
   const api = {
-    update(bands, delta) {
+    update(bands, delta, duration = 160) {
       if (!bands) return;
       const total = bands.reduce((sum, n) => sum + n, 0);
-      if (total > 0)
-        balance += ((bands[1] * 0.5 + bands[2]) / total - balance) * (1 - Math.exp(-delta / 160));
+      if (total > 0) {
+        const fraction = 1 - Math.exp(-delta / duration);
+        balance += ((bands[1] * 0.5 + bands[2]) / total - balance) * fraction;
+        shares = shares.map((value, i) => value + (bands[i] / total - value) * fraction);
+      }
+    },
+    focus(role) {
+      return role === "all" ? balance : shares[{ low: 0, mid: 1, high: 2 }[role]];
     },
     color(palette, role, sample, perceptual = true) {
       const [warm, cool] = groups(palette);
@@ -52,6 +59,7 @@ function create() {
     },
     reset() {
       balance = 0.5;
+      shares = [1 / 3, 1 / 3, 1 / 3];
     },
   };
   return api;

@@ -66,7 +66,7 @@ test("threshold-edge musical attacks remain visible; strong attacks retain full 
   assert.equal(weak.settings().maximumBrightness, 100);
   assert.deepEqual(weak.inspect(2020).recipe, strong.inspect(2020).recipe);
 });
-test("qualified attacks advance color even near the detector threshold; reference remains available", () => {
+test("Expressive colors retain detail while reference accents respect measured strength", () => {
   const m = mapper();
   const before = m.render(2020).rgb;
   m.update(sample(101, 1.02), 2020);
@@ -75,7 +75,28 @@ test("qualified attacks advance color even near the detector threshold; referenc
   assert.deepEqual(m.render(2040).rgb, before);
   const reference = mapper(false);
   reference.update(sample(101, 1.02), 2020);
-  assert(reference.render(2020).brightness > 99);
+  const subtle = reference.render(2020).brightness;
+  assert(subtle > 45 && subtle < 60, "a threshold-edge reference hit must not become a full flash");
+  reference.update(sample(102, 3), 2040);
+  assert(
+    reference.render(2040, { onsetSince: 2020 }).brightness > 99,
+    "strong hits retain the full range",
+  );
+});
+
+test("reference color gestures have breathing room without dropping measured brightness attacks", () => {
+  const m = mapper(false),
+    colors = [];
+  for (let i = 101; i < 151; i++) {
+    m.update(sample(i, i % 5 === 1 ? 3 : null), i * 20);
+    if (i % 5 === 1) {
+      const frame = m.render(i * 20, { onsetSince: (i - 1) * 20 });
+      assert(frame.brightness > 99);
+      colors.push(JSON.stringify(frame.rgb));
+    }
+  }
+  const changes = colors.filter((c, i) => i && c !== colors[i - 1]).length;
+  assert.equal(changes, 1, "rapid attacks must not restart the palette every hundred milliseconds");
 });
 test("a weak event cannot erase a strong tail, amplify it or restart it at full power", () => {
   const response = createResponse();
@@ -90,7 +111,7 @@ test("a weak event cannot erase a strong tail, amplify it or restart it at full 
 });
 test("adaptive maximum speed needs strong evidence; detail and amplified artistic rises cannot hold it", () => {
   const cadence = createCadence(),
-    config = settings({ outputHz: 16, outputRateMode: "adaptive" });
+    config = settings({ outputHz: 12, outputRateMode: "adaptive" });
   const weak = {
     fresh: true,
     metrics: { level: 0.7, rise: 0.6, energyRise: 0.02, attack: true, attackStrength: 0.1 },
@@ -98,9 +119,9 @@ test("adaptive maximum speed needs strong evidence; detail and amplified artisti
   for (let at = 0; at < 2000; at += 20) assert.equal(cadence.rate(config, weak, at), 6);
   assert.equal(
     cadence.rate(config, { fresh: true, metrics: { ...weak.metrics, attackStrength: 0.9 } }, 2000),
-    16,
+    12,
   );
-  for (let at = 2020; at <= 2780; at += 20) assert.equal(cadence.rate(config, weak, at), 16);
+  for (let at = 2020; at <= 2780; at += 20) assert.equal(cadence.rate(config, weak, at), 12);
   assert.equal(
     cadence.rate(config, weak, 2820),
     6,
@@ -115,5 +136,5 @@ test("adaptive maximum speed needs strong evidence; detail and amplified artisti
     2,
     "tiny sound must not demand maximum speed",
   );
-  assert.equal(cadence.rate({ ...config, outputRateMode: "fixed" }, weak, 3000), 16);
+  assert.equal(cadence.rate({ ...config, outputRateMode: "fixed" }, weak, 3000), 12);
 });

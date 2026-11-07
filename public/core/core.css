@@ -364,7 +364,8 @@ tr:last-child td {
   width: 100%;
   min-height: 440px;
   border: 1px solid var(--edge);
-  background: #fff;
+  background: var(--panel);
+  color-scheme: normal;
 }
 .hidden,
 [hidden] {

@@ -39,7 +39,9 @@
           fields[key] = input;
           return input;
         }
-        field("role", "Audio role", labels, binding.role || "all");
+        const focus = field("role", "Color frequency focus", labels, binding.role || "all");
+        focus.title =
+          "Used by frequency colors and warm/cool mapping. Brightness follows the shared audio level.";
         const position = field(
           "position",
           "Position · left to right",
@@ -50,7 +52,8 @@
           0.05,
         );
         position.type = "range";
-        position.title = "Place lights from left to right. Travelling effects follow this order.";
+        position.title =
+          "Place lights from left to right for audio-driven color flow. Brightness stays independent.";
         const behavior = field(
           "raveBehavior",
           "During music / Rave",

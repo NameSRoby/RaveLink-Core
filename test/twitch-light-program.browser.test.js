@@ -36,16 +36,10 @@ test("Twitch fixture board moves exclusive members and previews request-local de
   await page.goto(base, { waitUntil: "networkidle" });
   await page.locator('[data-tab="lights"]').click();
   await page.locator("[data-light-tab=viewer]").click();
-  await page
-    .locator('[data-choice-for="twitchRoutingMode"] [data-choice-value="assignments"]')
-    .click();
+  await page.locator("#viewerColorsEnabled").check();
 
-  for (const id of ["left", "right"]) {
-    await page.locator(`.fixtureChip[data-fixture-id="${id}"]`).click();
-    await page.locator("#fixtureDestination").selectOption("active-fixtures");
-    await page.locator("#moveSelectedFixture").click();
-  }
-  assert.equal(await page.locator('[data-drop-zone="active-fixtures"] .fixtureChip').count(), 2);
+  for (const id of ["left", "right"])
+    await page.locator('[data-viewer-fixture="' + id + '"]').check();
   await page.locator("#saveTwitchProgram").click();
   await page
     .locator("#twitchProgramNotice")
@@ -61,13 +55,14 @@ test("Twitch fixture board moves exclusive members and previews request-local de
     .waitFor();
 
   await page.locator("[data-light-tab=viewer]").click();
+  await page.locator('[data-viewer-section="effects"]').click();
   assert.equal(await page.locator("#twitchEffectProgram").isVisible(), true);
   await page.locator("label:has(#twitchEffectsEnabled)").click();
   await page.locator("label:has(#twitchEffectsReturn)").click();
   await page.locator('label:has([data-effect-fixture-id="effect-only"])').click();
   await page.locator('label:has([data-effect-prefix-toggle="effect-only"])').click();
   await page.locator('[data-effect-prefix-input="effect-only"]').fill("fx");
-  await page.locator("#saveTwitchEffects").click();
+  await page.locator("#saveTwitchProgram").click();
   await page
     .locator("#twitchEffectsNotice")
     .filter({ hasText: "DYNAMIC COMMANDS ENABLED FOR 1 FIXTURE." })
@@ -78,6 +73,7 @@ test("Twitch fixture board moves exclusive members and previews request-local de
   assert.deepEqual(effectSettings.fixtureIds, ["effect-only"]);
   assert.deepEqual(effectSettings.prefixes, { "effect-only": "fx" });
   assert.equal(effectSettings.returnEffect, true);
+  await page.locator("#twitchEffectProgram .lightInlineHelp > summary").click();
   assert.match(await page.locator("#twitchEffectProgram").innerText(), /rave red, blue aggressive/);
   await page.locator('[data-light-tab="commands"]').click();
   await page.locator("#refreshLightCommands").click();
@@ -88,6 +84,7 @@ test("Twitch fixture board moves exclusive members and previews request-local de
     /RAVE: Starts audio-reactive lighting/,
   );
   await page.locator('[data-light-tab="viewer"]').click();
+  await page.locator('[data-viewer-section="preview"]').click();
   await page.locator("#twitchColorExample").fill("fx fade red, blue slow");
   await page.locator("#previewTwitchColor").click();
   await page
@@ -105,15 +102,12 @@ test("Twitch fixture board moves exclusive members and previews request-local de
   await page.locator("#previewTwitchColor").click();
   await page.locator("#twitchPreviewResult").filter({ hasText: "#ff0000 // 100%" }).waitFor();
 
+  await page.locator('[data-viewer-section="groups"]').click();
   await page.locator("#addTwitchFixtureGroup").click();
-  const group = page.locator(".fixtureDropZone").nth(2);
+  const group = page.locator(".viewerGroupEditor");
   await group.locator('input[aria-label="Group name"]').fill("Right only");
   await group.locator('input[aria-label="Group prefix"]').fill("desk");
-  await page.locator('.fixtureChip[data-fixture-id="right"]').click();
-  await page.locator("#fixtureDestination").selectOption({ label: "Right only" });
-  await page.locator("#moveSelectedFixture").click();
-  assert.equal(await page.locator('[data-drop-zone="active-fixtures"] .fixtureChip').count(), 1);
-  assert.equal(await group.locator('.fixtureChip[data-fixture-id="right"]').count(), 1);
+  await page.locator('[data-viewer-fixture="right"]').check();
   await page.locator("#saveTwitchProgram").click();
   await page.waitForFunction(
     () => document.getElementById("twitchProgramControls").disabled === false,
@@ -134,6 +128,7 @@ test("Twitch fixture board moves exclusive members and previews request-local de
     .filter({ hasText: "Dry run: #0000ff at 100% matched right." })
     .waitFor();
   await page.locator("[data-light-tab=viewer]").click();
+  await page.locator('[data-viewer-section="preview"]').click();
   await page.locator("#twitchColorExample").fill("desk LIGHT BLEU");
   await page.locator("#previewTwitchColor").click();
   await page
@@ -167,12 +162,14 @@ test("Twitch fixture board moves exclusive members and previews request-local de
       });
     }
   }
-  await page.locator('[data-choice-for="twitchRoutingMode"] [data-choice-value="off"]').click();
+  await page.locator('[data-viewer-section="groups"]').click();
+  await page.locator("#viewerColorsEnabled").uncheck();
   await page.locator("#saveTwitchProgram").click();
   await page
     .locator("#twitchProgramNotice")
     .filter({ hasText: "Channel-point lighting is off." })
     .waitFor();
+  await page.locator('[data-viewer-section="preview"]').click();
   await page.locator("#previewTwitchColor").click();
   await page
     .locator("#twitchPreviewResult")

@@ -71,16 +71,20 @@ function createFeaturePlatformExtension(options = {}) {
               chatCommands,
               widgetController: context.widgetController,
             }),
-          onChat: (event, monitorConfig) => {
-            const handled = chatCommands.handle(event, monitorConfig);
+          onChat: async (event, monitorConfig) => {
+            const handled = await chatCommands.handle(event, monitorConfig);
             const requester = chatCommands.profileFor(event?.chatter_user_id);
             twitchProvider().observeRequesterRole(requester.userId, requester.role);
-            return handled;
+            return handled?.handled ? handled : twitchClips.handleChat(event);
           },
         });
       }
       return twitchOAuth;
     }
+    const twitchClips = require("../../domains/twitch/twitch-clips.service")({
+      getProvider: twitchProvider,
+      storePath: path.join(context.runtimeDir, "system", "twitch-clips.json"),
+    });
     function youtubeProvider() {
       if (!youtubeCatalog) {
         const {
@@ -384,21 +388,23 @@ function createFeaturePlatformExtension(options = {}) {
       return tidalBridge.status();
     }
     if (tidalEnabled) enableTidalExperiment();
+    let songWasActive = false;
     const unsubscribeLifecycle = registry.subscribeLifecycle((snapshot) => {
-      if (
-        !snapshot?.features?.some((row) => row.id === "song-request" && row.lifecycle === "active")
-      )
-        mediaObserver.stop().catch(() => {});
+      const songLifecycle = snapshot?.features?.find((row) => row.id === "song-request")?.lifecycle;
+      if (!["active", "enabling"].includes(songLifecycle)) mediaObserver.stop().catch(() => {});
+      if (songLifecycle === "active" && !songWasActive) mediaObserver.replay();
+      songWasActive = songLifecycle === "active";
       const twitchActive = snapshot?.features?.some(
         (row) => row.id === "twitch-integration" && row.lifecycle === "active",
       );
       if (!twitchActive) twitchOAuth?.suspendMonitor?.();
       else if (twitchOAuth) twitchOAuth.ensureStatus().catch(() => {});
     });
-    require("../../capabilities/feature-platform/http/register-dashboard-rewards.routes")(
-      context.app,
-      { registry, getProvider: twitchProvider },
-    );
+    const dashboardRewards =
+      require("../../capabilities/feature-platform/http/register-dashboard-rewards.routes")(
+        context.app,
+        { registry, getProvider: twitchProvider },
+      );
     const startup = registry.startInstalled().catch((error) => ({
       ok: false,
       error: String(error?.message || error).slice(0, 160),
@@ -416,6 +422,14 @@ function createFeaturePlatformExtension(options = {}) {
       .catch(() => {});
     return Object.freeze({
       owner: "feature-platform",
+      twitchDashboard: () =>
+        registry
+          .list()
+          .features.some((row) => row.id === "twitch-integration" && row.lifecycle === "active")
+          ? twitchProvider()
+          : null,
+      twitchClips,
+      dashboardRewards,
       registry,
       startup,
       mediaObserver,
@@ -426,6 +440,7 @@ function createFeaturePlatformExtension(options = {}) {
         tidalBridge?.shutdown();
         tidalCatalog?.shutdown();
         await mediaObserver.stop();
+        await twitchClips.shutdown();
         await twitchOAuth?.shutdown?.();
         return registry.shutdown();
       },

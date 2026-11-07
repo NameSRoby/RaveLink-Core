@@ -170,6 +170,7 @@ function installRequestSecurityMiddleware(app, options = {}) {
   const allowRemoteWrite = parseBoolean(options.allowRemoteWrite, false);
   const enableLargeModImports = options.enableLargeModImports === true;
   const jsonParserDefault = express.json({ limit: "64kb", strict: true });
+  const jsonParserDeck = express.json({ limit: "256kb", strict: true });
   const jsonParserLarge = express.json({ limit: "22mb", strict: true });
   const urlencodedParser = express.urlencoded({ extended: true });
   const port = Number(options.port || process.env.PORT || 5050);
@@ -274,9 +275,11 @@ function installRequestSecurityMiddleware(app, options = {}) {
 
   app.use((req, res, next) => {
     const parser =
-      enableLargeModImports && String(req.path || "") === "/mods/import"
-        ? jsonParserLarge
-        : jsonParserDefault;
+      req.path === "/api/control-deck"
+        ? jsonParserDeck
+        : enableLargeModImports && String(req.path || "") === "/mods/import"
+          ? jsonParserLarge
+          : jsonParserDefault;
     parser(req, res, next);
   });
 

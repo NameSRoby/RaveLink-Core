@@ -11,9 +11,10 @@ const {
   protectTextMapWithWindowsDpapi,
   unprotectTextMapWithWindowsDpapi,
 } = require("../../../shared/security/windows-dpapi");
-const { DEFAULT_SCOPES, normalizeScopes, createTwitchApiClient } = require("./twitch-api-client");
+const { normalizeScopes, createTwitchApiClient } = require("./twitch-api-client");
 const createTwitchEventSubMonitor = require("./twitch-eventsub-monitor");
 const { normalizeCommandPermissions } = require("./twitch-command-policy");
+const permissions = require("./twitch-permission-groups");
 
 function text(value, maximum = 2048) {
   return String(value ?? "")
@@ -88,11 +89,13 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     userId: "",
     login: "",
     scopes: [],
+    selectedPermissionGroups: [...permissions.DEFAULT_GROUPS],
     expiresAt: 0,
     managedRewards: {},
     monitorConfig: { ...DEFAULT_MONITOR_CONFIG },
   };
   let session = null;
+  let deviceRevision = 0;
   let lastError = "";
   let refreshInFlight = null;
   let validationInFlight = null;
@@ -174,6 +177,9 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
         userId: text(decoded.plain.userId, 80),
         login: text(decoded.plain.login, 80),
         scopes: normalizeScopes(JSON.parse(decoded.plain.scopes || "[]"), []),
+        selectedPermissionGroups: permissions.normalizeGroups(
+          JSON.parse(decoded.plain.selectedPermissionGroups || "null") ?? undefined,
+        ),
         expiresAt: Math.max(0, Number(decoded.plain.expiresAt || 0)),
         managedRewards: normalizeManagedRewards(JSON.parse(decoded.plain.managedRewards || "{}")),
         monitorConfig: normalizeMonitorConfig(JSON.parse(decoded.plain.monitorConfig || "{}")),
@@ -206,6 +212,9 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
       userId: profile.userId,
       login: profile.login,
       scopes: JSON.stringify(profile.scopes),
+      selectedPermissionGroups: JSON.stringify(
+        profile.selectedPermissionGroups || permissions.DEFAULT_GROUPS,
+      ),
       expiresAt: String(profile.expiresAt),
       rewardOwnerUserId: profile.rewardOwnerUserId || profile.userId,
       authorizationRecovery: JSON.stringify(recovery.snapshot()),
@@ -238,6 +247,8 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
       profile.userId &&
       profile.expiresAt > now(),
     );
+    const selected = permissions.normalizeGroups(profile.selectedPermissionGroups),
+      requested = session?.scopes || permissions.scopesForGroups(selected);
     return {
       ok: true,
       configured: Boolean(profile.clientId),
@@ -250,14 +261,20 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
       login: profile.login,
       userId: profile.userId,
       scopes: [...profile.scopes],
+      grantedScopes: [...profile.scopes],
+      selectedPermissionGroups: selected,
+      requestedScopes: [...requested],
+      permissionGroups: permissions.describe(selected, profile.scopes, connected),
+      permissionSelectionNote:
+        "Selections apply to your next authorization. Changing them does not revoke permissions already granted in Twitch.",
       expiresAt: profile.expiresAt,
       authorizationPending: Boolean(session),
       userCode: session?.userCode || "",
       verificationUri: session?.verificationUri || "",
       nextPollAt: session?.nextPollAt || 0,
       authorizationExpiresAt: session?.expiresAt || 0,
-      requiredScopes: [...DEFAULT_SCOPES],
-      missingScopes: DEFAULT_SCOPES.filter((scope) => !profile.scopes.includes(scope)),
+      requiredScopes: [...requested],
+      missingScopes: requested.filter((scope) => !profile.scopes.includes(scope)),
       managedRewards: Object.values(profile.managedRewards || {}).map((row) => ({ ...row })),
       monitorConfig: {
         ...profile.monitorConfig,
@@ -288,7 +305,23 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
   }
 
   async function configure(input = {}) {
-    const clientId = text(input.clientId, 80);
+    if (
+      !input ||
+      typeof input !== "object" ||
+      Array.isArray(input) ||
+      Object.keys(input).some((key) => !["clientId", "permissionGroups"].includes(key))
+    )
+      return { ...status(), ok: false, error: "twitch_configuration_invalid" };
+    let selected;
+    try {
+      selected = permissions.normalizeGroups(
+        input.permissionGroups,
+        profile.selectedPermissionGroups,
+      );
+    } catch {
+      return { ...status(), ok: false, error: "twitch_permission_groups_invalid" };
+    }
+    const clientId = input.clientId === undefined ? profile.clientId : text(input.clientId, 80);
     if (!/^[a-z0-9]{10,80}$/i.test(clientId))
       return { ...status(), ok: false, error: "twitch_client_id_invalid" };
     if (clientId !== profile.clientId) {
@@ -312,12 +345,15 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
       roleDirectoryLastError = "";
       publishIntakeMode();
     }
+    profile.selectedPermissionGroups = selected;
+    deviceRevision += 1;
     session = null;
     persist();
     return status();
   }
 
   async function clearClientId() {
+    deviceRevision += 1;
     const previous = credentials();
     recovery.invalidate();
     monitor?.stop?.();
@@ -352,19 +388,44 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
   async function begin(input = {}) {
     const request = input && typeof input === "object" ? input : {};
     if (!profile.clientId) return { ...status(), ok: false, error: "twitch_client_id_required" };
-    recovery.invalidate();
-    profile = {
-      ...profile,
-      accessToken: "",
-      refreshToken: "",
-      scopes: [],
-      expiresAt: 0,
-    };
+    let selected, scopes;
+    try {
+      if (
+        Array.isArray(request) ||
+        Object.keys(request).some((key) => !["permissionGroups", "scopes"].includes(key)) ||
+        (request.permissionGroups !== undefined && request.scopes !== undefined)
+      )
+        throw Error();
+      if (
+        request.scopes !== undefined &&
+        (!Array.isArray(request.scopes) ||
+          request.scopes.length > 12 ||
+          request.scopes.some(
+            (scope) => !permissions.GROUPS.some((group) => group.scopes.includes(scope)),
+          ))
+      )
+        throw Error();
+      selected =
+        request.scopes !== undefined
+          ? permissions.groupsForScopes(request.scopes)
+          : permissions.normalizeGroups(request.permissionGroups, profile.selectedPermissionGroups);
+      scopes =
+        request.scopes !== undefined
+          ? normalizeScopes(request.scopes, [])
+          : permissions.scopesForGroups(selected);
+    } catch {
+      return { ...status(), ok: false, error: "twitch_permission_groups_invalid" };
+    }
+    profile.selectedPermissionGroups = selected;
     persist();
+    const revision = ++deviceRevision;
+    session = null;
     const result = await api.beginDeviceAuthorization({
       clientId: profile.clientId,
-      scopes: request.scopes,
+      scopes,
     });
+    if (revision !== deviceRevision)
+      return { ...status(), ok: false, error: "twitch_authorization_changed" };
     if (!result.ok) {
       lastError = result.error;
       return { ...status(), ok: false, error: result.error };
@@ -372,6 +433,7 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     const timestamp = now();
     session = {
       ...result,
+      scopes,
       expiresAt: timestamp + result.expiresIn * 1000,
       nextPollAt: timestamp + result.interval * 1000,
     };
@@ -386,22 +448,28 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
     }
     if (session.nextPollAt > now())
       return { ...status(), ok: false, error: "twitch_poll_too_fast" };
+    const activeSession = session;
     session.nextPollAt = now() + session.interval * 1000;
     const result = await api.pollDeviceAuthorization({
       clientId: profile.clientId,
       deviceCode: session.deviceCode,
       scopes: session.scopes,
     });
+    if (session !== activeSession)
+      return { ...status(), ok: false, error: "twitch_authorization_changed" };
     if (!result.ok) {
       lastError = result.error;
       return { ...status(), ok: false, error: result.error };
     }
     if (result.pending) return status();
     const validated = await api.validateToken(result.accessToken);
+    if (session !== activeSession)
+      return { ...status(), ok: false, error: "twitch_authorization_changed" };
     if (!validated.ok || validated.clientId !== profile.clientId) {
       lastError = validated.error || "twitch_token_client_mismatch";
       return { ...status(), ok: false, error: lastError };
     }
+    recovery.invalidate();
     profile = {
       clientId: profile.clientId,
       accessToken: result.accessToken,
@@ -409,6 +477,7 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
       userId: validated.userId,
       login: validated.login,
       scopes: validated.scopes,
+      selectedPermissionGroups: permissions.normalizeGroups(profile.selectedPermissionGroups),
       expiresAt: now() + Math.max(0, validated.expiresIn || result.expiresIn) * 1000,
       managedRewards:
         (profile.rewardOwnerUserId || profile.userId) === validated.userId
@@ -430,6 +499,7 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
   }
 
   async function disconnect() {
+    deviceRevision += 1;
     const previous = credentials();
     recovery.invalidate();
     profile = {
@@ -707,6 +777,8 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
         error: "twitch_reward_not_managed",
         retryable: false,
       };
+    if (input.rewardId !== undefined && input.rewardId !== managed.rewardId)
+      return { ok: false, error: "twitch_reward_changed", retryable: false };
     const ownerId = profile.userId;
     const operation = rewardPauseChain.then(() =>
       withAuthorization(
@@ -864,6 +936,31 @@ module.exports = function createTwitchOAuthProvider(options = {}) {
         : undefined,
   });
   return Object.freeze({
+    dashboardStream: () =>
+      withAuthorization((current) => api.dashboardStream({ credentials: current })),
+    dashboardFollowers: () =>
+      withAuthorization((current) => api.dashboardFollowers({ credentials: current })),
+    dashboardSubscribers: () =>
+      withAuthorization(
+        (current) => api.dashboardSubscribers({ credentials: current }),
+        ["channel:read:subscriptions"],
+      ),
+    dashboardVod: (payload) =>
+      withAuthorization((current) => api.dashboardVod({ ...payload, credentials: current })),
+    dashboardClips: (payload) =>
+      withAuthorization((current) => api.dashboardClips({ ...payload, credentials: current })),
+    createStreamMarker: (payload) =>
+      withAuthorization(
+        (current) => api.createStreamMarker({ ...payload, credentials: current }),
+        ["channel:manage:broadcast"],
+      ),
+    createClip: (payload) =>
+      withAuthorization(
+        (current) => api.createClip({ ...payload, credentials: current }),
+        ["clips:edit"],
+      ),
+    getClip: (payload) =>
+      withAuthorization((current) => api.getClip({ ...payload, credentials: current })),
     status,
     ensureStatus,
     configure,

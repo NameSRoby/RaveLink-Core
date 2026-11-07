@@ -46,7 +46,15 @@ test("Twitch Client ID administration is write-only and gated by HUD Developer M
     authorizationRecovery: recovery,
     login: connected ? "tester" : "",
     userId: connected ? "123" : "",
-    scopes: [],
+    scopes: connected
+      ? [
+          "channel:manage:redemptions",
+          "user:read:chat",
+          "user:write:chat",
+          "channel:read:vips",
+          "moderation:read",
+        ]
+      : [],
     expiresAt: 0,
     authorizationPending: pending,
     userCode: pending ? "TEST-CODE" : "",
@@ -117,6 +125,7 @@ test("Twitch Client ID administration is write-only and gated by HUD Developer M
   t.after(async () => {
     if (browser) await browser.close();
     await created.extension.shutdown();
+    await created.services.lifecycle.stopAll();
     await new Promise((resolve) => server.close(resolve));
     fs.rmSync(root, { recursive: true, force: true });
   });
@@ -377,6 +386,12 @@ test("Twitch Client ID administration is write-only and gated by HUD Developer M
     () => document.querySelector("#surface").getBoundingClientRect().height > innerHeight,
   );
   const standaloneContent = standalone.frameLocator("#surface");
+  const standaloneFrame = await (
+    await standalone.locator("#surface").elementHandle()
+  ).contentFrame();
+  await standaloneFrame.waitForFunction(
+    () => document.body.getBoundingClientRect().height <= innerHeight + 1,
+  );
   const standaloneSize = await standaloneContent.locator("body").evaluate((body) => ({
     content: body.getBoundingClientRect().height,
     viewport: innerHeight,
@@ -390,5 +405,159 @@ test("Twitch Client ID administration is write-only and gated by HUD Developer M
     0,
   );
   await standalone.close();
+  assert.deepEqual(errors, []);
+});
+
+test("Twitch permission choices stay distinct from actual grants and identity-only authorization", async (t) => {
+  const express = require("express");
+  const present = require("../src/capabilities/feature-platform/http/feature-presentation");
+  const {
+    GROUPS,
+  } = require("../src/capabilities/feature-platform/providers/twitch-permission-groups");
+  const app = express();
+  app.use(require("./support/fixture-http-limit.cjs")());
+  app.get("/connection", (_req, res) =>
+    res
+      .type("html")
+      .send(
+        present(
+          fs.readFileSync(
+            path.join(__dirname, "../features/twitch-integration/ui/connection.html"),
+            "utf8",
+          ),
+        ),
+      ),
+  );
+  app.get("/", (_req, res) =>
+    res.type("html")
+      .send(`<!doctype html><html><body style="margin:0;background:#0b0e18"><iframe id="ui" title="Twitch" src="/connection" style="width:100%;border:0"></iframe><script>
+    window.groups=${JSON.stringify(GROUPS)};
+    window.calls=[];window.connected=true;window.pending=false;
+    window.selected=groups.map(g=>g.id);window.granted=['user:read:chat'];
+    function status(){return {ok:true,configured:true,connected,authorizationPending:pending,userCode:pending?'TEST-CODE':'',verificationUri:pending?'https://www.twitch.tv/activate?device-code=TEST-CODE':'',login:'fixture',grantedScopes:[...granted],selectedPermissionGroups:[...selected],requestedScopes:groups.filter(g=>selected.includes(g.id)).flatMap(g=>g.scopes),permissionGroups:groups.map(g=>({...g,selected:selected.includes(g.id),granted:g.scopes.every(s=>granted.includes(s)),available:connected&&g.scopes.every(s=>granted.includes(s)),missingScopes:g.scopes.filter(s=>!granted.includes(s))})),managedRewards:[],monitorConfig:{intakeMode:'native',songRequestChatEnabled:false}};}
+    addEventListener('message',event=>{
+      if(event.source!==document.querySelector('#ui').contentWindow||event.data?.channel!=='ravelink-feature-ui-v1')return;
+      const m=event.data;
+      if(m.type==='feature-height'){document.querySelector('#ui').style.height=m.height+'px';return;}
+      if(m.type!=='call')return;calls.push({capability:m.capability,method:m.method,payload:m.payload});
+      if(m.capability==='twitch.oauth.admin.v1'&&m.method==='configure')selected=[...m.payload.permissionGroups];
+      if(m.capability==='twitch.oauth.admin.v1'&&m.method==='begin'){selected=[...m.payload.permissionGroups];pending=true;}
+      if(m.capability==='twitch.oauth.admin.v1'&&m.method==='poll'){granted=groups.filter(g=>selected.includes(g.id)).flatMap(g=>g.scopes);pending=false;connected=true;}
+      const value=m.method==='review'?{ok:true,entries:[],total:0}:status();
+      event.source.postMessage({channel:m.channel,id:m.id,ok:true,value},'*');
+    });
+    </script></body></html>`),
+  );
+  const server = await new Promise((resolve) => {
+    const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
+  });
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise((resolve) => server.close(resolve));
+  });
+  const page = await browser.newPage({ viewport: { width: 1100, height: 850 } });
+  await page.addInitScript(() => {
+    window.open = () => null;
+  });
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto(`http://127.0.0.1:${server.address().port}`, { waitUntil: "networkidle" });
+  const frame = page.frameLocator("#ui");
+  await frame.locator("#permissionGroups input").nth(4).waitFor();
+  assert.equal(await frame.locator("#permissionGroups input").count(), GROUPS.length);
+  assert.match(
+    await frame.locator("#permissionSummary").textContent(),
+    new RegExp("1 of " + GROUPS.length + " features available now"),
+  );
+  assert.equal(await frame.locator('[data-permission="clips"] input').isChecked(), true);
+  assert.equal(
+    await frame.locator('[data-permission="clips"] .badge').textContent(),
+    "Needs authorization",
+  );
+  assert.equal(
+    await frame.locator('[data-permission="chat-read"] .badge').textContent(),
+    "Granted",
+  );
+  assert.equal(await frame.locator("#createReward").isDisabled(), true);
+  assert.match(
+    await frame.locator("#chatAccessNotice").textContent(),
+    /replies and clip links cannot be posted/,
+  );
+  const size = await frame.locator('[data-task-panel="Connection"]').first().boundingBox();
+  assert.ok(size.height < 570, "desktop connection permission panel stays compact");
+  assert.equal(
+    await frame.locator("#activation").evaluate((el) => el.getBoundingClientRect().height),
+    0,
+  );
+  assert.equal(
+    await frame
+      .locator("#developerApplication")
+      .evaluate((el) => el.getBoundingClientRect().height),
+    0,
+  );
+  assert.equal(
+    await frame.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor),
+    "rgb(11, 14, 24)",
+  );
+  for (const id of GROUPS.map((group) => group.id))
+    await frame.locator('[data-permission="' + id + '"] input').uncheck();
+  await frame.locator("#savePermissions").click();
+  await frame
+    .locator("#notice")
+    .filter({ hasText: "Current granted access has not changed" })
+    .waitFor();
+  assert.deepEqual(await page.evaluate(() => calls.find((c) => c.method === "configure").payload), {
+    permissionGroups: [],
+  });
+  assert.equal(
+    await frame.locator('[data-permission="chat-read"] .badge').textContent(),
+    "Granted",
+    "saving unchecked choices does not pretend to revoke a token",
+  );
+  assert.match(await frame.locator("#permissionSummary").textContent(), /Identity-only/);
+  await frame.locator("#begin").click();
+  await frame.locator("#activation").waitFor({ state: "visible" });
+  assert.deepEqual(await page.evaluate(() => calls.find((c) => c.method === "begin").payload), {
+    permissionGroups: [],
+  });
+  assert.equal(await frame.locator("#begin").isDisabled(), true);
+  await frame.locator("#check").click();
+  await frame.locator("#activation").waitFor({ state: "hidden" });
+  assert.equal(
+    await frame.locator('[data-permission="chat-read"] .badge').textContent(),
+    "Needs authorization",
+  );
+  assert.equal(await frame.locator("#createReward").isDisabled(), true);
+  await page.evaluate(() => {
+    granted = ["channel:manage:redemptions"];
+  });
+  await frame.locator("#refresh").click();
+  await frame
+    .locator('[data-permission="rewards"] .badge')
+    .filter({ hasText: "Granted" })
+    .waitFor();
+  assert.equal(
+    await frame.locator("#createReward").isEnabled(),
+    true,
+    "actual rewards grants remain usable even when not selected for the next authorization",
+  );
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1100, height: 850 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await frame
+      .locator("body")
+      .evaluate(
+        () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+      );
+    assert.equal(
+      await frame
+        .locator("body")
+        .evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      true,
+    );
+  }
   assert.deepEqual(errors, []);
 });

@@ -15,6 +15,43 @@ function body(id) {
   };
 }
 
+test("widget authentication attempts are bounded by IP before token verification and independent intake admission", async (t) => {
+  const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-widget-auth-bound-"));
+  const { app, services } = createCoreServer({
+    runtimeDir,
+    dryRun: true,
+    widgetIntakeToken: "fixture-token",
+  });
+  const server = await new Promise((resolve) => {
+    const instance = app.listen(0, "127.0.0.1", () => resolve(instance));
+  });
+  t.after(async () => {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+    await services.lifecycle.stopAll();
+    fs.rmSync(runtimeDir, { recursive: true, force: true });
+  });
+  const endpoint = `http://127.0.0.1:${server.address().port}/widget/events`;
+  for (let index = 0; index < 600; index++) {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer wrong" },
+      body: JSON.stringify(body("untrusted-" + index)),
+    });
+    assert.equal(response.status, 401);
+    await response.arrayBuffer();
+  }
+  const blocked = await fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer fixture-token" },
+    body: JSON.stringify(body("not-admitted")),
+  });
+  assert.equal(blocked.status, 429);
+  assert.equal((await blocked.json()).error, "widget_auth_rate_limited");
+  assert(Number(blocked.headers.get("retry-after")) > 0);
+  assert.equal(services.widgetIntakeLimiter.getDiagnostics().accepted, 0);
+});
+
 test("widget intake authenticates before its independent rate bucket and emits Retry-After", async (t) => {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-widget-v2-http-"));
   const { app, services } = createCoreServer({

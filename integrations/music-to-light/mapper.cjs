@@ -10,6 +10,15 @@ const ROLES = Object.freeze(["all", "low", "mid", "high"]);
 const clamp = (n) => Math.max(0, Math.min(1, n));
 const { rgb, hsv, fromHsv, blend } = require("./palette-math.cjs");
 const { compose } = require("./composition.cjs");
+const riseDuration = require("./brightness-response.cjs");
+const calibratedEnergy = require("./calibrated-energy.cjs");
+const beatPaletteIndex = require("./beat-palette.cjs");
+function profileSettings(input) {
+  const config = settings(input);
+  if (config.behaviors.profilePaletteEnabled)
+    config.palette = [...require("./effect-profiles.cjs")[config.behaviors.profileMotion].palette];
+  return config;
+}
 
 module.exports = function createMusicMapper(
   input,
@@ -17,19 +26,22 @@ module.exports = function createMusicMapper(
 ) {
   const attacks = require("./attack-response.cjs")();
   const musicalColor = require("./musical-color.cjs")();
+  const colorReactivity = require("./color-reactivity.cjs")();
   const temperature = require("./temperature-colors.cjs").create();
   const loudnessBody = require("./loudness-body.cjs")();
   const paletteChannels = new Map();
   let lastColorOnsetMs = -Infinity;
+  let activeColorBlendMs = null;
   let volumeFollow = { db: 0, state: "off" },
     currentVolume = null;
-  let config = settings(input),
+  let config = profileSettings(input),
     latest = null,
     lastFrame = null,
     discontinuities = 0,
     onsetIds = { classic: 0, log: 0 },
     positions = [0, 1 / 3, 2 / 3, 1],
     steps = 0,
+    colorSteps = 0,
     lastOnsetMs = -Infinity,
     origin = null,
     quietSince = null,
@@ -39,6 +51,7 @@ module.exports = function createMusicMapper(
     sideChangedAt = 0,
     onsetFrom = null,
     waveOnsets = [],
+    levelPeaks = [],
     referenceWindow = [],
     referenceLimited = 0,
     selection = null;
@@ -46,6 +59,7 @@ module.exports = function createMusicMapper(
     beds = [0, 0, 0, 0],
     rises = [0, 0, 0, 0];
   const isLocked = (config) =>
+    config.behaviors.profileMotion > 0 ||
     (config.recipeOptions.paletteScope?.mode === "fixed" &&
       config.recipeOptions.paletteScope.value !== "shared") ||
     config.recipeOptions.effect?.mode === "fixed" ||
@@ -62,7 +76,7 @@ module.exports = function createMusicMapper(
     selection = scenarios.choose(
       config.scenarioWeights,
       random,
-      config.behaviors.expressiveEnabled && config.behaviors.shuffleChoicesEnabled ? history : null,
+      config.behaviors.shuffleChoicesEnabled ? history : null,
     );
     if (!selection) throw fault("music_no_scenarios_enabled");
     if (config.layerMode === "random")
@@ -74,7 +88,7 @@ module.exports = function createMusicMapper(
     config,
     selection?.id,
     random,
-    config.behaviors.expressiveEnabled && config.behaviors.shuffleChoicesEnabled ? history : null,
+    config.behaviors.shuffleChoicesEnabled ? history : null,
     history,
     fixtures,
   );
@@ -115,13 +129,18 @@ module.exports = function createMusicMapper(
   function onsetColor(at, slot, channel = null) {
     const palette = channel?.palette || config.palette.map(rgb),
       b = behavior();
-    const target = palette[(steps + slot) % palette.length];
+    const step =
+      config.interpretation === "literal"
+        ? beatPaletteIndex(colorSteps, palette.length)
+        : colorSteps;
+    const target = palette[(step + slot) % palette.length];
     const from = (channel ? channel.from : onsetFrom)?.[slot] || palette[slot % palette.length];
-    const t = b.colorBlendMs ? clamp((at - lastColorOnsetMs) / b.colorBlendMs) : 1;
+    const blendMs = activeColorBlendMs ?? b.colorBlendMs;
+    const t = blendMs ? clamp((at - lastColorOnsetMs) / blendMs) : 1;
     const elapsed = at - (Number.isFinite(lastColorOnsetMs) ? lastColorOnsetMs : origin);
     const drift = Math.max(0, elapsed - config.colorSeconds * 1000) / (config.colorSeconds * 1000);
-    if (drift > 0) {
-      const phase = (steps + slot + drift * FEELS[config.feel].motion) % palette.length;
+    if (drift > 0 && config.interpretation !== "literal") {
+      const phase = (colorSteps + slot + drift * FEELS[config.feel].motion) % palette.length;
       const i = Math.floor(phase);
       return blend(
         palette[i],
@@ -140,18 +159,50 @@ module.exports = function createMusicMapper(
     );
   }
   function metrics(at) {
+    const b = behavior();
+    const audible =
+      config.interpretation === "literal" ? latest?.colorSignal === true : levels[0] > 0.01;
+    const sinceColor = at - (Number.isFinite(lastColorOnsetMs) ? lastColorOnsetMs : (origin ?? at));
+    const colorMoving =
+      b.colorEnabled &&
+      audible &&
+      ((b.expressiveEnabled && b.perceptualColorsEnabled) ||
+        config.warmCoolColors ||
+        ["travel", "energy"].includes(config.colorMode) ||
+        (config.colorMode === "onsets" &&
+          (sinceColor < (activeColorBlendMs ?? b.colorBlendMs) ||
+            (config.interpretation !== "literal" && sinceColor > config.colorSeconds * 1000))));
     return {
       level: levels[0],
       rise: Math.min(levels[0], rises[0]),
       spread: Math.max(...levels.slice(1)) - Math.min(...levels.slice(1)),
       attack: Number.isFinite(lastOnsetMs) && at - lastOnsetMs < 500,
-      ...(behavior().expressiveEnabled
-        ? {
-            attackStrength: attacks.activity(at),
-            energyRise: Math.max(0, levels[0] - beds[0]),
-            colorMotion: behavior().colorEnabled && levels[0] > 0.01,
-          }
-        : {}),
+      attackAt: Number.isFinite(lastOnsetMs) ? lastOnsetMs : null,
+      attackStrength: attacks.activity(at),
+      energyRise: Math.max(0, levels[0] - beds[0]),
+      colorReactivity: colorReactivity.timing(b.colorBlendMs, FEELS[config.feel].motion).energy,
+      colorIntervalMs:
+        config.interpretation === "literal"
+          ? Math.max(120, 1000 / config.outputHz)
+          : colorReactivity.timing(b.colorBlendMs, FEELS[config.feel].motion).intervalMs,
+      colorChangeAt: Number.isFinite(lastColorOnsetMs) ? lastColorOnsetMs : null,
+      colorBlendMs: activeColorBlendMs ?? b.colorBlendMs,
+      colorMotion: colorMoving,
+      brightnessMotion:
+        audible &&
+        b.attacksEnabled &&
+        !b.steadyBrightness &&
+        attacks.level(at, b.pulseDecayMs * FEELS[config.feel].envelope * (1 + 0.6 * b.smoothing)) >
+          0.025,
+      spatialMotion:
+        audible &&
+        b.spatialEnabled &&
+        !b.steadyBrightness &&
+        (assembled.shape === "wave"
+          ? at - lastOnsetMs < b.waveMs / FEELS[config.feel].motion
+          : assembled.shape === "handoff"
+            ? at - sideChangedAt < b.handoffMs
+            : ["bounce", "mirror", "swell"].includes(assembled.shape)),
       referenceSaturation: referenceWindow.length ? referenceLimited / referenceWindow.length : 0,
       referenceSamples: referenceWindow.length,
     };
@@ -176,11 +227,14 @@ module.exports = function createMusicMapper(
       beds = [0, 0, 0, 0];
       rises = [0, 0, 0, 0];
       lastOnsetMs = lastColorOnsetMs = -Infinity;
+      colorReactivity.reset();
+      activeColorBlendMs = null;
       attacks.reset();
       musicalColor.reset();
       temperature.reset();
       loudnessBody.reset();
       waveOnsets = [];
+      levelPeaks = [];
       lastFrame = null;
       quietSince = null;
     }
@@ -196,13 +250,33 @@ module.exports = function createMusicMapper(
         !spectrum.bandRms.every((n) => Number.isFinite(n) && n >= 0 && n <= 16))
     )
       throw fault("invalid_music_spectrum");
+    const overallDb = event.rms === 0 ? -Infinity : 20 * Math.log10(event.rms);
+    currentVolume = event.volume ?? null;
+    volumeFollow = config.autoAudioFollow
+      ? require("./volume-follow.cjs").correction(config.calibrationVolume, currentVolume)
+      : { db: 0, state: "off" };
+    const muted = config.autoAudioFollow && volumeFollow.state === "muted";
+    const floorDb = config.floorDb + volumeFollow.db;
+    const ceilingDb = config.ceilingDb + volumeFollow.db;
+    const overallTarget = muted
+      ? 0
+      : config.interpretation === "literal"
+        ? calibratedEnergy(event.rms, floorDb, ceilingDb)
+        : clamp((overallDb - floorDb) / (ceilingDb - floorDb));
     const detector =
-      config.behaviors.expressiveEnabled &&
-      config.behaviors.logAttacksEnabled &&
+      (config.interpretation === "literal" ||
+        (config.behaviors.expressiveEnabled && config.behaviors.logAttacksEnabled)) &&
       Object.hasOwn(spectrum || {}, "logOnset")
         ? "log"
         : "classic";
     const onset = detector === "log" ? spectrum.logOnset : spectrum?.onset;
+    const colorThreshold =
+      detector === "log" ? spectrum?.logOnsetThreshold : spectrum?.onsetThreshold;
+    const colorFlux = detector === "log" ? spectrum?.logSpectralFlux : spectrum?.spectralFlux;
+    colorReactivity.update(overallTarget, delta, FEELS[config.feel].motion, {
+      attack: !!onset,
+      novelty: colorThreshold > 1e-9 ? colorFlux / colorThreshold : 0,
+    });
     if (onset) {
       if (
         !Number.isSafeInteger(onset.id) ||
@@ -217,16 +291,32 @@ module.exports = function createMusicMapper(
         b.expressiveEnabled,
         sampledAt,
         b.pulseDecayMs * FEELS[config.feel].envelope * (1 + 0.6 * b.smoothing),
+        !b.expressiveEnabled,
       );
       onsetIds[detector] = onset.id;
       lastOnsetMs = sampledAt;
       // The native detector has already qualified this event. Do not discard
       // regular musical attacks with a second threshold on excess novelty.
       {
-        onsetFrom = config.palette.map((_, slot) => onsetColor(sampledAt, slot));
-        for (const channel of paletteChannels.values())
-          channel.from = channel.palette.map((_, slot) => onsetColor(sampledAt, slot, channel));
-        lastColorOnsetMs = sampledAt;
+        // Palette gestures and fixture movement have different jobs. Weak
+        // attacks may shape brightness without restarting the entire palette.
+        const changeColor =
+          (config.interpretation === "literal" && !muted) ||
+          b.expressiveEnabled ||
+          (config.interpretation !== "literal" &&
+            attacks.latest() >= 0.5 &&
+            sampledAt - lastColorOnsetMs >= Math.max(450, b.colorBlendMs * 1.5));
+        if (changeColor) {
+          onsetFrom = config.palette.map((_, slot) => onsetColor(sampledAt, slot));
+          for (const channel of paletteChannels.values())
+            channel.from = channel.palette.map((_, slot) => onsetColor(sampledAt, slot, channel));
+          activeColorBlendMs =
+            config.interpretation === "literal"
+              ? b.colorBlendMs / FEELS[config.feel].motion
+              : b.colorBlendMs;
+          lastColorOnsetMs = sampledAt;
+          colorSteps++;
+        }
         steps++;
         if (b.expressiveEnabled && b.smoothShapesEnabled)
           waveOnsets = require("./composition.cjs").rememberOnset(
@@ -250,7 +340,7 @@ module.exports = function createMusicMapper(
     }
     const energies = [event.rms, ...(spectrum?.bandRms || [0, 0, 0])];
     const b = behavior();
-    const envelope = FEELS[config.feel].envelope;
+    const envelope = config.interpretation === "literal" ? 1 : FEELS[config.feel].envelope;
     // Envelopes use sample time, not chunk arrival or display polling cadence.
     const attack =
       (config.interpretation === "literal" ? b.literalAttackMs : b.attackMs) *
@@ -260,15 +350,6 @@ module.exports = function createMusicMapper(
       (config.interpretation === "literal" ? b.literalReleaseMs : b.releaseMs) *
       envelope *
       (1 + 0.8 * b.smoothing);
-    const overallDb = event.rms === 0 ? -Infinity : 20 * Math.log10(event.rms);
-    currentVolume = event.volume ?? null;
-    volumeFollow = config.autoAudioFollow
-      ? require("./volume-follow.cjs").correction(config.calibrationVolume, currentVolume)
-      : { db: 0, state: "off" };
-    const muted = config.autoAudioFollow && volumeFollow.state === "muted";
-    const floorDb = config.floorDb + volumeFollow.db;
-    const ceilingDb = config.ceilingDb + volumeFollow.db;
-    const overallTarget = muted ? 0 : clamp((overallDb - floorDb) / (ceilingDb - floorDb));
     // Diagnostics only: a bounded recent window counts how often the fixed
     // reference clips the measured input. It never changes gain or the recipe.
     const limited = !muted && overallDb >= ceilingDb;
@@ -278,7 +359,12 @@ module.exports = function createMusicMapper(
       if (referenceWindow.shift().limited) referenceLimited--;
     // Integrate measured energy, not wall time: spatial swells cannot keep
     // chasing around a silent room. This phase never selects another recipe.
-    if (lastFrame !== null) audioTravel += (delta / 1000) * overallTarget;
+    if (lastFrame !== null)
+      audioTravel +=
+        (delta / 1000) *
+        (config.interpretation === "literal" && overallTarget > 0
+          ? colorReactivity.timing().energy
+          : overallTarget);
     levels = levels.map((value, i) => {
       const db = energies[i] === 0 ? -Infinity : 20 * Math.log10(energies[i]);
       // Musical band balance is a fixed artistic tilt, not instrument detection
@@ -290,7 +376,11 @@ module.exports = function createMusicMapper(
         config.interpretation === "musical" && b.balanceEnabled && i > 0
           ? [0, 0, b.midTrimDb, b.highTrimDb][i]
           : 0;
-      const calibrated = muted ? 0 : clamp((db + trim - floorDb) / (ceilingDb - floorDb));
+      const calibrated = muted
+        ? 0
+        : config.interpretation === "literal"
+          ? calibratedEnergy(energies[i], floorDb, ceilingDb)
+          : clamp((db + trim - floorDb) / (ceilingDb - floorDb));
       let target =
         config.interpretation === "musical" && i > 0
           ? Math.min(overallTarget, calibrated)
@@ -309,10 +399,14 @@ module.exports = function createMusicMapper(
               b.pulseDecayMs * FEELS[config.feel].envelope * (1 + 0.6 * b.smoothing),
             ),
       );
-      return (
-        value + (target - value) * (1 - Math.exp(-delta / (target > value ? attack : release)))
-      );
+      const rise =
+        config.interpretation === "literal" ? riseDuration(value, target, attack) : attack;
+      return value + (target - value) * (1 - Math.exp(-delta / (target > value ? rise : release)));
     });
+    if (config.interpretation === "literal") {
+      levelPeaks.push({ at: sampledAt, value: levels[0] });
+      while (levelPeaks.length > 16 || sampledAt - levelPeaks[0].at > 250) levelPeaks.shift();
+    }
     // A slow reference separates a new rise from an already sustained note.
     // This is a difference, never a division/automatic gain: a quiet passage
     // cannot be normalized into a loud one. Each band owns its own reference,
@@ -325,7 +419,13 @@ module.exports = function createMusicMapper(
       const target = clamp(Math.max(0, levels[i] - beds[i]) * b.riseGain);
       return Math.max(target, value * Math.exp(-delta / (b.riseDecayMs * envelope)));
     });
-    temperature.update(spectrum?.bandRms, delta);
+    temperature.update(
+      spectrum?.bandRms,
+      delta,
+      config.interpretation === "literal"
+        ? Math.max(1, b.colorBlendMs / FEELS[config.feel].motion)
+        : 160,
+    );
     musicalColor.update({
       delta,
       energy: overallTarget,
@@ -344,6 +444,7 @@ module.exports = function createMusicMapper(
       bandsReady: !!spectrum,
       loggedAnalysis: Object.hasOwn(spectrum || {}, "logOnset"),
       signal: event.signal,
+      colorSignal: event.signal === "signal" && !muted,
     };
     lastFrame = event.endFrame;
     discontinuities = event.discontinuities;
@@ -354,14 +455,19 @@ module.exports = function createMusicMapper(
       role = "all",
       position = 0,
       onsetSince,
+      energySince,
       outOfSync = 0,
       contrastSlot = 0.5,
       assignedPalette,
+      profileColorOffset = 0,
     } = {},
   ) {
     if (
       !ROLES.includes(role) ||
       !Number.isFinite(position) ||
+      !Number.isFinite(profileColorOffset) ||
+      profileColorOffset < 0 ||
+      profileColorOffset > 8 ||
       position < 0 ||
       position > 1 ||
       !Number.isFinite(at) ||
@@ -375,15 +481,19 @@ module.exports = function createMusicMapper(
       throw fault("invalid_music_role");
     if (onsetSince !== undefined && (!Number.isFinite(onsetSince) || onsetSince > at))
       throw fault("invalid_music_role");
+    if (energySince !== undefined && (!Number.isFinite(energySince) || energySince > at))
+      throw fault("invalid_music_role");
     if (!latest || at - latest.sampledAt > 250 || at < latest.sampledAt - 20) return null;
     const quiet = quietSince !== null && at - quietSince >= 1000;
+    const colorQuiet = config.interpretation === "literal" ? false : quiet;
     const b = behavior();
     const arrangement = assembled.shape !== "unison" ? "spatial" : config.arrangement;
     const banded =
       arrangement === "roles" ||
       (config.recipeOptions.role && config.recipeOptions.role.mode !== "configured");
-    if (banded && role !== "all" && !latest.bandsReady) return null;
-    const index = banded ? ROLES.indexOf(role) : 0;
+    if (config.interpretation !== "literal" && banded && role !== "all" && !latest.bandsReady)
+      return null;
+    const index = config.interpretation === "literal" ? 0 : banded ? ROLES.indexOf(role) : 0;
     const accentsEnabled = b.attacksEnabled;
     let pulse = accentsEnabled
       ? attacks.level(at, b.pulseDecayMs * FEELS[config.feel].envelope * (1 + 0.6 * b.smoothing))
@@ -415,10 +525,29 @@ module.exports = function createMusicMapper(
     // disappear entirely between four-Hz transport slots.
     if (accentsEnabled && onsetSince !== undefined && lastOnsetMs > onsetSince && lastOnsetMs <= at)
       pulse = Math.max(pulse, attacks.latest());
+    // A detector can legitimately miss a changing guitar/synth passage. After
+    // the measured attack has decayed, let actual positive energy changes keep
+    // Pulse responsive. This never inserts an onset, advances a color or learns
+    // gain; steady input and silence cannot create repeated accents.
+    if (
+      onsetSince !== undefined &&
+      accentsEnabled &&
+      b.swellsEnabled &&
+      !b.expressiveEnabled &&
+      !b.loudnessBrightness &&
+      at - lastOnsetMs > Math.max(500, b.pulseDecayMs * 2)
+    )
+      pulse = Math.max(pulse, Math.min(0.5, rises[index]));
     // Pulse leaves most of the range for measured attacks; a held synth note
     // keeps a small bed instead of staying at peak brightness.
     // Literal bypasses artistic accents. Nothing advances without fresh audio.
-    const level = levels[index];
+    const level =
+      config.interpretation === "literal" && energySince !== undefined
+        ? Math.max(
+            levels[index],
+            ...levelPeaks.filter((p) => p.at > energySince && p.at <= at).map((p) => p.value),
+          )
+        : levels[index];
     let response = level;
     let spatialMask = 1;
     if (config.interpretation === "musical") {
@@ -492,6 +621,8 @@ module.exports = function createMusicMapper(
           : null,
         level,
       );
+    if (config.interpretation === "literal")
+      response += 0.35 * (response * response * (3 - 2 * response) - response);
     let amount = quiet ? 0 : (b.steadyBrightness ? 1 : clamp(response)) * config.intensity;
     if (!quiet && !b.steadyBrightness && config.interpretation === "musical")
       amount = require("./fixture-contrast.cjs").amount(amount, {
@@ -508,10 +639,18 @@ module.exports = function createMusicMapper(
     const palette = channel?.palette || config.palette.map(rgb);
     const audioColors =
       b.expressiveEnabled && b.perceptualColorsEnabled && config.interpretation === "musical";
-    const roleColor = arrangement === "roles" ? Math.max(0, index - 1) : 0;
-    const colorOffset = (outOfSync / 100) * contrastSlot * palette.length;
+    const roleColor =
+      arrangement === "roles"
+        ? Math.max(0, (config.interpretation === "literal" ? ROLES.indexOf(role) : index) - 1)
+        : 0;
+    const colorOffset = (outOfSync / 100) * contrastSlot * palette.length + profileColorOffset;
     let color = palette[roleColor % palette.length];
-    if (!quiet && b.colorEnabled && ["roles", "fixed"].includes(config.colorMode)) {
+    if (
+      config.interpretation !== "literal" &&
+      !quiet &&
+      b.colorEnabled &&
+      ["roles", "fixed"].includes(config.colorMode)
+    ) {
       const slot =
         role === "all"
           ? Math.min(2, Math.floor(position * 3))
@@ -535,7 +674,12 @@ module.exports = function createMusicMapper(
             b.expressiveEnabled && b.perceptualColorsEnabled,
           );
     }
-    if (!quiet && b.colorEnabled && config.colorMode === "energy") {
+    if (
+      config.interpretation !== "literal" &&
+      !quiet &&
+      b.colorEnabled &&
+      config.colorMode === "energy"
+    ) {
       const phase =
           (clamp(levels[0]) * (palette.length - 1) +
             (Math.max(0, at - origin) / (config.colorSeconds * 1000)) * FEELS[config.feel].motion +
@@ -552,14 +696,14 @@ module.exports = function createMusicMapper(
             b.expressiveEnabled && b.perceptualColorsEnabled,
           );
     }
-    if (!quiet && b.colorEnabled && config.colorMode === "onsets") {
+    if (!colorQuiet && b.colorEnabled && config.colorMode === "onsets") {
       color =
         b.expressiveEnabled &&
         b.perceptualColorsEnabled &&
         config.interpretation === "musical" &&
         b.colorBlendMs > 0
           ? musicalColor.color(palette, roleColor + colorOffset)
-          : outOfSync === 0
+          : colorOffset === 0
             ? onsetColor(at, roleColor, channel)
             : blend(
                 onsetColor(at, (roleColor + Math.floor(colorOffset)) % palette.length, channel),
@@ -569,7 +713,12 @@ module.exports = function createMusicMapper(
                 b.expressiveEnabled && b.perceptualColorsEnabled,
               );
     }
-    if (!quiet && b.colorEnabled && config.colorMode === "travel") {
+    if (
+      config.interpretation !== "literal" &&
+      !quiet &&
+      b.colorEnabled &&
+      config.colorMode === "travel"
+    ) {
       const offset = arrangement === "spatial" ? position * (palette.length - 1) : roleColor;
       const phase =
         ((Math.max(0, at - origin) / (config.colorSeconds * 1000)) * FEELS[config.feel].motion +
@@ -587,13 +736,44 @@ module.exports = function createMusicMapper(
             b.expressiveEnabled && b.perceptualColorsEnabled,
           );
     }
-    if (!quiet && b.colorEnabled && config.warmCoolColors)
+    if (!colorQuiet && b.colorEnabled && config.warmCoolColors)
       color = temperature.map(
         palette,
         role,
         color,
         b.expressiveEnabled && b.perceptualColorsEnabled,
       );
+    if (
+      config.interpretation === "literal" &&
+      !colorQuiet &&
+      b.colorEnabled &&
+      !config.warmCoolColors
+    ) {
+      const focusOffset = role === "all" ? 0 : Math.max(0, ROLES.indexOf(role) - 1);
+      const phase =
+        config.colorMode === "roles"
+          ? temperature.focus(role) * (palette.length - 1) + focusOffset + colorOffset
+          : config.colorMode === "energy"
+            ? colorReactivity.timing().loudness * (palette.length - 1) + colorOffset
+            : config.colorMode === "travel"
+              ? (audioTravel / config.colorSeconds) * FEELS[config.feel].motion +
+                (arrangement === "spatial" ? position * (palette.length - 1) : roleColor) +
+                colorOffset
+              : null;
+      if (phase !== null) {
+        const wrapped = phase % palette.length,
+          i = Math.floor(wrapped);
+        color = blend(
+          palette[i],
+          palette[(i + 1) % palette.length],
+          wrapped - i,
+          b.colorVibrance,
+          false,
+        );
+      }
+      if (config.colorMode === "fixed")
+        color = palette[Math.floor(focusOffset + colorOffset) % palette.length];
+    }
     return {
       rgb: { r: color[0], g: color[1], b: color[2] },
       brightness,
@@ -731,7 +911,7 @@ module.exports = function createMusicMapper(
     configure(input) {
       const priorFloor = config.floorDb,
         priorCeiling = config.ceilingDb;
-      const next = settings(input);
+      const next = profileSettings(input);
       // Artistic edits are staged for the next activation. A running random
       // recipe accepts only tighter brightness ceilings; safety revocations are
       // handled by the owning session, which stops rather than swaps effects.
@@ -739,12 +919,25 @@ module.exports = function createMusicMapper(
         const maximumBrightness = Math.min(config.maximumBrightness, next.maximumBrightness);
         config = settings({
           ...config,
+          ...(config.interpretation === "literal"
+            ? {
+                floorDb: next.floorDb,
+                ceilingDb: next.ceilingDb,
+                autoAudioFollow: next.autoAudioFollow,
+                calibrationVolume: next.calibrationVolume,
+                intensity: next.intensity,
+                outputHz: next.outputHz,
+                outputRateMode: next.outputRateMode,
+              }
+            : {}),
           maximumBrightness,
           warmCoolColors: next.warmCoolColors,
           behaviors: {
             ...config.behaviors,
             steadyBrightness: next.behaviors.steadyBrightness,
             loudnessBrightness: next.behaviors.loudnessBrightness,
+            literalAttackMs: next.behaviors.literalAttackMs,
+            literalReleaseMs: next.behaviors.literalReleaseMs,
           },
           minimumBrightness: Math.min(config.minimumBrightness, maximumBrightness),
         });
@@ -754,9 +947,7 @@ module.exports = function createMusicMapper(
           config,
           null,
           random,
-          config.behaviors.expressiveEnabled && config.behaviors.shuffleChoicesEnabled
-            ? history
-            : null,
+          config.behaviors.shuffleChoicesEnabled ? history : null,
           history,
           fixtures,
         );

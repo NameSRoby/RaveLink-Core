@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '23 6 * * 1'
+    - cron: "23 6 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -46,7 +46,7 @@ jobs:
         if: matrix.language == 'csharp'
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: "8.0.x"
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@f051dc808ef3645eb0d08647ec751634ec2304ac # v4
@@ -54,12 +54,15 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
 
-      - name: Build Windows host with framework references
+      - name: Build Windows host and audio helper with framework references
         if: matrix.language == 'csharp'
         shell: pwsh
-        run: dotnet build desktop/windows-host/RaveLinkCoreHost.csproj --configuration Release --no-incremental
+        run: |
+          dotnet build desktop/windows-host/RaveLinkCoreHost.csproj --configuration Release --no-incremental
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build desktop/windows-audio/RaveLinkAudioAnalysis.csproj --configuration Release --no-incremental
 
       - name: Analyze source
         uses: github/codeql-action/analyze@f051dc808ef3645eb0d08647ec751634ec2304ac # v4
         with:
-          category: '/language:${{ matrix.language }}'
+          category: "/language:${{ matrix.language }}"

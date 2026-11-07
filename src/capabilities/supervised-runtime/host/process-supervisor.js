@@ -120,6 +120,7 @@ module.exports = function createProcessSupervisor(options = {}) {
     forcedStops: 0,
     providerTimeouts: 0,
     protocolViolations: 0,
+    lastProtocolViolation: "",
     unsafeRuntime: false,
     isolationCode: "",
     lastError: manifestResult.ok ? "" : "manifest_invalid",
@@ -140,6 +141,7 @@ module.exports = function createProcessSupervisor(options = {}) {
       forcedStops: state.forcedStops,
       providerTimeouts: state.providerTimeouts,
       protocolViolations: state.protocolViolations,
+      lastProtocolViolation: state.lastProtocolViolation,
       pendingCount: pending.size,
       queuedCount: queue.length,
       inboundCount: inbound.size,
@@ -162,13 +164,31 @@ module.exports = function createProcessSupervisor(options = {}) {
   }
 
   function settleAllRequests(code, message) {
-    for (const entry of pending.values()) {
-      clearTimeout(entry.timer);
-      entry.resolve({ ok: false, error: { code, message, retryable: true } });
-    }
-    pending.clear();
-    while (queue.length)
-      queue.shift().resolve({ ok: false, error: { code, message, retryable: true } });
+    for (const entry of [...pending.values(), ...queue])
+      settleTask(entry, { ok: false, error: { code, message, retryable: true } }, true, false);
+  }
+
+  function cancelChildren(parentRequestId) {
+    for (const entry of inbound.values())
+      if (entry.parentRequestId === parentRequestId)
+        entry.controller.abort(
+          Object.assign(new Error("Parent request ended"), { code: "request_cancelled" }),
+        );
+  }
+
+  function settleTask(task, result, cancelWorker = false, pump = true) {
+    if (task.done) return;
+    task.done = true;
+    const dispatched = pending.delete(task.id);
+    const index = queue.indexOf(task);
+    if (index >= 0) queue.splice(index, 1);
+    clearTimeout(task.timer);
+    task.signal?.removeEventListener("abort", task.onAbort);
+    cancelChildren(task.id);
+    if (cancelWorker && dispatched)
+      sendEnvelope({ protocolVersion: 1, type: "cancel", sentAt: Number(now()), replyTo: task.id });
+    task.resolve(result);
+    if (pump) pumpQueue();
   }
 
   function cancelInbound(code, message) {
@@ -209,6 +229,7 @@ module.exports = function createProcessSupervisor(options = {}) {
 
   function recordProtocolViolation(detail) {
     state.protocolViolations += 1;
+    state.lastProtocolViolation = String(detail).slice(0, 80);
     state.lastError = `protocol_violation:${detail}`;
     if (state.protocolViolations >= protocolLimit)
       quarantine("protocol_quarantined", `${displayName} exceeded the protocol violation limit`);
@@ -218,7 +239,24 @@ module.exports = function createProcessSupervisor(options = {}) {
     if (state.lifecycle !== "active" || !child) return;
     while (queue.length && pending.size < manifest.resources.inFlightCalls) {
       const task = queue.shift();
-      const deadlineAt = Number(now()) + task.timeoutMs;
+      if (task.done) continue;
+      const deadlineAt = task.deadlineAt;
+      if (deadlineAt <= Number(now()) || task.signal?.aborted) {
+        settleTask(
+          task,
+          {
+            ok: false,
+            error: {
+              code: task.signal?.aborted ? "request_cancelled" : "request_timeout",
+              message: "Request expired before dispatch",
+              retryable: true,
+            },
+          },
+          false,
+          false,
+        );
+        continue;
+      }
       const envelope = {
         protocolVersion: 1,
         type: "request",
@@ -229,37 +267,21 @@ module.exports = function createProcessSupervisor(options = {}) {
         deadlineAt,
         payload: task.payload,
       };
-      const timer = setTimeout(() => {
-        if (!pending.has(task.id)) return;
-        pending.delete(task.id);
-        sendEnvelope({
-          protocolVersion: 1,
-          type: "cancel",
-          sentAt: Number(now()),
-          replyTo: task.id,
-        });
-        task.resolve({
-          ok: false,
-          error: {
-            code: "request_timeout",
-            message: `${displayName} request exceeded its deadline`,
-            retryable: true,
-          },
-        });
-        pumpQueue();
-      }, task.timeoutMs);
-      pending.set(task.id, { ...task, timer });
+      pending.set(task.id, task);
       if (!sendEnvelope(envelope)) {
-        clearTimeout(timer);
-        pending.delete(task.id);
-        task.resolve({
-          ok: false,
-          error: {
-            code: "ipc_send_failed",
-            message: `Unable to send request to ${workloadKind}`,
-            retryable: true,
+        settleTask(
+          task,
+          {
+            ok: false,
+            error: {
+              code: "ipc_send_failed",
+              message: `Unable to send request to ${workloadKind}`,
+              retryable: true,
+            },
           },
-        });
+          false,
+          false,
+        );
       }
     }
   }
@@ -346,6 +368,7 @@ module.exports = function createProcessSupervisor(options = {}) {
       if (envelope.payload?.ok === true && envelope.payload?.[identityField] === manifest.id) {
         state.lifecycle = "active";
         state.lastError = "";
+        state.lastProtocolViolation = "";
         settleStartup();
         pumpQueue();
       } else {
@@ -361,14 +384,20 @@ module.exports = function createProcessSupervisor(options = {}) {
     if (envelope.type === "response") {
       const task = pending.get(envelope.replyTo);
       if (!task) return;
-      pending.delete(envelope.replyTo);
-      clearTimeout(task.timer);
-      task.resolve(
+      settleTask(
+        task,
         envelope.ok
           ? { ok: true, value: envelope.payload }
           : { ok: false, error: { ...envelope.error } },
       );
-      pumpQueue();
+      return;
+    }
+    if (envelope.type === "cancel") {
+      inbound.get(envelope.replyTo)?.controller.abort(
+        Object.assign(new Error("Worker cancelled capability request"), {
+          code: "request_cancelled",
+        }),
+      );
       return;
     }
     if (
@@ -392,8 +421,25 @@ module.exports = function createProcessSupervisor(options = {}) {
         });
         return;
       }
+      const parent = envelope.parentRequestId ? pending.get(envelope.parentRequestId) : null;
+      if (envelope.parentRequestId && !parent) {
+        sendEnvelope({
+          protocolVersion: 1,
+          type: "response",
+          sentAt: Number(now()),
+          replyTo: envelope.id,
+          ok: false,
+          error: {
+            code: "request_cancelled",
+            message: "Parent request is no longer active",
+            retryable: true,
+          },
+        });
+        return;
+      }
       const controller = new AbortController();
-      const timeoutMs = Math.max(1, envelope.deadlineAt - Number(now()));
+      const deadlineAt = Math.min(envelope.deadlineAt, parent?.deadlineAt || Infinity);
+      const timeoutMs = Math.max(1, deadlineAt - Number(now()));
       const timer = setTimeout(() => {
         if (!inbound.has(envelope.id)) return;
         state.providerTimeouts += 1;
@@ -403,13 +449,13 @@ module.exports = function createProcessSupervisor(options = {}) {
           }),
         );
       }, timeoutMs);
-      inbound.set(envelope.id, { controller, timer });
+      inbound.set(envelope.id, { controller, timer, parentRequestId: envelope.parentRequestId });
       Promise.race([
         Promise.resolve(
           onBrokerRequest(envelope.capability, envelope.method, envelope.payload, {
             providerId: envelope.providerId,
             timeoutMs,
-            deadlineAt: envelope.deadlineAt,
+            deadlineAt,
             signal: controller.signal,
           }),
         ),
@@ -549,6 +595,8 @@ module.exports = function createProcessSupervisor(options = {}) {
         provides: manifest.provides,
         consumes: manifest.consumes,
         maxFrameBytes: manifest.resources.ipcFrameBytes,
+        outboundConcurrency: manifest.resources.inFlightCalls,
+        outboundQueueCapacity: manifest.resources.queuedCalls,
       }),
       "utf8",
     ).toString("base64url");
@@ -599,6 +647,11 @@ module.exports = function createProcessSupervisor(options = {}) {
   }
 
   function request(capability, method, payload = null, requestOptions = {}) {
+    if (requestOptions.signal?.aborted)
+      return Promise.resolve({
+        ok: false,
+        error: { code: "request_cancelled", message: "Request was cancelled", retryable: true },
+      });
     if (state.lifecycle !== "active")
       return Promise.resolve({
         ok: false,
@@ -671,7 +724,42 @@ module.exports = function createProcessSupervisor(options = {}) {
       });
     }
     return new Promise((resolve) => {
-      queue.push({ id, capability, method, payload, timeoutMs, resolve });
+      const task = {
+        id,
+        capability,
+        method,
+        payload,
+        deadlineAt: Number(now()) + timeoutMs,
+        resolve,
+        signal: requestOptions.signal,
+      };
+      task.onAbort = () =>
+        settleTask(
+          task,
+          {
+            ok: false,
+            error: { code: "request_cancelled", message: "Request was cancelled", retryable: true },
+          },
+          true,
+        );
+      task.timer = setTimeout(
+        () =>
+          settleTask(
+            task,
+            {
+              ok: false,
+              error: {
+                code: "request_timeout",
+                message: `${displayName} request exceeded its deadline`,
+                retryable: true,
+              },
+            },
+            true,
+          ),
+        timeoutMs,
+      );
+      task.signal?.addEventListener("abort", task.onAbort, { once: true });
+      queue.push(task);
       pumpQueue();
     });
   }

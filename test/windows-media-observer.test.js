@@ -38,6 +38,70 @@ function fakeProcess(pid) {
   };
   return child;
 }
+test("automatic observation changes native providers, clears missing sessions, and recovers after an unexpected exit", async () => {
+  const children = [],
+    queue = require("../features/song-request/dist/domain").createSongQueue();
+  const observer = createWindowsMediaObserver({
+    supported: true,
+    provider: "auto",
+    spawn: () => {
+      const child = fakeProcess(children.length + 1);
+      children.push(child);
+      return child;
+    },
+    onSnapshot: async (snapshot) => queue.observe(snapshot),
+  });
+  const emit = async (source, available = true) => {
+    children
+      .at(-1)
+      .stdout.write(
+        JSON.stringify({ schemaVersion: 2, source, available, title: "Track", status: "Playing" }) +
+          "\n",
+      );
+    await new Promise((r) => setImmediate(r));
+  };
+  try {
+    observer.start();
+    await emit("TIDAL.Desktop");
+    assert.equal(queue.playbackStatus().primary.provider, "tidal");
+    await emit("Spotify.exe");
+    assert.equal(queue.playbackStatus().primary.provider, "spotify");
+    assert.equal(queue.playbackStatus().observed.length, 1);
+    await emit("auto", false);
+    assert.equal(queue.playbackStatus().primary, null);
+    children.at(-1).emit("exit", 1);
+    await new Promise((r) => setTimeout(r, 650));
+    assert.equal(children.length, 2);
+    await emit("AppleMusic.exe");
+    assert.equal(queue.playbackStatus().primary.provider, "apple-music");
+    await observer.stop();
+    await new Promise((r) => setTimeout(r, 600));
+    assert.equal(children.length, 2);
+  } finally {
+    await observer.stop();
+  }
+});
+test("Automatic drops stale observations but a paused heartbeat keeps the actual track available", () => {
+  let time = 100000;
+  const queue = require("../features/song-request/dist/domain").createSongQueue({
+    now: () => time,
+  });
+  const track = {
+    provider: "tidal",
+    sourceId: "TIDAL.Desktop",
+    available: true,
+    title: "Paused track",
+    status: "paused",
+  };
+  queue.observe(track);
+  time += 16000;
+  assert.equal(queue.playbackStatus().primary, null);
+  queue.observe(track);
+  assert.equal(queue.playbackStatus().primary.title, "Paused track");
+  queue.configurePlaybackSource({ source: "spotify" });
+  queue.observe(track);
+  assert.equal(queue.playbackStatus().primary, null, "manual source remains locked");
+});
 
 test("Windows media observer preserves Unicode and can switch providers without restarting RaveLink", async () => {
   const children = [];
@@ -219,4 +283,11 @@ test("media playback targets one provider and cancels bounded commands on shutdo
   const second = control({ provider: "tidal", action: "resume" });
   control.close();
   assert.equal((await second).error, "media_control_stopped");
+  for (const action of ["next", "previous"]) {
+    const operation = control({ provider: "tidal", action });
+    assert(calls.at(-1).args.includes(action));
+    children.at(-1).stdout.write(JSON.stringify({ ok: true }));
+    children.at(-1).emit("close", 0);
+    assert.equal((await operation).accepted, true);
+  }
 });

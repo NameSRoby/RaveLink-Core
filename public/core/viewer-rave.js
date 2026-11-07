@@ -39,8 +39,16 @@ export function initViewerRave({ request, getFixtures }) {
       if (!routed.length)
         missing.push("Route at least one music light in Dynamic color commands below, then save.");
       status.textContent = missing.length
-        ? missing.join(" ")
-        : `Ready for Rave requests on ${routed.length} routed light${routed.length === 1 ? "" : "s"}. Redeem Change my lights with rave as the input.`;
+        ? `Audio and viewer setup needs attention (${missing.length} items).`
+        : `Ready for Rave on ${routed.length} light${routed.length === 1 ? "" : "s"}.`;
+      $("viewerRaveChecklist").hidden = !missing.length;
+      $("viewerRaveMissing").replaceChildren(
+        ...missing.map((message) => {
+          const item = document.createElement("li");
+          item.textContent = message;
+          return item;
+        }),
+      );
     } catch (error) {
       status.textContent = error.message;
     } finally {

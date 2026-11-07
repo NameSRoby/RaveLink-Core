@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "preset": "pulse",
+  "intensity": 1,
+  "outputHz": 12,
+  "outputRateMode": "fixed",
+  "interpretation": "literal",
+  "arrangement": "unified",
+  "feel": "normal",
+  "palette": ["#ff075b", "#7024ff", "#008cff"],
+  "colorMode": "onsets",
+  "warmCoolColors": false,
+  "colorSeconds": 8,
+  "behaviors": {
+    "openingStyle": 0,
+    "openingMs": 2400,
+    "endingStyle": 0,
+    "endingMs": 1500,
+    "outputColorMs": 0,
+    "outputAttackMs": 0,
+    "outputReleaseMs": 0,
+    "rateHoldMs": 800,
+    "rateRiseThreshold": 0.12,
+    "colorVibrance": 1,
+    "smoothing": 0,
+    "literalAttackMs": 35,
+    "literalReleaseMs": 100,
+    "colorBlendMs": 80,
+    "attacksEnabled": false,
+    "swellsEnabled": false,
+    "colorEnabled": true,
+    "shuffleChoicesEnabled": true,
+    "expressiveEnabled": false,
+    "loudnessBrightness": false,
+    "steadyBrightness": false
+  },
+  "scenarioMode": "manual",
+  "layerMode": "fixed",
+  "recipeOptions": {
+    "shape": {
+      "mode": "fixed",
+      "value": "unison",
+      "allowed": ["unison"]
+    }
+  },
+  "parameterRanges": {}
+}

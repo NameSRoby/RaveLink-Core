@@ -7,6 +7,10 @@ const root = path.resolve(__dirname, "..");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const notices = fs.readFileSync(path.join(root, "THIRD_PARTY_NOTICES.md"), "utf8");
 const errors = [];
+for (const file of ["silent.webm", "silent.mp4", "LICENSE.txt"])
+  if (!fs.existsSync(path.join(root, "public/core/wake-media", file)))
+    errors.push(`fullscreen wake media notice/payload missing: ${file}`);
+if (!notices.includes("**NoSleep.js**")) errors.push("Fullscreen wake media attribution missing");
 
 for (const dependency of [
   ...Object.keys(pkg.dependencies || {}),

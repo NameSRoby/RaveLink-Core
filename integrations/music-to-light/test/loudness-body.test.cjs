@@ -1,6 +1,15 @@
 const test = require("node:test"),
   assert = require("node:assert/strict");
 const createMapper = require("../mapper.cjs");
+test("ordinary accents use their own headroom instead of an inactive strong-impact depth", () => {
+  const body = require("../loudness-body.cjs")();
+  const b = { bodyAttackMs: 60, bodyReleaseMs: 120, accentDepth: 0.1, impactDepth: 0.35 };
+  for (let i = 0; i < 100; i++) body.update(0, 0.8, 20, b);
+  body.update(0, 0.8, 20, b, true, true);
+  const foundation = body.mix(0, 0, b);
+  assert(body.mix(0, 0.8, b) > foundation, "a small accent at 80% has room to lift");
+  assert(body.mix(0, 0.8, b, 1) < foundation, "the separate strong-impact direction can still dip");
+});
 function mapper(overrides = {}) {
   return createMapper({
     preset: "pulse",

@@ -6,6 +6,12 @@ the implementation. The installation instructions and feature list remain in
 [README.md](../README.md). The maintenance findings are recorded in
 [REPOSITORY_HEALTH.md](REPOSITORY_HEALTH.md).
 
+For extensions, start with the [mod author guide](MOD_AUTHOR_GUIDE.md),
+[mod API reference](MOD_API_REFERENCE.md) and [application API map](API_REFERENCE.md).
+The SDK includes a permission-free runnable button starter and deterministic tests.
+Public contracts and current platform limitations are documented separately from
+internal implementation helpers.
+
 ## Fixture output ownership
 
 `src/domains/fixtures/fixture-output-runtime.js` composes the lease broker into
@@ -78,12 +84,20 @@ self-contained. A byte-identical generated copy is not an independent module to
 delete. The builders define the authoritative fragment order and verify the copies.
 
 The overlay builder embeds `overlay-palette.js` before `overlay-renderer.js`, then
-`designer-controls.js` before `designer-canvas.js` in the editor. Canvas geometry
+`designer-controls.js`, `designer-canvas.js` and `designer-editing.js` in the editor. Canvas geometry
 uses overlay pixels, not preview pixels. Segment resize scales child frames and
 their saved `contentScale` from a gesture snapshot; do not multiply the previous
 pointer event's rounded frames. Size locks prevent direct size edits, ratio locks
 preserve proportions, and container-only resizing deliberately retains children.
 OBS consumes the same saved frames and content scales as the preview.
+
+The editing module owns bounded local Undo/Redo history, duplication and workspace
+presentation. A drag is one history step; Escape restores its exact starting
+state. Selection is restored with Undo/Redo. History and zoom never configure
+the published overlay: Save overlay remains explicit. Keep geometry in overlay
+pixels at every preview zoom, preserve object IDs when replaying edits, and give
+duplicated groups fresh IDs for all children. The object list and selection dock
+remain separate from the saved renderer, so editor controls never appear in OBS.
 
 Preset layouts follow the familiar cover/title/artist/progress hierarchy seen in
 [Amuse](https://docs.6klabs.com/docs/widgets/amuse) and
@@ -381,23 +395,13 @@ Keep the helpers independent of parent-shell module configuration; see Microsoft
 
 ## Editing, rebuilding, and checking a change
 
-The development YouTube browser connection lives in
-`integrations/youtube-browser/provider.cjs`. Its authenticated loopback bridge
-starts only after an explicit Setup action; the feature keeps admission,
-moderation and reward decisions. Source package 0.45.5 adds the optional
-`youtube.browser.host.v1` host capability and `song.youtube.browser.v1` UI surface.
-This does not change the published 0.7.4b feature catalog pin.
-
-Queue insertion accepts a verified current/owned occurrence anchor. The adapter
-and host both verify the original queue sequence with one correctly positioned
-addition. Persist intent before dispatch; hold uncertain receipts across restarts.
-Never turn a handoff into playback evidence, remove by video ID, or automatically
-retry an unknown write. Embedded playback has a paced error circuit breaker and
-heartbeats; abandoned drivers cannot retain a started lease forever.
-
-See the [companion guide](../integrations/youtube-browser/README.md) for setup and
-the remaining connected-browser acceptance. Tests use a synthetic extension peer
-over loopback; they do not certify YouTube's current private interfaces.
+YouTube uses its embedded player; the retired browser companion is not advertised
+or shipped. Playback has a paced error circuit breaker and driver heartbeats, so
+repeated failures cannot silently drain requests or retain a started lease forever.
+Never treat desktop handoff as playback evidence or retry an unknown account write
+automatically. Keep queue admission, moderation and reward settlement with their
+existing owners. Tests use synthetic players; they do not certify provider accounts
+or future client behavior. See [player setup](USER_GUIDE.md#youtube-playback).
 
 Use Node 24 for the maintained checks. Install development dependencies with
 `npm ci`; runtime-only installs can omit them. Browser tests need Playwright's

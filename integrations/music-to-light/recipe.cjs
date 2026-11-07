@@ -131,6 +131,12 @@ function resolve(config, scenario, random, history = null, paletteHistory = hist
     config.palette = [...looks.find((l) => l.id === palette).design.palette];
   const parameters = {};
   for (const [id, range] of Object.entries(config.parameterRanges)) {
+    if (
+      config.interpretation === "literal" &&
+      ((!compatibility.mixed(config) && config.colorMode === "fixed") ||
+        (config.warmCoolColors && id === "colorVibrance"))
+    )
+      continue;
     const shapes = compatibility.mixed(config) ? ["wave", "bounce", "handoff"] : [shape];
     if (!compatibility.parameterActive(id, shapes, config.colorMode, config.behaviors)) continue;
     const adjusted = compatibility.parameterRange(id, range, shape, config.feel, config, fixtures);

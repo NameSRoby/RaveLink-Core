@@ -35,6 +35,7 @@ const BASE_KEYS = new Set([
   "capability",
   "method",
   "providerId",
+  "parentRequestId",
   "deadlineAt",
   "payload",
   "ok",
@@ -51,6 +52,7 @@ const TYPE_KEYS = Object.freeze({
     "capability",
     "method",
     "providerId",
+    "parentRequestId",
     "deadlineAt",
     "payload",
   ]),
@@ -208,6 +210,8 @@ function validateBrokerEnvelopeV1(input, options = {}) {
 
   if (input.type === "request") {
     validateId(input.id, "$.id", errors);
+    if (input.parentRequestId !== undefined)
+      validateId(input.parentRequestId, "$.parentRequestId", errors);
     if (typeof input.capability !== "string" || !CAPABILITY_RE.test(input.capability))
       addError(errors, "$.capability", "invalid_capability", "must name a versioned capability");
     if (typeof input.method !== "string" || !METHOD_RE.test(input.method))

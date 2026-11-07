@@ -7,6 +7,7 @@ const retiredBehaviors = Object.freeze([
   "bandsBed",
   "bandSeparation",
   "bandSensitivity",
+  "intervalPulseEnabled",
 ]);
 module.exports = {
   preset: (value) => (["ambient", "bands"].includes(value) ? "pulse" : value),

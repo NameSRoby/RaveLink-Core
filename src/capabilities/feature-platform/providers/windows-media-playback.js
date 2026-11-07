@@ -9,7 +9,7 @@ module.exports = function windowsMediaPlayback({ spawn, observerPath, supported 
     if (
       !supported ||
       !["tidal", "spotify", "apple-music"].includes(payload.provider) ||
-      !["pause", "resume"].includes(payload.action)
+      !["pause", "resume", "next", "previous"].includes(payload.action)
     )
       return Promise.resolve({ ok: false, error: "media_control_unavailable" });
     if (pending) return Promise.resolve({ ok: false, error: "media_control_busy" });

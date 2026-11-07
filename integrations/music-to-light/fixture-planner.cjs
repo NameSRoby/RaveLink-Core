@@ -8,9 +8,11 @@ const EFFECTS = Object.freeze({
   bounce: { preset: "pulse", shape: "bounce", minimum: 2 },
   handoff: { preset: "pulse", shape: "handoff", minimum: 2 },
 });
+const minimum = (id, config) => (config.interpretation === "literal" ? 1 : EFFECTS[id].minimum);
 function compatible(id, count, config, fixtures) {
   const b = config.behaviors;
-  if (!EFFECTS[id] || count < EFFECTS[id].minimum) return false;
+  if (!EFFECTS[id] || count < minimum(id, config)) return false;
+  if (config.interpretation === "literal") return true;
   if (id === "pulse") return true;
   if (config.interpretation !== "musical" || b.steadyBrightness) return false;
   if (["pulse", "wave", "handoff"].includes(id) && !b.attacksEnabled) return false;
@@ -99,15 +101,15 @@ function plan(rows, config, rave, random = Math.random, history = null) {
         const choices = allowed.filter(
           (id) =>
             groups.has(id) ||
-            (EFFECTS[id].minimum <= remaining.length &&
-              (EFFECTS[id].minimum === 1 ||
+            (minimum(id, config) <= remaining.length &&
+              (minimum(id, config) === 1 ||
                 new Set(remaining.map((i) => selected[i].position)).size >= 2)),
         );
         if (!choices.length) throw fault("music_no_fixture_effects");
         const unused = choices.filter((id) => !groups.has(id));
         const pool = unused.length ? unused : choices;
         const id = pool[(Math.floor(draw() * pool.length) + attempt) % pool.length];
-        const count = groups.has(id) ? 1 : EFFECTS[id].minimum;
+        const count = groups.has(id) ? 1 : minimum(id, config);
         const group = groups.get(id) || [];
         const first = remaining.shift();
         group.push(first);
@@ -134,7 +136,11 @@ function plan(rows, config, rave, random = Math.random, history = null) {
       if (role.mode === "fixed") f.role = role.value;
       else if (role.mode === "random") {
         const id = f.assignedEffect || "coordinated";
-        if (f.assignedEffect && f.assignedEffect !== "pulse") {
+        if (
+          config.interpretation !== "literal" &&
+          f.assignedEffect &&
+          f.assignedEffect !== "pulse"
+        ) {
           // A travelling group follows one shared audio envelope. Independent
           // bass/treble draws within it can extinguish half of a moving front.
           if (!pools.has(id))

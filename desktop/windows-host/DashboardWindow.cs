@@ -13,6 +13,8 @@ namespace RaveLink.Core.WindowsHost
 {
     internal sealed partial class DashboardWindow : Form
     {
+        private static readonly object loaderGate = new object();
+        private static bool loaderConfigured;
         private readonly string root;
         private readonly int port;
         private readonly Func<Task> restart;
@@ -33,6 +35,7 @@ namespace RaveLink.Core.WindowsHost
         private readonly ToolStripButton reload = new ToolStripButton("Reload");
         private WebView2 browser;
         private Task initializing;
+        private int fullscreenGeneration;
         private bool loaded;
         private bool disposed;
         private bool fullscreen;
@@ -125,7 +128,14 @@ namespace RaveLink.Core.WindowsHost
         private async Task InitializeBrowserAsync()
         {
             if (browser != null) { surface.Controls.Remove(browser); browser.Dispose(); }
-            CoreWebView2Environment.SetLoaderDllFolderPath(Path.Combine(root, "runtime", "desktop"));
+            // The SDK forbids setting this again after its loader has run. A
+            // failed browser initialization may be retried within this process.
+            lock (loaderGate) {
+                if (!loaderConfigured) {
+                    CoreWebView2Environment.SetLoaderDllFolderPath(Path.Combine(root, "runtime", "desktop"));
+                    loaderConfigured = true;
+                }
+            }
             var environment = await CoreWebView2Environment.CreateAsync(null, DesktopPolicy.ProfilePath(root, port));
             if (disposed) return;
             browser = new WebView2 { Dock = DockStyle.Fill, DefaultBackgroundColor = BackColor, AllowExternalDrop = false };
@@ -205,18 +215,40 @@ namespace RaveLink.Core.WindowsHost
         protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (browser != null) browser.Visible = Visible; }
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            if (keyData == Keys.F11 || (fullscreen && keyData == Keys.Escape)) { ToggleFullscreen(); return true; }
+            if (keyData == Keys.F11 || (fullscreen && keyData == Keys.Escape)) {
+                var core = browser == null ? null : browser.CoreWebView2;
+                if (fullscreen && core != null && core.ContainsFullScreenElement) Observe(ExitBrowserFullscreenAsync(core, fullscreenGeneration));
+                else ToggleFullscreen();
+                return true;
+            }
             if (keyData == Keys.F5 || keyData == (Keys.Control | Keys.R)) { var pending = OpenDashboardAsync(true); Observe(pending); return true; }
             if (keyData == (Keys.Alt | Keys.Left)) { if (back.Enabled) back.PerformClick(); return true; }
             if (keyData == (Keys.Alt | Keys.Right)) { if (forward.Enabled) forward.PerformClick(); return true; }
             return base.ProcessCmdKey(ref msg, keyData);
         }
         private static async void Observe(Task task) { try { await task; } catch { } }
+        private async Task ExitBrowserFullscreenAsync(CoreWebView2 core, int generation)
+        {
+            // The fullscreen-change event restores the host after the DOM exits.
+            // Leaving only the native window would strand the button-only page.
+            // WebView's native fullscreen notification can precede its DOM state.
+            // Retry briefly without allowing an old exit to close a newer session.
+            try {
+                for (int attempt = 0; attempt < 10 && generation == fullscreenGeneration && core.ContainsFullScreenElement; attempt++) {
+                    await core.ExecuteScriptAsync("if (document.fullscreenElement) document.exitFullscreen().catch(function () {});");
+                    await Task.Delay(25);
+                }
+            }
+            catch { /* A disposed or navigating viewer owns its own recovery. */ }
+        }
         private void ToggleFullscreen()
         {
-            if (!fullscreen) { normalBounds = Bounds; normalState = WindowState; WindowState = FormWindowState.Normal; FormBorderStyle = FormBorderStyle.None; Bounds = Screen.FromControl(this).Bounds; }
+            bool entering = !fullscreen;
+            if (entering) { normalBounds = Bounds; normalState = WindowState; }
+            fullscreen = entering; fullscreenGeneration++;
+            if (entering) { WindowState = FormWindowState.Normal; FormBorderStyle = FormBorderStyle.None; Bounds = Screen.FromControl(this).Bounds; }
             else { FormBorderStyle = FormBorderStyle.Sizable; Bounds = normalBounds; WindowState = normalState; }
-            fullscreen = !fullscreen; toolbar.Visible = !fullscreen;
+            toolbar.Visible = !fullscreen;
         }
         internal void Reveal() { Show(); if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal; Activate(); }
         protected override void OnFormClosing(FormClosingEventArgs e) { SaveWindow(); base.OnFormClosing(e); }

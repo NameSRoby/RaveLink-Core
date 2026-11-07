@@ -8,10 +8,10 @@ WinRT async operations are awaited explicitly because Windows PowerShell cannot
 directly await their projected interfaces. See docs/DEVELOPMENT.md for the flow.
 #>
 param(
-  [ValidateSet("tidal", "spotify", "apple-music")]
+  [ValidateSet("auto", "tidal", "spotify", "apple-music")]
   [string]$Provider = "tidal",
   [switch]$Once,
-  [ValidateSet("observe", "pause", "resume")]
+  [ValidateSet("observe", "pause", "resume", "next", "previous")]
   [string]$Action = "observe"
 )
 
@@ -47,10 +47,11 @@ function Await-WinRt {
 
 function Find-MediaSession {
   param($Manager)
-  $pattern = $SourcePatterns[$Provider]
+  $pattern = if ($Provider -eq 'auto') { 'tidal|spotify|apple.*music|music.*apple' } else { $SourcePatterns[$Provider] }
+  $current = $Manager.GetCurrentSession()
   @($Manager.GetSessions()) |
     Where-Object { [string]$_.SourceAppUserModelId -match $pattern } |
-    Sort-Object { if ([string]$_.GetPlaybackInfo().PlaybackStatus -eq "Playing") { 0 } else { 1 } } |
+    Sort-Object @{ Expression = { if ([string]$_.GetPlaybackInfo().PlaybackStatus -eq "Playing") { 0 } else { 1 } } }, @{ Expression = { if ($current -and $_.SourceAppUserModelId -eq $current.SourceAppUserModelId) { 0 } else { 1 } } }, SourceAppUserModelId |
     Select-Object -First 1
 }
 
@@ -161,7 +162,12 @@ if ($Action -ne 'observe') {
     @{ ok = $false; error = 'media_session_unavailable' } | ConvertTo-Json -Compress
     exit 0
   }
-  $operation = if ($Action -eq 'pause') { $sessions[0].TryPauseAsync() } else { $sessions[0].TryPlayAsync() }
+  $operation = switch ($Action) {
+    'pause' { $sessions[0].TryPauseAsync() }
+    'resume' { $sessions[0].TryPlayAsync() }
+    'next' { $sessions[0].TrySkipNextAsync() }
+    'previous' { $sessions[0].TrySkipPreviousAsync() }
+  }
   $accepted = Await-WinRt $operation ([bool])
   @{ ok = [bool]$accepted; error = $(if ($accepted) { '' } else { 'media_control_rejected' }) } | ConvertTo-Json -Compress
   exit 0
@@ -171,15 +177,17 @@ $snapshot | ConvertTo-Json -Compress
 if ($Once) { exit 0 }
 
 $initialPositionBucket = if ($snapshot.available -and $snapshot.status -eq "Playing") { [long]($snapshot.positionMs / 2000) } else { [long]$snapshot.positionMs }
-$lastFingerprint = @($snapshot.available, $snapshot.title, $snapshot.artist, $snapshot.album, $snapshot.status, $initialPositionBucket, $snapshot.durationMs, $snapshot.artworkUrl) -join "|"
+$lastFingerprint = @($snapshot.source, $snapshot.available, $snapshot.title, $snapshot.artist, $snapshot.album, $snapshot.status, $initialPositionBucket, $snapshot.durationMs, $snapshot.artworkUrl) -join "|"
+$lastEmission = [DateTime]::UtcNow
 while ($true) {
   try {
     $snapshot = Get-MediaSnapshot (Find-MediaSession $manager)
     $positionBucket = if ($snapshot.available -and $snapshot.status -eq "Playing") { [long]($snapshot.positionMs / 2000) } else { [long]$snapshot.positionMs }
-    $fingerprint = @($snapshot.available, $snapshot.title, $snapshot.artist, $snapshot.album, $snapshot.status, $positionBucket, $snapshot.durationMs, $snapshot.artworkUrl) -join "|"
-    if ($fingerprint -ne $lastFingerprint) {
+    $fingerprint = @($snapshot.source, $snapshot.available, $snapshot.title, $snapshot.artist, $snapshot.album, $snapshot.status, $positionBucket, $snapshot.durationMs, $snapshot.artworkUrl) -join "|"
+    if ($fingerprint -ne $lastFingerprint -or ([DateTime]::UtcNow - $lastEmission).TotalSeconds -ge 5) {
       $snapshot | ConvertTo-Json -Compress
       $lastFingerprint = $fingerprint
+      $lastEmission = [DateTime]::UtcNow
     }
   } catch {
     $unavailable = [ordered]@{ schemaVersion = 2; available = $false; source = $Provider }

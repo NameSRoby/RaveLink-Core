@@ -28,6 +28,7 @@
     "testing.js",
     "testing.d.ts",
     "schemas",
+    "starter",
     "README.md",
     "LICENSE"
   ],

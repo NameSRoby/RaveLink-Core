@@ -18,12 +18,20 @@ const submission = {
 
 test("SoundCloud source uses confirmed local metadata without starting a Windows observer or changing playback", async (t) => {
   const controls = [];
+  const queue = require("../features/song-request/dist/domain").createSongQueue();
+  queue.configurePlaybackSource({ source: "soundcloud" });
   const harness = createFeatureRuntimeHarness(feature, {
     featureId: "song-request",
     providers: {
       "ravelink.storage.v1/get": async (input) => ({
         ok: true,
-        value: input.key === "player-preferences-v1" ? { player: "soundcloud" } : undefined,
+        found: input.key === "queue-state-v1",
+        value:
+          input.key === "player-preferences-v1"
+            ? { player: "soundcloud" }
+            : input.key === "queue-state-v1"
+              ? queue.exportSnapshot()
+              : undefined,
       }),
       "media.windows.now-playing.v1/control": async (input) => {
         controls.push(input);

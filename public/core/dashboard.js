@@ -1,8 +1,10 @@
 /** Quick actions delegate to existing owners. Loading this view never changes output or reward state. */
 import { openFeaturePage, selectMainTab } from "./feature-navigation.js";
 import { initDashboardLayout } from "./dashboard-layout.js";
+import { initControlDeck } from "./control-deck.js";
 const panel = document.querySelector('[data-panel="dashboard"]');
 const layout = initDashboardLayout(panel);
+const deck = initControlDeck(panel, () => void refresh());
 const $ = (id) => document.getElementById("dashboard" + id);
 let state,
   rewards,
@@ -89,11 +91,11 @@ function controls() {
     button.disabled =
       !state || busy.has(button.dataset.dashboardGroup) || button.dataset.manageable === "false";
   });
-  const manageable = rewards?.available && rewards.rewards.some((r) => r.manageable);
+  const manageable = (rewards?.rewards || []).filter((row) => row.manageable);
   $("PauseRewards").disabled ||=
-    !manageable || rewards.rewards.filter((r) => r.manageable).every((r) => r.paused);
-  $("ResumeRewards").disabled ||=
-    !manageable || rewards.rewards.filter((r) => r.manageable).every((r) => !r.paused);
+    !rewards?.available ||
+    !manageable.length ||
+    manageable.some((row) => typeof row.paused !== "boolean");
   $("Intake").disabled ||= !state?.song;
   $("Skip").disabled ||= !state?.song?.canSkip;
   $("MusicStart").disabled ||= !state?.music.ready || live();
@@ -138,6 +140,12 @@ async function action(group, notice, fn, message) {
 function renderRewards() {
   const rows = rewards?.rewards || [],
     paused = rows.filter((r) => r.paused).length;
+  const manageable = rows.filter((row) => row.manageable);
+  const allPaused = manageable.length > 0 && manageable.every((row) => row.paused === true);
+  $("PauseRewards").textContent = allPaused
+    ? "Resume all managed rewards"
+    : "Pause all managed rewards";
+  $("PauseRewards").setAttribute("aria-pressed", String(allPaused));
   badge(
     "RewardState",
     rewards?.available
@@ -158,7 +166,7 @@ function renderRewards() {
       status.textContent = `${row.cost.toLocaleString()} points · ${row.paused ? "Paused" : row.enabled ? "Available" : "Disabled in Twitch"}${row.manageable ? "" : " · Cannot manage"}`;
       copy.append(title, status);
       const button = makeButton(row.paused ? "Resume" : "Pause", "rewards", () =>
-        updateRewards(row.purpose, !row.paused),
+        updateRewards(row.purpose, !row.paused, row.id),
       );
       button.disabled = !row.manageable;
       button.dataset.manageable = String(row.manageable);
@@ -186,9 +194,13 @@ function renderRewards() {
     delete $("RewardsNotice").dataset.origin;
   }
 }
-async function updateRewards(purpose, paused) {
+async function updateRewards(purpose, paused, rewardId) {
   await action("rewards", "RewardsNotice", async () => {
-    const result = await request("/api/dashboard/rewards", "POST", { purpose, paused });
+    const result = await request("/api/dashboard/rewards", "POST", {
+      purpose,
+      paused,
+      ...(rewardId ? { rewardId } : {}),
+    });
     rewards = result.state;
     renderRewards();
     if (result.partial) {
@@ -280,7 +292,7 @@ function render() {
 }
 async function refresh() {
   clearTimeout(timer);
-  if (closed || !visible || document.hidden || reading || busy.size) return;
+  if (closed || !visible || document.hidden || reading || busy.size || deck.active()) return;
   reading = true;
   try {
     const next = await request("/api/dashboard");
@@ -308,8 +320,11 @@ async function refresh() {
     if (!closed && visible && !document.hidden) timer = setTimeout(refresh, 5000);
   }
 }
-$("PauseRewards").onclick = () => updateRewards("all", true);
-$("ResumeRewards").onclick = () => updateRewards("all", false);
+$("PauseRewards").onclick = () =>
+  updateRewards(
+    "all",
+    !(rewards?.rewards || []).filter((row) => row.manageable).every((row) => row.paused === true),
+  );
 $("Intake").onclick = () =>
   action(
     "song",

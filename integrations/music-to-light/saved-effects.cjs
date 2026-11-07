@@ -33,6 +33,8 @@ function freezeCurrent(pipeline, transition = {}) {
     shape: { mode: "fixed", value: pipeline.recipe.shape, allowed: [pipeline.recipe.shape] },
   };
   config.colorMode = pipeline.recipe.color;
+  config.behaviors.randomProfileEnabled = false;
+  config.behaviors.profilePaletteEnabled = false;
   config.feel = pipeline.recipe.feel;
   for (const phase of ["opening", "ending"])
     if (Number.isInteger(transition[phase + "Style"]))

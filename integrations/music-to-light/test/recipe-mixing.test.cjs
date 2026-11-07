@@ -32,12 +32,26 @@ test("new activations combine independent axes; audio cannot redraw the combinat
   for (let seed = 1; seed <= 40; seed++) {
     let draws = 0;
     const rng = seeded(seed * 1009);
-    const m = create(mix, {
-        random: () => {
-          draws++;
-          return rng();
+    const m = create(
+        {
+          ...mix,
+          parameterRanges: {
+            ...mix.parameterRanges,
+            pulseDecayMs: { min: 250, max: 500 },
+            colorBlendMs: { min: 250, max: 600 },
+          },
+          recipeOptions: {
+            ...mix.recipeOptions,
+            feel: { mode: "random", value: "normal", allowed: ["slow", "normal", "fast"] },
+          },
         },
-      }),
+        {
+          random: () => {
+            draws++;
+            return rng();
+          },
+        },
+      ),
       initial = m.inspect(0);
     const before = draws;
     for (let i = 1; i <= 150; i++) m.update(sample(i), i * 20);
@@ -51,7 +65,7 @@ test("new activations combine independent axes; audio cannot redraw the combinat
     feels.add(r.feel);
     combinations.add(JSON.stringify(r));
     for (const [id, value] of Object.entries(r.parameters)) {
-      const range = mix.parameterRanges[id];
+      const range = initial.effective.parameterRanges[id];
       assert.ok(value >= range.min && value <= range.max);
       assert.ok(
         require("../recipe-compatibility.cjs").parameterActive(

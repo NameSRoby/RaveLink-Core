@@ -12,7 +12,7 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 
 const MAX_LINE_BYTES = 16 * 1024;
-const PROVIDERS = Object.freeze(["tidal", "spotify", "apple-music"]);
+const PROVIDERS = Object.freeze(["auto", "tidal", "spotify", "apple-music"]);
 const SOURCE_RULES = Object.freeze({
   tidal: /tidal/i,
   spotify: /spotify/i,
@@ -34,8 +34,15 @@ function boundedInteger(value, maximum) {
 }
 
 function normalizeMediaSnapshot(snapshot, selectedProvider) {
-  const provider = PROVIDERS.includes(selectedProvider) ? selectedProvider : "";
   const sourceId = boundedText(snapshot?.source, 120);
+  const provider =
+    selectedProvider === "auto"
+      ? Object.keys(SOURCE_RULES).find((key) => SOURCE_RULES[key].test(sourceId))
+      : PROVIDERS.includes(selectedProvider)
+        ? selectedProvider
+        : "";
+  if (selectedProvider === "auto" && snapshot?.available === false && sourceId === "auto")
+    return { provider: "auto", sourceId: "auto", available: false };
   if (
     !provider ||
     !snapshot ||
@@ -82,6 +89,11 @@ module.exports = function createWindowsMediaObserver(options = {}) {
   let pending = null;
   let forwarding = false;
   let stopping = false;
+  let desiredActive = false,
+    retryTimer = null,
+    retryDelay = 500,
+    latest = null,
+    delivered = null;
   const counters = {
     starts: 0,
     stops: 0,
@@ -94,7 +106,7 @@ module.exports = function createWindowsMediaObserver(options = {}) {
   };
   let lastObservedAt = 0;
   let lastError = "";
-  let selectedProvider = PROVIDERS.includes(options.provider) ? options.provider : "tidal";
+  let selectedProvider = PROVIDERS.includes(options.provider) ? options.provider : "auto";
 
   function status() {
     return {
@@ -117,9 +129,25 @@ module.exports = function createWindowsMediaObserver(options = {}) {
     const payload = pending;
     pending = null;
     try {
+      if (
+        delivered &&
+        (!payload.available ||
+          delivered.sourceId !== payload.sourceId ||
+          delivered.provider !== payload.provider)
+      ) {
+        await onSnapshot({
+          provider: delivered.provider,
+          sourceId: delivered.sourceId,
+          available: false,
+        });
+        delivered = null;
+      }
+      if (payload.provider === "auto" && !payload.available) return;
       const result = await onSnapshot(payload);
-      if (result?.ok === true) counters.forwarded += 1;
-      else {
+      if (result?.ok === true) {
+        counters.forwarded += 1;
+        delivered = payload.available ? payload : null;
+      } else {
         counters.rejected += 1;
         lastError = "media_observation_rejected";
       }
@@ -156,6 +184,8 @@ module.exports = function createWindowsMediaObserver(options = {}) {
         counters.observations += 1;
         lastObservedAt = Number(normalized.observedAt || Date.now());
         lastError = "";
+        retryDelay = 500;
+        latest = normalized;
         pending = normalized;
         void flush();
       } catch {
@@ -171,6 +201,9 @@ module.exports = function createWindowsMediaObserver(options = {}) {
         ok: false,
         error: "windows_media_observer_unsupported",
       };
+    desiredActive = true;
+    clearTimeout(retryTimer);
+    retryTimer = null;
     if (child) return status();
     stopping = false;
     buffer = "";
@@ -201,6 +234,10 @@ module.exports = function createWindowsMediaObserver(options = {}) {
       worker.stderr?.resume?.();
       worker.once?.("error", () => {
         lastError = "media_observer_spawn_failed";
+        if (child === worker) {
+          child = null;
+          scheduleRetry();
+        }
       });
       worker.once?.("exit", (code) => {
         if (child !== worker) return;
@@ -212,16 +249,30 @@ module.exports = function createWindowsMediaObserver(options = {}) {
           counters.crashes += 1;
           lastError = "media_observer_exited";
         }
+        scheduleRetry();
       });
       return status();
     } catch {
       child = null;
       lastError = "media_observer_spawn_failed";
+      scheduleRetry();
       return { ...status(), ok: false, error: lastError };
     }
   }
+  function scheduleRetry() {
+    if (!desiredActive || retryTimer) return;
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      start();
+    }, retryDelay);
+    retryTimer.unref?.();
+    retryDelay = Math.min(15000, retryDelay * 2);
+  }
 
   async function stop() {
+    desiredActive = false;
+    clearTimeout(retryTimer);
+    retryTimer = null;
     playback.close();
     const worker = child;
     if (!worker) return status();
@@ -257,7 +308,7 @@ module.exports = function createWindowsMediaObserver(options = {}) {
 
   async function control(payload = {}) {
     const action = String(payload.action || "status");
-    if (["pause", "resume"].includes(action)) return playback(payload);
+    if (["pause", "resume", "next", "previous"].includes(action)) return playback(payload);
     if (action === "start") return start();
     if (action === "stop") return stop();
     if (action === "status") return status();
@@ -265,16 +316,28 @@ module.exports = function createWindowsMediaObserver(options = {}) {
       const provider = String(payload.provider || "").toLowerCase();
       if (!PROVIDERS.includes(provider))
         return { ...status(), ok: false, error: "media_provider_invalid" };
-      const wasActive = Boolean(child);
+      const wasActive = desiredActive;
       if (wasActive) await stop();
       selectedProvider = provider;
+      latest = null;
       pending = null;
       return wasActive ? start() : status();
     }
     return { ...status(), ok: false, error: "media_observer_action_invalid" };
   }
 
-  return Object.freeze({ control, start, status, stop });
+  return Object.freeze({
+    control,
+    start,
+    status,
+    stop,
+    replay() {
+      if (latest && desiredActive) {
+        pending = latest;
+        void flush();
+      }
+    },
+  });
 };
 
 module.exports.MAX_LINE_BYTES = MAX_LINE_BYTES;

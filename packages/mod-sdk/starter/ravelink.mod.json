@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "id": "example.button",
+  "name": "Example toggle button",
+  "description": "Permission-free button controlling its own in-memory state.",
+  "version": "1.0.0",
+  "publisher": "example",
+  "license": "ISC",
+  "entry": "main.js",
+  "engine": {
+    "ravelinkModApi": "^1.0.0",
+    "node": ">=24"
+  },
+  "activationEvents": ["onEnable"],
+  "consumes": [],
+  "provides": ["example.button.v1"],
+  "permissions": {},
+  "resources": {
+    "idleCpuPercent": 0.05,
+    "idleRssMiB": 64,
+    "activeRssMiB": 128,
+    "timers": 0,
+    "minTimerMs": 1000,
+    "ipcFrameBytes": 16384,
+    "inFlightCalls": 1,
+    "queuedCalls": 2,
+    "externalInFlight": 0,
+    "storageBytes": 0,
+    "historyEntries": 0,
+    "shutdownGraceMs": 500
+  },
+  "contributes": {
+    "actions": [
+      {
+        "id": "toggle",
+        "title": "Example toggle",
+        "symbol": "↻",
+        "description": "Enable or disable the example's own state.",
+        "capability": "example.button.v1",
+        "method": "toggle",
+        "stateMethod": "status",
+        "defaults": {},
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {}
+        }
+      }
+    ]
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "files": {
+      "README.md": "08e4f869817049ec82b19e0095e9d337e38ed81bc68c7788885816b97767e31d",
+      "main.js": "95670fbca03c8b97d9e2392e2f66c2da5a8d56f28a79a40b651025b52e230d26"
+    }
+  }
+}

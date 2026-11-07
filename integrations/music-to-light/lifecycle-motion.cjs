@@ -3,30 +3,29 @@
  * deterministic opening gives way to the already-locked measured recipe; it
  * never redraws the recipe or adds artificial attacks. Scene roles bypass it.
  */
-const { perceptual, rgb: parse } = require("./palette-math.cjs");
 const clamp = (v) => Math.max(0, Math.min(1, v));
 const ease = (v) => {
   const t = clamp(v);
   return t * t * t * (t * (t * 6 - 15) + 10);
 };
 function choose(behaviors, random = Math.random, history = null) {
-  function pick(key, count) {
-    if (behaviors[key] !== count + 1) return behaviors[key];
+  function pick(key, values, randomValue) {
+    if (behaviors[key] !== randomValue) return behaviors[key];
     if (history)
       return Number(
         history.draw(
           "lifecycle:" + key,
-          Array.from({ length: count }, (_, i) => ({ id: String(i + 1), weight: 1 })),
+          values.map((value) => ({ id: String(value), weight: 1 })),
           random,
         ).id,
       );
     const roll = random();
     if (!Number.isFinite(roll) || roll < 0 || roll >= 1) throw Error("invalid_music_random");
-    return 1 + Math.floor(roll * count);
+    return values[Math.floor(roll * values.length)];
   }
   return Object.freeze({
-    openingStyle: pick("openingStyle", 3),
-    endingStyle: pick("endingStyle", 2),
+    openingStyle: pick("openingStyle", [1, 2, 3], 4),
+    endingStyle: pick("endingStyle", [1, 2, 4], 3),
     openingMs: behaviors.openingMs,
     endingMs: behaviors.endingMs,
   });
@@ -55,27 +54,18 @@ function opening(frame, fixture, config, elapsed, baseline, plan = config.behavi
   const start = Number.isFinite(initial)
     ? Math.max(0, Math.min(config.maximumBrightness, initial))
     : config.minimumBrightness;
-  const progress = clamp(t / 0.72);
-  const center = style === 3 ? (1 - Math.cos(progress * Math.PI * 2)) / 2 : progress;
-  const distance = Math.min(1, Math.abs(position - center) / 0.55);
-  const spot =
-    style === 2 ? Math.sin(Math.PI * progress) ** 2 : (1 + Math.cos(Math.PI * distance)) / 2;
-  const rise = ease(t / 0.18);
-  const accent =
-    config.minimumBrightness + (config.maximumBrightness - config.minimumBrightness) * spot * 0.7;
-  const staged = start + (accent - start) * rise;
-  const blend = ease((t - 0.6) / 0.4);
-  const palette = config.palette;
-  const phase = ((position + progress) % 1) * palette.length;
-  const a = palette[Math.floor(phase)],
-    b = palette[(Math.floor(phase) + 1) % palette.length];
-  const color = perceptual(parse(a), parse(b), phase % 1);
-  const rgb = perceptual(color, [frame.rgb.r, frame.rgb.g, frame.rgb.b], blend);
+  // Stagger the admission, not the music: no decorative brightness boost or
+  // invented color cycle can overpower a quiet intro. Native output interpolates
+  // from the acquired color/mode; the virtual preview illustrates brightness.
+  const offset =
+    0.35 * (style === 2 ? Math.abs(position * 2 - 1) : style === 3 ? 1 - position : position);
+  const progress = clamp((t - offset) / (1 - offset));
+  const mix = ease(progress);
   return {
     ...frame,
-    rgb: Object.fromEntries(["r", "g", "b"].map((k, i) => [k, rgb[i]])),
-    brightness: staged + (frame.brightness - staged) * blend,
-    entranceMix: rise,
+    brightness: start + (frame.brightness - start) * mix,
+    entranceTargetBrightness: frame.brightness,
+    entranceMix: progress,
   };
 }
 module.exports = { opening, ease, choose };

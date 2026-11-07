@@ -52,6 +52,15 @@ function resultStatus(result) {
 }
 
 module.exports = function registerModPlatformRoutes(app, options = {}) {
+  if (options.bundledOnly)
+    app.use("/api/mod-platform", requireLoopback, (req, res, next) => {
+      if (
+        ["GET", "HEAD"].includes(req.method) ||
+        /^\/ravelink\.(discord-controls|twitch-clips)\/(enable|disable)$/.test(req.path)
+      )
+        return next();
+      return res.status(409).json({ ok: false, error: "community_mod_support_disabled" });
+    });
   const express = options.express;
   const registry = options.registry;
   const packageManager = options.packageManager;

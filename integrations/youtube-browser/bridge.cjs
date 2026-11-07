@@ -400,13 +400,30 @@ module.exports = function createBrowserBridge(options = {}) {
     jobs.set(id, job);
     res.json(await job.promise);
   });
+  // Keep public console reads separate from authenticated observation/control
+  // traffic. One loopback-only console needs no unbounded per-client key map.
+  const assets = rateLimit({
+    windowMs: 60000,
+    limit: 120,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    keyGenerator: () => "browser-console-assets",
+  });
+  app.get("/browser-random-id.js", assets, (_req, res) =>
+    res
+      .set("Cache-Control", "public, max-age=300")
+      .sendFile(path.resolve(__dirname, "../../public/core/browser-random-id.js")),
+  );
   app.use(
+    assets,
     express.static(path.join(__dirname, "dashboard"), {
-      setHeaders: (res) =>
+      setHeaders: (res, file) => {
         res.setHeader(
           "Content-Security-Policy",
           "default-src 'self'; frame-ancestors 'none'; base-uri 'none'",
-        ),
+        );
+        if (/\.(?:js|css)$/i.test(file)) res.setHeader("Cache-Control", "public, max-age=300");
+      },
     }),
   );
   app.use((_error, _req, res, _next) => res.status(400).json({ error: "invalid_request" }));

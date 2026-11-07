@@ -2,6 +2,153 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const createTwitchOAuthProvider = require("../src/capabilities/feature-platform/providers/twitch-oauth-provider");
 
+test(
+  "selected permission groups survive private Windows vault recreation",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const fs = require("node:fs"),
+      os = require("node:os"),
+      path = require("node:path");
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-twitch-permissions-"));
+    const options = {
+      vaultPath: path.join(directory, "oauth.json"),
+      defaultClientId: "clientid12345",
+      api: {},
+    };
+    const first = createTwitchOAuthProvider(options);
+    let second;
+    t.after(async () => {
+      await first.shutdown();
+      await second?.shutdown();
+      fs.rmSync(directory, { recursive: true, force: true });
+    });
+    await first.configure({ permissionGroups: ["clips"] });
+    const persisted = JSON.parse(fs.readFileSync(options.vaultPath, "utf8"));
+    assert.equal(persisted.provider, "windows_dpapi");
+    assert.equal(Object.hasOwn(persisted, "selectedPermissionGroups"), false);
+    second = createTwitchOAuthProvider(options);
+    assert.deepEqual(second.status().selectedPermissionGroups, ["clips"]);
+    assert.equal(second.status().connected, false);
+  },
+);
+
+test("feature permission choices request only selected scopes and report partial grants independently", async (t) => {
+  let clock = 1000,
+    granted = ["clips:edit"],
+    requested,
+    rewardCalls = 0;
+  const provider = createTwitchOAuthProvider({
+    defaultClientId: "clientid12345",
+    now: () => clock,
+    api: {
+      beginDeviceAuthorization: async (input) => {
+        requested = input.scopes;
+        return {
+          ok: true,
+          deviceCode: "private-device",
+          userCode: "CODE",
+          interval: 1,
+          expiresIn: 600,
+        };
+      },
+      pollDeviceAuthorization: async () => ({
+        ok: true,
+        accessToken: "private-access",
+        refreshToken: "private-refresh",
+        expiresIn: 3600,
+      }),
+      validateToken: async () => ({
+        ok: true,
+        clientId: "clientid12345",
+        userId: "123",
+        login: "fixture",
+        scopes: granted,
+        expiresIn: 3600,
+      }),
+      inspectReward: async () => {
+        rewardCalls++;
+        return { ok: true };
+      },
+    },
+  });
+  t.after(() => provider.shutdown());
+  await provider.begin({ permissionGroups: ["clips"] });
+  assert.deepEqual(requested, ["clips:edit"]);
+  clock += 1000;
+  const partial = await provider.poll();
+  assert.equal(partial.connected, true);
+  assert.equal(partial.permissionGroups.find((group) => group.id === "clips").available, true);
+  assert.equal(partial.permissionGroups.find((group) => group.id === "rewards").available, false);
+  assert.equal(
+    (await provider.inspectReward({ rewardId: "fixture" })).error,
+    "twitch_scope_missing",
+  );
+  assert.equal(rewardCalls, 0);
+  const changed = await provider.configure({ permissionGroups: [] });
+  assert.equal(changed.connected, true);
+  assert.equal(changed.permissionGroups.find((group) => group.id === "clips").selected, false);
+  assert.equal(
+    changed.permissionGroups.find((group) => group.id === "clips").available,
+    true,
+    "next-login selection never pretends existing permission was revoked",
+  );
+  const identity = await provider.begin();
+  assert.deepEqual(requested, []);
+  assert.equal(
+    identity.connected,
+    true,
+    "starting a replacement login keeps the current working grant until completion",
+  );
+  granted = [];
+  clock += 1000;
+  const connected = await provider.poll();
+  assert.equal(connected.connected, true);
+  assert.deepEqual(connected.requestedScopes, []);
+  assert.deepEqual(connected.missingScopes, []);
+  assert(connected.permissionGroups.every((group) => !group.available));
+  assert.equal(JSON.stringify(connected).includes("private-"), false);
+  assert.equal(
+    (await provider.configure({ permissionGroups: ["unknown"] })).error,
+    "twitch_permission_groups_invalid",
+  );
+  assert.equal(
+    (await provider.begin({ permissionGroups: ["clips", "clips"] })).error,
+    "twitch_permission_groups_invalid",
+  );
+});
+
+test("a stale device reply cannot replace authorization after permission selection cancels its session", async (t) => {
+  let clock = 1000,
+    release;
+  const provider = createTwitchOAuthProvider({
+    defaultClientId: "clientid12345",
+    now: () => clock,
+    api: {
+      beginDeviceAuthorization: async () => ({
+        ok: true,
+        deviceCode: "private",
+        userCode: "CODE",
+        interval: 1,
+        expiresIn: 600,
+      }),
+      pollDeviceAuthorization: () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    },
+  });
+  t.after(() => provider.shutdown());
+  await provider.begin({ permissionGroups: ["clips"] });
+  clock += 1000;
+  const polling = provider.poll();
+  await provider.configure({ permissionGroups: [] });
+  release({ ok: true, accessToken: "late-access", refreshToken: "late-refresh" });
+  const result = await polling;
+  assert.equal(result.error, "twitch_authorization_changed");
+  assert.equal(result.connected, false);
+  assert.deepEqual(result.selectedPermissionGroups, []);
+});
+
 test("managed reward creation admits one writer per purpose and releases failed writers", async (t) => {
   let now = 1000,
     creates = 0,
@@ -98,6 +245,17 @@ test("managed reward creation admits one writer per purpose and releases failed 
   };
   await provider.listRewards();
   assert.equal((await provider.listRewards()).cached, true);
+  assert.equal(
+    (
+      await provider.setManagedRewardPaused({
+        purpose: "lights",
+        rewardId: "replaced-id",
+        paused: true,
+      })
+    ).error,
+    "twitch_reward_changed",
+  );
+  assert.equal(paused, false, "a stale exact reward identity never changes the replacement reward");
   await provider.setManagedRewardPaused({ purpose: "lights", paused: true });
   assert.equal((await provider.listRewards()).rewards[0].paused, true);
   assert.equal(reads, 2, "a successful pause invalidates the catalog immediately");
@@ -213,7 +371,8 @@ test("OAuth provider keeps device secrets private and settles only after validat
   const connected = await provider.poll();
   assert.equal(connected.connected, true);
   assert.equal(connected.login, "streamer");
-  assert.equal(JSON.stringify(connected).includes("access"), false);
+  assert.equal(JSON.stringify(connected).includes('"access"'), false);
+  assert.equal(Object.hasOwn(connected, "accessToken"), false);
   assert.equal(calls[0].deviceCode, "never-expose");
   assert.equal((await provider.inspectReward({ rewardId: "reward" })).manageable, true);
   now += 14400001;

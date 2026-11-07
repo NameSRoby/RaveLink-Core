@@ -1,0 +1,278 @@
+{
+  "description": "Synthetic reference generated with the published v0.7.4 mapper and confirmed Pulse response.",
+  "frames": [
+    {
+      "at": 20,
+      "rgb": {
+        "r": 255,
+        "g": 7,
+        "b": 91
+      },
+      "brightness": 22.625967495099644,
+      "sampledAt": 20,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 260,
+      "rgb": {
+        "r": 140,
+        "g": 33,
+        "b": 255
+      },
+      "brightness": 13.345756204672165,
+      "sampledAt": 260,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 500,
+      "rgb": {
+        "r": 112,
+        "g": 36,
+        "b": 255
+      },
+      "brightness": 11.732105920985571,
+      "sampledAt": 500,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 740,
+      "rgb": {
+        "r": 6,
+        "g": 104,
+        "b": 255
+      },
+      "brightness": 13.769377936455193,
+      "sampledAt": 740,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 980,
+      "rgb": {
+        "r": 0,
+        "g": 140,
+        "b": 255
+      },
+      "brightness": 11.818052512786833,
+      "sampledAt": 980,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 1220,
+      "rgb": {
+        "r": 255,
+        "g": 5,
+        "b": 233
+      },
+      "brightness": 14.11734054579315,
+      "sampledAt": 1220,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 1460,
+      "rgb": {
+        "r": 255,
+        "g": 7,
+        "b": 91
+      },
+      "brightness": 11.900315396142922,
+      "sampledAt": 1460,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 1700,
+      "rgb": {
+        "r": 211,
+        "g": 26,
+        "b": 255
+      },
+      "brightness": 14.522544720267595,
+      "sampledAt": 1700,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 1940,
+      "rgb": {
+        "r": 112,
+        "g": 36,
+        "b": 255
+      },
+      "brightness": 11.990672169650919,
+      "sampledAt": 1940,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 2180,
+      "rgb": {
+        "r": 16,
+        "g": 51,
+        "b": 255
+      },
+      "brightness": 14.99837863111042,
+      "sampledAt": 2180,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 2420,
+      "rgb": {
+        "r": 0,
+        "g": 140,
+        "b": 255
+      },
+      "brightness": 12.090378636859164,
+      "sampledAt": 2420,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 2660,
+      "rgb": {
+        "r": 115,
+        "g": 3,
+        "b": 255
+      },
+      "brightness": 15.560218258559484,
+      "sampledAt": 2660,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 2900,
+      "rgb": {
+        "r": 255,
+        "g": 7,
+        "b": 91
+      },
+      "brightness": 12.200836216235007,
+      "sampledAt": 2900,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 3140,
+      "rgb": {
+        "r": 255,
+        "g": 17,
+        "b": 208
+      },
+      "brightness": 16.227093132899377,
+      "sampledAt": 3140,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 3380,
+      "rgb": {
+        "r": 112,
+        "g": 36,
+        "b": 255
+      },
+      "brightness": 12.323725727745428,
+      "sampledAt": 3380,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 3620,
+      "rgb": {
+        "r": 53,
+        "g": 27,
+        "b": 255
+      },
+      "brightness": 17.022595270977632,
+      "sampledAt": 3620,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 3860,
+      "rgb": {
+        "r": 0,
+        "g": 140,
+        "b": 255
+      },
+      "brightness": 12.461072288792202,
+      "sampledAt": 3860,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "signal"
+    },
+    {
+      "at": 4100,
+      "rgb": {
+        "r": 0,
+        "g": 140,
+        "b": 255
+      },
+      "brightness": 10.660798537384649,
+      "sampledAt": 4100,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "silent"
+    },
+    {
+      "at": 4340,
+      "rgb": {
+        "r": 0,
+        "g": 140,
+        "b": 255
+      },
+      "brightness": 10.071521612991745,
+      "sampledAt": 4340,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "silent"
+    },
+    {
+      "at": 4580,
+      "rgb": {
+        "r": 0,
+        "g": 140,
+        "b": 255
+      },
+      "brightness": 10.0087486520078,
+      "sampledAt": 4580,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "silent"
+    },
+    {
+      "at": 4820,
+      "rgb": {
+        "r": 0,
+        "g": 140,
+        "b": 255
+      },
+      "brightness": 10.00115886691854,
+      "sampledAt": 4820,
+      "quiet": false,
+      "role": "all",
+      "measuredSignal": "silent"
+    }
+  ]
+}

@@ -6,7 +6,7 @@ const path = require("node:path");
 const { chromium } = require("playwright");
 const createServer = require("../src/app/core/create-core-server");
 
-test("room layout alpha places mixed-brand fixtures and explains segment capability boundaries", async (t) => {
+test("room layout places mixed-brand fixtures and explains segment capability boundaries", async (t) => {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-layout-ui-"));
   const created = createServer({ runtimeDir, dryRun: true });
   created.services.lightingCore.fixtureRegistry.upsertFixtures([
@@ -93,6 +93,8 @@ test("room layout alpha places mixed-brand fixtures and explains segment capabil
   await page.locator('label:has([data-lab-excluded="hue-strip"])').click();
   await page.locator("#saveLightingProtection").click();
   await page.locator('[data-light-tab="viewer"]').click();
+  await page.locator('[data-viewer-section="effects"]').click();
+  await page.locator("#dynamicEffectSettings > summary").click();
   await page.locator("#labBrightnessLimit").fill("75");
   await page.locator("#saveLightingLab").click();
   await page.locator("#lightingLabNotice").filter({ hasText: "EFFECT SETTINGS SAVED" }).waitFor();

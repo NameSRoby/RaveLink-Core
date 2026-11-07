@@ -54,7 +54,21 @@ function createTwitchEventSubMonitor(options = {}) {
   function safeUrl(value) {
     try {
       const url = new URL(String(value || ""));
-      return url.protocol === "wss:" && url.hostname === "eventsub.wss.twitch.tv" ? url.href : "";
+      if (
+        url.protocol !== "wss:" ||
+        url.hostname !== "eventsub.wss.twitch.tv" ||
+        url.port ||
+        url.username ||
+        url.password ||
+        url.hash
+      )
+        return "";
+      // Keep the authority in a server-owned URL object. Only copy Twitch's
+      // opaque path/query; these setters cannot replace its network destination.
+      const destination = new URL(EVENTSUB_URL);
+      destination.pathname = url.pathname;
+      destination.search = url.search;
+      return destination.href;
     } catch {
       return "";
     }

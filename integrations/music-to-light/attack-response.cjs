@@ -12,9 +12,9 @@ module.exports = function createAttackResponse() {
   const weights = new Map(),
     impacts = new Map();
   return {
-    accept(onset, threshold, expressive, time, decay) {
+    accept(onset, threshold, expressive, time, decay, balanced = false) {
       const measured =
-        expressive &&
+        (expressive || balanced) &&
         Number.isFinite(onset.strength) &&
         Number.isFinite(threshold) &&
         threshold >= 0;
@@ -23,7 +23,9 @@ module.exports = function createAttackResponse() {
       // importance: a regular kick can barely exceed it. Preserve a visible
       // accent for every accepted event; excess novelty only adds headroom.
       const margin = measured
-        ? clamp((2 * (onset.strength - threshold)) / Math.max(1e-9, onset.strength + threshold))
+        ? balanced
+          ? clamp((onset.strength - threshold) / Math.max(1e-9, threshold))
+          : clamp((2 * (onset.strength - threshold)) / Math.max(1e-9, onset.strength + threshold))
         : 1;
       const next = measured ? 0.35 + 0.65 * margin : 1;
       // Additional impact is selective; ordinary qualified events still keep

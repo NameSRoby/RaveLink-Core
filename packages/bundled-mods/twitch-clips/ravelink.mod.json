@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "id": "ravelink.twitch-clips",
+  "name": "Twitch Clip Button",
+  "description": "Create a confirmed clip from your current Twitch broadcast, with optional chat commands.",
+  "version": "1.0.0",
+  "publisher": "ravelink",
+  "license": "Apache-2.0",
+  "entry": "main.js",
+  "engine": { "ravelinkModApi": "^1.0.0", "node": ">=24" },
+  "activationEvents": ["onEnable"],
+  "consumes": ["twitch.clips.host.v1"],
+  "provides": ["stream.clip.v1"],
+  "permissions": {
+    "network": [],
+    "storage": false,
+    "secrets": [],
+    "ui": false,
+    "process": false,
+    "hardware": []
+  },
+  "resources": {
+    "idleCpuPercent": 0.05,
+    "idleRssMiB": 32,
+    "activeRssMiB": 64,
+    "timers": 0,
+    "minTimerMs": 1000,
+    "ipcFrameBytes": 16384,
+    "inFlightCalls": 2,
+    "queuedCalls": 2,
+    "externalInFlight": 0,
+    "storageBytes": 0,
+    "historyEntries": 0,
+    "shutdownGraceMs": 1000
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "files": { "main.js": "1bdb17a550dda8d6ae827dab55240e19be804c72240ea911268fb5378d506984" }
+  },
+  "contributes": {
+    "actions": [
+      {
+        "id": "create",
+        "title": "Clip stream",
+        "description": "Capture the current broadcast and confirm Twitch publishes the clip.",
+        "symbol": "✂",
+        "capability": "stream.clip.v1",
+        "method": "create",
+        "stateMethod": "status",
+        "defaults": { "duration": 30 },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "title": { "type": "string", "maxLength": 100 },
+            "duration": { "type": "number", "minimum": 5, "maximum": 60 }
+          }
+        }
+      }
+    ]
+  }
+}

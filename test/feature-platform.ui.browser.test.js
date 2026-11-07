@@ -76,7 +76,7 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   let browser;
   t.after(async () => {
     if (browser) await browser.close();
-    await created.extension.shutdown();
+    await created.services.lifecycle.stopAll();
     await new Promise((resolve) => server.close(resolve));
     fs.rmSync(root, { recursive: true, force: true });
   });
@@ -267,29 +267,33 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
     waitUntil: "domcontentloaded",
   });
   const sourcesSurface = sourcesPopup.locator("#surface").contentFrame();
-  assert.equal(await sourcesSurface.locator(".sourceCard").count(), 5);
-  assert.equal(await sourcesSurface.locator("#youtubeSourceNote").isVisible(), true);
-  assert.equal(await sourcesSurface.locator("#observerControls").isVisible(), false);
+  assert.equal(await sourcesSurface.locator(".sourceCard").count(), 6);
+  assert.equal(await sourcesSurface.locator('[data-source="auto"]').count(), 1);
+  assert.equal(await sourcesSurface.locator("#source").inputValue(), "auto");
+  assert.equal(await sourcesSurface.locator("#youtubeSourceNote").isVisible(), false);
+  assert.equal(await sourcesSurface.locator("#observerControls").isVisible(), true);
   await sourcesSurface.locator("#source").selectOption("spotify");
+  await sourcesSurface
+    .locator("#notice")
+    .filter({ hasText: "SPOTIFY is now the overlay source" })
+    .waitFor();
   assert.equal(
     await sourcesSurface.locator('[data-source="spotify"]').getAttribute("aria-pressed"),
     "true",
   );
   assert.equal(await sourcesSurface.locator("#youtubeSourceNote").isVisible(), false);
   assert.equal(await sourcesSurface.locator("#observerControls").isVisible(), true);
-  await sourcesSurface.locator("#select").click();
   await sourcesSurface
     .locator("#notice")
     .filter({ hasText: "SPOTIFY is now the overlay source" })
     .waitFor();
-  assert.equal(await sourcesSurface.locator("#select").isEnabled(), true);
+  assert.equal(await sourcesSurface.locator("#source").isEnabled(), true);
   await sourcesSurface.locator("#source").selectOption("apple-music");
-  await sourcesSurface.locator("#select").click();
   await sourcesSurface
     .locator("#notice")
     .filter({ hasText: "APPLE-MUSIC is now the overlay source" })
     .waitFor();
-  assert.equal(await sourcesSurface.locator("#select").isEnabled(), true);
+  assert.equal(await sourcesSurface.locator("#source").isEnabled(), true);
   await featureCall("song.playback.observe.v1", "observe", {
     provider: "apple-music",
     sourceId: "Apple.Music",
@@ -304,7 +308,6 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   });
   await sourcesSurface.locator("#title").filter({ hasText: unicodeTitle }).waitFor();
   await sourcesSurface.locator("#source").selectOption("youtube");
-  await sourcesSurface.locator("#select").click();
   await sourcesSurface
     .locator("#notice")
     .filter({ hasText: "YOUTUBE is now the overlay source" })
@@ -575,6 +578,31 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
     await workspace.locator(".overlaySourceTools input").nth(1).inputValue(),
     "1280 x 720",
   );
+  const previewFrame = workspace.locator('iframe[data-page-id="obs-overlay"]');
+  await previewFrame.scrollIntoViewIfNeeded();
+  const previewBox = await previewFrame.boundingBox();
+  const pixelPng = await page.screenshot({
+    clip: {
+      x: Math.floor(previewBox.x + previewBox.width - 20),
+      y: Math.max(0, Math.floor(previewBox.y + 20)),
+      width: 1,
+      height: 1,
+    },
+  });
+  const chunks = [];
+  for (let offset = 8; offset < pixelPng.length;) {
+    const size = pixelPng.readUInt32BE(offset);
+    if (pixelPng.toString("ascii", offset + 4, offset + 8) === "IDAT")
+      chunks.push(pixelPng.subarray(offset + 8, offset + 8 + size));
+    offset += 12 + size;
+  }
+  const pixel = require("node:zlib").inflateSync(Buffer.concat(chunks));
+  assert.equal(
+    pixel.subarray(1, 4).every((channel) => channel < 80),
+    true,
+    "transparent OBS preview must show the dark preview surface, never a forced white canvas",
+  );
+  assert.equal(await previewFrame.evaluate((el) => getComputedStyle(el).colorScheme), "normal");
   const compactOverlay = await context.newPage();
   await compactOverlay.addInitScript(() => {
     Object.defineProperty(window, "SharedWorker", { value: undefined });

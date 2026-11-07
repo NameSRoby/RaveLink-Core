@@ -86,6 +86,13 @@ module.exports = function createCoreServer(options = {}) {
   });
   const lifecycle = createLifecycleRegistry();
   let extension = null;
+  const desktopActions =
+    options.desktopActions ||
+    require("../../domains/control-deck/desktop-actions.service")({
+      rootDir,
+      runtimeDir,
+      ...options.controlDeckDesktopOptions,
+    });
   const musicToLight = createMusicToLightService({
     installed: !require("node:fs").existsSync(
       path.join(rootDir, "config", "music-to-light.disabled"),
@@ -99,7 +106,7 @@ module.exports = function createCoreServer(options = {}) {
       if (
         !registry
           ?.list()
-          .features.some((row) => row.id === "song-request" && row.lifecycle === "active")
+          .features?.some((row) => row.id === "song-request" && row.lifecycle === "active")
       )
         return null;
       const result = await registry.request(
@@ -164,6 +171,62 @@ module.exports = function createCoreServer(options = {}) {
     routedIds: musicToLight.raveRouteIds,
     save: musicToLight.viewerSave,
   });
+  const obsControl =
+    options.obsControl ||
+    require("../../domains/control-deck/obs.service")({
+      runtimeDir,
+      ...options.obsControlOptions,
+    });
+  lifecycle.register({
+    owner: "core",
+    id: "obs-control",
+    type: "socket",
+    stop: () => obsControl.close(),
+  });
+  let controlDeckActions;
+  const deckWidgets = require("../../domains/control-deck/deck-widgets.service")({
+    runtimeDir,
+    getMedia: () => controlDeckActions?.mediaSnapshot(),
+    getObs: () => obsControl.snapshot(),
+    getProvider: () => (extension?.twitchDashboard || extension?.features?.twitchDashboard)?.(),
+    getRewards: () => extension?.dashboardRewards || extension?.features?.dashboardRewards,
+    ...options.deckWidgetOptions,
+  });
+  lifecycle.register({
+    owner: "core",
+    id: "deck-widgets",
+    type: "work",
+    stop: () => deckWidgets.close(),
+  });
+  controlDeckActions = require("../../domains/control-deck/control-deck-actions")({
+    core,
+    music: musicToLight,
+    desktop: desktopActions,
+    obs: obsControl,
+    widgets: deckWidgets,
+    getFeatures: () => extension?.registry || extension?.features?.registry,
+    getMediaController: () => extension?.mediaObserver || extension?.features?.mediaObserver,
+    getMods: () =>
+      extension?.mods?.registry || (extension?.registry?.list().mods ? extension.registry : null),
+    getRewards: () => extension?.dashboardRewards || extension?.features?.dashboardRewards,
+  });
+  const controlDeck = require("../../domains/control-deck/control-deck.service")({
+    runtimeDir,
+    actions: controlDeckActions,
+    widgets: deckWidgets,
+  });
+  lifecycle.register({
+    owner: "core",
+    id: "control-deck",
+    type: "timer",
+    stop: controlDeck.shutdown,
+  });
+  lifecycle.register({
+    owner: "core",
+    id: "desktop-actions",
+    type: "process",
+    stop: desktopActions.shutdown || (() => {}),
+  });
   const widgetController = createSystemWidgetEventController({
     colorApply: async (body) => {
       const result = await core.colorCommandService.applyColorText(
@@ -202,8 +265,8 @@ module.exports = function createCoreServer(options = {}) {
       if (!registry?.request) return { ok: false, error: "song_request_unavailable" };
       if (
         payload.rewardRedemption === true &&
-        require("../../capabilities/feature-platform/packages/feature-package-manager").compareVersions(
-          registry.list().features.find((row) => row.id === "song-request")?.version || "0.0.0",
+        require("../../shared/contracts/compare-package-versions")(
+          registry.list().features?.find((row) => row.id === "song-request")?.version || "0.0.0",
           "0.45.4",
         ) < 0
       )
@@ -245,11 +308,24 @@ module.exports = function createCoreServer(options = {}) {
     port: Number(options.port || process.env.PORT || 5050),
   });
   app.use(runtimeMetrics.requestMiddleware());
-  require("./register-network-sharing.routes")(app, networkSharing);
+  require("./register-network-sharing.routes")(
+    app,
+    networkSharing,
+    options.windowsFirewall || require("../../domains/system/windows-firewall")({ rootDir }),
+  );
   registerPresentationRoutes(app, { runtimeDir });
   require("./register-music-to-light.routes")(app, { host: musicToLight });
   require("./register-navigation.routes")(app, { runtimeDir });
   require("./register-dashboard-layout.routes")(app, { runtimeDir });
+  require("./register-control-deck.routes")(app, {
+    service: controlDeck,
+    obs: obsControl,
+    widgets: deckWidgets,
+    desktop: desktopActions,
+    express,
+    media: require("../../domains/control-deck/control-deck-media")(runtimeDir),
+    getTwitchClips: () => extension?.twitchClips || extension?.features?.twitchClips,
+  });
   require("./register-dashboard.routes")(app, {
     core,
     music: musicToLight,
@@ -296,6 +372,8 @@ module.exports = function createCoreServer(options = {}) {
           widgetController,
           twitchIntakeGate,
           lightingCore: core,
+          desktopActions,
+          getTwitchClips: () => extension?.twitchClips || extension?.features?.twitchClips,
         })
       : null;
   coreUpdates.startLaunchCheck();
@@ -332,6 +410,10 @@ module.exports = function createCoreServer(options = {}) {
       egressGovernor,
       lifecycle,
       networkSharing,
+      controlDeck,
+      obsControl,
+      deckWidgets,
+      desktopActions,
     }),
     extension,
     profile,

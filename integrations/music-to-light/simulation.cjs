@@ -17,13 +17,14 @@ function simulate({ features, fixtures, design, random = () => 0.5, history = nu
       effective,
       true,
       random,
-      effective.behaviors.expressiveEnabled && effective.behaviors.shuffleChoicesEnabled
-        ? history
-        : null,
+      effective.behaviors.shuffleChoicesEnabled ? history : null,
       baseMapper.inspect(0).recipe.palette,
     ),
   );
-  const mapper = require("./fixture-renderers.cjs")(baseMapper, fixtures);
+  const mapper = require("./profile-renderer.cjs")(
+    require("./fixture-renderers.cjs")(baseMapper, fixtures),
+    fixtures,
+  );
   mapper.setPositions(require("./composition.cjs").reactivePositions(fixtures));
   const cadence = createCadence(fixtures),
     motion = createOutputMotion(),

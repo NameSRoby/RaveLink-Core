@@ -18,12 +18,13 @@ async function freePort() {
   await new Promise((resolve) => server.close(resolve));
   return port;
 }
-async function environment(t) {
+async function environment(t, options = {}) {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "rvl-network-test-"));
   const created = createCoreServer({
     runtimeDir,
     dryRun: true,
     fixtureSecretVaultOptions: require("./support/fixture-vault-codec.cjs"),
+    ...options,
   });
   const server = await listen(created.app);
   t.after(async () => {
@@ -40,6 +41,100 @@ async function environment(t) {
     }).then(async (response) => ({ status: response.status, body: await response.json() }));
   return { ...created, server, runtimeDir, local, configure };
 }
+
+test("firewall setup is explicit, same-origin and unavailable to LAN callers", async (t) => {
+  let calls = 0;
+  const e = await environment(t, {
+    windowsFirewall: {
+      configure: async () => {
+        calls++;
+        return { ok: true, configured: true };
+      },
+    },
+  });
+  await fetch(e.local + "/api/network-sharing");
+  assert.equal(calls, 0);
+  const post = (headers = {}) =>
+    fetch(e.local + "/api/network-sharing/firewall", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: "{}",
+    });
+  assert.equal((await post({ Origin: "https://foreign.example" })).status, 403);
+  const remoteHostStatus = await new Promise((resolve, reject) => {
+    const request = http.request(
+      e.local + "/api/network-sharing/firewall",
+      {
+        method: "POST",
+        headers: { Host: "192.168.1.20:5051", "Content-Type": "application/json" },
+      },
+      (response) => {
+        response.resume();
+        response.on("end", () => resolve(response.statusCode));
+      },
+    );
+    request.on("error", reject);
+    request.end("{}");
+  });
+  assert.equal(remoteHostStatus, 403);
+  assert.equal(calls, 0);
+  assert.equal((await post({ Origin: e.local })).status, 200);
+  assert.equal(calls, 1);
+});
+
+test("Windows firewall setup is single-flight, bounded and never runs on other platforms", async () => {
+  const create = require("../src/domains/system/windows-firewall");
+  let calls = 0,
+    complete;
+  const firewall = create({
+    rootDir: path.resolve(__dirname, ".."),
+    platform: "win32",
+    run: (_shell, args, options, callback) => {
+      calls++;
+      complete = callback;
+      assert(args.includes("Apply"));
+      assert.equal(options.windowsHide, true);
+      assert.equal(options.timeout, 120000);
+    },
+  });
+  const first = firewall.configure();
+  assert.equal(firewall.configure(), first);
+  assert.equal(calls, 1);
+  complete(null);
+  assert.equal((await first).configured, true);
+  const second = firewall.configure();
+  complete(Error("cancelled"));
+  await assert.rejects(second, /firewall_setup_cancelled_or_failed/);
+  await assert.rejects(create({ platform: "linux" }).configure(), /windows_required/);
+});
+
+test(
+  "Windows firewall plan targets only the bundled runtime and local private subnet",
+  { skip: process.platform !== "win32" },
+  () => {
+    const { spawnSync } = require("node:child_process");
+    const result = spawnSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        path.resolve(__dirname, "../scripts/configure-windows-firewall.ps1"),
+        "-Action",
+        "Plan",
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 15000 },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const plan = JSON.parse(result.stdout);
+    assert.equal(plan.profile, "Private");
+    assert.equal(plan.remoteAddress, "LocalSubnet");
+    assert.equal(plan.direction, "Inbound");
+    assert.equal(path.basename(plan.program), "RaveLink-Core-Node.exe");
+  },
+);
 test("LAN gateway enables full operator controls without changing localhost or accepting hostile origins", async (t) => {
   const e = await environment(t),
     port = await freePort(),
@@ -191,6 +286,10 @@ test("LAN browser edits the same Core settings and exposes sharing addresses on 
     port = await freePort();
   await e.configure(true, port);
   const urls = e.services.networkSharing.snapshot().urls;
+  const unavailable = await fetch(
+    e.local + "/api/network-sharing/qr.svg?url=" + encodeURIComponent("https://example.com/"),
+  );
+  assert.equal(unavailable.status, 400, "QR generation only accepts active LAN addresses");
   const base = urls[0]?.replace(/\/$/, "") || `http://127.0.0.1:${port}`;
   const browser = await chromium.launch({ headless: true });
   t.after(() => browser.close());
@@ -216,6 +315,54 @@ test("LAN browser edits the same Core settings and exposes sharing addresses on 
       document.getElementById("lanStatus").textContent.includes("Sharing is on"),
     );
     assert.equal(await page.locator("#lanEnabled").isChecked(), true);
+    if (urls.length) {
+      assert.equal(await page.locator("#lanPrivate").isVisible(), false);
+      assert.equal(await page.locator("#lanQr").getAttribute("src"), null);
+      assert.equal(await page.locator("#lanLink").textContent(), "");
+      await page.locator("#lanReveal").click();
+      await page.locator("#lanQr").evaluate((img) => img.decode());
+      const pixels = await page.locator("#lanQr").evaluate((img) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 240;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, 240, 240);
+        return Array.from(ctx.getImageData(0, 0, 240, 240).data);
+      });
+      const decoded = require("jsqr")(new Uint8ClampedArray(pixels), 240, 240);
+      assert.equal(
+        decoded?.data,
+        urls[0],
+        "the displayed QR opens the actual full-controls LAN address",
+      );
+      assert.equal(await page.locator("#lanLink").getAttribute("href"), urls[0]);
+      await page.evaluate(() => {
+        window.copiedLink = null;
+        navigator.clipboard.writeText = async (text) => {
+          window.copiedLink = text;
+        };
+      });
+      await page.locator("#lanCopy").click();
+      assert.equal(await page.evaluate(() => window.copiedLink), urls[0]);
+      assert.equal(await page.locator("#lanCopy").textContent(), "Copied");
+      if (urls.length > 1) {
+        await page.locator("#lanNetwork").selectOption(urls[1]);
+        await page.locator("#lanQr").evaluate((img) => img.decode());
+        const alternate = await page.locator("#lanQr").evaluate((img) => {
+          const canvas = document.createElement("canvas");
+          canvas.width = canvas.height = 240;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, 240, 240);
+          return Array.from(ctx.getImageData(0, 0, 240, 240).data);
+        });
+        assert.equal(require("jsqr")(new Uint8ClampedArray(alternate), 240, 240)?.data, urls[1]);
+        assert.equal(await page.locator("#lanLink").getAttribute("href"), urls[1]);
+      }
+      assert(
+        await page
+          .locator("#networkSharing")
+          .evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
+      );
+    }
     assert.deepEqual(
       await page.locator("#lanEnabled").evaluate((el) => {
         const r = el.getBoundingClientRect(),

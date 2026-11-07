@@ -57,7 +57,7 @@ const REQUIRED_TOP_LEVEL_KEYS = [
 ];
 const ENGINE_KEYS = new Set(["ravelinkModApi", "node"]);
 const PERMISSION_KEYS = new Set(["network", "storage", "secrets", "ui", "process", "hardware"]);
-const CONTRIBUTES_KEYS = new Set(["panels"]);
+const CONTRIBUTES_KEYS = new Set(["panels", "actions"]);
 const PANEL_KEYS = new Set(["id", "title", "entry"]);
 function isRecord(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -302,7 +302,9 @@ function validateManifestV1(input, options = {}) {
     input.contributes !== undefined &&
     checkClosedObject(input.contributes, "$.contributes", CONTRIBUTES_KEYS, errors)
   ) {
-    if (!Array.isArray(input.contributes.panels)) {
+    if (input.contributes.panels === undefined) {
+      // Actions do not require a sandboxed HTML panel.
+    } else if (!Array.isArray(input.contributes.panels)) {
       addError(errors, "$.contributes.panels", "invalid_type", "must be an array");
     } else if (input.contributes.panels.length > 4) {
       addError(errors, "$.contributes.panels", "too_many_items", "must contain at most 4 panels");
@@ -340,6 +342,12 @@ function validateManifestV1(input, options = {}) {
       }
     }
   }
+
+  const actions = require("./mod-deck-actions").normalize(
+    input.contributes?.actions,
+    provides,
+    errors,
+  );
 
   const permissions = {};
   if (checkClosedObject(input.permissions, "$.permissions", PERMISSION_KEYS, errors)) {
@@ -528,6 +536,7 @@ function validateManifestV1(input, options = {}) {
       }),
       contributes: Object.freeze({
         panels: Object.freeze(panels.map((panel) => Object.freeze({ ...panel }))),
+        actions: Object.freeze(actions.map((action) => Object.freeze(action))),
       }),
       resources: Object.freeze(resources),
       integrity: Object.freeze({

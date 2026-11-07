@@ -217,6 +217,7 @@ module.exports = function createSongLibrary({ storePath, now = Date.now } = {}) 
   }
   let lastSubmission = -Infinity;
   return {
+    enabled: () => state.enabled,
     snapshot,
     upsert,
     configure(value) {

@@ -3,9 +3,29 @@
  */
 (() => {
   function create(workspace, $) {
-    $("intensity").oninput = () => {
-      $("intensityValue").value = $("intensity").value + "%";
-    };
+    const profiles = new Map();
+    let profileBusy = true,
+      profileReady = false;
+    function profileAvailability() {
+      const selected = $("behavior-profileMotion");
+      if (!selected || !$("behavior-profileBlendMs")) return;
+      const mode = Number(selected.value);
+      for (const key of [
+        "profileMotion",
+        "profileDepth",
+        "profileBeats",
+        "profileSpread",
+        "profileBlendMs",
+      ]) {
+        const relevant =
+          key === "profileMotion" ||
+          (mode > 0 &&
+            (key === "profileSpread" ||
+              (mode > 1 && (key !== "profileBeats" || [2, 3, 4, 7, 9].includes(mode)))));
+        $("behavior-" + key).disabled = profileBusy || !profileReady || !relevant;
+      }
+      $("profileDescription").textContent = profiles.get(mode)?.help || "";
+    }
     $("outputCeiling").oninput = () => {
       $("outputCeilingValue").value = $("outputCeiling").value + "%";
       $("maximumBrightness").value = $("outputCeiling").value;
@@ -19,14 +39,16 @@
     // controls and bindings; switching views never starts capture or stops a run.
     function showWorkspace(name) {
       const editRandom = name === "customize";
-      if (editRandom) name = "play";
-      if (!["play", "library", "customize", "setup"].includes(name)) return;
+      if (editRandom) name = "create";
+      if (!["play", "library", "create", "setup"].includes(name)) return;
       $("workspaceHelp").textContent = {
-        play: "Choose a look, colors and choreography. Changes save automatically for the next start.",
+        play: "Choose a profile and palette, then Preview or Start lights. Create holds fine tuning and your saved effects.",
+        create:
+          "Start with a profile, adjust its choreography and colors, then Preview and save your combination. Artistic edits apply at the next start; brightness smoothing applies live.",
         library:
           "Songs & automation: choose which songs trigger Auto-Rave and which saved effects it may use. Playback selection needs Apply.",
         customize:
-          "Custom settings: edit movement recipes and randomness. A preset replaces artistic settings; calibration and output limits are kept.",
+          "Custom settings: edit color styles and assignment rules. Calibration and output limits are kept.",
         setup:
           "Setup: choose capture apps, light roles and output limits. Sources and light selection need Save; calibration runs only when requested.",
       }[name];
@@ -85,22 +107,48 @@
           option.allowed.length === 1 &&
           option.allowed[0] === "generated") ||
           (option.mode === "fixed" && option.value === "generated"));
-      const custom =
+      const configured =
         !option ||
         option.mode === "configured" ||
         (option.mode === "fixed" && option.value === "configured");
+      const profile = configured && design?.behaviors.profilePaletteEnabled;
+      const custom = configured && !profile;
       if (!busy)
-        $("paletteSource").value = generated ? "generated" : custom ? "custom" : "advanced";
+        $("paletteSource").value = generated
+          ? "generated"
+          : profile
+            ? "profile"
+            : custom
+              ? "custom"
+              : "advanced";
+      $("profilePalette").hidden = !profile || generated;
+      $("profilePalette").replaceChildren(
+        ...(profile && !generated
+          ? profiles.get(design.behaviors.profileMotion)?.design.palette || []
+          : []
+        ).map((color) => {
+          const swatch = document.createElement("span");
+          swatch.style.backgroundColor = color;
+          swatch.title = color;
+          return swatch;
+        }),
+      );
       $("palette").hidden = !custom;
       $("addColor").disabled = busy || !ready || !custom || $("palette").children.length >= 8;
       $("paletteHint").textContent = generated
         ? "A fresh warm / cool palette each start, with recent combinations avoided."
-        : custom
-          ? "Choose 2–8 distinct colors."
-          : "Colors come from your look or advanced pool. Choose Your colors to edit them.";
+        : profile
+          ? "Colors matched to this profile. Choose Your colors to use your retained custom palette."
+          : custom
+            ? "Choose 2–8 distinct colors."
+            : "Colors come from your look or advanced pool. Choose Your colors to edit them.";
       globalThis.RaveLinkMusicChoices.sync();
     }
     function renderRandomPalette(pipeline) {
+      const profile = profiles.get(pipeline?.effective?.behaviors.profileMotion);
+      $("profileStatus").textContent = pipeline
+        ? `Playing: ${profile?.label || "Custom profile"}`
+        : "";
       const colors = pipeline?.effective?.palette || [];
       const random = pipeline?.recipe?.palette === "generated";
       $("randomPalette").hidden = !random;
@@ -144,16 +192,18 @@
     }
 
     function addLook(look) {
+      if (look.kind === "profile") profiles.set(look.design.behaviors.profileMotion, look);
       const card = document.createElement("button"),
         title = document.createElement("strong"),
         colors = document.createElement("span");
       card.type = "button";
       card.dataset.look = look.id;
+      card.dataset.kind = look.kind;
       card.setAttribute("aria-pressed", "false");
       card.title = `${look.help} Applying this preset keeps calibration and output limits.`;
       title.textContent =
         look.id === "smooth-reference"
-          ? "Smooth Pulse"
+          ? "Color-led audio"
           : look.id === "rave-mix"
             ? "Smart random"
             : look.label;
@@ -167,25 +217,30 @@
       const description = document.createElement("small");
       description.textContent =
         {
-          "smooth-reference": "Smooth attacks · flowing handoff",
-          "electric-pulse": "Crisp attacks · the room together",
-          "rave-mix": "Compatible movement, color and pace",
+          "smooth-reference": "Audio dynamics · rhythmic colors",
+          "electric-pulse": "Electric palette · keep your response",
+          "rave-mix": "Audio-led colors · fresh combinations",
         }[look.id] || look.help.split(".")[0];
+      if (look.kind === "profile")
+        description.textContent = `${look.summary} · ${look.lights}+ ${look.lights === 1 ? "light" : "lights"}`;
       card.append(colors, title, description);
       card.onclick = () => {
         $("look").value = look.id;
         $("look").dispatchEvent(new Event("change"));
       };
-      if (["smooth-reference", "rave-mix", "electric-pulse"].includes(look.id))
-        $("lookCards").insertBefore(card, $("moreLooks"));
+      if (look.kind !== "palette") $("lookCards").insertBefore(card, $("moreLooks"));
       else $("extraLookCards").append(card);
     }
     function controls(busy, ready) {
+      profileBusy = busy;
+      profileReady = ready;
+      $("behavior-randomProfileEnabled").disabled = busy || !ready;
       $("transitions")
         .querySelectorAll("input,select,button")
         .forEach((input) => {
           input.disabled = busy || !ready;
         });
+      profileAvailability();
       $("lookCards")
         .querySelectorAll("button")
         .forEach((button) => {
@@ -248,7 +303,12 @@
         for (const [value, label] of Object.entries(field.choices))
           input.add(new Option(label, value));
       } else {
-        input.type = field.type === "boolean" ? "checkbox" : "number";
+        input.type =
+          field.type === "boolean"
+            ? "checkbox"
+            : field.stage === "choreography"
+              ? "range"
+              : "number";
         if (field.type === "number") {
           input.min = field.min;
           input.max = field.max;
@@ -258,11 +318,34 @@
       return input;
     }
     function placeEditor(field, row, group) {
+      if (field.stage === "choreography") {
+        const input = row.querySelector("input,select"),
+          output = document.createElement("output");
+        output.htmlFor = input.id;
+        const update = () => {
+          output.textContent = field.choices
+            ? ""
+            : field.id === "profileBlendMs"
+              ? input.value + " ms"
+              : Math.round(input.value * 100) + "%";
+          if (field.id === "profileMotion") profileAvailability();
+        };
+        input.oninput = update;
+        if (field.id === "profileMotion")
+          input.onchange = () => {
+            $("look").value = profiles.get(Number(input.value)).id;
+            $("look").dispatchEvent(new Event("change"));
+          };
+        row.insertBefore(output, input.nextSibling);
+        row.title = field.help;
+        update();
+      }
       (/^(opening|ending)/.test(field.id) ? $("transitionControls") : group).append(row);
     }
     const labels = { all: "Overall", low: "Bass", mid: "Mids", high: "Treble" };
     const presetHelp = {
-      pulse: "Distinct measured attacks and decay; held notes settle to a dimmer bed.",
+      pulse:
+        "Brightness follows measured musical energy. Rhythmic hits change colors with equal timing in quiet and loud passages.",
     };
     const errors = {
       ...window.RaveLinkSavedEffects.errors,
@@ -276,7 +359,7 @@
         "Check randomized ranges against the displayed parameter limits and steps.",
       music_no_recipe_choices: "Allow at least one choice for each randomized recipe axis.",
       music_no_compatible_recipes:
-        "These limits leave no compatible composition. Allow another movement, color motion or pace, or widen the parameter ranges in Movement & random rules.",
+        "These limits leave no compatible composition. Allow another color style or pace, or widen the ranges in Color & assignment rules.",
       music_transport_changed:
         "The planned Hue stream was unavailable at start. Start again to choose a composition for the current transport.",
       music_calibration_superseded:
@@ -286,7 +369,7 @@
       music_calibration_volume_changed:
         "The mixer level or audio route changed during calibration. Keep both volumes steady and try again; the previous reference was kept.",
       music_no_fixture_effects:
-        "No allowed group fits these lights. Travelling groups need two distinct positions and enough update speed; allow Pulse or use one coordinated look.",
+        "No allowed color job fits these lights. Allow audio attacks, frequency colors or energy colors, or use one coordinated look.",
       music_calibration_too_quiet:
         "The measured audio is too quiet for a useful reference. Keep a comfortable listening level and check the selected source.",
       music_selected_app_not_running:
@@ -307,6 +390,112 @@
       music_response_too_large:
         "The source list exceeds this preview’s display limit. Close unused audio applications or endpoints, then refresh.",
     };
+    async function applyLook(look, design, configure) {
+      const next =
+        look.kind === "palette"
+          ? {
+              ...design,
+              behaviors: { ...design.behaviors, profilePaletteEnabled: false },
+              palette: [...look.design.palette],
+              recipeOptions: {
+                ...design.recipeOptions,
+                palette: { mode: "configured", value: "configured", allowed: ["configured"] },
+              },
+            }
+          : look.kind === "profile"
+            ? {
+                ...design,
+                ...look.design,
+                palette: [...design.palette],
+                behaviors: {
+                  ...design.behaviors,
+                  ...look.design.behaviors,
+                  profilePaletteEnabled: true,
+                },
+                recipeOptions: {
+                  palette: design.recipeOptions.palette || {
+                    mode: "configured",
+                    value: "configured",
+                    allowed: ["configured"],
+                  },
+                  ...(design.recipeOptions.paletteScope
+                    ? { paletteScope: design.recipeOptions.paletteScope }
+                    : {}),
+                },
+              }
+            : {
+                ...design,
+                scenarioMode: "manual",
+                recipeOptions: {},
+                parameterRanges: {},
+                ...look.design,
+                behaviors: { ...design.behaviors, ...look.design.behaviors },
+              };
+      await configure(next);
+    }
+    function editPipelineStage(id) {
+      if (id === "scenario" || id === "color") {
+        showWorkspace("customize");
+        $("randomRules").scrollIntoView({ block: "nearest" });
+      } else if (id === "source" || id === "analysis" || id === "output") {
+        showWorkspace("setup");
+        const target = id === "output" ? $("tuning") : $("setup");
+        target.open = true;
+        target.scrollIntoView({ block: "nearest" });
+      } else {
+        showWorkspace("create");
+        if (id === "shape") {
+          $("arrangement").closest("details").open = true;
+          $("arrangement").scrollIntoView({ block: "nearest" });
+        } else {
+          $("catalogPanel").open = true;
+          if (id === "layers") $("layerControls").scrollIntoView({ block: "nearest" });
+          else {
+            $("fineControls").open = true;
+            $("stage-" + id).open = true;
+            $("stage-" + id).scrollIntoView({ block: "nearest" });
+          }
+        }
+      }
+    }
+    function responseControls(design, waiting, available) {
+      for (const id of ["rateHoldMs", "rateRiseThreshold"]) {
+        const input = $("behavior-" + id);
+        if (input) input.disabled = waiting || !available || design?.outputRateMode !== "adaptive";
+      }
+      const vivid = $("behavior-colorVibrance");
+      const mixed =
+        design?.recipeOptions.effect && design.recipeOptions.effect.mode !== "configured";
+      const effect = design?.recipeOptions.effect;
+      const color = design?.recipeOptions.color;
+      const choices = (axis, fallback) =>
+        axis?.mode === "random" ? axis.allowed : [axis?.mode === "fixed" ? axis.value : fallback];
+      const modes = mixed
+        ? choices(effect).map(
+            (id) => ({ pulse: "onsets", wave: "roles", bounce: "energy", handoff: "travel" })[id],
+          )
+        : choices(color, design?.colorMode);
+      $("colorSeconds").disabled =
+        waiting ||
+        !available ||
+        !modes.includes("travel") ||
+        design?.warmCoolColors ||
+        !design?.behaviors.colorEnabled;
+      const fade = $("behavior-colorBlendMs");
+      if (fade)
+        fade.disabled =
+          waiting ||
+          !available ||
+          !design?.behaviors.colorEnabled ||
+          (!design?.warmCoolColors && !modes.some((id) => ["onsets", "roles"].includes(id)));
+      if (vivid)
+        vivid.disabled =
+          waiting ||
+          !available ||
+          !design?.behaviors.colorEnabled ||
+          modes.every((id) => id === "fixed") ||
+          design?.warmCoolColors;
+    }
     function notice(text, error = false, origin = "action") {
       $("notice").textContent = text;
       $("notice").dataset.error = String(error);
@@ -325,6 +514,9 @@
         failed: "Stopped after a session error",
       },
       errors,
+      applyLook,
+      editPipelineStage,
+      responseControls,
       paletteControls,
       palette: renderPalette,
       randomPalette: renderRandomPalette,

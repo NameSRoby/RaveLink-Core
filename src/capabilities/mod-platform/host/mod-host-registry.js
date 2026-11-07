@@ -84,6 +84,13 @@ module.exports = function createModHostRegistry(options = {}) {
         };
   const catalog = new Map();
   const supervisors = new Map();
+  function saveEnabledPreference(id, enabled) {
+    try {
+      options.onEnabledPreference?.(id, enabled);
+    } catch {
+      (options.log || console).warn?.(`[MOD] ${id}: enabled preference could not be saved`);
+    }
+  }
   const resourceMonitor =
     options.resourceMonitor ||
     createModResourceMonitor({
@@ -126,6 +133,9 @@ module.exports = function createModHostRegistry(options = {}) {
       resources: row.valid ? { ...row.manifest.resources } : null,
       provides: row.valid ? [...row.manifest.provides] : [],
       consumes: row.valid ? [...row.manifest.consumes] : [],
+      actions: row.valid
+        ? row.manifest.contributes.actions.map((action) => structuredClone(action))
+        : [],
       uiContributions:
         row.valid && row.manifest.permissions.ui
           ? row.manifest.contributes.panels.map((panel) => ({
@@ -214,6 +224,7 @@ module.exports = function createModHostRegistry(options = {}) {
         continue;
       }
       const validation = validateManifestV1(read.value);
+      if (options.allowedModIds && !options.allowedModIds.includes(read.value?.id)) continue;
       const fallbackId = `invalid.${
         directory.name
           .toLowerCase()
@@ -321,6 +332,7 @@ module.exports = function createModHostRegistry(options = {}) {
       supervisors.set(id, supervisor);
     }
     const started = await supervisor.start();
+    if (started?.lifecycle === "active") saveEnabledPreference(id, true);
     if (started?.lifecycle === "active" && started.pid > 0)
       resourceMonitor.register(id, started.pid, admission.manifest || row.manifest);
     return started;
@@ -329,6 +341,7 @@ module.exports = function createModHostRegistry(options = {}) {
   async function disable(modId) {
     const id = String(modId || "");
     if (!catalog.has(id)) return { ok: false, error: "mod_not_found", modId: id };
+    saveEnabledPreference(id, false);
     const supervisor = supervisors.get(id);
     if (!supervisor) return { ok: true, modId: id, lifecycle: "installed-disabled" };
     const stopped = await supervisor.stop();
@@ -348,6 +361,38 @@ module.exports = function createModHostRegistry(options = {}) {
         },
       });
     return supervisor.request(capability, method, payload, requestOptions);
+  }
+
+  function invokeAction(modId, actionId, params, requestOptions) {
+    const row = catalog.get(String(modId || ""));
+    const action = row?.manifest.contributes.actions.find((a) => a.id === actionId);
+    if (
+      !row?.valid ||
+      !action ||
+      supervisors.get(row.id)?.getStatus()?.lifecycle !== "active" ||
+      !require("../../../shared/contracts/bounded-json-schema").validateValue(
+        action.parameters,
+        params,
+      )
+    )
+      return Promise.resolve({
+        ok: false,
+        error: {
+          code: "mod_action_unavailable",
+          message: "Action is unavailable or its parameters are invalid",
+          retryable: false,
+        },
+      });
+    return request(row.id, action.capability, action.method, params, requestOptions);
+  }
+  function readActionState(modId, actionId) {
+    const row = catalog.get(String(modId || "")),
+      action = row?.manifest.contributes.actions.find((a) => a.id === actionId);
+    if (!action?.stateMethod || supervisors.get(row.id)?.getStatus()?.lifecycle !== "active")
+      return Promise.resolve(null);
+    // Windows accessibility can take over a second to start. Let the bounded
+    // desktop owner finish (or enforce its own deadline) before cancelling it.
+    return request(row.id, action.capability, action.stateMethod, {}, { timeoutMs: 5000 });
   }
 
   async function readUiContribution(modId, panelId) {
@@ -418,6 +463,8 @@ module.exports = function createModHostRegistry(options = {}) {
     publishCapabilityEvent,
     registerHostCapability,
     request,
+    invokeAction,
+    readActionState,
     requestCapability,
     shutdown,
   });

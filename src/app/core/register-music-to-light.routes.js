@@ -34,14 +34,21 @@ module.exports = function registerMusicToLightRoutes(app, { host }) {
     res.json({
       ok: true,
       value: {
-        revision: 27,
+        revision: 33,
         compositionRules: require("../../../integrations/music-to-light/recipe-compatibility.cjs")
           .combinations,
-        recipeAxes: require("../../../integrations/music-to-light/recipe.cjs").axes,
-        looks: require("../../../integrations/music-to-light/looks.cjs"),
-        behaviors: require("../../../integrations/music-to-light/behavior-settings.cjs").catalog,
-        scenarios: require("../../../integrations/music-to-light/scenarios.cjs").definitions,
-        baseline: require("../../../integrations/music-to-light/profiles/accepted-baseline-v1.json"),
+        recipeAxes: require("../../../integrations/music-to-light/native-catalog.cjs").recipeAxes,
+        looks: require("../../../integrations/music-to-light/native-catalog.cjs").looks,
+        behaviors: require("../../../integrations/music-to-light/native-catalog.cjs").behaviors,
+        scenarios: [
+          {
+            id: "pulse",
+            label: "Color-led audio",
+            help: "Steady audio brightness and independent music-led color styles.",
+            preset: "pulse",
+          },
+        ],
+        baseline: require("../../../integrations/music-to-light/native-catalog.cjs").baseline,
       },
     }),
   );

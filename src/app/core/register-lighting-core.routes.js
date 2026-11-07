@@ -76,6 +76,24 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
         .status(429)
         .json({ ok: false, error: "widget_template_rate_limited" }),
   });
+  // Bound even rejected credentials before verification. The token bucket below
+  // still independently budgets authenticated event intake.
+  const widgetEventAttempts = rateLimit({
+    windowMs: 60000,
+    limit: 600,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    handler: (_req, res) => {
+      options.widgetController?.recordRejected?.("rate_limited");
+      res.setHeader("Cache-Control", "no-store");
+      res.status(429).json({
+        ok: false,
+        contract: "widget.events.v2",
+        disposition: DISPOSITIONS.RATE_LIMITED,
+        error: "widget_auth_rate_limited",
+      });
+    },
+  });
   const core = options.core;
   const widgetController = options.widgetController;
   const widgetIntakeLimiter = options.widgetIntakeLimiter;
@@ -683,7 +701,7 @@ module.exports = function registerLightingCoreRoutes(app, options = {}) {
     res.setHeader("Cache-Control", "no-store");
     return res.status(result.status || (result.ok ? 200 : 500)).json(result);
   });
-  app.post("/widget/events", async (req, res, next) => {
+  app.post("/widget/events", widgetEventAttempts, async (req, res, next) => {
     try {
       const received = readWidgetIntakeTokenFromRequest(req, req.body || {});
       const authorization = widgetTokenVault.verify(received);

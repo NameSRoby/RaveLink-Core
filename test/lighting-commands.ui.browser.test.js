@@ -109,5 +109,28 @@ test("Light Commands builds and copies guides from active saved routes", async (
     (await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n"),
     compact,
   );
+  await page.locator('[data-guide-format="twitch"]').click();
+  const twitch = await page.locator("#compactLightCommands").textContent();
+  assert.match(twitch, /\*\*RAVELINK LIGHT COMMANDS\*\*/);
+  assert.match(twitch, /&lt;color&gt;/);
+  await page.locator('[data-guide-format="discord"]').click();
+  const discord = await page.locator("#compactLightCommands").textContent();
+  assert.match(discord, /^```text\n/);
+  assert(discord.length < 2000);
+  await page.locator('[data-guide-length="detailed"]').click();
+  assert.equal(await page.locator('[data-guide-card="compact"]').isVisible(), false);
+  assert.equal(await page.locator('[data-guide-card="detailed"]').isVisible(), true);
+  assert((await page.locator("#detailedLightCommands").textContent()).length < 2000);
+  if (await page.locator("#lightGuideNextPart").isVisible()) {
+    const first = await page.locator("#detailedLightCommands").textContent();
+    await page.locator("#lightGuideNextPart").click();
+    assert.notEqual(await page.locator("#detailedLightCommands").textContent(), first);
+    await page.locator("#copyDetailedLightCommands").click();
+    await page.locator("#copyDetailedLightCommands").filter({ hasText: "COPIED" }).waitFor();
+    assert.equal(
+      (await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, "\n"),
+      await page.locator("#detailedLightCommands").textContent(),
+    );
+  }
   assert.deepEqual(errors, []);
 });

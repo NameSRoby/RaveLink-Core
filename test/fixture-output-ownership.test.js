@@ -61,6 +61,63 @@ function environment(overrides = {}) {
   };
 }
 
+test("held targets renew fresh leases, accumulate small changes and refresh the stream", async () => {
+  const e = environment(),
+    s = e.service;
+  const lease = await s.acquire({ fixtureId: "a", owner: "pulse", kind: "music", ttlMs: 1500 });
+  const target = {
+    on: true,
+    bri: 100,
+    xy: [0.3, 0.4],
+    __entertainment: true,
+    __rgb: { r: 100, g: 20, b: 10 },
+  };
+  const write = (at, state = target) => {
+    e.set(at);
+    return s.write(lease.token, state, { sampledAt: at, holdUnchanged: true });
+  };
+  assert.equal((await write(0)).sent, 1);
+  assert.equal((await write(63, { ...target, bri: 101 })).held, true);
+  assert.equal((await write(126, { ...target, bri: 102 })).held, true);
+  assert.equal((await write(189, { ...target, bri: 103 })).sent, 1);
+  const changed = { ...target, bri: 103 };
+  for (let at = 250; at <= 6250; at += 250) {
+    await write(at, changed);
+    await s.expire();
+    assert.equal(s.has(lease.token), true, "holding must not lose ownership");
+  }
+  assert.ok(e.writes.length >= 7 && e.writes.length <= 8, "refresh at one Hz, not sixteen");
+  const before = e.writes.length;
+  assert.equal(
+    (await write(6313, { ...changed, bri: 254 })).sent,
+    1,
+    "the next attack is immediate",
+  );
+  assert.equal(e.writes.length, before + 1);
+  await assert.rejects(s.write(lease.token, changed, { sampledAt: 0, holdUnchanged: true }), {
+    code: "stale_music_intent",
+  });
+  await s.manualWrite("a", { on: false, bri: 20 });
+  await assert.rejects(write(6376), { code: "fixture_lease_expired_or_replaced" });
+  await s.shutdown();
+});
+
+test("holding compares confirmed output across preemption and fresh music resumption", async () => {
+  const e = environment(),
+    s = e.service;
+  const music = await s.acquire({ fixtureId: "a", owner: "pulse", kind: "music" });
+  const target = { on: true, bri: 90, ct: 350 };
+  const options = { sampledAt: 0, holdUnchanged: true };
+  await s.write(music.token, target, options);
+  const effect = await s.acquire({ fixtureId: "a", owner: "viewer", kind: "effect" });
+  await s.write(effect.token, { on: true, bri: 200, xy: [0.6, 0.3] });
+  assert.equal((await s.write(music.token, target, options)).suspended, true);
+  await s.release(effect.token);
+  assert.deepEqual(e.states.get("a"), target, "resumption must actually replace the effect");
+  assert.equal((await s.write(music.token, target, options)).held, true);
+  await s.shutdown();
+});
+
 test("effect preemption resumes the latest music intent and preserves the original native baseline", async () => {
   const e = environment(),
     s = e.service;
@@ -97,6 +154,30 @@ test("cinematic release interpolates owned states and finishes with the exact na
   await s.releaseOwner("cinema", { fadeMs: 500, style: 1 });
   assert(e.writes.some((write) => write.kind === "write" && write.state.bri < 180));
   assert.deepEqual(e.states.get("a"), baseline);
+  assert.equal(s.snapshot().fixtures.length, 0);
+  await s.shutdown();
+});
+test("center-out return preserves exact native state and releases every lease", async () => {
+  const e = environment(),
+    s = e.service;
+  const originals = structuredClone(e.states);
+  for (const id of ["a", "b"]) {
+    const lease = await s.acquire({ fixtureId: id, kind: "music", owner: "center-return" });
+    await s.write(
+      lease.token,
+      id === "a"
+        ? { on: true, bri: 180, xy: [0.5, 0.3] }
+        : { on: true, dimming: 75, r: 255, g: 0, b: 90 },
+      { sampledAt: 0 },
+    );
+  }
+  await s.releaseOwner("center-return", {
+    fadeMs: 500,
+    style: 4,
+    fixtureOrder: ["a", "b"],
+    maxHz: 12,
+  });
+  assert.deepEqual(e.states, originals);
   assert.equal(s.snapshot().fixtures.length, 0);
   await s.shutdown();
 });

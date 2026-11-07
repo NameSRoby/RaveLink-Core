@@ -28,7 +28,7 @@ globalThis.RaveLinkMusicLibrary = {
       ready = available;
       document
         .querySelectorAll(
-          ".musicContrastPanel input, .musicContrastPanel select, .musicContrastPanel button, .musicAutoCard input, .musicAutoCard button, .musicSessionActions button, .musicQuickPanel input, .musicQuickPanel select, .musicSongLibrary input, .musicSongLibrary select, .musicSongLibrary button, .musicViewerSaves select, .musicViewerSaves button",
+          "#music-contrastAmount, #music-contrastScope, #music-contrastLights button, .musicAutoCard input, .musicAutoCard button, .musicSessionActions button, .musicQuickPanel input, .musicQuickPanel select, .musicSongLibrary input, .musicSongLibrary select, .musicSongLibrary button, .musicViewerSaves select, .musicViewerSaves button",
         )
         .forEach((input) => {
           input.disabled = busy || !available;
@@ -36,12 +36,6 @@ globalThis.RaveLinkMusicLibrary = {
       $("contrastAmount").disabled ||= !contrastRows().some(
         (f) => $("contrastScope").value === "all" || contrastTargets.has(f.id),
       );
-      $("quickAccent").disabled ||=
-        !getView()?.design.behaviors.loudnessBrightness ||
-        getView()?.design.behaviors.steadyBrightness;
-      $("quickImpact").disabled ||=
-        !getView()?.design.behaviors.loudnessBrightness ||
-        getView()?.design.behaviors.steadyBrightness;
       $("rememberSong").disabled ||= !library?.current;
       $("autoRave").disabled ||= !getView()?.design.raveEnabled && !library?.enabled;
       $("startRave").disabled ||=
@@ -52,6 +46,7 @@ globalThis.RaveLinkMusicLibrary = {
       $("bookmark").disabled ||=
         !getView()?.status.session ||
         ["idle", "stopped", "failed"].includes(getView()?.status.state);
+      $("saveCurrentEffect").disabled = $("bookmark").disabled;
     }
     function button(label, fn) {
       const node = element("button", label);
@@ -74,7 +69,6 @@ globalThis.RaveLinkMusicLibrary = {
         songTitle: song.title,
         songArtist: song.artist,
         songEffect: song.effectId,
-        songIntensity: song.intensity === null ? "" : Math.round(song.intensity * 100),
       }))
         $(id).value = value;
       $("songSubmit").textContent = "Save changes";
@@ -102,7 +96,7 @@ globalThis.RaveLinkMusicLibrary = {
             element("strong", song.title),
             element(
               "span",
-              `${song.artist || song.provider} · ${profiles.find((p) => p.id === song.effectId)?.name || (song.effectId ? "Saved effect unavailable" : "Current playback selection")}${song.intensity === null ? "" : " · " + Math.round(song.intensity * 100) + "% intensity"}`,
+              `${song.artist || song.provider} · ${profiles.find((p) => p.id === song.effectId)?.name || (song.effectId ? "Saved effect unavailable" : "Current playback selection")}`,
             ),
           );
           const actions = element("div", undefined, "actions");
@@ -224,32 +218,11 @@ globalThis.RaveLinkMusicLibrary = {
       const d = getView()?.design;
       if (!d) return;
       const values = {
-        quickBrightness: d.behaviors.steadyBrightness
-          ? "steady"
-          : d.behaviors.loudnessBrightness
-            ? "loudness"
-            : "reactive",
-        quickAccent: Math.round(d.behaviors.accentDepth * 100),
-        quickImpact: Math.round(d.behaviors.impactDepth * 100),
-        quickRise: d.behaviors.loudnessBrightness
-          ? d.behaviors.bodyAttackMs
-          : d.behaviors.outputAttackMs,
-        quickRelease: d.behaviors.loudnessBrightness
-          ? d.behaviors.bodyReleaseMs
-          : d.behaviors.outputReleaseMs,
+        quickRise: d.behaviors.literalAttackMs,
+        quickRelease: d.behaviors.literalReleaseMs,
       };
-      $("quickBrightnessHint").textContent = (
-        getView()?.pipeline?.effective.behaviors || d.behaviors
-      ).steadyBrightness
-        ? "Steady level is on: audio does not change brightness or create brightness pulses. Choose Loudness foundation, pulse accents for musical brightness."
-        : "Brightness mode changes apply immediately; the current color recipe stays locked.";
-      $("quickRise").min = d.behaviors.loudnessBrightness ? 20 : 0;
-      $("quickRise").max = d.behaviors.loudnessBrightness ? 1000 : 200;
-      $("quickRelease").min = d.behaviors.loudnessBrightness ? 50 : 0;
-      $("quickRelease").max = d.behaviors.loudnessBrightness ? 1500 : 500;
-      $("quickAccent").disabled = !d.behaviors.loudnessBrightness || d.behaviors.steadyBrightness;
-      $("quickAccentValue").textContent = `${values.quickAccent}%`;
-      $("quickImpactValue").textContent = `${values.quickImpact}%`;
+      $("quickBrightnessHint").textContent =
+        "Brightness follows measured energy across the calibrated range. Rise and fall control its response. Measured hits change color with the same timing in quiet and loud passages.";
       for (const [id, value] of Object.entries(values)) {
         const input = $(id);
         if (document.activeElement === input) continue;
@@ -343,8 +316,7 @@ globalThis.RaveLinkMusicLibrary = {
           title: $("songTitle").value.trim(),
           artist: $("songArtist").value.trim(),
           effectId: $("songEffect").value,
-          intensity:
-            $("songIntensity").value === "" ? null : Number($("songIntensity").value) / 100,
+          intensity: null,
         });
         resetForm();
         $("libraryStatus").textContent = "Song saved. Edit it here any time.";
@@ -389,32 +361,20 @@ globalThis.RaveLinkMusicLibrary = {
       $(id).oninput = () => {
         $(output).textContent = $(id).value + " ms";
       };
-    for (const id of ["quickBrightness", "quickAccent", "quickImpact", "quickRise", "quickRelease"])
+    for (const id of ["quickRise", "quickRelease"])
       $(id).onchange = () =>
         run(async () => {
           const d = getView().design;
-          const loudness = $("quickBrightness").value === "loudness";
-          const timing = {};
-          if (id === "quickRise")
-            timing[loudness ? "bodyAttackMs" : "outputAttackMs"] = Number($("quickRise").value);
-          if (id === "quickRelease")
-            timing[loudness ? "bodyReleaseMs" : "outputReleaseMs"] = Number(
-              $("quickRelease").value,
-            );
-          const design = {
+          await call("music.styles.v1", "configure", {
             ...d,
+            interpretation: "literal",
             behaviors: {
               ...d.behaviors,
-              steadyBrightness: $("quickBrightness").value === "steady",
-              loudnessBrightness: $("quickBrightness").value === "loudness",
-              accentDepth: Number($("quickAccent").value) / 100,
-              impactDepth: Number($("quickImpact").value) / 100,
-              ...timing,
+              [id === "quickRise" ? "literalAttackMs" : "literalReleaseMs"]: Number($(id).value),
             },
-          };
-          await call("music.styles.v1", "configure", design);
+          });
           renderView(await request("/api/music-to-light/operator"), true);
-        }, id === "quickBrightness");
+        });
     return { refresh, syncDesign, controls };
   },
 };

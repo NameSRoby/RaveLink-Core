@@ -6,6 +6,7 @@
 const path = require("node:path");
 const { read, replaceBlock, syncFile } = require("./lib/embedded-assets");
 const root = path.resolve(__dirname, "../features/song-request/ui");
+const browserId = read(path.resolve(__dirname, "../public/core/browser-random-id.js"));
 const scripts = [
   "player-youtube.js",
   "player-youtube-browser.js",
@@ -30,7 +31,12 @@ syncFile(
   path.join(root, "player.html"),
   (content) =>
     replaceBlock(
-      content,
+      replaceBlock(
+        content,
+        "<!-- PLAYER RANDOM ID START -->",
+        "<!-- PLAYER RANDOM ID END -->",
+        `\n<script>\n${browserId}\n</script>\n`,
+      ),
       "<!-- PLAYER PROVIDERS START -->",
       "<!-- PLAYER PROVIDERS END -->",
       `\n<style>\n${css}\n</style>\n<script>\n${script}\n</script>\n`,

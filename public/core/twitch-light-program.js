@@ -1,4 +1,6 @@
+import { renderViewerGroups } from "./viewer-fixture-groups.js";
 import { initViewerRave } from "./viewer-rave.js";
+import "./browser-random-id.js";
 /**
  * Twitch light program.
  * Developer context and change constraints:
@@ -13,19 +15,39 @@ export function initTwitchLightProgram({
 }) {
   const $ = (id) => document.getElementById(id);
   const viewerRave = initViewerRave({ request, getFixtures });
+  let section = "groups";
+  for (const button of document.querySelectorAll("[data-viewer-section]")) {
+    button.onclick = () => {
+      section = button.dataset.viewerSection;
+      $("saveTwitchProgram").hidden = ["rave", "preview"].includes(section);
+      $("saveTwitchProgram").textContent = section === "effects" ? "Save effects" : "Save changes";
+      $("saveTwitchProgram").disabled = section === "effects" ? !effectState?.ok : !state?.ok;
+      document
+        .querySelectorAll("[data-viewer-section]")
+        .forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+      document.querySelectorAll("[data-viewer-pane]").forEach((pane) => {
+        pane.hidden = pane.dataset.viewerPane !== button.dataset.viewerSection;
+      });
+    };
+  }
+  $("viewerColorsEnabled").onchange = () => {
+    $("twitchRoutingMode").value = $("viewerColorsEnabled").checked ? "assignments" : "off";
+    $("twitchRoutingMode").dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  $("parserDefaultBrightness").oninput = () => {
+    $("viewerBrightnessValue").value = $("parserDefaultBrightness").value + "%";
+  };
   let state = initialState,
     draftRules = [],
     busy = false,
-    selectedFixture = "",
+    selectedGroup = "active-fixtures",
     effectState = initialEffectState;
   const notice = (text) => {
     $("twitchProgramNotice").textContent = text;
   };
-  const markDirty = () => notice("UNSAVED CHANGES // SELECT SAVE PROGRAM TO APPLY THIS ROUTING");
-  const fixtureName = (row) =>
-    `${row.name || row.id}${row.missing ? " (missing)" : !row.enabled || !row.twitchEnabled ? " (Twitch disabled)" : ""}`;
+  const markDirty = () => notice("Unsaved changes");
 
-  function normalizedRules(rules) {
+  function normalizedRules(rules = []) {
     const claimed = new Set(),
       activeIds = [],
       groups = [];
@@ -203,9 +225,6 @@ export function initTwitchLightProgram({
           : error.message;
     }
   }
-  function ownerOf(id) {
-    return draftRules.find((row) => row.fixtureIds.includes(id));
-  }
   function moveFixture(id, destination) {
     if (!id) return;
     draftRules.forEach((row) => {
@@ -213,66 +232,9 @@ export function initTwitchLightProgram({
     });
     if (destination !== "available")
       draftRules.find((row) => row.id === destination)?.fixtureIds.push(id);
-    selectedFixture = "";
+    selectedGroup ||= "active-fixtures";
     renderBoard();
     markDirty();
-  }
-  function fixtureChip(row) {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = `fixtureChip${selectedFixture === row.id ? " selected" : ""}`;
-    chip.draggable = true;
-    chip.dataset.fixtureId = row.id;
-    chip.textContent = fixtureName(row);
-    chip.title = "Drag to another box, or select then choose a destination";
-    chip.ondragstart = (event) => {
-      event.dataTransfer.setData("text/plain", row.id);
-      event.dataTransfer.effectAllowed = "move";
-    };
-    chip.onclick = (event) => {
-      event.stopPropagation();
-      selectedFixture = selectedFixture === row.id ? "" : row.id;
-      renderBoard();
-    };
-    return chip;
-  }
-  function dropZone(id, title, fixtures, controls) {
-    const zone = document.createElement("section");
-    zone.className = "fixtureDropZone";
-    zone.dataset.dropZone = id;
-    const head = document.createElement("div");
-    head.className = "fixtureZoneHead";
-    const heading = document.createElement("h4");
-    heading.textContent = `${title} (${fixtures.length})`;
-    head.append(heading);
-    if (controls) head.append(controls);
-    zone.append(head);
-    const list = document.createElement("div");
-    list.className = "fixtureChipList";
-    list.append(...fixtures.map(fixtureChip));
-    if (!fixtures.length) {
-      const empty = document.createElement("span");
-      empty.className = "emptyDropZone";
-      empty.textContent = "DROP FIXTURES HERE";
-      list.append(empty);
-    }
-    zone.append(list);
-    const receive = (event) => {
-      event.preventDefault();
-      zone.classList.add("dragOver");
-    };
-    zone.ondragenter = receive;
-    zone.ondragover = receive;
-    zone.ondragleave = () => zone.classList.remove("dragOver");
-    zone.ondrop = (event) => {
-      event.preventDefault();
-      zone.classList.remove("dragOver");
-      moveFixture(event.dataTransfer.getData("text/plain"), id);
-    };
-    zone.onclick = () => {
-      if (selectedFixture) moveFixture(selectedFixture, id);
-    };
-    return zone;
   }
   function groupControls(rule, active = false) {
     const controls = document.createElement("div");
@@ -287,12 +249,12 @@ export function initTwitchLightProgram({
       rule.enabled = check.checked;
       markDirty();
     };
-    enabled.append(check, document.createTextNode(" ENABLED"));
+    enabled.append(check, document.createTextNode(" Enabled"));
     controls.append(enabled);
     if (!active) {
       const nameLabel = document.createElement("label");
       nameLabel.className = "fixtureZoneField";
-      nameLabel.append(document.createTextNode("NAME"));
+      nameLabel.append(document.createTextNode("Name"));
       const name = document.createElement("input");
       name.value = rule.name;
       name.maxLength = 64;
@@ -304,7 +266,7 @@ export function initTwitchLightProgram({
       nameLabel.append(name);
       const prefixLabel = document.createElement("label");
       prefixLabel.className = "fixtureZoneField";
-      prefixLabel.append(document.createTextNode("PREFIX"));
+      prefixLabel.append(document.createTextNode("Command prefix"));
       const prefix = document.createElement("input");
       prefix.value = rule.prefix;
       prefix.maxLength = 32;
@@ -318,7 +280,8 @@ export function initTwitchLightProgram({
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "danger iconButton";
-      remove.textContent = "X";
+      remove.textContent = "×";
+      remove.setAttribute("aria-label", "Delete group");
       remove.title = "Delete group";
       remove.onclick = (event) => {
         event.stopPropagation();
@@ -335,64 +298,34 @@ export function initTwitchLightProgram({
     return controls;
   }
   function renderBoard() {
-    const fixtures = allFixtures(),
-      active = draftRules[0],
-      owned = new Set(draftRules.flatMap((row) => row.fixtureIds));
-    const byIds = (ids) => ids.map((id) => fixtures.find((row) => row.id === id)).filter(Boolean);
-    $("twitchFixtureBoard").replaceChildren(
-      dropZone(
-        "available",
-        "AVAILABLE FIXTURES",
-        fixtures.filter((row) => !owned.has(row.id)),
-      ),
-      dropZone(
-        active.id,
-        "ACTIVE FIXTURES // NO PREFIX",
-        byIds(active.fixtureIds),
-        groupControls(active, true),
-      ),
-      ...draftRules
-        .slice(1)
-        .map((row) =>
-          dropZone(row.id, row.name || "UNTITLED GROUP", byIds(row.fixtureIds), groupControls(row)),
-        ),
-    );
-    $("selectedFixtureMove").hidden = !selectedFixture;
-    if (selectedFixture) {
-      const currentOwner = ownerOf(selectedFixture);
-      $("selectedFixtureLabel").textContent = fixtureName(
-        fixtures.find((row) => row.id === selectedFixture) || {
-          id: selectedFixture,
-        },
-      );
-      const destinations = [
-        ["available", "AVAILABLE FIXTURES"],
-        [active.id, "ACTIVE FIXTURES"],
-        ...draftRules.slice(1).map((row) => [row.id, row.name || "UNTITLED GROUP"]),
-      ];
-      $("fixtureDestination").replaceChildren(
-        ...destinations
-          .filter(([id]) => id !== (currentOwner?.id || "available"))
-          .map(([id, name]) => {
-            const item = document.createElement("option");
-            item.value = id;
-            item.textContent = name;
-            return item;
-          }),
-      );
-    }
+    renderViewerGroups({
+      host: $("twitchFixtureBoard"),
+      rules: draftRules,
+      fixtures: allFixtures(),
+      selected: selectedGroup,
+      choose: (id) => {
+        selectedGroup = id;
+        renderBoard();
+      },
+      controls: groupControls,
+      move: moveFixture,
+    });
   }
   function accept(value) {
     state = value;
+    $("twitchProgramControls").disabled = false;
+    if (!busy && section !== "effects") $("saveTwitchProgram").disabled = false;
     draftRules = normalizedRules(state.rules);
     $("twitchRoutingMode").value = state.mode === "off" ? "off" : "assignments";
+    $("viewerColorsEnabled").checked = state.mode !== "off";
     $("parserFuzzy").checked = state.parser.allowFuzzy;
     $("parserDescriptors").checked = state.parser.allowDescriptors;
     $("parserDefaultBrightness").value = state.parser.defaultBrightness;
+    $("viewerBrightnessValue").value = state.parser.defaultBrightness + "%";
     $("teachColorPreview").checked = state.teaching?.preview !== false;
     $("teachColorChatSuccess").checked = state.teaching?.chatSuccess === true;
     $("teachColorChatFailure").checked = state.teaching?.chatFailure === true;
-    selectedFixture = "";
+    selectedGroup ||= "active-fixtures";
     renderBoard();
     changed(structuredClone(state.rules));
   }
@@ -407,6 +340,7 @@ export function initTwitchLightProgram({
       }));
   }
   function dirty() {
+    if (!state?.ok) return false;
     const original = normalizedRules(state.rules).filter(
       (row) => row.id !== "active-fixtures" || row.fixtureIds.length,
     );
@@ -422,6 +356,7 @@ export function initTwitchLightProgram({
     );
   }
   async function save() {
+    if (!state?.ok) return;
     if (busy) return;
     const rules = payloadRules();
     if (rules.some((row) => !row.name || (row.id !== "active-fixtures" && !row.prefix))) {
@@ -444,6 +379,7 @@ export function initTwitchLightProgram({
       rules,
     };
     busy = true;
+    $("saveTwitchProgram").disabled = true;
     $("twitchProgramControls").disabled = true;
     try {
       const result = await request("/twitch/lights", {
@@ -464,17 +400,19 @@ export function initTwitchLightProgram({
       );
     } finally {
       busy = false;
+      $("saveTwitchProgram").disabled = false;
       $("twitchProgramControls").disabled = false;
     }
   }
   $("addTwitchFixtureGroup").onclick = () => {
     draftRules.push({
-      id: crypto.randomUUID(),
+      id: globalThis.RaveLinkRandomId(),
       name: "New group",
       prefix: "",
       enabled: true,
       fixtureIds: [],
     });
+    selectedGroup = draftRules.at(-1).id;
     renderBoard();
     markDirty();
   };
@@ -488,15 +426,25 @@ export function initTwitchLightProgram({
     "teachColorChatFailure",
   ])
     $(id).addEventListener("change", markDirty);
-  $("saveTwitchProgram").onclick = save;
-  $("saveTwitchEffects").onclick = saveEffects;
+  $("saveTwitchProgram").onclick = () => (section === "effects" ? saveEffects() : save());
   for (const id of ["twitchEffectsEnabled", "twitchEffectsReturn"])
     $(id).onchange = () => {
       $("twitchEffectsNotice").textContent = "UNSAVED DYNAMIC COMMAND CHANGES";
     };
-  $("moveSelectedFixture").onclick = () =>
-    moveFixture(selectedFixture, $("fixtureDestination").value);
   $("refreshTwitchProgram").onclick = async () => {
+    if (section === "rave") {
+      await viewerRave.refresh();
+      return;
+    }
+    if (section === "effects") {
+      if (
+        $("twitchEffectsNotice").textContent.startsWith("UNSAVED") &&
+        !confirm("Discard unsaved effect changes?")
+      )
+        return;
+      await loadEffects();
+      return;
+    }
     if (dirty() && !confirm("Discard unsaved Twitch fixture layout edits?")) return;
     try {
       accept(await request("/twitch/lights"));
@@ -524,8 +472,9 @@ export function initTwitchLightProgram({
   };
   if (state?.ok) accept(state);
   else {
-    notice(state?.error || "Twitch program unavailable.");
+    notice("Add a light and enable viewer access in Fixtures to configure color groups.");
     $("twitchProgramControls").disabled = true;
+    $("saveTwitchProgram").disabled = true;
   }
   if (effectState?.ok) {
     $("twitchEffectsEnabled").checked = effectState.enabled === true;

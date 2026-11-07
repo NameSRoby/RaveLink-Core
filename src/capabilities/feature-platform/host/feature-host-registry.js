@@ -411,7 +411,10 @@ module.exports = function createFeatureHostRegistry(options = {}) {
             const code = /^[a-zA-Z0-9_:.-]{1,100}$/.test(status.lastError || "")
               ? status.lastError
               : "feature_worker_failed";
-            console.warn(`[FEATURE] ${row.id} ${status.lifecycle}: ${code}`);
+            const detail = /^[a-z0-9_]{1,80}$/.test(status.lastProtocolViolation || "")
+              ? ` (${status.lastProtocolViolation})`
+              : "";
+            console.warn(`[FEATURE] ${row.id} ${status.lifecycle}: ${code}${detail}`);
           }
           notifyLifecycle();
         },

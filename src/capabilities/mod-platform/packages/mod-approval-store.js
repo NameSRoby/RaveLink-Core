@@ -13,6 +13,8 @@ function canonicalGrant(manifest) {
   const permissions = manifest?.permissions || {};
   const resources = manifest?.resources || {};
   return {
+    consumes: [...(manifest?.consumes || [])].sort(),
+    provides: [...(manifest?.provides || [])].sort(),
     permissions: {
       network: [...(permissions.network || [])].sort(),
       storage: permissions.storage === true,
@@ -37,6 +39,14 @@ function diffGrants(previous = null, next) {
   const before = previous || { permissions: {}, resources: {} };
   const added = [];
   const removed = [];
+  for (const key of ["consumes", "provides"]) {
+    const beforeSet = new Set(before[key] || []),
+      afterSet = new Set(next[key] || []);
+    for (const value of afterSet)
+      if (!beforeSet.has(value)) added.push(`capabilities.${key}:${value}`);
+    for (const value of beforeSet)
+      if (!afterSet.has(value)) removed.push(`capabilities.${key}:${value}`);
+  }
   for (const key of ["network", "secrets", "hardware"]) {
     const oldSet = new Set(before.permissions?.[key] || []);
     const newSet = new Set(next.permissions?.[key] || []);

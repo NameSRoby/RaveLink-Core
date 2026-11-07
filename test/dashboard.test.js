@@ -73,7 +73,10 @@ test("dashboard reward controls admit only managed rewards, preserve closed inta
     403,
   );
   assert.equal((await send({ purpose: "all", paused: "true" })).status, 400);
-  assert.equal((await send({ purpose: "all", paused: true, rewardId: "foreign" })).status, 400);
+  assert.equal((await send({ purpose: "all", paused: true, rewardId: "foreign" })).status, 409);
+  assert.equal(writes.length, 0, "foreign reward IDs never reach the provider");
+  assert.equal((await send({ purpose: "song_request", paused: true, rewardId: "a" })).status, 409);
+  assert.equal(writes.length, 0, "an ID must match the selected managed purpose");
   const paused = await send({ purpose: "all", paused: true }).then((r) => r.json());
   assert.equal(paused.partial, false);
   assert(paused.state.rewards.every((r) => r.paused));
@@ -93,6 +96,72 @@ test("dashboard reward controls admit only managed rewards, preserve closed inta
   assert.equal((await send({ purpose: "all", paused: true })).status, 409);
   assert.equal(writes.length, before);
 });
+test("managed reward toggle owns its read/change lock and respects closed song intake", async () => {
+  const app = express();
+  const rows = [
+    { id: "a", title: "Lights", manageable: true, paused: false },
+    { id: "b", title: "Songs", manageable: true, paused: true },
+  ];
+  let release,
+    blocked = true;
+  const owner = registerRewards(app, {
+    getProvider: () => ({
+      status: () => ({
+        connected: true,
+        managedRewards: [
+          { rewardId: "a", purpose: "lights" },
+          { rewardId: "b", purpose: "song_request" },
+        ],
+      }),
+      listRewards: async () => {
+        if (blocked)
+          await new Promise((resolve) => {
+            release = resolve;
+          });
+        return { ok: true, rewards: rows };
+      },
+      setManagedRewardPaused: async ({ purpose, paused }) => {
+        rows[purpose === "lights" ? 0 : 1].paused = paused;
+        return { ok: true };
+      },
+    }),
+    registry: {
+      list: () => ({
+        features: [
+          { id: "twitch-integration", lifecycle: "active" },
+          { id: "song-request", lifecycle: "active" },
+        ],
+      }),
+      request: async () => ({ ok: true, value: { paused: true } }),
+    },
+  });
+  const first = owner.toggle();
+  await assert.rejects(owner.toggle(), /dashboard_rewards_busy/);
+  blocked = false;
+  release();
+  assert.equal((await first).partial, false);
+  assert(
+    rows.every((row) => row.paused),
+    "mixed state pauses the whole group",
+  );
+  const resumed = await owner.toggle();
+  assert.equal(resumed.partial, true);
+  assert.equal(rows[0].paused, false);
+  assert.equal(rows[1].paused, true, "song request intake owns this hold");
+  await assert.rejects(owner.toggleReward(), /dashboard_reward_request_invalid/);
+  await assert.rejects(owner.toggleReward("foreign"), /managed_rewards_unavailable/);
+  const individual = await owner.toggleReward("a");
+  assert.equal(individual.partial, false);
+  assert.equal(individual.results.length, 1);
+  assert.equal(individual.results[0].id, "a");
+  assert(rows.every((row) => row.paused));
+  assert.equal(
+    (await owner.toggleReward("b")).partial,
+    true,
+    "individual song rewards retain the intake hold",
+  );
+});
+
 test("Core-only dashboard works with empty private state and rejects foreign readers", async (t) => {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-dashboard-"));
   const created = createCoreServer({ runtimeDir, dryRun: true });
@@ -136,6 +205,28 @@ test("Core-only dashboard works with empty private state and rejects foreign rea
     (await fetch(freshBase + "/api/presentation/dashboard").then((r) => r.json())).layout,
     layout,
   );
+});
+test("oversized dashboard preferences fall back before reading unbounded local data", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-dashboard-limit-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, "system"));
+  const file = path.join(root, "system/dashboard.json");
+  fs.writeFileSync(file, " ".repeat(16385));
+  const original = fs.readFileSync;
+  fs.readFileSync = function (candidate, ...args) {
+    if (candidate === file) assert.fail("oversized preferences must be rejected before reading");
+    return original.call(this, candidate, ...args);
+  };
+  const app = express();
+  try {
+    require("../src/app/core/register-dashboard-layout.routes")(app, { runtimeDir: root });
+  } finally {
+    fs.readFileSync = original;
+  }
+  const base = await listen(t, app);
+  const response = await fetch(base + "/api/presentation/dashboard").then((r) => r.json());
+  assert.equal(response.layout.density, "comfortable");
+  assert(response.layout.widgets.length > 0);
 });
 test("dashboard quick actions remain usable on desktop and phone without running real rewards or lights", async (t) => {
   const { chromium } = require("playwright");
@@ -237,9 +328,12 @@ test("dashboard quick actions remain usable on desktop and phone without running
   await page.locator("#dashboardNowPlaying").filter({ hasText: "synthetic" }).waitFor();
   assert.equal(calls.length, 0, "viewing the dashboard never changes live state");
   await page.locator("#dashboardPauseRewards").click();
-  await page.locator("#dashboardResumeRewards").waitFor({ state: "visible" });
-  await page.waitForFunction(() => !document.getElementById("dashboardResumeRewards").disabled);
-  await page.locator("#dashboardResumeRewards").click();
+  await page
+    .locator("#dashboardPauseRewards")
+    .filter({ hasText: "Resume all managed rewards" })
+    .waitFor();
+  await page.waitForFunction(() => !document.getElementById("dashboardPauseRewards").disabled);
+  await page.locator("#dashboardPauseRewards").click();
   await page.locator("#dashboardIntake").click();
   await page.locator("#dashboardIntake").filter({ hasText: "Resume requests" }).waitFor();
   await page.locator("#dashboardSkip").click();

@@ -14,7 +14,7 @@ test("Random chooses each transition once per activation and rendering never red
     return 0.75;
   });
   assert.equal(plan.openingStyle, 3);
-  assert.equal(plan.endingStyle, 2);
+  assert.equal(plan.endingStyle, 4);
   assert.equal(calls, 2);
   for (let at = 0; at < 5000; at += 10)
     opening(frame, { position: 0.5 }, config, at, undefined, plan);
@@ -57,6 +57,31 @@ test("opening never overrides dim, steady or off routes and explicit scene roles
     assert.equal(recipe.fixtures([fixture], config, false)[0].raveBehavior, raveBehavior);
   }
   assert.throws(() => settings({ behaviors: { openingStyle: 1.5 } }), /invalid_music_behaviors/);
+});
+test("quiet introductions cannot invent a bright sweep and each reveal uses its own direction", () => {
+  const quiet = { ...frame, brightness: 15 };
+  const config = settings({ minimumBrightness: 10, maximumBrightness: 100 });
+  const first = { brand: "wiz", position: 0 },
+    last = { brand: "wiz", position: 1 };
+  for (const style of [1, 2, 3]) {
+    const plan = { openingStyle: style, openingMs: 1200 };
+    for (let t = 0; t < 1200; t += 20) {
+      const result = opening(quiet, first, config, t, { on: true, dimming: 10 }, plan);
+      assert(result.brightness >= 10 && result.brightness <= 15);
+      assert.deepEqual(result.rgb, quiet.rgb);
+      assert.equal(result.entranceTargetBrightness, 15);
+    }
+  }
+  const plan = { openingStyle: 1, openingMs: 1200 };
+  assert(
+    opening(quiet, first, config, 500, null, plan).entranceMix >
+      opening(quiet, last, config, 500, null, plan).entranceMix,
+  );
+  plan.openingStyle = 3;
+  assert(
+    opening(quiet, first, config, 500, null, plan).entranceMix <
+      opening(quiet, last, config, 500, null, plan).entranceMix,
+  );
 });
 
 test("simulation does not raise a dim scene to the reactive brightness floor", () => {

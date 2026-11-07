@@ -241,9 +241,10 @@ test("musical band balance reveals measured treble without promoting quiet audio
   });
   feed(musical, 1, 200, 0.05, [0.04, 0.02, 0.004]);
   feed(raw, 1, 200, 0.05, [0.04, 0.02, 0.004]);
-  assert.ok(
-    musical.render(4000, { role: "high" }).brightness >
-      raw.render(4000, { role: "high" }).brightness + 1,
+  assert.equal(
+    raw.render(4000, { role: "high" }).brightness,
+    raw.render(4000, { role: "low" }).brightness,
+    "direct audio brightness stays shared while frequency focus belongs to color",
   );
   feed(musical, 201, 250, 0.003, [0, 0, 0.003]);
   assert.ok(

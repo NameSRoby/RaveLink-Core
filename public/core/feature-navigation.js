@@ -96,9 +96,10 @@ new MutationObserver(() =>
 
 export function openFeaturePage(featureId, pageId) {
   const view = views.get(featureId);
-  if (!view) return;
+  if (!view) return false;
   selectMainTab(view.tab.dataset.tab);
   view.open(pageId);
+  return true;
 }
 
 export function selectMainTab(key) {
@@ -240,6 +241,7 @@ export function syncFeatureNavigation(features) {
       if (!frame) {
         frame = document.createElement("iframe");
         frame.className = "featurePageFrame";
+        frame.dataset.surface = page.surface;
         frame.dataset.pageId = page.id;
         if (feature.id === "song-request" && page.id === "player") frame.allow = "autoplay";
         frame.title = `${feature.name}: ${page.title}`;
@@ -259,6 +261,7 @@ export function syncFeatureNavigation(features) {
       });
     };
     const pages = feature.uiContributions || [];
+    tabs.hidden = pages.length < 2;
     for (const page of pages) {
       const button = document.createElement("button");
       button.type = "button";

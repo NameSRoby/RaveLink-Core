@@ -36,11 +36,16 @@ window.RaveLinkSavedEffects = {
       $("savedEffectsStatus").dataset.error = String(error);
     };
     const modeNames = {
-      "full-random": "Full random",
+      "full-random": "Current profile & rules",
       single: "One saved effect",
       "saved-random": "Random from saved effects",
     };
     function render() {
+      $("savedPlaybackNotice").hidden = state.policy.mode === "full-random";
+      $("savedPlaybackSummary").textContent =
+        state.policy.mode === "single"
+          ? `Playback uses saved effect: ${state.profiles.find((p) => p.id === state.policy.ids[0])?.name || "Unavailable"}. Its saved profile and colors take priority.`
+          : "Playback shuffles your selected saved effects. Their saved profiles and colors take priority.";
       $("savedEffectMode").value = state.policy.mode;
       $("savedEffectSingle").replaceChildren(
         ...(state.profiles.length
@@ -79,7 +84,7 @@ window.RaveLinkSavedEffects = {
       const count = $("savedEffectPool").querySelectorAll("input:checked").length;
       $("savedEffectModeHelp").textContent =
         mode === "full-random"
-          ? "Draw a combination using your current recipe and randomness controls."
+          ? "Use the profile and palette selected in Play, including any custom rules from Create."
           : mode === "single"
             ? "Replay the saved effect selected below on every start."
             : `${count} selected for random playback. Choose one or more effects below; one is picked per start.`;
@@ -135,6 +140,13 @@ window.RaveLinkSavedEffects = {
         $("savedEffectName").value = "";
       });
     $("savedEffectMode").onchange = visibility;
+    $("useCurrentProfile").onclick = () =>
+      void run(async () => {
+        await request("/api/music-to-light/effects/policy", "POST", {
+          mode: "full-random",
+          ids: [],
+        });
+      });
     $("savedEffectSingle").onchange = visibility;
     $("savedEffectPool").onchange = visibility;
     $("applySavedEffectPolicy").onclick = () =>

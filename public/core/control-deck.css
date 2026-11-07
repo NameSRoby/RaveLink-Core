@@ -1,0 +1,2656 @@
+/* Software button controls share the Core theme and local operator authority. */
+.deckModeSwitch {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  background: var(--panel);
+}
+.deckModeSwitch button {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  min-height: 32px;
+  padding: 6px 12px;
+  color: var(--muted);
+}
+.deckModeSwitch [aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+}
+.dashboard[data-dashboard-mode="deck"] > .dashboardGrid,
+.dashboard[data-dashboard-mode="deck"] > .dashboardNotice,
+.dashboard[data-dashboard-mode="deck"] > .dashboardHint,
+.dashboard[data-dashboard-mode="deck"] > .dashboardEditBar {
+  display: none !important;
+}
+.controlDeck {
+  border: 1px solid var(--edge);
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 20px;
+}
+.controlDeck [hidden],
+.deckEditor [hidden] {
+  display: none !important;
+}
+.deckToolbar,
+.deckTools,
+#deckPages,
+.deckFooter,
+.deckEditorHeading,
+.deckEditorActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.deckToolbar {
+  justify-content: space-between;
+}
+.controlDeck[data-editing="true"] .deckToolbar {
+  position: sticky;
+  top: 8px;
+  z-index: 4;
+  padding: 8px;
+  margin: -8px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 5px 16px #0006;
+}
+#deckPages button {
+  background: transparent;
+  box-shadow: none;
+  border-color: transparent;
+  padding: 7px 12px;
+}
+#deckPages [aria-pressed="true"] {
+  border-color: var(--edge);
+  background: var(--surface);
+}
+.deckTools button {
+  padding: 7px 12px;
+  font-size: 13px;
+}
+#deckEdit[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+.deckNotice {
+  color: var(--muted);
+  min-height: 1.5em;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.deckGrid {
+  display: grid;
+  grid-template-columns: repeat(var(--deck-columns, 5), minmax(52px, 1fr));
+  gap: var(--deck-gap, 14px);
+  overflow-x: auto;
+  padding: 4px;
+}
+.deckGrid button {
+  min-width: 0;
+  box-shadow: none;
+}
+.deckButton {
+  container-type: inline-size;
+  position: relative;
+  aspect-ratio: var(--deck-aspect, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: clamp(6px, 6%, 16px);
+  border: 1px solid color-mix(in srgb, var(--deck-color) 65%, #ffffff);
+  border-radius: var(--deck-radius, 28px);
+  background: var(--deck-color);
+  color: var(--deck-text);
+  text-align: center;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    transform 120ms,
+    border-color 120ms,
+    opacity 120ms;
+}
+
+.deckButton:focus-visible,
+.deckAddButton:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 4px;
+}
+.deckButton[data-cycling="true"] {
+  animation: deckColorCycle var(--deck-cycle-time) ease-in-out infinite;
+}
+.deckButtonSymbol {
+  font-size: clamp(18px, 25cqi, 46px);
+  line-height: 1.1;
+  font-family: "Segoe UI Symbol", "Segoe UI Emoji", sans-serif;
+}
+.deckButtonTitle {
+  max-width: 100%;
+  font-size: calc(clamp(10px, 10cqi, 16px) * var(--deck-label-scale, 1));
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+.deckButtonImage {
+  display: block;
+  width: 65%;
+  height: 62%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.deckButton[data-display-mode="image"] .deckButtonTitle {
+  position: absolute;
+  clip-path: inset(50%);
+  height: 1px;
+  width: 1px;
+}
+.deckButton[data-display-mode="image"] .deckButtonImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+.deckButton[data-display-mode="image"] .deckButtonSymbol {
+  font-size: clamp(24px, 40cqi, 64px);
+}
+.deckButton[data-display-mode="text"] .deckButtonTitle {
+  font-size: calc(clamp(10px, 12cqi, 23px) * var(--deck-label-scale, 1));
+  -webkit-line-clamp: 4;
+}
+.deckButton[data-display-mode="text"] :is(.deckButtonSymbol, .deckButtonImage) {
+  display: none;
+}
+.deckButton[data-display-mode="alternate"]
+  :is(.deckButtonSymbol, .deckButtonImage, .deckButtonTitle) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  max-height: 76%;
+  animation: deckAlternateIcon 8s steps(1, end) infinite;
+}
+.deckButton[data-display-mode="alternate"] .deckButtonSymbol {
+  font-size: clamp(24px, 40cqi, 64px);
+}
+.deckButton[data-display-mode="alternate"] .deckButtonImage {
+  height: 76%;
+  object-fit: contain;
+}
+.deckButton[data-display-mode="alternate"] .deckButtonTitle {
+  animation-name: deckAlternateText;
+  font-size: calc(clamp(10px, 12cqi, 23px) * var(--deck-label-scale, 1));
+  -webkit-line-clamp: 4;
+}
+.deckButton[data-display-mode="alternate"] .deckButtonState {
+  position: absolute;
+  bottom: 6px;
+}
+.deckButton[data-compact="true"] :is(.deckButtonSymbol, .deckButtonImage, .deckButtonState) {
+  display: none;
+}
+.deckButton[data-compact="true"] .deckButtonTitle {
+  -webkit-line-clamp: 1;
+}
+@keyframes deckAlternateIcon {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes deckAlternateText {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.deckQuickOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  width: 100%;
+  align-items: center;
+}
+.deckQuickOptions label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.deckQuickOptions select {
+  width: auto;
+  max-width: 180px;
+  min-height: 36px;
+  padding: 5px 28px 5px 8px;
+  font-size: 12px;
+}
+.deckNotice:empty {
+  display: none;
+}
+.controlDeck input.deckVolumeSlider {
+  min-height: 44px;
+  height: 44px;
+}
+.deckButton:has(.deckVolumeSlider) .deckButtonSymbol {
+  display: none;
+}
+.deckButtonState {
+  font-size: 10px;
+  padding: 3px 7px;
+  border-radius: 12px;
+  background: #0005;
+  color: inherit;
+  max-width: 100%;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@container (max-width: 90px) {
+  .deckButtonState {
+    display: none;
+  }
+  .deckButtonTitle {
+    -webkit-line-clamp: 1;
+  }
+  .deckButtonSymbol {
+    font-size: 18px;
+  }
+  .deckSliderValue {
+    font-size: 10px;
+  }
+  .deckButton:has(.deckVolumeSlider) :is(.deckButtonTitle, .deckSliderValue, .deckButtonSymbol) {
+    display: none;
+  }
+}
+@container (max-width: 130px) {
+  .deckVolumeSlider ~ .deckSliderValue {
+    font-size: 10px;
+  }
+}
+.deckButton[data-running="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 12px;
+  animation: deckBusy 1s linear infinite;
+  opacity: 0.8;
+  pointer-events: none;
+}
+.deckButton:has(.deckVolumeSlider)[data-running="true"]::after {
+  display: none;
+}
+.deckWorkspace {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.deckWorkspace > .deckGrid {
+  flex: 1;
+  min-width: 0;
+}
+.deckSliderRack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 22px;
+  min-width: 0;
+}
+.controlDeck[data-slider-placement="dock"][data-slider-orientation="vertical"] .deckWorkspace {
+  flex-direction: row;
+  align-items: flex-start;
+}
+.controlDeck[data-slider-placement="dock"][data-slider-orientation="vertical"] .deckSliderRack {
+  flex: 0 0 auto;
+  max-width: 35%;
+  max-height: 70vh;
+  overflow: auto;
+}
+.deckSliderRack .deckButton {
+  width: 108px;
+}
+.controlDeck[data-slider-placement="dock"][data-slider-dock="start"] .deckSliderRack {
+  order: -1;
+}
+.deckSliderRack > .deckTile {
+  flex: 0 0 auto;
+  width: max-content;
+}
+.deckSliderRack > .deckTile > .deckButton {
+  height: 100%;
+}
+.deckButton[data-slider-style="mixer"]:has(.deckVolumeSlider) {
+  aspect-ratio: auto;
+  min-height: 240px;
+  max-width: 150px;
+  padding: 16px 12px;
+  border-radius: 14px;
+  background: linear-gradient(110deg, #202638, #0d121e);
+  border: 1px solid #64728d66;
+  box-shadow:
+    inset 1px 1px 0 #ffffff18,
+    0 5px 12px #0006;
+  gap: 12px;
+}
+.deckButton[data-slider-style="mixer"] .deckButtonTitle {
+  font-size: 12px;
+  line-height: 1.3;
+}
+.deckButton[data-slider-orientation="vertical"] input.deckVolumeSlider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 36px !important;
+  height: 156px !important;
+  min-height: 0 !important;
+  flex: none;
+}
+.deckButton[data-slider-style="button"][data-slider-orientation="vertical"] input.deckVolumeSlider {
+  height: 60px !important;
+}
+.deckButton[data-slider-orientation="vertical"]
+  input.deckVolumeSlider::-webkit-slider-runnable-track {
+  width: 6px;
+  height: 100%;
+  border-radius: 4px;
+  background: #3c475d;
+}
+.deckButton[data-slider-orientation="vertical"] input.deckVolumeSlider::-moz-range-track {
+  width: 6px;
+  height: 100%;
+  border-radius: 4px;
+  background: #3c475d;
+}
+.deckButton[data-slider-orientation="vertical"] input.deckVolumeSlider::-webkit-slider-thumb {
+  margin: 0;
+  width: 26px;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(#eef1f7, #8f9db4 46%, #39455c 49%, #c5cede 57%, #9aa9c0);
+  border: 1px solid #172033;
+  box-shadow: 0 2px 4px #0009;
+}
+.deckButton[data-slider-orientation="vertical"] input.deckVolumeSlider::-moz-range-thumb {
+  width: 26px;
+  height: 14px;
+  border-radius: 4px;
+  background: #c5cede;
+  border: 1px solid #172033;
+}
+.deckButton[data-slider-orientation="horizontal"][data-slider-style="mixer"]:has(
+    .deckVolumeSlider
+  ) {
+  min-height: 100px;
+  max-width: none;
+  aspect-ratio: auto;
+  width: 100%;
+}
+.controlDeck[data-mixer-page="true"] .deckGrid {
+  grid-template-columns: repeat(auto-fill, minmax(108px, 150px));
+  justify-content: start;
+}
+.controlDeck .deckInlineMixer {
+  min-width: 0;
+  margin: 8px 0 20px;
+  width: 100%;
+  max-width: none;
+}
+.deckInlineMixer .deckEditorHeading {
+  position: static;
+  padding: 0;
+  background: transparent;
+}
+.deckInlineMixer .deckEditorHeading h2 {
+  font-size: 18px;
+  margin: 0 0 14px;
+}
+.deckInlineMixer > .deckEditorHint,
+.deckInlineMixer[data-editing="false"] > .deckPanelActions {
+  display: none;
+}
+.deckInlineMixer .deckWindowsAudioValues {
+  display: flex;
+  gap: 14px;
+}
+.deckInlineMixer .deckWindowsAudioCard {
+  position: relative;
+  width: 124px;
+  flex: none;
+  min-width: 0;
+  padding: 14px 10px;
+  border: 1px solid #64728d66;
+  border-radius: 14px;
+  background: linear-gradient(110deg, #202638, #0d121e);
+  box-shadow:
+    inset 1px 1px 0 #ffffff18,
+    0 5px 12px #0006;
+}
+.deckInlineMixer .deckWindowsAudioHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+.deckInlineMixer .deckWindowsAudioHeading strong {
+  font-size: 12px;
+  line-height: 1.3;
+}
+.deckInlineMixer .deckWindowsAudioHeading small {
+  font-size: 10px;
+  line-height: 1.3;
+  max-height: 27px;
+  overflow: hidden;
+  display: block;
+}
+.deckInlineMixer .deckWindowsAudioValues {
+  flex-direction: column;
+  align-items: center;
+  margin-top: 14px;
+}
+.deckInlineMixer .deckWindowsAudioValues button {
+  padding: 4px 10px;
+  min-height: 30px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+.deckInlineMixer .deckWindowsAudioValues output {
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.deckInlineMixer .deckWindowsPins {
+  display: none;
+}
+.deckInlineMixer[data-editing="true"] .deckWindowsPins {
+  display: block;
+}
+.deckInlineMixer .deckMixerHide {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 22px;
+  min-height: 22px;
+  padding: 0;
+  font-size: 16px;
+}
+.deckInlineMixer h3,
+.deckInlineMixer summary {
+  font-size: 12px;
+  margin: 16px 0 10px;
+}
+.deckInlineMixer input[type="search"] {
+  max-width: 280px;
+  margin-bottom: 12px;
+}
+.controlDeck[data-paged="true"] .deckInlineMixer {
+  max-height: none;
+  min-height: 0;
+  overflow: visible;
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .deckSliderRack {
+    padding: 10px;
+  }
+  .deckSliderRack .deckButton {
+    width: 86px;
+  }
+  .deckInlineMixer .deckWindowsAudioCard {
+    width: 108px;
+  }
+}
+.controlDeck[data-editing="true"] .deckButton {
+  outline: 1px dashed #ffffff40;
+  outline-offset: -5px;
+}
+.controlDeck[data-editing="true"] .deckButton::before {
+  content: "Edit";
+  position: absolute;
+  right: 8px;
+  top: 7px;
+  font-size: 10px;
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+.deckAddButton {
+  aspect-ratio: var(--deck-aspect, 1);
+  border: 1px dashed var(--edge);
+  border-radius: var(--deck-radius, 28px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  color: var(--muted);
+  padding: 12px;
+}
+.deckAddButton > span {
+  font-size: 40px;
+  font-weight: 300;
+  line-height: 1;
+}
+.deckAddButton:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.deckFooter {
+  justify-content: flex-end;
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.deckFooter > span {
+  margin-right: auto;
+  max-width: 70ch;
+}
+.deckFooter label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.deckFooter select {
+  width: 65px;
+  padding: 6px;
+}
+.deckFooter button {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.deckEditor {
+  width: min(1080px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+}
+.deckEditor::backdrop {
+  background: #000a;
+  backdrop-filter: blur(3px);
+}
+.deckEditorHeading {
+  justify-content: space-between;
+}
+.deckEditorHeading h2 {
+  font-size: 23px;
+  margin: 0;
+}
+.deckEditorHeading button {
+  padding: 7px 12px;
+}
+.deckEditorHint,
+.deckEditorNotice,
+.deckField small,
+.deckStepNotice {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.deckEditorNotice {
+  min-height: 1.4em;
+  margin: 8px 0;
+}
+.deckEditor [data-error="true"],
+.deckNotice[data-error="true"] {
+  color: var(--bad);
+}
+.deckEditorLayout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 24px;
+}
+.deckActionLibrary {
+  border-right: 1px solid var(--edge);
+  padding-right: 20px;
+}
+.deckActionLibrary h3,
+.deckSequence h3,
+.deckHoldEditor h3 {
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+.deckActionLibrary > input {
+  width: 100%;
+  margin-bottom: 12px;
+}
+.deckActionList {
+  max-height: 60vh;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+.deckActionChoice {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  text-align: left;
+  padding: 10px;
+  background: var(--surface);
+  box-shadow: none;
+}
+.deckActionChoice strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.deckActionChoice small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 10px;
+}
+.deckActionSymbol {
+  grid-row: span 2;
+  font-size: 22px;
+  align-self: center;
+}
+.deckButtonForm {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+.deckEditorQuickActions {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.deckEditorQuickActions > button {
+  width: 100%;
+  margin: 0;
+  text-align: left;
+  border-radius: 9px;
+}
+.deckField {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  letter-spacing: normal;
+}
+.deckField input,
+.deckField select,
+.deckField textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  color: var(--text);
+  border-radius: 7px;
+  font: inherit;
+}
+.deckField input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+.deckField input[type="color"] {
+  min-height: 36px;
+  padding: 3px;
+}
+.deckField textarea {
+  resize: vertical;
+  font-family: ui-monospace, monospace;
+}
+.deckSequence {
+  margin: 18px 0;
+}
+.deckStep {
+  padding: 12px;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  margin-bottom: 10px;
+  background: var(--surface);
+}
+.deckStepHeading {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) repeat(3, 28px);
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.deckStepHeading select {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  font-size: 12px;
+}
+.deckStepNumber {
+  font-size: 11px;
+  color: var(--muted);
+}
+.deckStep .deckSmallButton {
+  min-height: 28px;
+  height: 28px;
+  width: 28px;
+  padding: 0;
+}
+.deckStepParameters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+.deckStepParameters > :only-child {
+  grid-column: 1/-1;
+}
+.deckStep > .deckField {
+  max-width: 180px;
+  margin: 8px 0 0;
+}
+.deckSequence > button,
+.deckHoldEditor > button {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+.deckHoldEditor,
+.deckAppearanceEditor {
+  border-top: 1px solid var(--edge);
+  margin: 16px 0;
+  padding-top: 12px;
+}
+.deckHoldEditor summary,
+.deckAppearanceEditor summary {
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 0 12px;
+}
+.deckAppearanceFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
+}
+.deckToggleStateGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.deckToggleStateCard {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+}
+.deckToggleStateCard h4 {
+  margin: 0 0 16px;
+}
+.deckToggleStateCard .deckAppearancePreview {
+  margin: 0 auto 22px;
+  border-radius: 30px;
+}
+@media (max-width: 600px) {
+  .deckToggleStateGrid {
+    grid-template-columns: 1fr;
+  }
+}
+.deckAppearanceFields > .deckField:has(input[type="file"]) {
+  grid-column: 1/-1;
+}
+.deckAppearanceFields > button {
+  align-self: start;
+  justify-self: start;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.deckCycleFields {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+  grid-column: 1/-1;
+}
+.deckCycleFields {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.deckCycleStop {
+  display: flex;
+  align-items: center;
+}
+.deckCycleStop button {
+  padding: 0;
+  width: 24px;
+  min-height: 28px;
+  border: 0;
+  background: transparent;
+}
+.deckCycleFields input {
+  width: 55px;
+  height: 34px;
+  background: var(--bg);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+}
+.deckAppearancePreview {
+  border: 1px solid var(--edge);
+  width: 130px;
+  height: 130px;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+.deckAppearancePreview > span {
+  font-size: 34px;
+}
+.deckAppearancePreview img {
+  width: 65px;
+  height: 65px;
+  object-fit: contain;
+}
+.deckAppearancePreview strong {
+  font-size: 12px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.deckEditorActions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--edge);
+  margin-top: 18px;
+  padding-top: 16px;
+}
+.deckEditorActions button {
+  padding: 8px 14px;
+}
+@keyframes deckColorCycle {
+  0%,
+  100% {
+    --deck-color: var(--deck-cycle-a);
+  }
+  33% {
+    --deck-color: var(--deck-cycle-b);
+  }
+  66% {
+    --deck-color: var(--deck-cycle-c);
+  }
+}
+@keyframes deckBusy {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.deckIntegrations section {
+  border-top: 1px solid var(--edge);
+  padding: 16px 0;
+}
+.deckIntegrations section > p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.deckIntegrations a {
+  color: var(--text);
+  text-decoration: underline;
+}
+.deckVolumeSlider {
+  width: 100%;
+  accent-color: var(--accent);
+  min-height: 28px;
+}
+.deckSliderValue {
+  font-size: 13px;
+  font-weight: 600;
+}
+.deckQuietButton {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+.deckTile {
+  position: relative;
+  min-width: 0;
+}
+.deckTile > .deckButton {
+  width: 100%;
+  touch-action: pan-y;
+  cursor: grab;
+}
+.deckRemoveButton {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 25px;
+  min-height: 25px;
+  height: 25px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--muted);
+  z-index: 2;
+}
+[data-drop="true"] {
+  outline: 2px dashed var(--muted);
+  outline-offset: 3px;
+  box-shadow: -7px 0 0 0 var(--text);
+  transform: translateX(5px);
+}
+.deckDragGhost {
+  position: fixed !important;
+  pointer-events: none !important;
+  z-index: 10000;
+  opacity: 0.85;
+  transform: rotate(3deg) scale(0.92);
+  margin: 0 !important;
+}
+[data-dragging="true"] {
+  opacity: 0.25;
+  outline: 2px dashed var(--muted);
+}
+.controlDeck[data-editing="true"] .deckButton {
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.controlDeck[data-editing="true"] .deckButton input {
+  pointer-events: none;
+}
+.controlDeck[data-editing="true"] [data-dragging="true"] {
+  cursor: grabbing;
+}
+.deckObsBuilder > h3 {
+  margin-top: 0;
+}
+.deckObsFields,
+.deckObsBuilder > div:not([hidden]) {
+  display: grid;
+  gap: 12px;
+}
+.deckObsBuilder .deckField {
+  margin: 0;
+}
+.deckObsBuilder {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 14px;
+}
+.deckHotkeyTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.deckStepParameters.deckHotkeyParameters {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+.deckHotkeyParameters .deckField input {
+  min-height: 38px;
+}
+.deckHotkeyParameters .deckEditorHint {
+  margin: 0;
+}
+.deckHotkeyTools small {
+  flex-basis: 100%;
+}
+.deckEditorHeading {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--panel);
+  padding-block: 10px;
+}
+.controlDeck[data-focus="true"] {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  overflow: auto;
+  border: 0;
+  border-radius: 0;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+.controlDeck[data-focus="true"] .deckToolbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--panel);
+  padding-bottom: 12px;
+}
+.deckButton,
+.deckAddButton {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+#deckPages {
+  max-width: 100%;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: thin;
+}
+#deckPages button {
+  flex: 0 0 auto;
+  min-height: 40px;
+}
+@media (pointer: coarse) {
+  .deckTools button,
+  .deckModeSwitch button,
+  #deckPages button,
+  .deckFooter select {
+    min-height: 44px;
+  }
+  .deckRemoveButton {
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+    font-size: 20px;
+  }
+  .deckVolumeSlider {
+    min-height: 44px;
+  }
+  .deckEditor input,
+  .deckEditor select,
+  .deckEditor button {
+    min-height: 40px;
+  }
+  .deckEditor .deckCheck input,
+  .deckEditor input[type="checkbox"] {
+    min-height: 22px;
+    width: 22px;
+    height: 22px;
+  }
+}
+@media (min-width: 601px) and (max-width: 1100px) {
+  .deckGrid {
+    grid-template-columns: repeat(var(--deck-tablet-columns, 4), minmax(52px, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .deckGrid {
+    grid-template-columns: repeat(var(--deck-phone-columns, 2), minmax(52px, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .deckToolbar {
+    display: block;
+  }
+  .deckTools {
+    margin-top: 10px;
+    gap: 6px;
+  }
+  .deckTools button {
+    font-size: 12px;
+    padding: 7px 9px;
+  }
+  .deckFooter {
+    align-items: start;
+  }
+  .deckFooter > span {
+    flex-basis: 100%;
+  }
+  .deckEditor {
+    max-height: calc(100dvh - 16px);
+    width: calc(100% - 16px);
+    padding: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .deckButton,
+  .deckButton::after {
+    animation: none !important;
+    transition: none;
+  }
+  .deckButton[data-display-mode="alternate"] :is(.deckButtonSymbol, .deckButtonImage) {
+    display: none;
+  }
+  .deckButton[data-display-mode="alternate"] .deckButtonTitle {
+    animation: none;
+    opacity: 1;
+  }
+}
+@media (max-width: 800px) {
+  .deckEditorLayout {
+    grid-template-columns: 1fr;
+  }
+  .deckActionLibrary {
+    border-right: 0;
+    padding-right: 0;
+  }
+  .deckActionList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 200px;
+  }
+  .deckButton {
+    padding: 12px 8px;
+  }
+  .deckToolbar {
+    align-items: start;
+  }
+}
+@media (max-width: 480px) {
+  .controlDeck {
+    padding: 12px;
+  }
+  .deckEditor {
+    padding: 16px;
+    width: calc(100vw - 16px);
+  }
+  .deckAppearanceFields,
+  .deckStepParameters {
+    grid-template-columns: 1fr;
+  }
+  .deckFooter > span {
+    max-width: 100%;
+  }
+}
+
+.deckLayoutEditor {
+  width: min(560px, calc(100vw - 24px));
+}
+.deckLayoutFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+  margin-top: 20px;
+}
+.deckLayoutCheck {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.controlDeck[data-show-status="false"] .deckButtonState {
+  position: absolute;
+  clip-path: inset(50%);
+  height: 1px;
+  width: 1px;
+  padding: 0;
+}
+.deckButton,
+.deckAddButton {
+  min-height: 52px;
+}
+
+/* Acrylic material: the backlight remains separate from the transparent face. */
+@property --deck-color {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #a90036;
+}
+.deckGrid .deckButton,
+.deckAppearancePreview {
+  --deck-light-level: calc(var(--deck-backlight, 0.65) * var(--deck-master-backlight, 1));
+  --deck-glow: color-mix(
+    in srgb,
+    var(--deck-led-color, var(--deck-profile-color, var(--deck-color)))
+      calc(var(--deck-light-level) * 70%),
+    transparent
+  );
+  --deck-shadow:
+    inset 1px 1px 0 #ffffff70, inset -1px -2px 1px #ffffff20, inset 0 0 12px var(--deck-glow),
+    inset 0 -3px 8px var(--deck-glow), 0 5px 0 #070a10, 0 6px 1px #ffffff24,
+    0 0 12px var(--deck-glow), 0 10px 25px var(--deck-glow), 0 12px 14px #0008;
+  background-color: #141b2638;
+  background-image:
+    linear-gradient(145deg, #ffffff23, #ffffff04 38%, #ffffff00 68%, #ffffff0c),
+    radial-gradient(
+      ellipse at 50% 120%,
+      color-mix(in srgb, var(--deck-glow) 30%, transparent),
+      transparent 72%
+    );
+  box-shadow: var(--deck-shadow);
+  border-color: #ffffff30;
+  border-top-color: #ffffff85;
+  border-bottom-color: #ffffff24;
+}
+.deckGrid {
+  /* Preserve button positions while leaving room for the LED's soft falloff. */
+  padding: 28px 28px 40px;
+  margin: -23px -23px -22px;
+}
+.controlDeck[data-slider-placement="dock"] .deckWorkspace > .deckGrid {
+  margin: 0;
+}
+.deckGrid .deckButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background-color: #242e3b60;
+  border-color: #ffffff85;
+}
+.deckGrid .deckButton:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow:
+    inset 1px 1px 3px #0005,
+    inset 0 -8px 20px var(--deck-glow),
+    0 1px 0 #070a10,
+    0 3px 10px var(--deck-glow);
+}
+.controlDeck[data-focus="true"] .deckToolbar,
+.controlDeck[data-focus="true"] .deckNotice,
+.controlDeck[data-focus="true"] .deckFooter,
+.controlDeck[data-focus="true"] .deckAddButton {
+  display: none;
+}
+.controlDeck[data-focus="true"] {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  background: var(--bg);
+}
+.controlDeck[data-focus="true"] .deckGrid {
+  width: 100%;
+  max-height: none;
+  flex-shrink: 0;
+  padding: 28px;
+  margin: 0;
+}
+.controlDeck[data-focus="true"] .deckWidgetRegion {
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 12px 28px;
+}
+.deckWidgetRegion > .deckEditorNotice:empty,
+.deckWidgetTools:empty {
+  display: none;
+}
+.deckExitFullscreen {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  z-index: 5;
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  font-size: 24px;
+  background: #101522dd;
+  border-color: var(--edge);
+  opacity: 0.55;
+}
+.deckExitFullscreen:hover,
+.deckExitFullscreen:focus-visible {
+  opacity: 1;
+}
+.deckKeepAwake {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  min-height: 40px;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: #101522dd;
+  opacity: 0.7;
+}
+.controlDeck[data-focus="true"] > .deckKeepAwake {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(56px, calc(env(safe-area-inset-right) + 48px));
+  z-index: 5;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+}
+.deckKeepAwake input[type="checkbox"] {
+  appearance: none !important;
+  width: 30px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  margin: 0;
+  padding: 2px !important;
+  border: 1px solid #71809a;
+  border-radius: 12px !important;
+  background: #29334a;
+  cursor: pointer;
+}
+.deckKeepAwake input::before {
+  content: "";
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.12s;
+}
+.deckKeepAwake input:checked {
+  background: #13845c !important;
+  border-color: #29bc89 !important;
+}
+.deckKeepAwake input:checked::before {
+  transform: translateX(12px);
+}
+.deckKeepAwake input:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
+}
+.deckAwakeStatus {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #8190a8;
+}
+.deckKeepAwake[data-state="active"] .deckAwakeStatus {
+  background: #27c58a;
+}
+.deckKeepAwake:is([data-state="fallback"], [data-state="blocked"]) .deckAwakeStatus {
+  background: #edb449;
+}
+.deckKeepAwake:hover,
+.deckKeepAwake:focus-visible {
+  opacity: 1;
+}
+.deckKeyControl {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.deckKeyControl input {
+  min-width: 0;
+  flex: 1;
+}
+.deckKeyControl button {
+  flex: none;
+}
+.deckScreenNav {
+  position: fixed;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  z-index: 5;
+  padding: 4px 8px;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: #101522dd;
+  font-size: 12px;
+}
+.deckScreenNav button {
+  min-height: 32px;
+  min-width: 36px;
+  padding: 0;
+  font-size: 24px;
+  background: transparent;
+  border: 0;
+}
+.controlDeck[data-paged="true"] {
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.controlDeck[data-paged="true"] .deckGrid {
+  overflow: visible;
+  justify-items: center;
+}
+.controlDeck[data-paged="true"] .deckWidgetRegion {
+  max-height: 35vh;
+  overflow: auto;
+  flex-shrink: 0;
+}
+
+.deckSettings {
+  width: min(720px, calc(100vw - 24px));
+}
+.deckSettingsTabs {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0;
+}
+.deckSettingsTabs [aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.deckSettingsButtonList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0;
+}
+.deckSettingsButtonList button {
+  text-align: left;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .deckSettingsButtonList {
+    grid-template-columns: 1fr;
+  }
+}
+
+.deckIntegrations {
+  width: min(720px, calc(100vw - 24px));
+  padding: 20px;
+}
+.deckIntegrationPanels {
+  max-height: calc(100dvh - 220px);
+  overflow: auto;
+  padding-right: 4px;
+}
+.deckIntegrations section {
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.deckIntegrations h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+.deckIntegrations section > p {
+  margin: 8px 0;
+}
+.deckIntegrations .deckEditorActions {
+  border: 0;
+  margin: 12px 0 0;
+  padding: 0;
+  justify-content: flex-start;
+}
+.deckIntegrations .deckEditorActions button {
+  padding: 8px 12px;
+}
+.deckIntegrations .deckCheck {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.deckIntegrations .deckCheck input {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  margin: 0;
+  flex: 0 0 20px;
+  accent-color: var(--accent);
+}
+.deckIntegrations .deckCheck span {
+  flex: 1;
+}
+.deckIntegrations .deckField {
+  margin-top: 12px;
+}
+
+.deckClipWordLists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+.deckClipPolicy details {
+  margin-top: 16px;
+}
+.deckClipTest {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin-top: 16px;
+}
+.deckClipTest .deckField {
+  flex: 1;
+}
+.deckClipPreviewResult {
+  display: block;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .deckClipWordLists {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .deckClipTest {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+.deckConnectionStatus {
+  color: var(--text) !important;
+  font-weight: 600;
+}
+.deckSetupHelp {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.deckSetupHelp summary {
+  cursor: pointer;
+  color: var(--text);
+}
+.deckSetupHelp button {
+  padding: 8px 12px;
+}
+
+.deckGrid {
+  align-items: start;
+}
+.deckGrid > .deckButton,
+.deckAddButton {
+  width: 100%;
+}
+
+.deckControlPanel {
+  width: min(640px, calc(100vw - 24px));
+}
+.deckPanelActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+}
+.deckRewardControl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 40px;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 8px;
+}
+.deckWindowsPanel {
+  width: min(800px, calc(100vw - 24px));
+}
+.deckWindowsDefaults {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.deckWindowsAudioCard {
+  min-width: 0;
+  padding: 14px;
+  margin: 10px 0;
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+}
+.deckWindowsAudioHeading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.deckWindowsAudioHeading > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.deckWindowsAudioHeading strong,
+.deckWindowsAudioHeading small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.deckWindowsAudioHeading small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.deckWindowsAudioValues {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px 76px;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+.deckWindowsAudioValues output {
+  text-align: right;
+  font-size: 12px;
+}
+.deckWindowsPanel .deckWindowsAudioValues input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: 44px;
+}
+.deckWindowsAudioValues button,
+.deckWindowsMediaItem button {
+  min-height: 40px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.deckWindowsPins {
+  position: relative;
+  flex-shrink: 0;
+}
+.deckWindowsPins summary {
+  list-style: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+}
+.deckWindowsPins summary::-webkit-details-marker {
+  display: none;
+}
+.deckWindowsPins[open] {
+  z-index: 5;
+}
+.deckWindowsPins[open] > button {
+  display: block;
+  width: 180px;
+  padding: 10px;
+  font-size: 12px;
+  text-align: left;
+  position: absolute;
+  right: 0;
+  background: var(--panel);
+}
+.deckWindowsPins[open] > button:first-of-type {
+  top: 44px;
+}
+.deckWindowsPins[open] > button:nth-of-type(2) {
+  top: 83px;
+}
+.deckWindowsPins[open] > button:nth-of-type(3) {
+  top: 122px;
+}
+.deckWindowsPins[open] > summary {
+  margin-left: auto;
+}
+.deckWindowsMediaItem {
+  display: inline-flex;
+  gap: 3px;
+}
+.deckWindowsPanel > details > summary {
+  cursor: pointer;
+  color: var(--muted);
+  padding: 12px 0;
+}
+.deckWindowsPanel input[type="search"] {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 12px;
+}
+@media (max-width: 600px) {
+  .deckWindowsDefaults {
+    grid-template-columns: 1fr;
+  }
+}
+.deckRewardControl > div {
+  display: grid;
+  gap: 5px;
+}
+.deckRewardControl strong {
+  overflow-wrap: anywhere;
+}
+.deckRewardControl small {
+  color: var(--muted);
+}
+.deckRewardControl button {
+  min-height: 40px;
+  padding: 8px 12px;
+}
+
+/* A recessed LED layer shines through the separate acrylic face. */
+.deckLedSource {
+  position: absolute;
+  inset: 4px;
+  z-index: -2;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 105%,
+    color-mix(in srgb, var(--deck-led-color, var(--deck-color)) 60%, #ffffff) 0 8%,
+    var(--deck-led-color, var(--deck-color)) 28%,
+    transparent 75%
+  );
+  filter: blur(14px);
+  opacity: calc(var(--deck-light-level) * 0.75);
+}
+.deckAcrylicFace {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  border: 1px solid #ffffff18;
+  background: linear-gradient(145deg, #ffffff20, #ffffff02 36%, #ffffff00 70%, #ffffff08);
+  box-shadow:
+    inset 0 1px 1px #ffffff20,
+    inset 0 -4px 6px #ffffff09;
+}
+.deckButton[data-profile-lighting="true"][data-led-state="rest"] > .deckLedSource,
+.deckButton[data-profile-lighting="true"][data-led-state="active"] > .deckLedSource,
+.deckButton[data-profile-lighting="true"][data-led-state="inactive"] > .deckLedSource,
+.deckAppearancePreview[data-profile-lighting="true"] > .deckLedSource {
+  background-image: var(--profile-leds);
+  filter: blur(10px);
+}
+.deckButtonSymbol,
+.deckButtonTitle,
+.deckButtonState,
+.deckVolumeSlider,
+.deckSliderValue,
+.deckAppearancePreview > strong,
+.deckAppearancePreview > span:not(.deckLedSource):not(.deckAcrylicFace) {
+  position: relative;
+  z-index: 1;
+}
+.deckAppearancePreview {
+  position: relative;
+  isolation: isolate;
+}
+.controlDeck[data-editing="true"] .deckButton::before {
+  z-index: 2;
+}
+
+.deckDragHandle {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  background: #050507aa;
+  color: var(--muted);
+  z-index: 2;
+  font-size: 22px;
+  touch-action: none;
+  cursor: grab;
+}
+@media (pointer: coarse) {
+  .deckDragHandle {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+}
+.controlDeck[data-editing="true"] .deckButton::before {
+  left: 8px;
+  right: auto;
+}
+.deckObsPanel {
+  max-width: 840px;
+}
+.deckObsBuilder {
+  min-width: 0;
+  border: 0;
+  border-top: 1px solid var(--edge);
+  margin: 18px 0 0;
+  padding: 14px 0 0;
+}
+.deckObsWhen {
+  padding: 8px 0;
+  font-weight: 700;
+  color: var(--muted);
+}
+.deckObsFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 12px;
+}
+.deckObsPreview {
+  display: block;
+  width: min(100%, 480px);
+  aspect-ratio: 16/9;
+  object-fit: contain;
+  background: #050507;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  margin-top: 12px;
+}
+.deckObsPanel [hidden] {
+  display: none !important;
+}
+.deckWidgetRegion {
+  margin: 6px 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--edge);
+  min-width: 0;
+}
+.deckWidgetTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.deckWidgetTools select {
+  width: auto;
+  max-width: 100%;
+}
+.deckWidgetGrid {
+  display: grid;
+  gap: 10px 20px;
+  align-items: start;
+}
+.deckWidget {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--edge);
+  border-radius: 16px;
+  background:
+    radial-gradient(
+      ellipse at top left,
+      color-mix(in srgb, var(--widget-color) 14%, transparent),
+      transparent 75%
+    ),
+    var(--panel);
+}
+.deckWidget[data-size="compact"] {
+  padding: 6px 0;
+  border-radius: 8px;
+}
+.deckWidget[data-size="compact"]:not([data-surface="transparent"]) {
+  padding: 10px;
+}
+.deckWidget[data-size="compact"] .deckWidgetHeading {
+  margin-bottom: 6px;
+}
+.deckWidget[data-size="compact"] .deckWidgetHeading h3 {
+  font-size: 11px;
+}
+.deckWidget[data-size="compact"] .deckWidgetBody {
+  gap: 9px;
+}
+.deckWidget[data-size="compact"] .deckWidgetMain {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.deckWidget[data-size="compact"] p,
+.deckWidget[data-size="compact"] .deckWidgetListRow {
+  font-size: 11px;
+  line-height: 1.4;
+  margin: 3px 0;
+}
+.deckWidget[data-size="compact"] .deckWidgetList {
+  gap: 2px;
+  margin: 4px 0 0;
+}
+.deckWidget[data-size="compact"] small {
+  font-size: 10px;
+}
+.deckWidget[data-size="compact"] progress {
+  height: 3px;
+  margin: 6px 0 3px;
+}
+.deckWidget[data-size="large"] {
+  padding: 22px;
+}
+.deckWidgetHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.deckWidgetHeading h3 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.deckWidgetBody {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+.deckWidgetArtwork {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 10px;
+}
+.deckWidget[data-size="compact"] .deckWidgetArtwork {
+  width: 34px;
+  height: 34px;
+  border-radius: 5px;
+}
+.deckWidgetCopy {
+  flex: 1;
+  min-width: 0;
+}
+.deckWidgetMain {
+  display: block;
+  font-size: 1.12rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.deckWidget[data-size="large"] .deckWidgetMain {
+  font-size: 1.5rem;
+}
+.deckWidget p {
+  margin: 5px 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.deckWidgetMuted {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.deckWidget progress {
+  display: block;
+  width: 100%;
+  height: 6px;
+  accent-color: var(--widget-color);
+  margin: 10px 0 5px;
+}
+.deckWidgetList {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+}
+.deckWidgetList:empty {
+  display: none;
+}
+.deckWidgetListRow {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.deckWidgetEditTools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.deckWidgetEditTools button {
+  padding: 3px 7px;
+  font-size: 0.7rem;
+}
+.deckWidgetMomentTools {
+  display: flex;
+  align-items: start;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.deckWidgetMomentTools input {
+  width: 100%;
+  min-width: 0;
+}
+.deckWidgetMomentTools button {
+  font-size: 0.75rem;
+  padding: 7px 10px;
+}
+.deckWidgetAdvanced {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.deckWidgetAdvanced summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.deckWidgetAdvanced input {
+  margin: 4px 0;
+}
+.deckWidget [hidden],
+.deckWidgetEditor [hidden] {
+  display: none !important;
+}
+.deckWidgetEditor {
+  width: min(900px, calc(100vw - 32px));
+}
+.deckWidgetForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(220px, 1fr);
+  gap: 28px;
+}
+.deckWidgetSection {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  padding-block: 16px;
+  border-top: 1px solid var(--edge);
+}
+.deckWidgetSection:first-child {
+  border: 0;
+  padding-top: 4px;
+}
+.deckWidgetSection h3 {
+  grid-column: 1/-1;
+  font-size: 13px;
+  margin: 0 0 4px;
+  color: var(--text);
+}
+.deckWidgetSection .deckField {
+  margin: 0;
+}
+.deckWidgetSection .deckCheck {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 30px;
+  font-size: 12px;
+  color: var(--text);
+}
+.deckWidgetSection .deckCheck input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 0;
+  flex: 0 0 16px;
+}
+.deckWidgetSection input[type="color"] {
+  width: 54px;
+  height: 36px;
+  padding: 3px;
+}
+.deckWidgetPreview {
+  align-self: start;
+  position: sticky;
+  top: 72px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--bg);
+}
+.deckWidgetPreview > h3 {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+.deckWidgetPreview > p {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 14px 0 0;
+}
+.deckWidgetFooter {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 14px;
+  border-top: 1px solid var(--edge);
+}
+.controlDeck[data-focus="true"] .deckWidgetRegion[data-fullscreen="false"] {
+  display: none;
+}
+
+/* Acrylic faders share the deck's recessed LED and clear face material. */
+.deckWindowsAudioCard {
+  position: relative;
+  isolation: isolate;
+  --deck-light-level: calc(var(--deck-master-backlight, 1) * 0.75);
+}
+.deckWindowsAudioCard > :not(.deckLedSource):not(.deckAcrylicFace) {
+  position: relative;
+  z-index: 1;
+}
+.deckWindowsPanel[data-orientation="vertical"] .deckWindowsDefaults,
+.deckWindowsPanel[data-orientation="vertical"] section:has(> input[type="search"]) > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 18px;
+}
+.deckWindowsPanel[data-orientation="vertical"] .deckWindowsAudioCard,
+.deckButton[data-slider-style="mixer"]:has(.deckVolumeSlider) {
+  border-radius: 24px;
+  background: linear-gradient(145deg, #ffffff10, #ffffff02 40%, #060b1366);
+  border: 1px solid #ffffff30;
+  border-top-color: #ffffff85;
+  border-bottom-color: #ffffff24;
+  box-shadow:
+    inset 1px 1px 2px #fff5,
+    inset -1px -1px 2px #fff2,
+    inset 0 -5px 8px #ffffff14,
+    0 5px 0 #05070c,
+    0 8px 20px color-mix(in srgb, var(--deck-color, #a90036) 26%, transparent);
+}
+.deckWindowsPanel[data-orientation="vertical"] .deckWindowsAudioCard {
+  width: 132px;
+  min-width: 0;
+  flex: none;
+  padding: 16px 12px;
+}
+.deckWindowsPanel[data-orientation="vertical"] .deckWindowsAudioHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+.deckWindowsPanel[data-orientation="vertical"] .deckWindowsAudioHeading strong {
+  font-size: 12px;
+  line-height: 1.3;
+}
+.deckWindowsPanel[data-orientation="vertical"] .deckWindowsAudioHeading small {
+  display: block;
+  max-height: 28px;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.3;
+}
+.deckWindowsPanel[data-orientation="vertical"] .deckWindowsAudioValues {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.deckFaderTrack {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+}
+:is(.deckButton[data-slider-orientation="vertical"], .deckWindowsPanel[data-orientation="vertical"])
+  .deckFaderTrack {
+  width: 80px;
+  height: 180px;
+  margin: auto;
+}
+:is(.deckButton[data-slider-orientation="vertical"], .deckWindowsPanel[data-orientation="vertical"])
+  .deckFaderTrack::before {
+  content: "";
+  position: absolute;
+  inset: 12px 8px;
+  z-index: -1;
+  background: repeating-linear-gradient(to top, #c4d0e877 0 1px, transparent 1px 15px);
+  mask-image: linear-gradient(to right, #000 0 17px, transparent 17px 40px, #000 40px);
+  pointer-events: none;
+}
+:is(.deckButton[data-slider-orientation="vertical"], .deckWindowsPanel[data-orientation="vertical"])
+  .deckFaderTrack::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  top: 12px;
+  bottom: 12px;
+  border-radius: 8px;
+  z-index: -1;
+  background: linear-gradient(
+    to top,
+    var(--deck-color, #a90036) 0 var(--slider-level, 0%),
+    #050810 var(--slider-level, 0%) 100%
+  );
+  box-shadow:
+    inset 1px 1px 3px #000,
+    0 0 14px color-mix(in srgb, var(--deck-color, #a90036) 50%, transparent);
+  pointer-events: none;
+}
+:is(.deckButton[data-slider-orientation="vertical"], .deckWindowsPanel[data-orientation="vertical"])
+  input[type="range"] {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 44px !important;
+  height: 156px !important;
+  min-height: 0 !important;
+  background: transparent;
+  appearance: none;
+  padding: 0;
+}
+:is(.deckButton[data-slider-orientation="vertical"], .deckWindowsPanel[data-orientation="vertical"])
+  input[type="range"]::-webkit-slider-runnable-track {
+  background: transparent;
+  width: 7px;
+  height: 100%;
+  border: 0;
+}
+:is(.deckButton[data-slider-orientation="vertical"], .deckWindowsPanel[data-orientation="vertical"])
+  input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 40px;
+  height: 30px;
+  margin: 0;
+  border-radius: 8px;
+  border: 1px solid #ffffff99;
+  background: linear-gradient(
+    150deg,
+    #ffffffb3,
+    #ffffff1f 30%,
+    #ffffff08 44%,
+    #11182799 47%,
+    #ffffffb3 51%,
+    #ffffff1f 56%,
+    #ffffff66
+  );
+  box-shadow:
+    inset 1px 1px 2px #fff9,
+    inset -1px -2px 3px #ffffff33,
+    0 3px 6px #0009,
+    0 0 12px color-mix(in srgb, var(--deck-color, #a90036) 55%, transparent);
+}
+:is(.deckButton[data-slider-orientation="vertical"], .deckWindowsPanel[data-orientation="vertical"])
+  input[type="range"]::-moz-range-track {
+  background: transparent;
+  width: 7px;
+  height: 100%;
+  border: 0;
+}
+:is(.deckButton[data-slider-orientation="vertical"], .deckWindowsPanel[data-orientation="vertical"])
+  input[type="range"]::-moz-range-thumb {
+  width: 40px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid #ffffff99;
+  background: linear-gradient(150deg, #ffffffb3, #ffffff1f 40%, #ffffff99 51%, #ffffff1f 60%);
+  box-shadow:
+    inset 1px 1px 2px #fff9,
+    0 0 12px color-mix(in srgb, var(--deck-color, #a90036) 55%, transparent);
+}
+.deckButton[data-slider-style="button"][data-slider-orientation="vertical"] .deckFaderTrack {
+  height: 72px;
+}
+.deckButton[data-slider-style="button"][data-slider-orientation="vertical"]
+  .deckFaderTrack::before {
+  inset-block: 6px;
+}
+.deckButton[data-slider-style="button"][data-slider-orientation="vertical"] .deckFaderTrack::after {
+  inset-block: 6px;
+}
+.deckButton[data-slider-style="button"][data-slider-orientation="vertical"] input[type="range"] {
+  height: 60px !important;
+}
+
+.controlDeck :is(button, .deckButton, input[type="range"]) {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.deckButton[data-slider-style="mixer"]:has(.deckVolumeSlider) {
+  max-width: 112px;
+  min-height: 288px;
+}
+.deckSliderRack .deckButton[data-slider-style="mixer"] {
+  width: 84px;
+}
+.deckButton[data-slider-style="mixer"] > .deckButtonTitle {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.deckButton[data-slider-style="mixer"] > .deckSliderValue {
+  display: block !important;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+:is(.deckButton[data-slider-style="mixer"], .deckWindowsAudioCard) > .deckLedSource {
+  opacity: calc(var(--deck-light-level, 0.7) * 0.45);
+  filter: blur(10px);
+}
+:is(.deckButton[data-slider-orientation="vertical"], .deckWindowsPanel[data-orientation="vertical"])
+  .deckFaderTrack {
+  width: 56px;
+}
+:is(.deckButton[data-slider-orientation="vertical"], .deckWindowsPanel[data-orientation="vertical"])
+  .deckFaderTrack::before {
+  inset-inline: 0;
+  mask-image: linear-gradient(to right, transparent 0 34px, #000 34px);
+  opacity: 0.65;
+}
+:is(.deckButton[data-slider-orientation="vertical"], .deckWindowsPanel[data-orientation="vertical"])
+  .deckFaderTrack::after {
+  width: 5px;
+  box-shadow:
+    inset 1px 1px 2px #000,
+    0 0 8px color-mix(in srgb, var(--deck-color, #a90036) 35%, transparent);
+}
+:is(.deckButton[data-slider-orientation="vertical"], .deckWindowsPanel[data-orientation="vertical"])
+  input[type="range"]::-webkit-slider-thumb {
+  width: 28px;
+  height: 16px;
+  margin-left: -10.5px;
+  border-radius: 5px;
+  background: linear-gradient(
+    to bottom,
+    #ffffff80,
+    #ffffff18 38%,
+    #10182699 44%,
+    #ffffffaa 50%,
+    #ffffff18 56%,
+    #ffffff50
+  );
+  box-shadow:
+    inset 0 1px 1px #fff9,
+    inset 0 -1px 1px #ffffff44,
+    0 2px 4px #0007,
+    0 0 8px color-mix(in srgb, var(--deck-color, #a90036) 30%, transparent);
+}
+:is(.deckButton[data-slider-orientation="vertical"], .deckWindowsPanel[data-orientation="vertical"])
+  input[type="range"]::-moz-range-thumb {
+  width: 28px;
+  height: 16px;
+  border-radius: 5px;
+  background: linear-gradient(
+    to bottom,
+    #ffffff80,
+    #ffffff18 38%,
+    #10182699 44%,
+    #ffffffaa 50%,
+    #ffffff18 56%,
+    #ffffff50
+  );
+  box-shadow:
+    inset 0 1px 1px #fff9,
+    0 2px 4px #0007;
+}
+@media (max-width: 560px) {
+  .deckWidgetForm {
+    grid-template-columns: 1fr;
+  }
+  .deckWidgetPreview {
+    position: static;
+    grid-row: 1;
+  }
+}
+.deckWidgetSetup {
+  margin-top: 4px;
+  font-size: 11px;
+  padding: 5px 0;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.deckWidget[data-surface="plain"] {
+  background: var(--panel);
+}
+.deckWidget[data-surface="transparent"] {
+  background: transparent;
+  border-color: transparent;
+}
+.deckIconPicker {
+  width: min(760px, calc(100vw - 24px));
+}
+.deckIconSearch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 10px;
+}
+.deckIconSearch input,
+.deckIconSearch select {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+}
+.deckIconCount {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 10px 0;
+}
+.deckIconGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  max-height: min(340px, 42dvh);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 3px;
+}
+.deckIconGrid button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 72px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid transparent;
+  color: var(--text);
+}
+.deckIconGrid button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.deckIconGrid button:hover {
+  background: var(--surface);
+}
+.deckIconGrid button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.deckIconGrid svg {
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+.deckIconGrid button span {
+  font-size: 10px;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.deckIconSelection {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 14px;
+  margin-top: 12px;
+  border-top: 1px solid var(--edge);
+}
+.deckIconSelected {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--bg);
+}
+.deckIconSelection > span:nth-child(2) {
+  flex: 1;
+  min-width: 80px;
+  font-size: 12px;
+}
+.deckIconSelection label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.deckIconSelection input[type="color"] {
+  width: 38px;
+  height: 34px;
+  padding: 2px;
+}
+.deckIconSelection button {
+  padding: 10px 16px;
+  min-height: 42px;
+}
+@media (max-width: 560px) {
+  .deckIconGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .deckIconSearch {
+    grid-template-columns: 1fr;
+  }
+}
+.deckMixerChannels {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: stretch;
+  gap: 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 24px;
+  max-width: 100%;
+  scroll-snap-type: x proximity;
+}
+.deckInlineMixer .deckMixerChannels {
+  padding: 20px 18px 28px;
+}
+.deckMixerTools {
+  margin: 0;
+}
+.deckInlineMixer .deckEditorNotice:empty {
+  display: none;
+}
+.deckInlineMixer .deckEditorNotice:not(:empty) {
+  font-size: 11px;
+  margin: 0 0 8px;
+}
+.deckWindowsPanel input[type="range"],
+.deckVolumeSlider {
+  touch-action: none;
+}
+.deckMixerChannels > :is(.deckWindowsAudioCard, .deckButton) {
+  scroll-snap-align: start;
+  flex: none;
+  width: 112px;
+  min-height: 300px;
+  max-width: none;
+  margin: 0;
+}
+.deckMixerChannels[data-paged="true"] {
+  overflow-x: hidden;
+  scroll-snap-type: none;
+}
+.deckWindowsPanel .deckMixerChannels .deckWindowsAudioCard {
+  width: 112px;
+}
+.deckWindowsPanel .deckMixerChannels .deckWindowsAudioHeading {
+  min-height: 46px;
+}
+.deckWindowsPanel .deckMixerChannels .deckWindowsAudioValues {
+  margin-top: 8px;
+}
+.deckMixerChannels > .deckButton {
+  justify-content: flex-start;
+}
+.deckMixerChannels > .deckButton .deckButtonTitle {
+  min-height: 46px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+.deckWindowsPanel .deckMixerChannels .deckWindowsAudioHeading strong {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.deckInlineMixer > section:has(> input[type="search"]) {
+  margin: 0;
+}
+.deckWindowsPanel .deckMixerChannels [data-slider-orientation="horizontal"] {
+  min-height: 140px;
+  width: 220px;
+}
+.deckFullscreenBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-height: 48px;
+  padding: 4px 0 10px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+}
+.deckFullscreenBar .deckExitFullscreen {
+  position: static;
+  flex: none;
+}
+.deckFullscreenBar .deckKeepAwake {
+  opacity: 1;
+}
+.controlDeck #deckEdit[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 3px 12px #a9003633;
+  opacity: 1;
+  font-weight: 700;
+}
+.deckWindowsPanel :is(button, input[type="range"]) {
+  -webkit-tap-highlight-color: transparent;
+}
+.deckGrid {
+  align-items: start;
+}
+.controlDeck[data-paged="true"] .deckButton[data-slider-style="mixer"] {
+  min-height: 0;
+  gap: 8px;
+}
+.controlDeck[data-paged="true"] .deckButton[data-slider-style="mixer"] .deckFaderTrack {
+  height: calc(var(--deck-page-fader, 156px) + 24px);
+}
+.controlDeck[data-paged="true"] .deckButton[data-slider-style="mixer"] input[type="range"] {
+  height: var(--deck-page-fader, 156px) !important;
+}
+.controlDeck {
+  position: relative;
+  isolation: isolate;
+}
+.deckScreenMedia {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+}
+.deckScreenMedia > :is(img, video) {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.controlDeck[data-screen-media="true"] .deckButton:not(:has(.deckVolumeSlider)) {
+  background-color: transparent !important;
+  background-image: none !important;
+  backdrop-filter: brightness(0.9);
+}
+.controlDeck[data-screen-media="true"] .deckButton:not(:has(.deckVolumeSlider)) .deckAcrylicFace {
+  background: linear-gradient(145deg, #ffffff20, #0b102020 40%, #0b102008 75%, #ffffff0a);
+}
+.deckScreenEditor {
+  grid-column: 1/-1;
+  border-top: 1px solid var(--edge);
+  margin-top: 16px;
+  padding-top: 12px;
+}
+.deckScreenEditor h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.deckScreenEditorOptions {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}

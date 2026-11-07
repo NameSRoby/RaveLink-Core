@@ -5,15 +5,15 @@ const { settings } = require("../mapping-settings.cjs");
 
 test("quiet color travel keeps render resolution without requiring a strong attack", () => {
   const c = create([{ brand: "hue", entertainmentActive: true }, { brand: "wiz" }]);
-  const config = settings({ outputHz: 16, outputRateMode: "adaptive" });
+  const config = settings({ outputHz: 12, outputRateMode: "adaptive" });
   const motion = {
     fresh: true,
     metrics: { level: 0.3, rise: 0, attack: false, attackStrength: 0, colorMotion: true },
   };
-  for (let at = 0; at <= 3000; at += 20) assert.equal(c.rate(config, motion, at), 16);
+  for (let at = 0; at <= 3000; at += 20) assert.equal(c.rate(config, motion, at), 12);
   assert.equal(c.rate(config, { ...motion, fresh: false }, 3020), 2);
-  assert.equal(c.fixtureRate({ brand: "hue" }, 16), 8);
-  assert.equal(c.fixtureRate({ brand: "wiz" }, 50), 16);
+  assert.equal(c.fixtureRate({ brand: "hue" }, 12), 8);
+  assert.equal(c.fixtureRate({ brand: "wiz" }, 50), 12);
 });
 test("adaptive pacing holds fast attacks without selecting another recipe", () => {
   const c = create(),
@@ -29,9 +29,9 @@ test("adaptive pacing holds fast attacks without selecting another recipe", () =
   assert.equal(c.rate({ ...config, outputRateMode: "fixed" }, idle, 1200), 8);
 });
 
-test("sixteen-Hz adaptive output follows calibrated energy, rises and attacks", () => {
+test("twelve-Hz adaptive output follows calibrated energy, rises and attacks", () => {
   const c = create(),
-    config = settings({ outputHz: 16, outputRateMode: "adaptive" });
+    config = settings({ outputHz: 12, outputRateMode: "adaptive" });
   const sample = (level, rise = 0, attack = false) => ({
     fresh: true,
     metrics: { level, rise, attack },
@@ -41,17 +41,17 @@ test("sixteen-Hz adaptive output follows calibrated energy, rises and attacks", 
   assert.equal(c.rate(config, sample(0.6), 200), 6);
   assert.equal(c.rate(config, sample(0.9), 300), 8);
   assert.equal(c.rate(config, sample(0.6, config.behaviors.rateRiseThreshold), 400), 12);
-  assert.equal(c.rate(config, sample(0.8, config.behaviors.rateRiseThreshold * 2), 500), 16);
-  assert.equal(c.rate(config, sample(0.3), 1000), 16);
+  assert.equal(c.rate(config, sample(0.8, config.behaviors.rateRiseThreshold * 2), 500), 12);
+  assert.equal(c.rate(config, sample(0.3), 1000), 12);
   assert.equal(c.rate(config, sample(0.3), 1400), 4);
-  assert.equal(c.rate(config, sample(0.7, 0, true), 1500), 16);
+  assert.equal(c.rate(config, sample(0.7, 0, true), 1500), 12);
   assert.equal(c.rate(config, { fresh: false, metrics: sample(1).metrics }, 1510), 2);
   assert.equal(c.rate(config, { fresh: true, metrics: { level: NaN, rise: 0 } }, 1520), 2);
 });
 
 test("requested and transport limits cap all adaptive tiers", () => {
   const fixtures = [{ brand: "hue" }, { brand: "hue" }, { brand: "wiz" }];
-  for (const outputHz of [2, 4, 6, 8, 12, 16]) {
+  for (const outputHz of [2, 4, 6, 8, 12]) {
     const c = create(fixtures),
       config = settings({ outputHz, outputRateMode: "adaptive" });
     assert.equal(
@@ -64,6 +64,13 @@ test("requested and transport limits cap all adaptive tiers", () => {
     );
   }
   assert.throws(() => settings({ outputHz: 32 }));
+  assert.equal(
+    settings({ outputHz: 16 }).outputHz,
+    12,
+    "legacy designs migrate to the hard maximum",
+  );
+  assert.equal(create().fixtureRate({ brand: "hue", entertainmentActive: true }, 50), 12);
+  assert.equal(create().rate({ ...settings(), outputHz: 16 }, null, 0), 12);
 });
 test("Hue traffic has an aggregate music budget while WiZ can run independently", () => {
   const fixtures = [{ brand: "hue" }, { brand: "hue" }, { brand: "wiz" }, { brand: "wiz" }];

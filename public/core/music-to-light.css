@@ -260,15 +260,15 @@ body.musicWorkspace {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: 18px;
-  align-items: stretch;
+  align-items: start;
 }
 .musicPlayGrid > * {
   min-width: 0;
 }
 .musicLookCards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
 }
 .musicLookCards button {
   display: flex;
@@ -278,10 +278,34 @@ body.musicWorkspace {
   gap: 8px;
   text-align: left;
   min-width: 0;
-  padding: 14px 12px;
+  padding: 10px 12px;
   background: var(--bg);
   border: 1px solid var(--edge);
   border-radius: 9px;
+}
+.musicLookCards button[data-kind="profile"] .musicLookColors {
+  display: none;
+}
+.musicWorkspace .musicProfileControls .musicEditor {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+}
+.musicProfileControls output {
+  color: var(--text);
+  font-size: 12px;
+}
+.musicWorkspace .musicProfileControls details {
+  border: 0;
+  padding: 0;
+}
+.musicCreatorIntro > .musicSmallHint {
+  max-width: 85ch;
+}
+@media (max-width: 600px) {
+  .musicWorkspace .musicProfileControls .musicEditor {
+    grid-template-columns: 1fr;
+  }
 }
 .musicLookCards button[aria-pressed="true"] {
   border-color: var(--accent);

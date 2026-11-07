@@ -36,7 +36,7 @@ test("saving resolves the actual random combination and keeps it deterministic a
   assert.equal(a.design.ceilingDb, -26);
   assert.equal(a.design.maximumBrightness, 40);
   assert.equal(a.design.intensity, 0.4);
-  assert.equal(a.design.outputHz, 16);
+  assert.equal(a.design.outputHz, 12);
   assert.equal(a.design.behaviors.openingStyle, 2);
   assert.equal(a.fixtures[0].role, "low");
   const b = mapper(a.design, { random: () => 0.99 }),

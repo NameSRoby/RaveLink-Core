@@ -2,7 +2,8 @@
  * never capture authority. Missing/stale/wrong-app metadata uses a finite timer.
  * A request entering the last minute covers the following song too, once only.
  * Pauses do not masquerade as track changes; seeks update the projected end.
- * Every path retains a hard 30-minute native deadline, including repeated songs.
+ * Song-aware paths retain a hard 30-minute deadline, including repeated songs.
+ * An explicit manual until-restored session instead owns its lease until Stop.
  */
 const MAX_SECONDS = 1800;
 const FRESH_MS = 10000;
@@ -61,6 +62,23 @@ function song(playback, source, wallNow) {
   };
 }
 function createLifetime({ design, request, source, playback, now, wallNow }) {
+  // Only the trusted manual operator path can hold an unbounded capture lease.
+  // Viewer and automatic admission retain their existing finite safety deadlines.
+  if (request.untilStopped === true && request.origin === "manual")
+    return {
+      seconds: null,
+      update: () => null,
+      snapshot: () => ({
+        mode: "manual",
+        reason: "until_restored",
+        phase: "manual",
+        title: null,
+        includesNext: false,
+        remainingSeconds: null,
+        safetyRemainingSeconds: null,
+        fallbackSeconds: null,
+      }),
+    };
   const fallback =
     design.raveDurationMode === "separate"
       ? design.raveSeconds

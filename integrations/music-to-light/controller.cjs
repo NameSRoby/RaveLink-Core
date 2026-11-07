@@ -8,7 +8,7 @@ const createSession = require("./session.cjs");
 const { createLifetime } = require("./song-duration.cjs");
 const createSharedCapture = require("./shared-capture.cjs");
 const fixtureBehavior = require("./fixture-behavior.cjs");
-const { settings: validateSettings, fault } = require("./mapping-settings.cjs");
+const { settings: parseSettings, fault } = require("./mapping-settings.cjs");
 const { validateSource } = require("./protocol.cjs");
 const { validateValue } = require("../../src/shared/contracts/bounded-json-schema");
 const descriptors = require("./contracts/music-controller-v1.contracts.json").contracts;
@@ -38,7 +38,9 @@ module.exports = function createMusicController({
   savedEffects = null,
   readPlayback = async () => null,
   wallNow = () => Date.now(),
+  designPolicy = (value) => value,
 } = {}) {
+  const validateSettings = (value) => parseSettings(designPolicy(parseSettings(value)));
   let design = validateSettings(initialSettings),
     active = false,
     closed = false,
@@ -218,7 +220,14 @@ module.exports = function createMusicController({
       "effectPolicy",
       "intensity",
       "songOnly",
+      "untilStopped",
     ]);
+    if (
+      request.untilStopped !== undefined &&
+      (typeof request.untilStopped !== "boolean" ||
+        (request.untilStopped && request.origin !== "manual"))
+    )
+      throw fault("invalid_music_start");
     if (request.origin !== undefined && !["auto", "manual", "viewer"].includes(request.origin))
       throw fault("invalid_music_start");
     if (
@@ -265,6 +274,10 @@ module.exports = function createMusicController({
               ]),
             ),
       palette: request.palette?.length ? request.palette : design.palette,
+      behaviors: {
+        ...design.behaviors,
+        ...(request.palette?.length ? { profilePaletteEnabled: false } : {}),
+      },
       feel: request.feel || "normal",
       recipeOptions: {
         ...design.recipeOptions,
@@ -299,9 +312,11 @@ module.exports = function createMusicController({
     );
     const chosen = savedEffects?.choose(config, fixtures, request.effectPolicy);
     if (chosen) {
-      config = chosen.design;
+      config = validateSettings(chosen.design);
       fixtures = chosen.fixtures.map((f) => sceneBindings.get(f.id) || f);
     }
+    if (!chosen?.profile)
+      config = validateSettings(require("./random-profile.cjs")(config, recipeHistory));
     let playback = null;
     try {
       playback = await readPlayback();
@@ -431,7 +446,7 @@ module.exports = function createMusicController({
         : null;
     const chosen = savedEffects?.choose(renderDesign, fixtures);
     if (chosen) {
-      renderDesign = chosen.design;
+      renderDesign = validateSettings(chosen.design);
       fixtures = chosen.fixtures;
     }
     const ctx = {
@@ -631,18 +646,24 @@ module.exports = function createMusicController({
         raveContext?.profile && overlay
           ? require("./saved-effects.cjs").retain(overlay, raveContext.design)
           : overlay;
-      const brightnessChanged = ["steadyBrightness", "loudnessBrightness"].some(
+      const brightnessFields = [
+        "steadyBrightness",
+        "loudnessBrightness",
+        "literalAttackMs",
+        "literalReleaseMs",
+      ];
+      const brightnessChanged = brightnessFields.some(
         (key) => next.behaviors[key] !== design.behaviors[key],
       );
       if (brightnessChanged)
         for (const target of [manualNext, raveNext].filter(Boolean))
-          for (const key of ["steadyBrightness", "loudnessBrightness"])
-            target.behaviors[key] = next.behaviors[key];
+          for (const key of brightnessFields) target.behaviors[key] = next.behaviors[key];
       context?.session.validate?.(manualNext);
       if (raveNext) raveContext.session.validate?.(raveNext);
       if (context) context.design = context.session.configure(manualNext);
       if (raveContext) {
-        if (!next.raveEnabled) void stopRave("music_rave_disabled");
+        if (!next.raveEnabled || !Object.values(next.scenarioWeights).some((weight) => weight > 0))
+          void stopRave("music_rave_disabled");
         else {
           raveContext.design = raveContext.session.configure(raveNext);
         }
@@ -742,6 +763,10 @@ module.exports = function createMusicController({
             origin: raveContext.origin,
             effect: raveContext.profile,
             timing: raveContext.lifetime.snapshot(now()),
+            lighting: require("./fixture-lighting.cjs")(
+              raveContext.fixtures,
+              raveContext.design.palette,
+            ),
           }
         : pendingRave
           ? {

@@ -111,13 +111,14 @@ test("every composition replays at bounded device cadence and native brightness 
   }
 });
 
-test("simulation schedules sixteen-Hz render deadlines between twenty-ms analysis windows", () => {
+test("simulation schedules twelve-Hz render deadlines between twenty-ms analysis windows", () => {
   const features = Array.from({ length: 250 }, (_, i) => event(i + 1));
   const frames = simulate({
     features,
     fixtures: [{ brand: "hue", entertainmentActive: true, role: "all", position: 0 }],
-    design: { outputHz: 16, outputRateMode: "fixed" },
+    design: { outputHz: 12, outputRateMode: "fixed" },
   });
-  assert.ok(frames.length >= 78 && frames.length <= 80, String(frames.length));
-  for (let i = 1; i < frames.length; i++) assert.equal(frames[i].at - frames[i - 1].at, 62.5);
+  assert.ok(frames.length >= 59 && frames.length <= 60, String(frames.length));
+  for (let i = 1; i < frames.length; i++)
+    assert.ok(Math.abs(frames[i].at - frames[i - 1].at - 1000 / 12) < 1e-9);
 });

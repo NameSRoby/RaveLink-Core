@@ -7,7 +7,6 @@
   if (!workspace) return;
   const $ = (id) => document.getElementById("music-" + id);
   const workspaceUI = globalThis.RaveLinkMusicWorkspace.create(workspace, $);
-  const showWorkspace = workspaceUI.show;
   let view,
     busy = false,
     timer,
@@ -76,12 +75,21 @@
     return result.value;
   }
   const savedEffectsUI = window.RaveLinkSavedEffects.create({ $, request });
-  const call = (capability, method, payload = null) =>
-    request("/api/music-to-light/call", "POST", {
+  const call = async (capability, method, payload = null, referenceEdit = false) => {
+    if (capability === "music.styles.v1" && method === "configure" && payload) {
+      const current = (await request("/api/music-to-light/operator")).design;
+      payload = {
+        ...payload,
+        calibrationVolume: current.calibrationVolume,
+        ...(!referenceEdit ? { floorDb: current.floorDb, ceilingDb: current.ceilingDb } : {}),
+      };
+    }
+    return request("/api/music-to-light/call", "POST", {
       capability,
       method,
       payload,
     });
+  };
   const libraryUI = globalThis.RaveLinkMusicLibrary.create({
     $,
     request,
@@ -146,7 +154,6 @@
       "saveFixtures",
       "applyDesign",
       "preset",
-      "intensity",
       "paletteSource",
       "warmCoolColors",
       "outputCeiling",
@@ -183,6 +190,7 @@
         input.disabled = waiting || !behaviorCatalog;
       });
     globalThis.RaveLinkMusicChoices.sync();
+    workspaceUI.responseControls(view?.design, waiting, !!behaviorCatalog);
   }
   function renderStatus(status) {
     if (!view) return;
@@ -286,12 +294,16 @@
     workspaceUI.palette(colors, () => void action(saveDesign));
   }
   function renderView(next, edit = false) {
+    if (view && !busy && JSON.stringify(view.design) !== JSON.stringify(next.design)) edit = true;
+    const previousPipeline = view?.pipeline;
     const sourceChanged =
       !view ||
       JSON.stringify(view.bindings.sources) !== JSON.stringify(next.bindings.sources) ||
       view.bindings.source?.id !== next.bindings.source?.id;
     if (!view) $("setup").open = !(next.status.sourceSelected && next.status.musicFixtureCount);
     view = next;
+    if (previousPipeline && !["idle", "inactive", "closed"].includes(next.status.state))
+      view.pipeline = previousPipeline;
     if (sourceChanged) renderSourceChoices(undefined, true);
     $("capturePermission").checked = next.status.permissions.capture;
     $("outputPermission").checked = next.status.permissions.output;
@@ -308,8 +320,6 @@
             ranges[key][0] === next.design.floorDb && ranges[key][1] === next.design.ceilingDb,
         ) || "custom";
       $("preset").value = next.design.preset;
-      $("intensity").value = Math.round(next.design.intensity * 100);
-      $("intensityValue").value = $("intensity").value + "%";
       editorFields.forEach((id) => {
         $(id).value = next.design[id];
       });
@@ -322,14 +332,13 @@
     globalThis.RaveLinkMusicChoices.sync();
     workspaceUI.paletteControls(view?.design, busy, initialized);
   }
-  async function saveDesign() {
+  async function saveDesign(changedField = null) {
     if (new Set([...$("palette").querySelectorAll("input")].map((input) => input.value)).size < 2)
       throw Error("Choose at least two different palette colors.");
     const design = {
       ...view.design,
       autoAudioFollow: $("autoAudioFollow").checked,
       preset: $("preset").value,
-      intensity: Number($("intensity").value) / 100,
       palette: [...$("palette").querySelectorAll("input")].map((input) => input.value),
     };
     editorFields.forEach((id) => {
@@ -342,16 +351,19 @@
       design.raveSeconds = Number($("raveSeconds").value);
       for (const id of ["raveScenario", "raveLayerMode", "raveDurationMode", "raveColorPlan"])
         design[id] = $(id).value;
-      design.behaviors = Object.fromEntries(
-        behaviorCatalog.behaviors.map((f) => [
-          f.id,
-          f.id === "smoothing"
-            ? Number($("smoothing").value) / 100
-            : f.type === "boolean"
-              ? $("behavior-" + f.id).checked
-              : Number($("behavior-" + f.id).value),
-        ]),
-      );
+      design.behaviors = {
+        ...view.design.behaviors,
+        ...Object.fromEntries(
+          behaviorCatalog.behaviors.map((f) => [
+            f.id,
+            f.id === "smoothing"
+              ? Number($("smoothing").value) / 100
+              : f.type === "boolean"
+                ? $("behavior-" + f.id).checked
+                : Number($("behavior-" + f.id).value),
+          ]),
+        ),
+      };
       design.scenarioWeights = Object.fromEntries(
         behaviorCatalog.scenarios.map((s) => [
           s.id,
@@ -359,7 +371,12 @@
         ]),
       );
     }
-    view.design = await call("music.styles.v1", "configure", design);
+    view.design = await call(
+      "music.styles.v1",
+      "configure",
+      design,
+      ["floorDb", "ceilingDb", "responseRange"].includes(changedField),
+    );
     renderBehaviorValues(view.design);
     histories.clear();
     lastSequence = null;
@@ -385,6 +402,7 @@
       const el = $("behavior-" + f.id);
       if (f.type === "boolean") el.checked = design.behaviors?.[f.id] ?? f.value;
       else el.value = design.behaviors?.[f.id] ?? f.value;
+      if (f.stage === "choreography") el.dispatchEvent(new Event("input"));
     }
     for (const s of behaviorCatalog.scenarios) {
       const weight = design.scenarioWeights?.[s.id] ?? 1;
@@ -396,15 +414,15 @@
     behaviorCatalog = catalog;
     globalThis.RaveLinkMusicRecipe.build(catalog);
     const stages = {
+      choreography: "Your choreography",
       choice: "Recipe variety",
-      analysis: "Analysis & band balance",
-      response: "Response envelope",
-      layers: "Responsive layers",
-      shape: "Spatial shape",
+      response: "Brightness smoothing",
       color: "Color movement",
       output: "Output pacing",
     };
     for (const [id, label] of Object.entries(stages)) {
+      const fields = catalog.behaviors.filter((f) => f.stage === id && f.id !== "smoothing");
+      if (!fields.length) continue;
       const detail = document.createElement("details");
       detail.id = "music-stage-" + id;
       const summary = document.createElement("summary");
@@ -413,8 +431,9 @@
       const group = document.createElement("div");
       group.className = "musicEditor";
       detail.append(group);
-      $("behaviorControls").append(detail);
-      for (const f of catalog.behaviors.filter((f) => f.stage === id && f.id !== "smoothing")) {
+      $(id === "choreography" ? "profileControls" : "behaviorControls").append(detail);
+      if (id === "choreography") detail.open = true;
+      for (const f of fields) {
         const row = document.createElement("label");
         const title = document.createElement("span");
         title.textContent =
@@ -435,28 +454,9 @@
           row.append(active);
           input.onchange = () => void action(saveDesign);
           $("layerControls").append(row);
-          row.hidden = ![
-            "attacksEnabled",
-            "balanceEnabled",
-            "colorEnabled",
-            "spatialEnabled",
-          ].includes(f.id);
         } else workspaceUI.placeEditor(f, row, group);
-        if (
-          [
-            "referenceMs",
-            "riseGain",
-            "riseDecayMs",
-            "bodyAttackMs",
-            "bodyReleaseMs",
-            "accentDepth",
-            "impactDepth",
-            "outputAttackMs",
-            "outputReleaseMs",
-          ].includes(f.id)
-        )
-          row.hidden = true;
       }
+      if (!group.children.length) detail.remove();
     }
     for (const s of catalog.scenarios) {
       const row = document.createElement("div");
@@ -491,9 +491,9 @@
       ["source", "Source"],
       ["analysis", "Analysis"],
       ["response", "Envelope"],
-      ["scenario", "Scenario draw"],
-      ["layers", "Layers"],
-      ["shape", "Shape"],
+      ["scenario", "Color selection"],
+      ["layers", "Color permissions"],
+      ["shape", "Color layout"],
       ["color", "Color"],
       ["output", "Limits & ownership"],
     ]) {
@@ -508,41 +508,7 @@
       const help = document.createElement("small");
       help.textContent = "Click to edit this stage";
       button.append(title, value, help);
-      button.onclick = () => {
-        if (id === "scenario") {
-          showWorkspace("customize");
-          $("randomRules").scrollIntoView({ block: "nearest" });
-          return;
-        }
-        if (id === "layers") {
-          showWorkspace("play");
-          $("catalogPanel").open = true;
-          $("layerControls").scrollIntoView({ block: "nearest" });
-          return;
-        }
-        if (id === "color") {
-          showWorkspace("customize");
-          $("randomRules").scrollIntoView({ block: "nearest" });
-          return;
-        }
-        if (id === "output") {
-          showWorkspace("setup");
-          $("tuning").open = true;
-          $("outputCeiling").scrollIntoView({ block: "nearest" });
-          return;
-        }
-        if (id === "source") {
-          showWorkspace("setup");
-          $("setup").open = true;
-          $("setup").scrollIntoView({ block: "nearest" });
-          return;
-        }
-        showWorkspace("play");
-        $("catalogPanel").open = true;
-        $("fineControls").open = true;
-        $("stage-" + id).open = true;
-        $("stage-" + id).scrollIntoView({ block: "nearest" });
-      };
+      button.onclick = () => workspaceUI.editPipelineStage(id);
       $("pipeline").append(button);
     }
     renderBehaviorValues(view.design);
@@ -567,11 +533,15 @@
   ])
     $(id).onchange = () => void action(saveDesign);
   $("applyBehaviors").onclick = () => void action(saveDesign);
-  $("applyTransitions").onclick = () => void action(saveDesign);
+  $("applyTransitions").onclick = $("applyProfile").onclick = () => void action(saveDesign);
+  $("behavior-randomProfileEnabled").onchange = () => void action(saveDesign);
   $("baseline").onclick = () =>
     void action(async () => {
       if (!behaviorCatalog) return;
-      view.design = await call("music.styles.v1", "configure", behaviorCatalog.baseline);
+      view.design = await call("music.styles.v1", "configure", {
+        ...view.design,
+        ...behaviorCatalog.baseline,
+      });
       renderView({ ...view, design: view.design }, true);
       histories.clear();
       lastSequence = null;
@@ -655,11 +625,12 @@
       if (range) {
         $("floorDb").value = range[0];
         $("ceilingDb").value = range[1];
-        await saveDesign();
+        await saveDesign("responseRange");
       }
     });
-  $("intensity").onchange =
-    $("outputHz").onchange =
+  for (const id of ["floorDb", "ceilingDb"])
+    $(id).onchange = () => void action(() => saveDesign(id));
+  $("outputHz").onchange =
     $("outputRateMode").onchange =
     $("applyRecipe").onclick =
     $("applyDesign").onclick =
@@ -676,6 +647,10 @@
     void action(async () => {
       await call("music.styles.v1", "configure", {
         ...view.design,
+        behaviors: {
+          ...view.design.behaviors,
+          profilePaletteEnabled: $("paletteSource").value === "profile",
+        },
         recipeOptions: {
           ...view.design.recipeOptions,
           palette: generated
@@ -735,7 +710,7 @@
         try {
           if (!behaviorCatalog) {
             const catalog = await request("/api/music-to-light/catalog");
-            if (catalog.revision !== 27) throw Error("music_restart_required");
+            if (catalog.revision !== 33) throw Error("music_restart_required");
             for (const look of catalog.looks || []) {
               const option = document.createElement("option");
               option.value = look.id;
@@ -747,14 +722,9 @@
               void action(async () => {
                 const look = catalog.looks.find((l) => l.id === $("look").value);
                 if (!look) return;
-                await call("music.styles.v1", "configure", {
-                  ...view.design,
-                  scenarioMode: "manual",
-                  recipeOptions: {},
-                  parameterRanges: {},
-                  ...look.design,
-                  behaviors: { ...view.design.behaviors, ...look.design.behaviors },
-                });
+                await workspaceUI.applyLook(look, view.design, (payload) =>
+                  call("music.styles.v1", "configure", payload),
+                );
                 $("lookHelp").textContent = look.help;
                 renderView(await request("/api/music-to-light/operator"), true);
               });
@@ -769,7 +739,7 @@
         }
         notice("");
       } else {
-        renderStatus(await call("music.session.v1", "status"));
+        renderView(await request("/api/music-to-light/operator"));
         if (behaviorCatalog) renderPipeline(await request("/api/music-to-light/pipeline"));
       }
       workspaceUI.recovered();

@@ -9,7 +9,8 @@ function createModTestHarness(mod, options = {}) {
   const providers = new Map(Object.entries(options.providers || {}));
   const calls = [];
   const events = [];
-  let currentTime = Number(options.startAt || 1700000000000);
+  let currentTime = Number(options.startAt ?? 1700000000000);
+  if (!Number.isFinite(currentTime)) throw new TypeError("clock_start_invalid");
   let active = false;
   let activationContext = null;
 
