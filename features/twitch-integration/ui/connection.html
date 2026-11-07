@@ -829,7 +829,9 @@
           ? "Identity-only login selected. Existing granted access stays active until changed in Twitch."
           : last.connected
             ? count +
-              " of 5 features available now. " +
+              " of " +
+              groups.length +
+              " features available now. " +
               (missing
                 ? missing + " selected feature(s) need authorization."
                 : "Your selected features are already available.")
