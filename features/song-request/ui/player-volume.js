@@ -33,7 +33,11 @@ function installPlayerVolumeControls(soundcloud) {
   group.append(note);
   let busy = false,
     nativeAvailable = false,
-    generation = 0;
+    generation = 0,
+    volumeWriting = false,
+    volumePending = null,
+    volumePointer = false,
+    volumeProtectUntil = 0;
   const selected = () => $("songPlayerProvider").value;
   const youtubeBrowser = () => selected() === "youtube" && window.ravelinkYouTubeBrowserActive?.();
   async function native() {
@@ -117,19 +121,54 @@ function installPlayerVolumeControls(soundcloud) {
   }
   save.onclick = () => void applyRange();
   $("volume").setAttribute("aria-label", "Player volume");
-  $("volume").oninput = preview;
+  const slider = $("volume");
+  slider.addEventListener("pointerdown", () => {
+    volumePointer = true;
+  });
+  const release = () => {
+    volumePointer = false;
+  };
+  window.addEventListener("pointerup", release);
+  window.addEventListener("pointercancel", release);
+  slider.addEventListener("blur", release);
+  slider.oninput = () => {
+    volumeProtectUntil = Date.now() + 1800;
+    preview();
+  };
+  window.ravelinkPlayerVolume = {
+    sync(volume) {
+      if (volumePointer || volumeWriting || volumePending || Date.now() < volumeProtectUntil)
+        return false;
+      slider.value = volume?.control ?? 100;
+      $("volumeOut").textContent = `${slider.value} // OUTPUT ${volume?.outputPercent ?? 40}%`;
+      player?.setVolume?.(volume?.outputPercent ?? 40);
+      return true;
+    },
+  };
   $("volume").onchange = async () => {
+    volumePending = Number(slider.value);
+    volumeProtectUntil = Date.now() + 1800;
+    if (volumeWriting) return;
+    volumeWriting = true;
     try {
-      const reply = await call("song.queue.admin.v1", "moderate", {
-        action: "volume",
-        value: Number($("volume").value),
-      });
-      if (!reply.ok) throw new Error(reply.code);
-      await native();
+      while (volumePending !== null) {
+        const value = volumePending;
+        volumePending = null;
+        const reply = await call("song.queue.admin.v1", "moderate", {
+          action: "volume",
+          value,
+          operatorPlayback: true,
+        });
+        if (!reply.ok) throw new Error(reply.code || reply.reason || "Volume could not be saved.");
+      }
       note.textContent = "Volume saved.";
-      await refreshState();
     } catch (error) {
+      volumePending = null;
+      volumeProtectUntil = 0;
       note.textContent = error.message;
+    } finally {
+      volumeWriting = false;
+      void refreshState();
     }
   };
   async function select() {

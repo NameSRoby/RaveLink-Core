@@ -1153,10 +1153,7 @@ else globalThis.RaveLinkRandomId = browserRandomId;
             $("volumeFloor").value = volumeFloorPercent;
             $("volumeCeiling").value = volumeCeilingPercent;
           }
-          $("volume").value = queueState.volume?.control ?? 100;
-          $("volumeOut").textContent =
-            `${$("volume").value} // OUTPUT ${queueState.volume?.outputPercent ?? 40}%`;
-          player?.setVolume?.(queueState.volume?.outputPercent ?? 40);
+          window.ravelinkPlayerVolume?.sync(queueState.volume);
           if (playback.control?.revision > appliedChatPlaybackRevision) {
             appliedChatPlaybackRevision = playback.control.revision;
             chatPlaybackPaused = playback.control.paused;
@@ -4453,7 +4450,11 @@ function installPlayerVolumeControls(soundcloud) {
   group.append(note);
   let busy = false,
     nativeAvailable = false,
-    generation = 0;
+    generation = 0,
+    volumeWriting = false,
+    volumePending = null,
+    volumePointer = false,
+    volumeProtectUntil = 0;
   const selected = () => $("songPlayerProvider").value;
   const youtubeBrowser = () => selected() === "youtube" && window.ravelinkYouTubeBrowserActive?.();
   async function native() {
@@ -4537,19 +4538,54 @@ function installPlayerVolumeControls(soundcloud) {
   }
   save.onclick = () => void applyRange();
   $("volume").setAttribute("aria-label", "Player volume");
-  $("volume").oninput = preview;
+  const slider = $("volume");
+  slider.addEventListener("pointerdown", () => {
+    volumePointer = true;
+  });
+  const release = () => {
+    volumePointer = false;
+  };
+  window.addEventListener("pointerup", release);
+  window.addEventListener("pointercancel", release);
+  slider.addEventListener("blur", release);
+  slider.oninput = () => {
+    volumeProtectUntil = Date.now() + 1800;
+    preview();
+  };
+  window.ravelinkPlayerVolume = {
+    sync(volume) {
+      if (volumePointer || volumeWriting || volumePending || Date.now() < volumeProtectUntil)
+        return false;
+      slider.value = volume?.control ?? 100;
+      $("volumeOut").textContent = `${slider.value} // OUTPUT ${volume?.outputPercent ?? 40}%`;
+      player?.setVolume?.(volume?.outputPercent ?? 40);
+      return true;
+    },
+  };
   $("volume").onchange = async () => {
+    volumePending = Number(slider.value);
+    volumeProtectUntil = Date.now() + 1800;
+    if (volumeWriting) return;
+    volumeWriting = true;
     try {
-      const reply = await call("song.queue.admin.v1", "moderate", {
-        action: "volume",
-        value: Number($("volume").value),
-      });
-      if (!reply.ok) throw new Error(reply.code);
-      await native();
+      while (volumePending !== null) {
+        const value = volumePending;
+        volumePending = null;
+        const reply = await call("song.queue.admin.v1", "moderate", {
+          action: "volume",
+          value,
+          operatorPlayback: true,
+        });
+        if (!reply.ok) throw new Error(reply.code || reply.reason || "Volume could not be saved.");
+      }
       note.textContent = "Volume saved.";
-      await refreshState();
     } catch (error) {
+      volumePending = null;
+      volumeProtectUntil = 0;
       note.textContent = error.message;
+    } finally {
+      volumeWriting = false;
+      void refreshState();
     }
   };
   async function select() {
@@ -5487,7 +5523,10 @@ function installSpotifyPlayer({ showView, volumeControls }) {
             $("tidalInstallStatus").textContent =
               "Companion installation details could not be refreshed.";
         });
-      if (companionInstall?.installed && !["0.1.6", "0.1.7"].includes(companionInstall.version))
+      if (
+        companionInstall?.installed &&
+        !["0.1.6", "0.1.7", "0.1.8"].includes(companionInstall.version)
+      )
         $("tidalConnection").textContent = "Desktop companion update needed — open Setup";
       if (view === "setup") await refreshCatalogApi();
       renderTidalQueue();
@@ -5501,7 +5540,10 @@ function installSpotifyPlayer({ showView, volumeControls }) {
         !tidalState.delivery?.processing &&
         !tidalState.delivery?.lastError &&
         tidalState.capacity?.available > 0 &&
-        !(companionInstall?.installed && !["0.1.6", "0.1.7"].includes(companionInstall.version)) &&
+        !(
+          companionInstall?.installed &&
+          !["0.1.6", "0.1.7", "0.1.8"].includes(companionInstall.version)
+        ) &&
         tidalState.queue?.some(
           (entry) =>
             !entry.deliveryError &&
@@ -5665,7 +5707,7 @@ function installSpotifyPlayer({ showView, volumeControls }) {
     });
     companionCheckedAt = Date.now();
     const ready = tidalState?.connected && tidalState?.ready,
-      needsUpdate = companionInstall.installed && companionInstall.version !== "0.1.7";
+      needsUpdate = companionInstall.installed && companionInstall.version !== "0.1.8";
     if (needsUpdate) $("tidalConnection").textContent = "Desktop companion update needed";
     $("tidalInstallStatus").textContent = needsUpdate
       ? "Close TIDAL, choose Update companion below, then reopen TIDAL. Your original app and playlist are preserved."

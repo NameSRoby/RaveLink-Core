@@ -345,7 +345,10 @@
             $("tidalInstallStatus").textContent =
               "Companion installation details could not be refreshed.";
         });
-      if (companionInstall?.installed && !["0.1.6", "0.1.7"].includes(companionInstall.version))
+      if (
+        companionInstall?.installed &&
+        !["0.1.6", "0.1.7", "0.1.8"].includes(companionInstall.version)
+      )
         $("tidalConnection").textContent = "Desktop companion update needed — open Setup";
       if (view === "setup") await refreshCatalogApi();
       renderTidalQueue();
@@ -359,7 +362,10 @@
         !tidalState.delivery?.processing &&
         !tidalState.delivery?.lastError &&
         tidalState.capacity?.available > 0 &&
-        !(companionInstall?.installed && !["0.1.6", "0.1.7"].includes(companionInstall.version)) &&
+        !(
+          companionInstall?.installed &&
+          !["0.1.6", "0.1.7", "0.1.8"].includes(companionInstall.version)
+        ) &&
         tidalState.queue?.some(
           (entry) =>
             !entry.deliveryError &&
@@ -523,7 +529,7 @@
     });
     companionCheckedAt = Date.now();
     const ready = tidalState?.connected && tidalState?.ready,
-      needsUpdate = companionInstall.installed && companionInstall.version !== "0.1.7";
+      needsUpdate = companionInstall.installed && companionInstall.version !== "0.1.8";
     if (needsUpdate) $("tidalConnection").textContent = "Desktop companion update needed";
     $("tidalInstallStatus").textContent = needsUpdate
       ? "Close TIDAL, choose Update companion below, then reopen TIDAL. Your original app and playlist are preserved."
