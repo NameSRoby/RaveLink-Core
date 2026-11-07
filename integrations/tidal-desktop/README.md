@@ -17,7 +17,7 @@ Direct track URLs/IDs do not require the separate catalog sign-in.
 
 ## Setup from the Player
 
-1. Restart Core after updating Song Request to 0.28.0, then reload the browser.
+1. Restart Core after updating Song Request to 0.45.10, then reload the browser.
 2. Open Song Request → Player and choose TIDAL. The local integration starts automatically.
 3. Close TIDAL. In the selected player's Setup subtab, under Connect the desktop player, choose Install companion.
 4. Start TIDAL normally. Play something locally to initialize its queue, then
@@ -42,7 +42,15 @@ Catalog country is a named dropdown of supported locations, not a free-text code
 The pairing-file path and Core address are saved locally in the companion's
 configuration. The scoped token stays in Core's pairing file and is read only by
 the native transport. There are no environment variables to set. Enabling the
-integration lasts for the Core session; selecting TIDAL starts it again after a restart.
+integration is remembered privately and starts again after Core restarts. Connection
+status still requires the actual companion to reconnect.
+
+Companion 0.1.8 waits up to 1.5 seconds on an authenticated local request for the
+next command. Enqueuing a command wakes that request immediately; idle waiting
+uses no polling timer in the renderer. Disconnects and shutdown release the wait,
+only one request may wait at a time, and legacy polling remains compatible.
+This removes the former two-second command delay without busy polling. Update
+the companion with TIDAL closed, then reopen it to load the new renderer.
 
 ## Command line alternative
 

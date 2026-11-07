@@ -53,4 +53,18 @@ test("optional slider increments support keyboard, endpoints and per-button over
     "54",
     "confirmed external values stay honest rather than snapping the device",
   );
+  await page.locator("output").click();
+  const exact = page.getByRole("spinbutton", { name: "Volume exact percent" });
+  await exact.fill("35");
+  await exact.press("Enter");
+  await page.waitForFunction(() => writes.at(-1) === 35);
+  assert.equal(await slider.inputValue(), "35");
+  const count = await page.evaluate(() => writes.length);
+  await slider.dispatchEvent("change");
+  await page.waitForTimeout(180);
+  assert.equal(
+    await page.evaluate(() => writes.length),
+    count,
+    "release/change cannot repeat an unchanged write",
+  );
 });

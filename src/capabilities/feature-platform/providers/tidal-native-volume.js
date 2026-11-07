@@ -4,7 +4,7 @@
  * docs/DEVELOPMENT.md#startup-and-shutdown
  */
 module.exports =
-  ({ commands, status, finish, now, timeoutMs }) =>
+  ({ commands, status, finish, now, timeoutMs, notify = () => {} }) =>
   (input) => {
     const percent = input?.percent,
       state = status(),
@@ -30,5 +30,6 @@ module.exports =
         resolve,
         timer,
       });
+      notify();
     });
   };

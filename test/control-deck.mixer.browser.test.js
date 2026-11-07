@@ -169,7 +169,7 @@ test("mixer keeps Windows and request faders in one row, protects drags, docks i
     { ...state, output: { ...system, volume: 10 } },
   );
   assert.equal(
-    await systemSlider.inputValue(),
+    await mixer.locator('input[aria-label="System audio volume"]').inputValue(),
     "80",
     "stale snapshots cannot move the thumb during a drag",
   );
@@ -351,6 +351,17 @@ test("mixer keeps Windows and request faders in one row, protects drags, docks i
   await swipeFader(-1);
   await page.waitForFunction(() =>
     /Audio mixer · 2 \/ /.test(document.querySelector(".deckScreenNav span").textContent),
+  );
+  await page.waitForTimeout(1850);
+  system.volume = 64;
+  await page.evaluate(
+    (state) => document.dispatchEvent(new CustomEvent("ravelink-deck-state", { detail: state })),
+    await audio.read(true),
+  );
+  assert.equal(
+    await mixer.locator('input[aria-label="System audio volume"]').inputValue(),
+    "64",
+    "a fader released on the pager remains synchronized after capture transfers",
   );
   await page.evaluate(
     (state) => document.dispatchEvent(new CustomEvent("ravelink-deck-state", { detail: state })),

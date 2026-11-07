@@ -6,9 +6,64 @@ const fs = require("node:fs"),
 const { chromium } = require("playwright");
 const createCore = require("../src/app/core/create-core-server");
 const extension = require("../src/app/optional/create-feature-platform-extension");
+
+test("explicitly enabled TIDAL bridge reconnects after Core restart without opening the Player page", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-tidal-restart-"));
+  fs.cpSync(
+    path.join(__dirname, "../features/song-request"),
+    path.join(root, "installed/song-request"),
+    { recursive: true },
+  );
+  let current;
+  const start = async () => {
+    current = createCore({
+      rootDir: path.join(__dirname, ".."),
+      runtimeDir: path.join(root, "runtime"),
+      dryRun: true,
+      capabilities: { features: true },
+      extend: extension({
+        featuresRoot: path.join(root, "installed"),
+        runtimeRoot: path.join(root, "features-runtime"),
+        allowUnsafeRuntime: true,
+      }),
+    });
+    await current.extension.startup;
+  };
+  const stop = async () => {
+    if (!current) return;
+    await current.extension.shutdown();
+    await current.services.lifecycle.stopAll();
+    current = null;
+  };
+  t.after(async () => {
+    await stop();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const call = (method) =>
+    current.extension.registry.request(
+      "song-request",
+      "song.tidal.experimental.v1",
+      method,
+      method === "status" ? null : {},
+    );
+  await start();
+  assert.equal((await call("status")).value.enabled, false);
+  assert.equal((await call("enable")).value.enabled, true);
+  await stop();
+  await start();
+  const after = await call("status");
+  assert.equal(after.ok, true);
+  assert.equal(after.value.enabled, true);
+  assert.equal(
+    after.value.connected,
+    false,
+    "persisting intent cannot invent a connected companion",
+  );
+});
 test("one SoundCloud playback surface and inline output range work across selected providers", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-player-volume-")),
     native = [];
+  let nativeGate, releaseNative;
   fs.cpSync(
     path.join(__dirname, "../features/song-request"),
     path.join(root, "installed/song-request"),
@@ -38,10 +93,11 @@ test("one SoundCloud playback surface and inline output range work across select
           ok: true,
           available: true,
           installed: true,
-          version: "0.1.7",
+          version: "0.1.8",
         }),
-        "tidal.desktop.experimental.v1/volume": (input) => {
+        "tidal.desktop.experimental.v1/volume": async (input) => {
           native.push(input.percent);
+          await nativeGate;
           return { ok: true, percent: input.percent };
         },
       },
@@ -56,6 +112,7 @@ test("one SoundCloud playback surface and inline output range work across select
       viewport: { width: 1280, height: 900 },
     });
   t.after(async () => {
+    releaseNative?.();
     await browser.close();
     await created.extension.shutdown();
     await created.services.lifecycle.stopAll();
@@ -187,6 +244,34 @@ test("one SoundCloud playback surface and inline output range work across select
     .waitFor();
   await surface.locator("#volume:not([disabled])").waitFor();
   assert.equal(await surface.locator(".now").isVisible(), true);
+  nativeGate = new Promise((resolve) => {
+    releaseNative = resolve;
+  });
+  const beforeWrites = native.length;
+  await surface.locator("#volume").fill("30");
+  await surface.locator("#volume").dispatchEvent("change");
+  const deadline = Date.now() + 5000;
+  while (native.length === beforeWrites && Date.now() < deadline)
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  assert(native.length > beforeWrites, "native write started");
+  await surface.locator("#volume").fill("45");
+  await surface.locator("#volume").dispatchEvent("change");
+  await surface.locator("body").evaluate(async () => {
+    await refreshState();
+  });
+  assert.equal(
+    await surface.locator("#volume").inputValue(),
+    "45",
+    "polling must not reset an in-flight adjustment",
+  );
+  releaseNative();
+  nativeGate = null;
+  await surface.locator("#volumeNotice").filter({ hasText: "Volume saved." }).waitFor();
+  assert.equal(
+    native.at(-1),
+    36,
+    "the final value follows the first write without competing requests",
+  );
   await surface.locator("#volume").fill("25");
   await surface.locator("#volume").dispatchEvent("change");
   await surface.locator("#volumeNotice").filter({ hasText: "Volume saved." }).waitFor();

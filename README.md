@@ -244,7 +244,7 @@ StreamElements widget-only intake leaves refunds and fulfillment manual.
 - **Overlay editing:** a visible object list, selection inspector, local Undo/Redo, duplication, zoom, shape names/visibility and cancellable dragging. OBS changes remain explicit through Save overlay.
 - **Release health:** complete music runtime dependency packaging, bounded preference reads and stronger mod permission-change checks. The [health review](docs/REPOSITORY_HEALTH.md) records publication checks and validation status.
 
-See [button deck setup and custom actions](docs/CONTROL_DECK.md). Update **Song Request to 0.45.9** under Packages for the overlay and playback-control changes.
+See [button deck setup and custom actions](docs/CONTROL_DECK.md). **Request mode** switches between Channel Points and **!sr / !songrequest** without reopening a paused queue. Update **Song Request to 0.45.10** under Packages for the overlay and playback-control changes.
 
 ## Privacy, updates and support
 

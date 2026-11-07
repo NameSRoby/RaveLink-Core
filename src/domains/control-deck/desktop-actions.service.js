@@ -66,6 +66,7 @@ module.exports = function createDesktopActions({
   rootDir,
   platform = process.platform,
   request: injected,
+  nativeVolume,
   bridgeOptions = {},
 } = {}) {
   const bridge = injected ? null : require("./windows-bridge")({ rootDir, ...bridgeOptions });
@@ -81,6 +82,7 @@ module.exports = function createDesktopActions({
       });
   const audio = require("./windows-audio.service")({
     available,
+    nativeVolume,
     request: injected || audioBridge.request,
   });
   const file = path.join(

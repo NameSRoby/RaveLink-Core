@@ -91,6 +91,9 @@ module.exports = function createCoreServer(options = {}) {
     require("../../domains/control-deck/desktop-actions.service")({
       rootDir,
       runtimeDir,
+      nativeVolume: require("../../domains/control-deck/native-app-volume")(
+        () => extension?.registry || extension?.features?.registry,
+      ),
       ...options.controlDeckDesktopOptions,
     });
   const musicToLight = createMusicToLightService({

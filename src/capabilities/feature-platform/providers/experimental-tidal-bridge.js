@@ -94,6 +94,11 @@ module.exports = function createExperimentalTidalBridge(options) {
     moderationReady = false,
     volumeReady = false,
     stopped = false;
+  const { wait: pollWait, notify } = require("./tidal-command-waiter")({
+    poll,
+    takeCommand,
+    isStopped: () => stopped,
+  });
   let nativeQueue = null;
   const persist = () =>
     writeJsonFile(journalPath, {
@@ -238,6 +243,7 @@ module.exports = function createExperimentalTidalBridge(options) {
         resolve,
         timer,
       });
+      notify();
     });
   }
   function finish(id, result) {
@@ -361,7 +367,10 @@ module.exports = function createExperimentalTidalBridge(options) {
     // Legacy receipts lacked durations. Recover them through bounded metadata
     // reads only after existing operator/delivery commands have cleared.
     if (ready && nativeQueue && !commands.size) recoverDurations();
-    const command = ready ? [...commands.values()].find((row) => !row.delivered) : null;
+    return takeCommand();
+  }
+  function takeCommand() {
+    const command = !stopped && ready ? [...commands.values()].find((row) => !row.delivered) : null;
     if (command) command.delivered = true;
     return {
       ok: true,
@@ -522,6 +531,7 @@ module.exports = function createExperimentalTidalBridge(options) {
     status,
     authorized,
     poll,
+    pollWait,
     complete,
     volume: require("./tidal-native-volume")({
       commands,
@@ -529,6 +539,7 @@ module.exports = function createExperimentalTidalBridge(options) {
       finish,
       now,
       timeoutMs: options.timeoutMs,
+      notify,
     }),
     remove: require("./tidal-native-moderation")({
       receipts,
@@ -537,6 +548,7 @@ module.exports = function createExperimentalTidalBridge(options) {
       finish,
       now,
       timeoutMs: options.timeoutMs,
+      notify,
     }),
     review(input = {}) {
       const row = receipts.get(input.entryId);
@@ -604,6 +616,7 @@ module.exports = function createExperimentalTidalBridge(options) {
     shutdown() {
       stopped = true;
       ready = false;
+      notify();
       for (const id of [...commands.keys()]) finish(id, fail("tidal_bridge_stopped"));
       fs.rmSync(pairingPath, { force: true });
     },

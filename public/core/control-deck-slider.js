@@ -45,6 +45,8 @@ export function bindDeckSlider({ input, output, send, onError = () => {}, interv
     protectUntil = 0,
     lastSentAt = 0,
     touch = null,
+    activePointer = null,
+    editor = null,
     closed = false;
   const paint = () => {
     output.textContent = input.value + "%";
@@ -84,8 +86,8 @@ export function bindDeckSlider({ input, output, send, onError = () => {}, interv
       raw = Number(input.value),
       nearest = Math.max(min, Math.min(max, min + Math.round((raw - min) / increment) * increment));
     input.value = String(Math.abs(max - raw) <= Math.abs(nearest - raw) ? max : nearest);
+    dirty = dirty || Number(input.value) !== latest;
     latest = Number(input.value);
-    dirty = true;
     protectUntil = Date.now() + 1800;
     paint();
     clearTimeout(idleTimer);
@@ -96,6 +98,9 @@ export function bindDeckSlider({ input, output, send, onError = () => {}, interv
       timer = setTimeout(flush, Math.max(0, interval - (Date.now() - lastSentAt)));
   }
   input.addEventListener("pointerdown", (event) => {
+    activePointer = event.pointerId;
+    window.addEventListener("pointerup", releasePointer, true);
+    window.addEventListener("pointercancel", releasePointer, true);
     if (event.pointerType === "touch") {
       event.preventDefault();
       const surface = input.closest("[data-slider-orientation],.deckWindowsPanel"),
@@ -124,16 +129,17 @@ export function bindDeckSlider({ input, output, send, onError = () => {}, interv
     if (!touch || touch.id !== event.pointerId || touch.abandoned) return;
     const along = touch.vertical ? touch.y - event.clientY : event.clientX - touch.x,
       across = touch.vertical ? event.clientX - touch.x : touch.y - event.clientY;
+    if (Math.hypot(along, across) > 8) touch.moved = true;
     if (!touch.locked) {
       if (
-        (Math.abs(across) > 8 && Math.abs(across) > Math.abs(along) * 1.25) ||
+        (Math.abs(across) > 8 && Math.abs(across) > Math.abs(along) * 1.15) ||
         (Math.abs(along) > 8 && performance.now() < touch.after)
       ) {
         touch.abandoned = true;
         delete input.dataset.dragging;
         return;
       }
-      if (Math.abs(along) < 8 || Math.abs(along) < Math.abs(across) * 1.25) return;
+      if (Math.abs(along) < 6 || Math.abs(along) < Math.abs(across) * 1.15) return;
       touch.locked = true;
       input.dataset.touchAdjusting = "true";
     }
@@ -184,19 +190,95 @@ export function bindDeckSlider({ input, output, send, onError = () => {}, interv
     changed();
     void flush();
   });
-  for (const event of ["pointerup", "pointercancel", "blur"])
-    input.addEventListener(event, () => {
-      pointerDown = dragging = false;
-      touch = null;
-      delete input.dataset.touchAdjusting;
-      delete input.dataset.dragging;
-      clearTimeout(idleTimer);
-      if (dirty) void flush();
+  function releasePointer(event) {
+    if (event?.pointerId !== undefined && event.pointerId !== activePointer) return;
+    if (event?.type === "pointerup" && touch && !touch.locked && !touch.abandoned && !touch.moved) {
+      const bounds = input.getBoundingClientRect(),
+        min = Number(input.min) || 0,
+        max = Number(input.max) || 100,
+        travel = Math.max(1, (touch.vertical ? bounds.height : bounds.width) - 16),
+        distance = touch.vertical
+          ? bounds.bottom - event.clientY - 8
+          : event.clientX - bounds.left - 8;
+      input.value = String(Math.max(min, Math.min(max, min + (distance / travel) * (max - min))));
+      changed();
+    }
+    pointerDown = dragging = false;
+    activePointer = null;
+    touch = null;
+    window.removeEventListener("pointerup", releasePointer, true);
+    window.removeEventListener("pointercancel", releasePointer, true);
+    delete input.dataset.touchAdjusting;
+    delete input.dataset.dragging;
+    clearTimeout(idleTimer);
+    if (dirty) void flush();
+  }
+  input.addEventListener("blur", () => releasePointer());
+  function exactValue() {
+    if (input.disabled || closed || editor) return;
+    editor = document.createElement("input");
+    editor.type = "number";
+    editor.inputMode = "numeric";
+    editor.className = "deckSliderExact";
+    editor.min = input.min;
+    editor.max = input.max;
+    editor.step = input.step;
+    editor.value = input.value;
+    editor.setAttribute(
+      "aria-label",
+      (input.getAttribute("aria-label") || "Volume") + " exact percent",
+    );
+    output.hidden = true;
+    output.after(editor);
+    const finish = (commit) => {
+      if (!editor) return;
+      if (commit && (!editor.value || !editor.reportValidity())) return;
+      const value = editor.value,
+        field = editor;
+      editor = null;
+      field.remove();
+      output.hidden = false;
+      if (commit) {
+        input.value = value;
+        changed();
+        void flush();
+      }
+    };
+    editor.addEventListener("keydown", (event) => {
+      event.stopPropagation();
+      if (["Enter", "Escape"].includes(event.key)) {
+        event.preventDefault();
+        finish(event.key === "Enter");
+      }
     });
+    editor.addEventListener("blur", () => finish(true));
+    editor.focus({ preventScroll: true });
+    editor.select();
+  }
+  output.tabIndex = 0;
+  output.setAttribute("role", "button");
+  output.title = "Set exact volume";
+  output.addEventListener("click", (event) => {
+    event.stopPropagation();
+    exactValue();
+  });
+  output.addEventListener("keydown", (event) => {
+    if (["Enter", " "].includes(event.key)) {
+      event.preventDefault();
+      event.stopPropagation();
+      exactValue();
+    }
+  });
   const control = {
     sync(value) {
       if (!Number.isFinite(value)) return;
-      if (!dragging && !dirty && !flight && (value === latest || Date.now() >= protectUntil)) {
+      if (
+        !editor &&
+        !dragging &&
+        !dirty &&
+        !flight &&
+        (value === latest || Date.now() >= protectUntil)
+      ) {
         input.value = value;
         latest = value;
         paint();
@@ -204,6 +286,10 @@ export function bindDeckSlider({ input, output, send, onError = () => {}, interv
     },
     close() {
       closed = true;
+      releasePointer();
+      editor?.remove();
+      editor = null;
+      output.hidden = false;
       delete input.dataset.dragging;
       delete input.dataset.touchAdjusting;
       touch = null;
@@ -212,6 +298,7 @@ export function bindDeckSlider({ input, output, send, onError = () => {}, interv
     },
     cancel() {
       dirty = false;
+      releasePointer();
       dragging = pointerDown = false;
       delete input.dataset.dragging;
       delete input.dataset.touchAdjusting;

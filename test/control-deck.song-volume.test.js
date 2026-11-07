@@ -1,6 +1,19 @@
 const test = require("node:test"),
   assert = require("node:assert/strict");
 const create = require("../src/domains/control-deck/song-volume");
+test("connected TIDAL volume follows its real gain and retains exact requested values within native rounding", () => {
+  const native = { connected: true, volumeAvailable: true },
+    audio = {
+      available: true,
+      apps: [{ key: "app:" + "c".repeat(64), name: "TIDALPlayer", volume: 13 }],
+    };
+  const volume = { control: 100, outputPercent: 40, floorPercent: 0, ceilingPercent: 40 };
+  assert.equal(create.projection("tidal", native, audio, volume).level, 33);
+  volume.control = 37;
+  volume.outputPercent = 15;
+  audio.apps[0].volume = 15;
+  assert.equal(create.projection("tidal", native, audio, volume).level, 37);
+});
 test("disabled desktop volume bridge uses the discovered app within request limits and reflects external levels", async () => {
   const app = { key: "app:" + "a".repeat(64), name: "TIDALPlayer", volume: 24 },
     audio = { available: true, apps: [app] },

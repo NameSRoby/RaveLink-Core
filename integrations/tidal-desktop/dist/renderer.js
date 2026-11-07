@@ -463,15 +463,18 @@ function createAdapter(redux, unloads, options = {}) {
     unloads.clear();
   });
   async function tick() {
+    let delay = 2000;
     try {
       const reply = await globalThis.__ravelinkTidalBridge.call("next", {
         companionId,
+        waitMs: 1500,
         ready: globalThis.__ravelinkTidal.ready(),
         queueReady: adapter.ready(),
         moderationReady: adapter.canRemove(),
         volumeReady: adapter.canSetVolume(),
         queue: adapter.queueSnapshot(),
       });
+      delay = reply.waitSupported ? 0 : 250;
       const command = reply.command;
       if (command && !stopped) {
         let result = { id: command.id, companionId, ok: false };
@@ -513,7 +516,7 @@ function createAdapter(redux, unloads, options = {}) {
     } catch {
       /* Core offline or unpaired: stay isolated from TIDAL playback. */
     }
-    if (!stopped) timer = setTimeout(tick, 2000);
+    if (!stopped) timer = setTimeout(tick, delay);
   }
   void tick();
 })();

@@ -47,9 +47,17 @@ module.exports = function registerExperimentalTidal(app, { bridge, registry }) {
           },
     );
   });
-  app.post("/experimental/tidal/bridge/next", local, companion, (req, res) =>
-    res.json(bridge.poll(req.body)),
-  );
+  app.post("/experimental/tidal/bridge/next", local, companion, async (req, res) => {
+    const controller = new AbortController(),
+      cancel = () => controller.abort();
+    res.once("close", cancel);
+    try {
+      const reply = await bridge.pollWait(req.body, controller.signal);
+      if (!res.destroyed) res.json(reply);
+    } finally {
+      res.removeListener("close", cancel);
+    }
+  });
   app.post("/experimental/tidal/bridge/result", local, companion, (req, res) =>
     res.json(bridge.complete(req.body)),
   );

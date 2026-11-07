@@ -2,7 +2,12 @@
 const { fault } = require("./control-deck-config");
 const keyPattern = /^(system|microphone|(?:device|app):[a-f0-9]{64})$/;
 const empty = { type: "object", additionalProperties: false, properties: {} };
-module.exports = function createWindowsAudio({ request, available, now = Date.now }) {
+module.exports = function createWindowsAudio({
+  request,
+  available,
+  now = Date.now,
+  nativeVolume = async () => false,
+}) {
   let state = {
     available: false,
     code: available ? "audio_waiting" : "desktop_windows_required",
@@ -139,6 +144,19 @@ module.exports = function createWindowsAudio({ request, available, now = Date.no
         epoch++;
         after = 0;
         try {
+          if (
+            command.action === "volume" &&
+            (await nativeVolume(targetRow(command.target), command.level, signal))
+          ) {
+            for (let attempt = 0; attempt < 8; attempt++) {
+              if (closed || signal?.aborted) throw fault("control_deck_cancelled");
+              const next = accept(await request("audio.status", {}));
+              if (next.apps.find((row) => row.key === command.target)?.volume === command.level)
+                return next;
+              await new Promise((resolve) => setTimeout(resolve, 75));
+            }
+            throw fault("audio_native_change_unconfirmed");
+          }
           return accept(await request("audio.set", command, signal));
         } catch (error) {
           state = {

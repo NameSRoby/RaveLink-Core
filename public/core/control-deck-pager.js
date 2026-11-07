@@ -184,6 +184,7 @@ export function createDeckPager({
         id: event.pointerId,
         x: event.clientX,
         y: event.clientY,
+        at: performance.now(),
         target: event.target,
         dragging: false,
       };
@@ -198,11 +199,11 @@ export function createDeckPager({
     }
     const dx = event.clientX - gesture.x,
       dy = event.clientY - gesture.y;
-    if (Math.abs(dy) > 24 && Math.abs(dy) > Math.abs(dx)) {
+    if (!gesture.dragging && Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx) * 1.4) {
       gesture = null;
       return;
     }
-    if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+    if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.15) {
       if (!gesture.dragging) {
         gesture.dragging = true;
         onSwipe();
@@ -216,7 +217,9 @@ export function createDeckPager({
     gesture = null;
     if (held.dragging) {
       suppressUntil = performance.now() + 500;
-      if (event.type === "pointerup" && Math.abs(event.clientX - held.x) >= 48)
+      const distance = Math.abs(event.clientX - held.x),
+        speed = distance / Math.max(1, performance.now() - held.at);
+      if (event.type === "pointerup" && (distance >= 36 || (distance >= 20 && speed >= 0.25)))
         move(event.clientX < held.x ? 1 : -1);
     }
   }

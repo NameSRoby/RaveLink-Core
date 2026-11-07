@@ -4,6 +4,7 @@
  * docs/DEVELOPMENT.md#startup-and-shutdown
  */
 const path = require("node:path");
+const { readJsonFile, writeJsonFile } = require("../../shared/fs/json-file-store");
 const createFeatureHostRegistry = require("../../capabilities/feature-platform/host/feature-host-registry");
 const registerFeaturePlatformRoutes = require("../../capabilities/feature-platform/http/register-feature-platform.routes");
 const createWindowsMediaObserver = require("../../capabilities/feature-platform/providers/windows-media-observer");
@@ -356,8 +357,12 @@ function createFeaturePlatformExtension(options = {}) {
       allowUnsafeRuntime: options.allowUnsafeRuntime === true,
     });
     registerFeaturePlatformRoutes(context.app, { registry });
-    const tidalEnabled =
-      options.experimentalTidal === true || process.env.RAVELINK_EXPERIMENTAL_TIDAL === "1";
+    const tidalChoicePath = path.join(context.runtimeDir, "tidal-desktop-enabled.json"),
+      tidalChoice = readJsonFile(tidalChoicePath, null),
+      tidalEnabled =
+        options.experimentalTidal === true ||
+        process.env.RAVELINK_EXPERIMENTAL_TIDAL === "1" ||
+        (tidalChoice?.version === 1 && tidalChoice.enabled === true);
     let tidalBridge;
     const manageTidalCompanion =
       require("../../capabilities/feature-platform/providers/tidal-companion-manager")({
@@ -368,6 +373,7 @@ function createFeaturePlatformExtension(options = {}) {
       });
     function enableTidalExperiment() {
       if (!tidalBridge) {
+        writeJsonFile(tidalChoicePath, { version: 1, enabled: true }, { mode: 0o600 });
         tidalBridge =
           require("../../capabilities/feature-platform/providers/experimental-tidal-bridge")({
             runtimeDir: context.runtimeDir,

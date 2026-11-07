@@ -114,6 +114,16 @@ fixture's dedicated temperature command. State feedback overrides decorative col
 
 System/microphone targets follow the current default devices. App controls follow
 application identity across process restarts; do not persist a PID as identity.
+`native.audio.volume:<key>` uses TIDAL's saved native volume when its companion is
+connected and supports volume, then confirms the Windows gain. An uncertain native
+write is never replayed as a Windows write. Other applications retain Windows ownership.
+
+`song.request-mode-toggle` takes `{}` and reads the actual Twitch monitor setting.
+It switches native intake between `songRequestChatEnabled: true` (!sr / !songrequest)
+and false (managed Channel Points reward), preserving queue pause and command
+permissions. Chat access and a managed reward are checked before their respective
+mode is selected. It pauses paid song intake before enabling chat; unrelated rewards
+are unchanged. Availability and current mode are exposed in the action catalog.
 Keys target the host desktop, including from a phone; they do not confirm an
 external application's state. RaveLink does not manage Discord's lifecycle.
 

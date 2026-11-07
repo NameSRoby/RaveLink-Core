@@ -386,6 +386,7 @@ function defaults() {
           button("player-previous", "Previous song", "native.player.previous", "\u23ee"),
           button("player-next", "Next song", "native.player.next", "\u23ed"),
           button("intake-toggle", "Song requests", "song.intake-toggle", "⏯"),
+          button("intake-mode", "Request mode", "song.request-mode-toggle", "↔"),
           button("ban-song", "Ban current song", "song.ban-current", "⊘"),
           button("ban-requester", "Ban requester", "song.ban-requester", "⊗"),
           button("discord-mic", "Discord microphone", "native.hotkey", "🎙", { shortcut: "F13" }),

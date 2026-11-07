@@ -22,6 +22,13 @@ current automation or light-session owner, including changes from another device
 Explicit start/stop and enable/disable actions remain available for macros that
 need a fixed outcome.
 
+**Request mode** switches between your managed Song Request Channel Points reward
+and chat commands **!sr / !songrequest**. Its label and LED show the saved Twitch
+mode. Chat mode requires chat access; Channel Points requires a managed Song Request
+reward. Switching to chat pauses that reward before enabling commands. Returning
+to Channel Points keeps a paused request queue paused. This changes neither your
+command permissions nor other rewards. Existing decks can add it from **+ > Request mode**.
+
 Buttons are saved configuration backed by the action library. Starter buttons can
 be edited or removed; they do not contain a particular user's account, network
 address, OBS scene or audio device. Each Windows installation discovers its own
@@ -146,6 +153,18 @@ Discord only. Media previous/play-pause/next/stop commands are available in the
 same panel and can also be pinned. These are working controls on the Core PC;
 they also work through the enabled LAN browser. Pinning or opening a popup never
 changes audio. Changes in Windows are reflected in the panel and pinned controls.
+
+Tap a fader's percentage to enter an exact value. Drag feedback is immediate while
+writes run in order and coalesce to the latest value; status polling cannot pull
+the fader back during an adjustment. With a connected TIDAL companion, its app
+fader updates TIDAL's saved native volume, which survives track changes, and confirms
+the observed Windows mixer level. The enabled companion bridge reconnects after
+Core restarts without requiring the Player page to be open. Other app faders use
+their Windows mixer owner.
+For responsive TIDAL faders, update its bundled companion to **0.1.8** in Player
+Setup. Its authenticated local connection waits for commands and wakes immediately,
+instead of adding the previous two-second polling delay. Close TIDAL for the
+companion update, then reopen it; ordinary playback remains owned by TIDAL.
 
 Rewards support three arrangements: an individual managed-reward toggle, one
 toggle for all managed rewards, or a **Reward controls** button that opens a

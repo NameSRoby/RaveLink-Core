@@ -50,7 +50,7 @@ function requireStopped(probe) {
 function checkedBundle(bundle) {
   const inventory = JSON.parse(fs.readFileSync(path.join(bundle, "integrity.json"), "utf8"));
   if (
-    !/^0\.1\.[01234567]$/.test(inventory.version) ||
+    !/^0\.1\.[012345678]$/.test(inventory.version) ||
     !inventory.files ||
     !inventory.files["injector.cjs"] ||
     !inventory.files["LICENSE.TidaLuna"]

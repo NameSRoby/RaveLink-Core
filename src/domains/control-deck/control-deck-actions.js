@@ -48,6 +48,7 @@ module.exports = function actions({
     activeFeature,
   });
   const musicActions = require("./control-deck-music-actions")({ music });
+  const requestMode = require("./request-intake-mode")({ getFeatures, getRewards });
   const playerTransport = require("./player-transport")({
     feature,
     getController: getMediaController,
@@ -88,6 +89,7 @@ module.exports = function actions({
     const list = [
       ...require("./profile-actions")(profiles),
       ...musicActions.catalog(),
+      ...requestMode.catalog(),
       row("song.pause", "Pause song requests", "Song Request", "Ⅱ", song),
       row("song.resume", "Resume song requests", "Song Request", "▶", song),
       row("song.skip", "Skip current request", "Song Request", "⏭", song),
@@ -319,6 +321,7 @@ module.exports = function actions({
       return widgets.execute(id, params, signal);
     if (id.startsWith("obs:")) return obs.execute(id, params, signal);
     if (musicActions.handles(id)) return musicActions.execute(id, params, signal);
+    if (id === requestMode.id) return requestMode.execute(signal);
     if (pauseActions.handles(id)) return pauseActions.execute(id, signal);
     if (playerTransport.handles(id)) return playerTransport.execute(id, signal);
     if (id.startsWith("native.")) return desktop.execute(id, params, signal);
@@ -444,7 +447,11 @@ module.exports = function actions({
         );
       return calls.get(key);
     };
-    const owners = Promise.all([pauseActions.refresh(false, reader), desktop?.refresh?.()]);
+    const owners = Promise.all([
+      pauseActions.refresh(false, reader),
+      requestMode.refresh(),
+      desktop?.refresh?.(),
+    ]);
     if (activeFeature("song-request") && !songRead && Date.now() - songReadAt >= 1000) {
       songRead = Promise.all([
         reader("song.queue.read.v1", "status", { limit: 5, playlistLimit: 1, moderationLimit: 1 }),

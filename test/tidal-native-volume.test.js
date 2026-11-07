@@ -7,6 +7,48 @@ const fs = require("node:fs"),
 const createBridge = require("../src/capabilities/feature-platform/providers/experimental-tidal-bridge");
 const { createAdapter } = require("../integrations/tidal-desktop/adapter.cjs");
 
+test("one bounded long poll wakes on volume input and releases on cancellation or shutdown", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-volume-wake-")),
+    bridge = createBridge({ runtimeDir: root }),
+    input = { companionId: "volume-fixture", ready: true, volumeReady: true, waitMs: 1500 };
+  t.after(() => {
+    bridge.shutdown();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const waiting = bridge.pollWait(input);
+  assert.equal((await bridge.pollWait(input)).error, "tidal_poll_busy");
+  const operation = bridge.volume({ percent: 37 }),
+    reply = await waiting;
+  assert.equal(reply.command.percent, 37);
+  assert.equal(reply.waitSupported, true);
+  bridge.complete({ id: reply.command.id, companionId: input.companionId, ok: true, percent: 37 });
+  assert.deepEqual(await operation, { ok: true, percent: 37 });
+  const controller = new AbortController(),
+    cancelled = bridge.pollWait(input, controller.signal);
+  controller.abort();
+  assert.equal((await cancelled).error, "tidal_poll_cancelled");
+  const next = bridge.volume({ percent: 12 });
+  assert.equal((await bridge.pollWait(input, controller.signal)).error, "tidal_poll_cancelled");
+  const delivered = bridge.poll(input);
+  assert.equal(delivered.command.percent, 12, "a cancelled reader cannot consume a command");
+  bridge.complete({
+    id: delivered.command.id,
+    companionId: input.companionId,
+    ok: true,
+    percent: 12,
+  });
+  await next;
+  let settled = false;
+  const closing = bridge.pollWait({ ...input, ready: false }).then((reply) => {
+    settled = true;
+    return reply;
+  });
+  await Promise.resolve();
+  assert.equal(settled, false, "initializing players must wait too, without busy polling");
+  bridge.shutdown();
+  assert.equal((await closing).error, "tidal_poll_cancelled");
+});
+
 test("native volume is a bounded confirmed command and never changes the native queue", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-volume-"));
   const bridge = createBridge({ runtimeDir: root });

@@ -71,6 +71,28 @@ test("fullscreen screens fit touch viewports, swipe without activating buttons, 
     document.querySelector(".deckScreenNav span").textContent.startsWith("2 /"),
   );
   assert.deepEqual(await page.evaluate(() => presses), []);
+  await page.getByRole("button", { name: "Previous screen", exact: true }).click();
+  await client.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: 320, y: 250 }],
+  });
+  await client.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [{ x: 295, y: 260 }],
+  });
+  await client.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [{ x: 280, y: 290 }],
+  });
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await page.waitForFunction(() =>
+    document.querySelector(".deckScreenNav span").textContent.startsWith("2 /"),
+  );
+  assert.deepEqual(
+    await page.evaluate(() => presses),
+    [],
+    "diagonal finger drift after horizontal intent cannot execute buttons or cancel the swipe",
+  );
   await page.keyboard.press("ArrowRight");
   assert.match(await page.locator(".deckScreenNav span").textContent(), /^3 \/ /);
   await page.keyboard.press("q");

@@ -5,7 +5,13 @@
 const { fault } = require("./control-deck-config");
 const capabilities = { tidal: "song.tidal.experimental.v1", spotify: "song.spotify.player.v1" };
 function projection(player, native, audio, volume) {
-  if (!capabilities[player] || !native || !(native.enabled === false || native.connected === false))
+  const linkedNative =
+    player === "tidal" && native?.connected === true && native.volumeAvailable === true;
+  if (
+    !capabilities[player] ||
+    !native ||
+    !(linkedNative || native.enabled === false || native.connected === false)
+  )
     return null;
   const apps = audio?.available
     ? (audio.apps || []).filter((app) =>
@@ -23,10 +29,12 @@ function projection(player, native, audio, volume) {
     low,
     high,
     level: available
-      ? Math.max(
-          0,
-          Math.min(100, Math.round(((apps[0].volume - low) / Math.max(1, high - low)) * 100)),
-        )
+      ? apps[0].volume === volume?.outputPercent && Number.isInteger(volume.control)
+        ? volume.control
+        : Math.max(
+            0,
+            Math.min(100, Math.round(((apps[0].volume - low) / Math.max(1, high - low)) * 100)),
+          )
       : null,
   };
 }

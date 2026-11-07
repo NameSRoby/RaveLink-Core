@@ -10,6 +10,7 @@ module.exports = function createNativeModeration({
   finish,
   now,
   timeoutMs,
+  notify = () => {},
 }) {
   return function remove(input = {}) {
     const selected = [...receipts.values()].filter(
@@ -58,6 +59,7 @@ module.exports = function createNativeModeration({
         resolve,
         timer,
       });
+      notify();
     });
   };
 };

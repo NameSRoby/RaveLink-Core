@@ -17,6 +17,13 @@ and local-data paths are retained.
   for movement in their own direction; screen swipes cannot send volume writes.
   Native mixer writes reuse their confirmed snapshot rather than immediately
   making another full read. Request-volume writes wait for actual macro completion.
+- TIDAL mixer writes use its saved native volume rather than a temporary session
+  override; the explicitly enabled bridge persists across Core restarts. Player
+  polling cannot overwrite active adjustments, concurrent writes coalesce, and
+  percentages support exact entry. Pointer release is observed even when swiping
+  transfers capture from a fader to the pager.
+- Request-mode changes read Twitch's saved mode, preserve command permissions
+  and queue pause, and pause the managed paid song reward before enabling chat.
 - Private shared image/video backdrops use one media surface clipped to button
   faces. Media stays in runtime, and video playback stops when hidden or removed.
 - Feature capability dispatch uses a bounded outbound queue aligned with declared
@@ -68,18 +75,18 @@ button artwork and its upstream notices may be redistributed.
 
 | Check                            | Result                                                                                                                                                                          |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Maintained regression suite      | 1,050 passed; no failures                                                                                                                                                       |
-| Sanitized-source acceptance      | 1,167 passed, five optional skips; no failures                                                                                                                                  |
+| Maintained regression suite      | 1,059 passed; no failures                                                                                                                                                       |
+| Sanitized-source acceptance      | 21 targeted acceptance checks passed; complete sanitized-source regression is also required on Windows before publication                                                       |
 | Music domain / native Rust       | 273 passed with five optional skips / 19 passed                                                                                                                                 |
 | Production-path simulations      | 2,400 cases, 124,032 frames; no invalid-output failures                                                                                                                         |
 | Dependency audit                 | Zero production or development vulnerabilities                                                                                                                                  |
 | Source health                    | Formatting, lint, imports, generated assets, package inventories and structural budgets passed                                                                                  |
 | Resource budgets                 | All four profiles passed absolute and applicable baseline gates; active Core RSS 77.7-83.2 MiB, startup 305-1,559 ms and shutdown below 83 ms in the measured run               |
-| Artifact privacy and consistency | Installer and both ZIPs contain the same 4,415 application files; private credential values were checked against candidate contents without printing them                       |
+| Artifact privacy and consistency | Installer and both ZIPs contain the same 4,418 application files; private credential values were checked against candidate contents without printing them                       |
 | Offline install and source setup | Standard ZIP, self-contained ZIP, extracted installer and source bootstrap passed; native helper ABI, all profiles, bundled mods, LAN controls and restart persistence verified |
 | Upgrade and rollback             | Real updater Apply/Rollback in an isolated NoLaunch fixture preserved layout, media and clip preferences                                                                        |
 | Local CodeQL                     | Actions: zero findings; C#: zero findings across all five production C# sources; JavaScript: three reviewed OBS protocol/test warnings described below                          |
-| Hosted checks                    | Candidate source and security scans will be verified before the release is published                                                                                            |
+| Hosted checks                    | Full Windows regression, source health and three-language CodeQL are required before release publication                                                                        |
 
 The local CodeQL password-hash rule flags the OBS 5 challenge-response exchange
 in obs-client and its two independent protocol fixtures. OBS requires

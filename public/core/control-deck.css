@@ -924,6 +924,25 @@
   font-size: 13px;
   font-weight: 600;
 }
+.deckSliderValue[role="button"],
+.deckWindowsAudioValues output[role="button"] {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.deckSliderExact {
+  box-sizing: border-box;
+  width: 64px;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 4px;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+}
 .deckQuietButton {
   background: transparent;
   border-color: transparent;
@@ -1399,7 +1418,7 @@
 }
 .controlDeck[data-paged="true"] {
   overflow: hidden;
-  touch-action: pan-y;
+  touch-action: none;
 }
 .controlDeck[data-paged="true"] .deckGrid {
   overflow: visible;
