@@ -12,6 +12,10 @@ and local-data paths are retained.
   OBS setup is visible on the Dashboard, with explicit one-click local import.
 - Shared live button status, bounded provider reads and local widget clocks avoid
   polling multiplication across phones, tablets and desktop windows.
+- Cold Windows helpers receive a bounded initialization allowance. After readiness,
+  ordinary command deadlines stay short; queued or expired requests cannot send
+  input after cancellation. Slow initialization and a helper that never becomes
+  ready have separate regression cases.
 - Fullscreen paging packs complete rows using measured space, shares slider docks
   with edit mode, and changes pages without a drag animation. Touch faders wait
   for movement in their own direction; screen swipes cannot send volume writes.

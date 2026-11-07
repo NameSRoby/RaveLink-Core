@@ -7,6 +7,7 @@ module.exports = function createWindowsBridge({
   rootDir = path.resolve(__dirname, "../../.."),
   spawnImpl = spawn,
   timeoutMs = 4000,
+  startupTimeoutMs = 20000,
   maxPending = 16,
   scriptName = "windows-control-deck.ps1",
   maxLineBytes = 16384,
@@ -80,6 +81,13 @@ module.exports = function createWindowsBridge({
       }
       if (!message || typeof message !== "object") return fail();
       if (message.ready === true) {
+        state.isReady = true;
+        const actionDeadline = Date.now() + timeoutMs;
+        for (const job of jobs)
+          if (job.cold) {
+            job.cold = false;
+            job.arm(Math.min(job.deadline, actionDeadline));
+          }
         state.resolveReady();
         return;
       }
@@ -104,7 +112,13 @@ module.exports = function createWindowsBridge({
     if (signal?.aborted) return Promise.reject(fault("control_deck_cancelled"));
     if (jobs.size >= maxPending) return Promise.reject(fault("desktop_helper_busy"));
     let complete, timer;
-    const job = { started: false, done: false };
+    const cold = !current?.isReady,
+      job = {
+        started: false,
+        done: false,
+        cold,
+        deadline: Date.now() + (cold ? Math.max(timeoutMs, startupTimeoutMs) : timeoutMs),
+      };
     const result = new Promise((resolve, reject) => {
       complete = (error, value) => {
         if (job.done) return;
@@ -120,18 +134,34 @@ module.exports = function createWindowsBridge({
       complete(fault("control_deck_cancelled"));
     }
     job.cancel = abort;
+    job.arm = (deadline) => {
+      job.deadline = deadline;
+      clearTimeout(timer);
+      timer = setTimeout(
+        () => complete(fault("desktop_action_timeout")),
+        Math.max(0, deadline - Date.now()),
+      );
+    };
     jobs.add(job);
-    timer = setTimeout(() => complete(fault("desktop_action_timeout")), timeoutMs);
+    job.arm(job.deadline);
     signal?.addEventListener("abort", abort, { once: true });
     queue = queue
       .catch(() => {})
       .then(async () => {
         if (job.done) return;
+        if (Date.now() >= job.deadline) {
+          complete(fault("desktop_action_timeout"));
+          return;
+        }
         job.started = true;
         clearTimeout(idle);
         try {
           await start();
           if (job.done) return;
+          if (Date.now() >= job.deadline) {
+            complete(fault("desktop_action_timeout"));
+            return;
+          }
           const state = current,
             id = String(++sequence);
           const value = await new Promise((resolve, reject) => {

@@ -17,12 +17,64 @@ function fixture(options = {}) {
     };
     child.stdin.on("data", (data) => sent.push({ child, ...JSON.parse(String(data)) }));
     children.push(child);
-    setImmediate(() => child.stdout.write('{"ready":true}\n'));
+    if (options.readyDelay)
+      setTimeout(() => child.stdout.write('{"ready":true}\n'), options.readyDelay);
+    else setImmediate(() => child.stdout.write('{"ready":true}\n'));
     return child;
   };
-  return { children, sent, bridge: createBridge({ spawnImpl, timeoutMs: 100, ...options }) };
+  return {
+    children,
+    sent,
+    bridge: createBridge({
+      spawnImpl,
+      timeoutMs: 100,
+      startupTimeoutMs: options.timeoutMs ?? 100,
+      ...options,
+    }),
+  };
 }
 const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+test("cold helper readiness has a bounded startup budget before ordinary action deadlines", async (t) => {
+  const { bridge, sent } = fixture({ timeoutMs: 40, startupTimeoutMs: 500, readyDelay: 80 });
+  t.after(() => bridge.shutdown());
+  const pending = bridge.request("status", {});
+  await new Promise((resolve) => setTimeout(resolve, 90));
+  assert.equal(sent.length, 1, "cold initialization must not consume the action timeout");
+  sent[0].child.stdout.write(JSON.stringify({ id: sent[0].id, ok: true, value: "ready" }) + "\n");
+  assert.equal(await pending, "ready");
+  await assert.rejects(bridge.request("stalled-action", {}), /desktop_action_timeout/);
+  assert.equal(sent[0].child.killed, true);
+});
+
+test("a helper that never becomes ready is terminated without dispatching queued input", async (t) => {
+  const { bridge, sent, children } = fixture({
+    timeoutMs: 10,
+    startupTimeoutMs: 30,
+    readyDelay: 80,
+  });
+  t.after(() => bridge.shutdown());
+  await assert.rejects(bridge.request("keys", { keys: [124] }), /desktop_action_timeout/);
+  assert.equal(children[0].killed, true);
+  assert.deepEqual(sent, []);
+});
+
+test("late readiness cannot dispatch input after the absolute deadline even before its timer fires", async (t) => {
+  let time = 1000000;
+  t.mock.method(Date, "now", () => time);
+  const { bridge, sent, children } = fixture({
+    timeoutMs: 40,
+    startupTimeoutMs: 80,
+    readyDelay: 20,
+  });
+  t.after(() => bridge.shutdown());
+  const failed = assert.rejects(bridge.request("keys", { keys: [124] }), /desktop_action_timeout/);
+  await tick();
+  time += 100;
+  await failed;
+  assert.equal(children[0].killed, true);
+  assert.deepEqual(sent, []);
+});
 test("native helper failures kill the owned process and an old exit cannot reject its replacement", async (t) => {
   const { bridge, children, sent } = fixture();
   t.after(() => bridge.shutdown());
