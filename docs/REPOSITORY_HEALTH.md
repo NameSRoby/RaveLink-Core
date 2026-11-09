@@ -1,4 +1,4 @@
-﻿# Repository health review - 0.7.6b - 2026-11-09
+# Repository health review - 0.7.6b - 2026-11-09
 
 This is a focused maintenance release for optional Song Request and Twitch workers.
 
