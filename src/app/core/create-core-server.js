@@ -376,6 +376,7 @@ module.exports = function createCoreServer(options = {}) {
           twitchIntakeGate,
           lightingCore: core,
           desktopActions,
+          controlDeckActions,
           getTwitchClips: () => extension?.twitchClips || extension?.features?.twitchClips,
         })
       : null;

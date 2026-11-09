@@ -68,10 +68,13 @@ module.exports = function createLightEffectCommand(directiveService) {
       if (!remainder && first === "rave") colors = [];
       else if (!remainder && first === "wave") colors = RAINBOW.map((row) => ({ ...row }));
       else {
-        const tokens = remainder
-          .split(/\s*,\s*/)
-          .map((row) => row.trim())
-          .filter(Boolean);
+        const tokens =
+          first === "rave"
+            ? require("./rave-color-list")(remainder, directiveService)
+            : remainder
+                .split(/\s*,\s*/)
+                .map((row) => row.trim())
+                .filter(Boolean);
         const minimum = ["breathe", "rave"].includes(first) ? 1 : 2;
         if (
           tokens.length < minimum ||
@@ -87,11 +90,16 @@ module.exports = function createLightEffectCommand(directiveService) {
                 ? "alternate_requires_exactly_two_colors"
                 : first === "breathe"
                   ? "breathe_requires_one_color"
-                  : "effect_requires_2_to_12_colors",
+                  : first === "rave"
+                    ? "rave_requires_1_to_8_colors"
+                    : "effect_requires_2_to_12_colors",
           };
         }
         for (const token of tokens) {
-          const parsed = directiveService.parseTwitchColorDirective(token);
+          const parsed = directiveService.parseTwitchColorDirective(
+            token,
+            first === "rave" ? { wholeOnly: true } : {},
+          );
           const rgb = parsed.ok ? rgbFromHex(parsed.hex) : null;
           if (!rgb)
             return {

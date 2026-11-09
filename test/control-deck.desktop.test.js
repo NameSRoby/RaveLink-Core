@@ -68,60 +68,10 @@ test("desktop macros use validated data, not a command-language boundary", async
     service.execute("native.hotkey", { shortcut: "F25" }),
     /desktop_hotkey_invalid/,
   );
-  await assert.rejects(service.discordControl("togglecamera"), /discord_control_invalid/);
+  assert.equal(service.discordControl, undefined);
   assert.equal(service.prepareDiscord, undefined);
   assert.equal(service.setDiscordStreamer, undefined);
 });
-test("Discord binding requires confirmed state, persists locally and rejects unconfirmed toggles", async (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-discord-"));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  let muted = false,
-    confirmed = true,
-    calls = 0;
-  const request = async (operation) => {
-    calls++;
-    if (operation === "discord.toggle") muted = !muted;
-    return { available: true, muted: confirmed ? muted : null };
-  };
-  const service = create({ runtimeDir: root, platform: "win32", request });
-  assert.equal((await service.discordStatus()).code, "discord_binding_required");
-  assert.equal(calls, 0);
-  await service.bindDiscord();
-  assert.equal((await service.discordToggle()).muted, true);
-  assert.equal(
-    (await create({ runtimeDir: root, platform: "win32", request }).discordStatus()).bound,
-    true,
-  );
-  confirmed = false;
-  await assert.rejects(service.discordToggle(), /discord_state_unavailable/);
-  assert.deepEqual(
-    JSON.parse(fs.readFileSync(path.join(root, "system/discord-control.json"), "utf8")),
-    { version: 1, bound: true },
-  );
-});
-test("passive Discord reads retain actionable absence reasons while failed writes still reject", async (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-discord-absent-"));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  fs.mkdirSync(path.join(root, "system"));
-  fs.writeFileSync(
-    path.join(root, "system/discord-control.json"),
-    JSON.stringify({ version: 1, bound: true }),
-  );
-  const service = create({
-    runtimeDir: root,
-    platform: "win32",
-    request: async () => {
-      throw Object.assign(Error("discord_deafen_absent"), { code: "discord_deafen_absent" });
-    },
-  });
-  assert.deepEqual(await service.discordControl("getdeafenstatus"), {
-    bound: true,
-    available: false,
-    code: "discord_deafen_absent",
-  });
-  await assert.rejects(service.discordControl("toggledeafen"), /discord_deafen_absent/);
-});
-
 test(
   "Windows adapter ABI self-test never injects keyboard input",
   { skip: process.platform !== "win32" },

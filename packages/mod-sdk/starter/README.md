@@ -13,8 +13,8 @@ npm.cmd run mod:validate -- runtime/my-first-mod
 npm.cmd run mod:package -- runtime/my-first-mod runtime/my-first-mod.zip
 ```
 
-Enable the optional Community mod platform, review the package in Mods and choose
-whether to run it. Current Windows network isolation requires an explicit reduced
+Drop the folder or packaged ZIP into `mods/`, then confirm Activate in Mods.
+No special startup mode or installer option is needed. Current Windows network isolation requires an explicit reduced
 isolation confirmation for community code. The test harness is available without
 running a real mod worker or granting desktop/network access.
 

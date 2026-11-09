@@ -135,7 +135,6 @@ test("bundled install grants only exact reviewed adapters and respects disabling
   });
   const prepared = await bundle.prepare();
   assert.deepEqual(prepared.enable, ["ravelink.twitch-clips"]);
-  bundle.preference("ravelink.discord-controls", false);
   assert.deepEqual((await bundle.prepare()).enable, ["ravelink.twitch-clips"]);
   const target = path.join(runtimeRoot, "installed", "ravelink.twitch-clips", "ravelink.mod.json");
   const changed = JSON.parse(fs.readFileSync(target, "utf8"));
@@ -154,8 +153,6 @@ test("default source profile starts clipping without loading retired Discord con
     execute: async () => {
       throw Error("unexpected desktop mutation");
     },
-    discordStatus: async () => ({ ok: true, available: false, muted: null }),
-    integrations: async () => ({ discord: { available: false, muted: null } }),
     shutdown() {},
   };
   const core = createCore({
@@ -204,20 +201,20 @@ test("app-owned bundled upgrades replace only the recorded version and preserve 
     });
   const first = createBundles();
   assert.equal((await first.prepare()).enable.length, 1);
-  first.preference("ravelink.discord-controls", false);
-  const source = path.join(rootDir, "packages/bundled-mods/discord-controls/ravelink.mod.json");
+  first.preference("ravelink.twitch-clips", false);
+  const source = path.join(rootDir, "packages/bundled-mods/twitch-clips/ravelink.mod.json");
   const manifest = JSON.parse(fs.readFileSync(source, "utf8"));
   manifest.version = "1.0.2";
   fs.writeFileSync(source, JSON.stringify(manifest));
   const upgraded = await createBundles().prepare();
-  assert.deepEqual(upgraded.enable, ["ravelink.twitch-clips"]);
+  assert.deepEqual(upgraded.enable, []);
   const installed = JSON.parse(
-    fs.readFileSync(path.join(modsRoot, "ravelink.discord-controls/ravelink.mod.json"), "utf8"),
+    fs.readFileSync(path.join(modsRoot, "ravelink.twitch-clips/ravelink.mod.json"), "utf8"),
   );
   assert.equal(installed.version, "1.0.2");
   assert(
     fs
       .readdirSync(modsRoot)
-      .some((name) => name.startsWith(".bundled-backup-ravelink.discord-controls")),
+      .some((name) => name.startsWith(".bundled-backup-ravelink.twitch-clips")),
   );
 });

@@ -39,8 +39,9 @@ than your public internet address. Use fullscreen when sharing the control scree
 on a broadcast, and avoid revealing connection details on stream.
 
 Provider sign-ins requiring localhost callbacks must be completed on the Core PC.
-The desktop viewer uses Microsoft Edge WebView2. If unavailable, its startup
-screen links to installation and offers **Open in browser**.
+The desktop viewer uses Microsoft Edge WebView2. Setup includes its full offline
+installer and installs it if missing. Portable users can run the included installer
+under `optional-components/prerequisites`. The browser view remains available.
 
 ## Dashboard
 
@@ -385,7 +386,7 @@ to OBS; the header shows whether you have unsaved edits.
 
 **Overlay Designer → Behavior** offers optional pause hiding (five seconds by default), stopped/loading hiding, provider-colored accents and remaining-time display. Test pause/resume in the preview, then save to apply. Classic, Album Card and Minimal remain available alongside compact Split Panels and other small presets.
 
-**Community mods** are optional supervised third-party code; enable them only if you intend to review and run community packages.
+**Mods:** drop a mod folder or ZIP directly into `mods`, then confirm **Activate** in the Mods page. Discovery is built into normal startup. Buttons appear in the deck action library, and HTML/CSS/JavaScript panels appear in Mods. Review the requested access before activating third-party code. The old `mod` folder remains recognized for existing installations.
 
 **TTS, Alerts / TTS and Lighting Automation have been removed in 0.7.0.** No speech runtime or voice asset is shipped.
 

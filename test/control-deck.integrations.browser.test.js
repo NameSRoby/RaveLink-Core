@@ -73,7 +73,7 @@ document.getElementById('open').onclick=()=>ui.open();
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.locator("#deckTwitchTab").click();
-  assert.equal(await page.locator("#deckDiscordPanel").isVisible(), false);
+  assert.equal(await page.locator("#deckKeyboardPanel").isVisible(), false);
   assert.equal(await page.locator("#deckClipFilter").isChecked(), true);
   await page.locator(".deckClipPolicy summary").click();
   await page.locator("#deckClipBlocked").fill("spoiler");

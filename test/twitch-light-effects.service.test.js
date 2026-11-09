@@ -147,6 +147,41 @@ test("dynamic effect parser supports the approved language and does not claim ex
   assert.equal(service.snapshot().supportedCommands.includes("alternate"), false);
 });
 
+test("Rave color lists consume every color, including typos, descriptors and taught names", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-palette-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const library = require("../src/domains/colors/color-library.service")({
+    storePath: path.join(root, "colors.json"),
+    seedCustomColors: { "ocean glow": "#0088bb" },
+  });
+  const directive = require("../src/domains/twitch/twitch-color-directive")({
+    colorLibrary: library,
+  });
+  const parse = require("../src/domains/twitch/light-effect-command")(directive);
+  const rgb = ["red", "gree", "blue"].map((s) => parse("rave " + s).colors[0]);
+  for (const text of ["rave red, gree, blue", "rave red gree blue"])
+    assert.deepEqual(parse(text).colors, rgb, text);
+  assert.equal(parse("rave red, gree blue").ok, false, "never drop a color inside an entry");
+  assert.deepEqual(parse("rave deep blue ocean glow red fast").colors, [
+    parse("rave deep blue").colors[0],
+    { r: 0, g: 136, b: 187 },
+    rgb[0],
+  ]);
+  assert.equal(parse("rave red definitelynotacolor blue").ok, false);
+  assert.equal(parse("rave red,,blue").ok, false);
+  assert.equal(parse("rave " + Array(9).fill("red").join(", ")).ok, false);
+  assert.equal(parse("rave red green blue cyan purple pink yellow white").colors.length, 8);
+  assert.deepEqual(parse("rave #ff0000 #00ff00 #0000ff").colors, rgb);
+  const strict = require("../src/domains/twitch/light-effect-command")(
+    require("../src/domains/twitch/twitch-color-directive")({
+      colorLibrary: library,
+      getParserOptions: () => ({ allowFuzzy: false }),
+    }),
+  );
+  assert.equal(strict("rave red gree blue").ok, false, "respect disabled typo matching");
+  assert.equal(strict("rave red green blue").colors.length, 3);
+});
+
 test("rave uses dynamic admission and rejects replacement until an explicit stop", async (t) => {
   const { service } = setup(t, { durationSeconds: 12, brightnessLimit: 35 });
   service.save({

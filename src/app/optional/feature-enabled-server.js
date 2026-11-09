@@ -11,10 +11,11 @@ const createFeaturePlatformExtension = require("./create-default-platform-extens
 const rootDir = path.resolve(__dirname, "../../..");
 startCoreServer({
   rootDir,
-  label: "CORE+FEATURES",
-  capabilities: { features: true },
+  label: "CORE+FEATURES+MODS",
+  capabilities: { features: true, mods: true },
   extend: createFeaturePlatformExtension({
     rootDir,
+    maxActiveMods: Number(process.env.RAVELINK_MAX_ACTIVE_MODS || 4),
     allowUnsafeRuntime: process.env.RAVELINK_ALLOW_UNSAFE_FEATURE_RUNTIME !== "0",
   }),
 });

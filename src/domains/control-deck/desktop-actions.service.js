@@ -1,4 +1,4 @@
-/** Operator-triggered Windows actions and confirmed Discord accessibility state.
+/** Operator-triggered Windows keyboard, media and application actions.
  * Settings contain no app tokens. Test adapters never touch keyboard or desktop.
  */
 const fs = require("node:fs"),
@@ -62,7 +62,6 @@ const object = (properties, required) => ({
   required,
 });
 module.exports = function createDesktopActions({
-  runtimeDir,
   rootDir,
   platform = process.platform,
   request: injected,
@@ -85,82 +84,8 @@ module.exports = function createDesktopActions({
     nativeVolume,
     request: injected || audioBridge.request,
   });
-  const file = path.join(
-    runtimeDir || path.join(process.cwd(), "runtime"),
-    "system/discord-control.json",
-  );
-  let bound = false,
-    cached,
-    read;
-  try {
-    const s = fs.lstatSync(file);
-    if (s.isFile() && !s.isSymbolicLink() && s.size <= 1024)
-      bound = JSON.parse(fs.readFileSync(file, "utf8")).bound === true;
-  } catch {}
   function windows() {
     if (!available) throw fault("desktop_windows_required");
-  }
-  async function discordStatus(force = false, signal) {
-    if (!available || !bound)
-      return {
-        bound,
-        available: false,
-        muted: null,
-        code: available ? "discord_binding_required" : "desktop_windows_required",
-      };
-    if (!force && cached && Date.now() - cached.at < 750) return cached.value;
-    if (read) return read;
-    read = request("discord.status", {}, signal)
-      .then((value) => ({ bound, ...value }))
-      .catch((error) => ({
-        bound,
-        available: false,
-        muted: null,
-        code: error.code || "discord_unavailable",
-      }))
-      .then((value) => {
-        cached = { at: Date.now(), value };
-        return value;
-      })
-      .finally(() => {
-        read = null;
-      });
-    return read;
-  }
-  async function bindDiscord(signal) {
-    windows();
-    const value = await request("discord.bind", {}, signal);
-    if (!value.available || typeof value.muted !== "boolean")
-      throw fault("discord_state_unavailable");
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file + ".tmp", JSON.stringify({ version: 1, bound: true }) + "\n", {
-      mode: 0o600,
-    });
-    fs.renameSync(file + ".tmp", file);
-    bound = true;
-    cached = null;
-    return { bound: true, ...value };
-  }
-  async function discordControl(operation, signal) {
-    windows();
-    if (!["getdeafenstatus", "toggledeafen"].includes(operation))
-      throw fault("discord_control_invalid");
-    if (!bound) throw fault("discord_binding_required");
-    const passive = operation === "getdeafenstatus";
-    try {
-      return { bound, ...(await request("discord." + operation, {}, signal)) };
-    } catch (error) {
-      if (!passive) throw error;
-      return { bound, available: false, code: error.code || "discord_unavailable" };
-    }
-  }
-  async function discordToggle(signal) {
-    windows();
-    if (!bound) throw fault("discord_binding_required");
-    const value = await request("discord.toggle", {}, signal);
-    if (typeof value.muted !== "boolean") throw fault("discord_state_unavailable");
-    cached = { at: Date.now(), value: { bound, ...value } };
-    return cached.value;
   }
   function catalog() {
     const row = (id, label, symbol, properties, required, defaults) => ({
@@ -249,15 +174,10 @@ module.exports = function createDesktopActions({
   return {
     catalog,
     execute,
-    discordStatus,
-    bindDiscord,
-    discordToggle,
-    discordControl,
     audioStatus: audio.read,
     audioSnapshot: audio.snapshot,
     audioApply: audio.apply,
     refresh: audio.read,
-    integrations: async () => ({}),
     shutdown: () => {
       audio.shutdown();
       audioBridge?.shutdown();

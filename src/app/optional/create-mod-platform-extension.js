@@ -16,7 +16,7 @@ module.exports = function createModPlatformExtension(options = {}) {
       options.modsRoot ||
         path.join(runtimeRoot, options.bundledOnly ? "bundled-installed" : "installed"),
     );
-    const inboxRoot = path.resolve(options.inboxRoot || path.join(rootDir, "mod"));
+    const inboxRoot = path.resolve(options.inboxRoot || path.join(rootDir, "mods"));
     const approvalStore = createModApprovalStore({
       storePath: path.join(runtimeRoot, "approvals.json"),
     });
@@ -36,10 +36,13 @@ module.exports = function createModPlatformExtension(options = {}) {
       onEnabledPreference: bundled.preference,
       allowedModIds: options.bundledOnly ? ["ravelink.twitch-clips"] : undefined,
     });
-    require("../../capabilities/mod-platform/host/mod-desktop-providers")(registry, {
-      desktop: context.desktopActions,
+    require("../../capabilities/mod-platform/host/mod-twitch-clips-provider")(registry, {
       getTwitchClips: context.getTwitchClips,
     });
+    require("../../capabilities/mod-platform/host/mod-app-controls")(
+      registry,
+      context.controlDeckActions,
+    );
     const packageManager = createModPackageManager({
       modsRoot,
       runtimeRoot,
@@ -48,6 +51,7 @@ module.exports = function createModPlatformExtension(options = {}) {
     });
     const inbox = createModDropInbox({
       inboxRoot,
+      legacyInboxRoot: options.inboxRoot ? undefined : path.join(rootDir, "mod"),
       packageManager,
       log: options.log || console,
     });

@@ -12,6 +12,115 @@ The SDK includes a permission-free runnable button starter and deterministic tes
 Public contracts and current platform limitations are documented separately from
 internal implementation helpers.
 
+## Getting started
+
+Use a supported Windows x64 machine and Node 24 for development. Run
+`npm.cmd ci` in the checkout, then `npm.cmd run verify:health`. Start the app with
+`npm.cmd start`; it loads the feature manager and mod discovery together. Installed
+features still need their own activation and account sign-in. Use a separate
+runtime directory in automated tests so a test cannot reuse your accounts or
+change your saved deck, audio calibration, fixtures or OBS connection.
+
+The app is one website served by one Core process. The Windows window displays
+that website through WebView2, and a browser uses the same UI. LAN sharing forwards
+approved requests to that same owner. A new desktop window, tab or phone must not
+create another music engine, reward controller or output scheduler.
+
+### Finding the right file
+
+Follow the user action from the browser event to its HTTP route, then to the
+service that owns the state. Route files under `src/app/core` translate requests;
+services under `src/domains` validate and perform the operation. For example,
+deck buttons use `control-deck-actions.js` to find the action, then call the
+existing music, audio, OBS or Twitch owner. Add a new first-party control there
+once. The mod app-control API reads that same catalog automatically.
+
+For a visual change, start under `public/core`. For music response, start under
+`integrations/music-to-light`; the native app wraps those modules with its accepted
+brightness policy. A parser fix belongs near the parser, not in each Twitch,
+button and test caller. Keep the accepted brightness response and calibration
+unchanged when changing a color palette.
+
+### The mod installation flow
+
+1. A folder or ZIP appears under `mods/`. The watcher checks its manifest and
+   declared file hashes without importing its entrypoint.
+2. The operator sees the requested capabilities and resources and confirms
+   activation. The review also identifies the exact package content, so a code
+   change with the same version cannot be mistaken for the already installed copy.
+3. The package manager copies and verifies the package into private installed
+   storage. Approval, package changes and activation have separate failure paths;
+   a failed verification cannot start the worker.
+4. The supervisor starts the mod with bounded IPC, concurrency and shutdown.
+   The capability broker checks declared access before dispatching a host call.
+5. Action contributions appear in the deck library. UI panels load when opened;
+   their approved local CSS/JavaScript files are verified and embedded in the
+   sandboxed page, avoiding a second network connection or npm installation.
+
+The panel's `window.ravelink.call` uses a scoped parent relay. The parent accepts
+messages only from the current frame with its current nonce. Core checks active
+state, UI permission and approved capabilities again for every call. Closing a
+panel cancels outstanding calls. Disabling the mod prevents a still-open panel
+from continuing to use its APIs. The panel receives neither the Express app nor
+account tokens. See the [mod API reference](MOD_API_REFERENCE.md) for payloads.
+
+### Checking a change
+
+| Change                                | Useful first checks                                                                                                        |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Viewer color parsing or Rave palettes | `test/twitch-light-effects.service.test.js` and the music integration tests                                                |
+| Mod packages, discovery or approval   | `test/mod-platform.drop-inbox.test.js`, `test/mod-platform.http.test.js`, and package-manager tests                        |
+| Mod UI or app controls                | `test/mod-platform.ui.browser.test.js` and `test/mod-platform.app-controls.test.js`                                        |
+| Windows prerequisite installation     | `test/windows-setup-prerequisites.test.js`; it runs Inno fixtures with a fake vendor installer and a separate registry key |
+| Any authored source change            | `npm.cmd run verify:health` for formatting, lint, import resolution, source size and generated-file checks                 |
+| Release candidate                     | `npm.cmd run verify`, the sanitized-source suite, package smoke checks, dependency audit and all GitHub CodeQL jobs        |
+
+Synthetic tests establish reproducible behavior. Real hardware, account-dependent
+operations and a clean Windows installation need separate acceptance testing.
+Tests of keyboard input, clips or lighting should use fake owners unless a live
+action has been explicitly authorized.
+
+### Removing old code
+
+Check production imports, package scripts, public contracts, contributed UI,
+worker entrypoint strings and generated-file builders before removing a module.
+Some files are loaded by a manifest rather than a static import. Compatibility
+readers for saved settings remain useful even after the old writer disappears.
+Generated copies also have an owner and a rebuild command; editing only one copy
+creates conflicting behavior.
+
+The 0.7.6a cleanup removes the retired Discord accessibility worker, its provider,
+binding endpoint and UIAutomation implementation. Keyboard macros and saved-button
+migration remain. The old combined startup filename now delegates to normal
+startup, preserving existing launch commands while sharing one composition path.
+
+## Building an offline Windows release
+
+The [Windows setup guide](WINDOWS_SETUP.md) lists each runtime dependency. Node,
+JavaScript dependencies, the audio helper and WebView2 loader files are shipped
+with the app. The full Microsoft Evergreen Standalone Installer is also included;
+Setup installs it only when needed and checks the result before allowing launch.
+The supported Windows baseline already includes .NET Framework 4.8.
+
+The prerequisite manifest pins the vendor URL, size and SHA-256. The restore
+script also checks Microsoft's Authenticode signature and only stages bytes; it
+does not install the runtime on the build PC. To update the pin, obtain a current
+full offline installer from Microsoft's official WebView2 download page, verify
+its signature and bytes, update the manifest, and rerun the prerequisite fixtures
+and package checks. A tiny online bootstrapper cannot satisfy offline setup.
+
+Optional first-party features are staged from authored, verified inventories.
+They remain inactive until selected. Setup installs selected features using its
+local cache; account sign-in still happens afterward. A package build never copies
+`features/installed`, the user's `mods` inbox, credentials or runtime preferences.
+
+Prepare source publication through `scripts/build-publication.js` and inspect
+the resulting inventory. Test that source snapshot separately. Consumer archives
+contain production runtime material; their source tests, build caches, captures,
+logs and personal settings are excluded. Compare the installer and ZIP contents,
+verify their checksums, and wait for the exact release commit's GitHub checks
+before publishing. Record actual results and remaining limits in the health report.
+
 ## Fixture output ownership
 
 `src/domains/fixtures/fixture-output-runtime.js` composes the lease broker into
@@ -60,7 +169,7 @@ and Hue area isolation. These are not physical hardware acceptance results.
 | Directory                             | Responsibility                                                           | Important boundary                                                        |
 | ------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
 | `src/app/core`                        | Compose the lighting server and register HTTP routes                     | Must work without features or mods                                        |
-| `src/app/optional`                    | Explicit feature, mod, and combined startup profiles                     | Importing a shared helper must not activate an optional host              |
+| `src/app/optional`                    | Default features/mods composition and strict Core profile                | Importing a shared helper must not activate an optional host              |
 | `src/app/runtime`                     | HTTP lifecycle, request security, outbound admission                     | Own process-wide policy, not provider behavior                            |
 | `src/domains`                         | Lighting, fixture configuration, colors, widget intake, updates          | Services own state; route handlers translate HTTP                         |
 | `src/adapters/brands`                 | Hue, WiZ, and Govee transport details                                    | Hardware-specific protocols stay behind adapters                          |
@@ -377,7 +486,7 @@ Hue crypto and (when selected) native audio helper loading. Music-to-Light is a
 bundled task, not the retired worker package: deselection omits the native helper,
 writes `config/music-to-light.disabled`, prevents restoring capture grants and
 blocks mutation endpoints without deleting saved preferences. Setup failures and
-remote-feature failures remain visible; reports live under `runtime/logs`.
+selected-feature installation failures remain visible; reports live under `runtime/logs`.
 Per-PC device pairing, network permission and account sign-in are explained in
 `assets/First-run.txt`; they cannot be copied from a developer installation.
 

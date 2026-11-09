@@ -612,6 +612,6 @@ module.exports = function actions({
     guidance: () =>
       getMods()
         ? "Install and approve a mod that contributes button actions to add your own functions."
-        : "The mod host is not enabled. Enable Mod support in Setup (or use the combined source profile), then install and approve your custom-action mod. Existing buttons continue to work.",
+        : "This Core-only profile does not load mods. Start the normal RaveLink app, drop your package into mods, and confirm Activate to add its actions.",
   };
 };

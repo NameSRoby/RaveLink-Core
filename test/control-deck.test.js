@@ -180,38 +180,6 @@ test("music toggles keep unknown state neutral, propagate restore failure and ca
   assert.deepEqual(writes, [{ enabled: true }]);
 });
 
-test("Discord button feedback separates confirmed semantic state, unknown state and availability", async () => {
-  const adapter = require("../packages/bundled-mods/discord-controls/main");
-  let value;
-  adapter.activate({ callCapability: async () => ({ ok: true, value }) });
-  for (const [method, property, tones] of [
-    ["status", "muted", ["unmuted", "muted"]],
-    ["deafenStatus", "deafened", ["listening", "deafened"]],
-  ]) {
-    for (const state of [false, true]) {
-      value = { available: true, bound: true, [property]: state };
-      const { feedback } = await adapter.handleRequest({ method });
-      assert.equal(feedback.state, tones[Number(state)], `${method}: ${state}`);
-      assert.equal(feedback.active, state);
-      assert.equal(feedback.available, true);
-      assert.equal(feedback.color, undefined, "appearance is chosen from semantic status");
-    }
-    value = { available: true, bound: true, [property]: null };
-    const unknown = (await adapter.handleRequest({ method })).feedback;
-    assert.equal(unknown.state, "unknown");
-    assert.equal(
-      unknown.available,
-      true,
-      "unknown state does not disable an otherwise usable action",
-    );
-    value = { available: false, bound: true, [property]: true };
-    const unavailable = (await adapter.handleRequest({ method })).feedback;
-    assert.equal(unavailable.state, "unavailable");
-    assert.equal(unavailable.available, false);
-    assert.equal(unavailable.active, false);
-  }
-});
-
 test("explicit playback actions expose the same confirmed owner feedback as the playback toggle", async () => {
   for (const paused of [false, true, null]) {
     const adapter = require("../src/domains/control-deck/control-deck-actions")({
@@ -616,7 +584,7 @@ test("slider execution may override only its saved approved parameter within bou
   assert.throws(() => e.service.execute("button", "press", 25), /slider_invalid/);
 });
 test("mod action metadata must target provided capabilities and capability changes revoke approval", () => {
-  const manifest = require("../packages/bundled-mods/discord-controls/ravelink.mod.json");
+  const manifest = require("../packages/bundled-mods/twitch-clips/ravelink.mod.json");
   const {
     validateManifestV1,
   } = require("../src/capabilities/mod-platform/contracts/mod-manifest-v1");

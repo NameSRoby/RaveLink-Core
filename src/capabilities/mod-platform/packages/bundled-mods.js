@@ -8,12 +8,6 @@ module.exports = function bundledMods({ rootDir, modsRoot, runtimeRoot, approval
   const file = path.join(runtimeRoot, "bundled.json");
   const ownershipFile = path.join(runtimeRoot, "bundled-owned.json");
   const specs = [
-    [
-      "discord-controls",
-      "ravelink.discord-controls",
-      "discord.desktop.host.v1",
-      "stream.discord.v1",
-    ],
     ["twitch-clips", "ravelink.twitch-clips", "twitch.clips.host.v1", "stream.clip.v1"],
   ];
   let preferences = {};
@@ -119,11 +113,7 @@ module.exports = function bundledMods({ rootDir, modsRoot, runtimeRoot, approval
         continue;
       }
       saveOwnership(id, manifest);
-      // Accessibility-based Discord controls are retired in favor of native key buttons.
-      if (
-        (id === "ravelink.discord-controls" && preferences[id] !== true) ||
-        preferences[id] === false
-      ) {
+      if (preferences[id] === false) {
         results.push({ id, ok: true, enabled: false });
         continue;
       }

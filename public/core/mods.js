@@ -3,9 +3,11 @@
  * Developer context and change constraints:
  * docs/DEVELOPMENT.md#request-security-and-the-feature-ui-relay
  */
+import { initModUiRelay } from "./mod-ui-relay.js";
 const byId = (id) => document.getElementById(id);
 let state = null;
 let eventSource = null;
+let panelRelay;
 
 async function api(path, options = {}) {
   const response = await fetch(path, options);
@@ -34,6 +36,10 @@ function permissionSummary(mod) {
   if (permissions.ui) rows.push("Operator UI");
   if (permissions.process) rows.push("Child process");
   if (permissions.hardware?.length) rows.push(`Hardware: ${permissions.hardware.join(", ")}`);
+  if ((mod.consumes || []).includes("ravelink.controls.v1"))
+    rows.push(
+      "Full app controls: keyboard/app launch, audio, playback, OBS, lights and Twitch actions",
+    );
   return rows.length ? rows.join(" | ") : "No privileged permissions";
 }
 
@@ -43,7 +49,7 @@ function resourceSummary(mod) {
 }
 
 function renderInbox() {
-  const inbox = state?.inbox || { candidates: [], total: 0, inbox: "mod" };
+  const inbox = state?.inbox || { candidates: [], total: 0, inbox: "mods" };
   byId("modInboxStatus").textContent = `${inbox.inbox}\\ // ${inbox.total} DETECTED`;
   byId("modInboxRows").innerHTML = inbox.candidates.length
     ? inbox.candidates
@@ -51,12 +57,12 @@ function renderInbox() {
           const status = candidate.installed
             ? '<span class="statusLine">INSTALLED</span>'
             : candidate.valid
-              ? `<button data-inbox-accept="${candidate.candidateId}">${candidate.active ? "UPDATE & RUN" : "REVIEW & RUN"}</button>`
+              ? `<button data-inbox-accept="${candidate.candidateId}">${candidate.active ? "Review update" : "Activate"}</button>`
               : `<span class="invalid">${escapeHtml(candidate.error)}</span>`;
           return `<tr><td class="modIdentity"><strong>${escapeHtml(candidate.name)}</strong><span>${escapeHtml(candidate.sourceName)} ${escapeHtml(candidate.version)}</span></td><td>${escapeHtml(candidate.kind).toUpperCase()}</td><td class="permissionList">${escapeHtml(permissionSummary(candidate))}</td><td>${escapeHtml(resourceSummary(candidate))}</td><td>${status}</td></tr>`;
         })
         .join("")
-    : '<tr><td colspan="5">WATCHING MOD FOLDER</td></tr>';
+    : '<tr><td colspan="5">Drop a mod folder or ZIP into mods. It will appear here automatically.</td></tr>';
 }
 
 function renderInstalled() {
@@ -107,14 +113,8 @@ async function refresh() {
 async function acceptCandidate(candidateId) {
   const candidate = state.inbox.candidates.find((row) => row.candidateId === candidateId);
   if (!candidate?.valid) return;
-  const review = `${candidate.name} ${candidate.version}\n\n${permissionSummary(candidate)}\n${resourceSummary(candidate)}\n\nThe package will be copied, integrity checked, approved, and started only after confirmation.`;
+  const review = `${candidate.name} ${candidate.version}\n\n${permissionSummary(candidate)}\n${resourceSummary(candidate)}\n\nActivate this mod? Its declared API access will be approved and its buttons and UI made available.\n\nOnly activate code you trust: Windows Node cannot fully block undeclared network access; activation accepts reduced OS isolation for this execution.`;
   if (!window.confirm(review)) return;
-  if (
-    !window.confirm(
-      "SECURITY WARNING\n\nWindows Node cannot fully block undeclared network access. Run this third-party code with reduced OS isolation?",
-    )
-  )
-    return;
   if (candidate.active)
     await api(`/api/mod-platform/${encodeURIComponent(candidate.id)}/disable`, {
       method: "POST",
@@ -127,6 +127,7 @@ async function acceptCandidate(candidateId) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       fingerprint: candidate.fingerprint,
+      packageFingerprint: candidate.packageFingerprint,
       replace: Boolean(state.mods.some((row) => row.id === candidate.id)),
       allowUnsafeRuntime: true,
     }),
@@ -143,7 +144,7 @@ async function act(action, modId, panelId = "") {
     const panel = mod.uiContributions.find((item) => item.id === panelId);
     if (!panel) return;
     byId("modUiTitle").textContent = `${mod.name}: ${panel.title}`;
-    byId("modUiFrame").src = `/mods-ui/${encodeURIComponent(modId)}/${encodeURIComponent(panelId)}`;
+    panelRelay.open(modId, panelId);
     byId("modUiSurface").hidden = false;
     byId("modUiSurface").scrollIntoView({ behavior: "smooth", block: "start" });
     return;
@@ -156,12 +157,8 @@ async function act(action, modId, panelId = "") {
   }
   if (action === "enable") {
     if (
-      !window.confirm("Run this approved mod? Third-party code executes in a supervised process.")
-    )
-      return;
-    if (
       !window.confirm(
-        "SECURITY WARNING\n\nWindows Node cannot fully block undeclared network access. Run with reduced OS isolation?",
+        `Activate ${mod.name}?\n\n${permissionSummary(mod)}\n\nOnly activate code you trust. Windows Node cannot fully block undeclared network access; activation accepts reduced OS isolation for this execution.`,
       )
     )
       return;
@@ -187,6 +184,7 @@ export function initModPlatform() {
   const refreshButton = byId("refreshMods");
   if (!refreshButton || refreshButton.dataset.ready === "1") return;
   refreshButton.dataset.ready = "1";
+  panelRelay = initModUiRelay(byId("modUiFrame"));
   refreshButton.addEventListener("click", async () => {
     try {
       state = await api("/api/mod-platform/discover", {
@@ -223,7 +221,7 @@ export function initModPlatform() {
     }
   });
   byId("closeModUi").addEventListener("click", () => {
-    byId("modUiFrame").src = "about:blank";
+    panelRelay.close();
     byId("modUiSurface").hidden = true;
   });
   eventSource = new EventSource("/api/mod-platform/events");

@@ -94,15 +94,13 @@ module.exports = function registerModPlatformRoutes(app, options = {}) {
     const installed = new Map(mods.map((row) => [row.id, row]));
     const inboxSnapshot = inbox?.list?.() || {
       ok: true,
-      inbox: "mod",
+      inbox: "mods",
       total: 0,
       candidates: [],
     };
     const candidates = inboxSnapshot.candidates.map((row) => ({
       ...row,
-      installed:
-        installed.get(row.id)?.version === row.version &&
-        installed.get(row.id)?.approval?.fingerprint === row.fingerprint,
+      installed: installed.get(row.id)?.packageFingerprint === row.packageFingerprint,
       active: installed.get(row.id)?.enabled === true,
     }));
     return {
@@ -162,6 +160,13 @@ module.exports = function registerModPlatformRoutes(app, options = {}) {
         if (!expected || expected !== candidate.approval?.fingerprint) {
           return res.status(409).json({ ok: false, error: "inbox_candidate_changed" });
         }
+        const reviewedPackage = req.body?.packageFingerprint;
+        const contentFingerprint = require("../packages/mod-content-fingerprint");
+        if (
+          reviewedPackage !== undefined &&
+          reviewedPackage !== contentFingerprint(candidate.manifest)
+        )
+          return res.status(409).json({ ok: false, error: "inbox_candidate_changed" });
         const replace = req.body?.replace === true;
         const installed =
           candidate.kind === "archive"
@@ -170,6 +175,11 @@ module.exports = function registerModPlatformRoutes(app, options = {}) {
               })
             : await packageManager.install(candidate.sourcePath, { replace });
         if (!installed.ok) return res.status(resultStatus(installed)).json(installed);
+        if (reviewedPackage !== undefined) {
+          const current = await packageManager.getInstalledStatus(installed.modId);
+          if (!current.ok || current.packageFingerprint !== reviewedPackage)
+            return res.status(409).json({ ok: false, error: "inbox_candidate_changed" });
+        }
         const approval = await packageManager.approve(installed.modId, expected);
         if (!approval.ok) return res.status(resultStatus(approval)).json(approval);
         registry.discover();
@@ -207,11 +217,55 @@ module.exports = function registerModPlatformRoutes(app, options = {}) {
         "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'",
       );
       res.setHeader("Cache-Control", "no-store");
-      return res.type("html").send(result.content);
+      const bridge = "<script>(" + require("./mod-ui-client").toString() + ")();</script>";
+      const content = /<head(?:\s[^>]*)?>/i.test(result.content)
+        ? result.content.replace(/<head(?:\s[^>]*)?>/i, (tag) => tag + bridge)
+        : /<!doctype[^>]*>/i.test(result.content)
+          ? result.content.replace(/<!doctype[^>]*>/i, (tag) => tag + bridge)
+          : bridge + result.content;
+      return res.type("html").send(content);
     } catch (error) {
       return next(error);
     }
   });
+  app.post(
+    "/api/mod-platform/:modId/ui-call",
+    requireLoopback,
+    validModId,
+    async (req, res, next) => {
+      try {
+        const body = req.body;
+        if (
+          !body ||
+          Object.keys(body).some((k) => !["capability", "method", "payload"].includes(k)) ||
+          typeof body.capability !== "string" ||
+          body.capability.length > 160 ||
+          !/^[a-z][a-zA-Z0-9.:-]{0,79}$/.test(body.method || "") ||
+          Buffer.byteLength(JSON.stringify(body)) > 32768
+        )
+          return res.status(400).json({ ok: false, error: "mod_ui_request_invalid" });
+        const controller = new AbortController();
+        const stop = () => {
+          if (!res.writableFinished) controller.abort();
+        };
+        res.once("close", stop);
+        try {
+          const result = await registry.requestFromUi(
+            req.modId,
+            body.capability,
+            body.method,
+            body.payload ?? null,
+            { signal: controller.signal, timeoutMs: 5000 },
+          );
+          return res.status(result.ok ? 200 : 403).json(result);
+        } finally {
+          res.off("close", stop);
+        }
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
   app.post(
     "/api/mod-platform/packages",
     requireLoopback,

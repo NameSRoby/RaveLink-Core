@@ -9,6 +9,8 @@ node_modules/
 !.env.example
 mod/*
 !mod/.gitkeep
+mods/*
+!mods/.gitkeep
 features/installed/*
 !features/installed/.gitkeep
 config/*.enabled

@@ -76,6 +76,31 @@ function event(i) {
     },
   };
 }
+test("Ember has distinct warm/fire accents through real beat rendering without brightness modulation", () => {
+  const look = catalog.looks.find((l) => l.id === "ember-pulse");
+  const config = settings({
+    ...look.design,
+    behaviors: { ...look.design.behaviors, profilePaletteEnabled: false },
+  });
+  const ember = create(config);
+  const reference = create({ ...config, palette: accepted.palette });
+  const { hsv } = require("../palette-math.cjs");
+  const families = new Set();
+  for (let i = 1; i <= 800; i++) {
+    const at = i * 20;
+    ember.update(event(i), at);
+    reference.update(event(i), at);
+    const output = ember.render(at);
+    assert.equal(output.brightness, reference.render(at).brightness);
+    if (i % 5 === 0) {
+      const [hue, saturation] = hsv(Object.values(output.rgb));
+      assert(saturation > 0.75, "flame transitions must stay vivid");
+      families.add(Math.floor(hue * 6));
+    }
+  }
+  assert(families.has(0) && families.has(4), "warm and violet accents must reach actual frames");
+});
+
 test("every native preset keeps the accepted brightness response", () => {
   const reference = create(settings(accepted));
   const choices = catalog.looks.map((l) =>

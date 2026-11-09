@@ -8,13 +8,13 @@ versioned separately from the application and optional features.
 
 ## Choose the right extension
 
-| What you want | Where to start |
-| --- | --- |
-| A keyboard key, Windows audio control, OBS source/filter/scene, reward toggle or music control | Dashboard **+ Add button**. Existing actions and multi-step macros require no mod. |
-| Your own computation, state or reusable function exposed as a button | A mod with `contributes.actions`. |
-| A separate desktop/web client controlling Core | The versioned [Core client API](architecture/core-client-api-v1.md). |
-| A new trusted account/device integration inside Core | A reviewed host capability/provider. A mod cannot grant this to itself. |
-| A Music-to-Light profile or saved effect | The effect editor and profile controls described in the [user guide](USER_GUIDE.md). |
+| What you want                                                                                  | Where to start                                                                       |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| A keyboard key, Windows audio control, OBS source/filter/scene, reward toggle or music control | Dashboard **+ Add button**. Existing actions and multi-step macros require no mod.   |
+| Your own computation, state or reusable function exposed as a button                           | A mod with `contributes.actions`.                                                    |
+| A separate desktop/web client controlling Core                                                 | The versioned [Core client API](architecture/core-client-api-v1.md).                 |
+| A new trusted account/device integration inside Core                                           | A reviewed host capability/provider. A mod cannot grant this to itself.              |
+| A Music-to-Light profile or saved effect                                                       | The effect editor and profile controls described in the [user guide](USER_GUIDE.md). |
 
 Mods run in supervised Node child processes. They do not receive the Express app,
 Core services, OBS password, account tokens, filesystem writers, a shell or light
@@ -22,9 +22,13 @@ adapters. The SDK wraps the host context; it does not install privileges.
 
 ## Current availability and trust
 
-The normal app starts the reviewed Twitch clip adapter. Community mods are an
-optional component, selected in Setup or enabled through the existing community
-mod configuration. A source checkout can use `npm.cmd run start:mods`; strict Core
+Core 0.7.6a includes mod discovery in its normal startup. Drop an extracted
+mod folder or a ZIP directly into **`mods/`**, open **Mods**, and confirm **Activate**.
+No installer switch, special launch command, npm install or Core source edit is
+needed. Declared buttons appear in the Dashboard action library and declared UI
+panels appear in Mods. The former `mod/` folder is still watched for compatibility;
+new installations create only `mods/`. Version 0.7.6 predates this change.
+A source checkout can also use `npm.cmd run start:mods`; strict Core
 uses `npm.cmd run start:core`. Do not run two servers on the same port.
 
 On the bundled Windows runtime, full network denial for third-party Node workers
@@ -62,7 +66,8 @@ the action library, editing a button or reading feedback never runs the toggle.
    and the handler. Capability names are lowercase, dotted and versioned.
 3. Implement `main.js`. Validate requests and honor cancellation before effects.
 4. Update the SHA-256 inventory after every change to an included file.
-5. Validate, test, package, then review the package in **Mods**.
+5. Validate and test, then drop the folder (or its packaged ZIP) into **mods** and
+   confirm **Activate** in the app. Discovery watches for changes automatically.
 6. Add the contributed action with Dashboard **+ Add button**. Its public action
    ID is `mod:<mod-id>:<action-id>`; its label and symbol come from the manifest.
    Users choose layout, images/GIFs, colors, LED strength and hold/macro behavior.
@@ -132,8 +137,59 @@ capability names without that suffix. Availability and provider compatibility
 still need checking. Do not infer availability merely because you declared it.
 
 The [reference](MOD_API_REFERENCE.md) lists every shipped host capability, its
-methods, payloads, bounds and limitations. OBS, Windows keys and the versioned
-Core HTTP API are not automatically available as sandboxed mod capabilities.
+methods, payloads, bounds and limitations. Use `ravelink.controls.v1` for the app’s existing OBS, keyboard, audio, playback,
+light and Twitch actions. The separate Core HTTP API remains for external clients;
+mods do not receive its tokens or direct service references.
+
+## Add a settings panel
+
+Keep the panel inside your package, for example:
+
+```text
+my-mod/
+  ravelink.mod.json
+  main.js
+  ui/
+    settings.html
+    settings.css
+    settings.js
+```
+
+Set `permissions.ui` to `true`, add the three UI files to the integrity inventory,
+and declare the panel in the manifest:
+
+```json
+{
+  "contributes": {
+    "panels": [{ "id": "settings", "title": "My settings", "entry": "ui/settings.html" }]
+  }
+}
+```
+
+That fragment belongs inside your complete manifest. A panel title becomes a
+button in Mods after activation; opening the panel loads its HTML. Relative
+stylesheet links and script sources that are in the declared inventory are
+verified and embedded automatically. Inline CSS and JavaScript also work. Keep
+the combined page below 256 KiB. Bundle JavaScript imports into the supplied
+script; the frame does not fetch third-party code or arbitrary HTTP resources.
+
+The panel can call its own mod or an approved consumed capability:
+
+```js
+const result = await window.ravelink.call("example.settings.v1", "save", {
+  enabled: document.querySelector("input").checked,
+});
+```
+
+Declare `example.settings.v1` in `provides` and implement `handleRequest` in your
+worker. Validate that payload before changing state. To use an app action instead,
+declare `ravelink.controls.v1` in `consumes`, read its catalog, and pass the selected
+action's parameters to `execute`. The operator reviews that access during
+activation. A disabled mod cannot keep using APIs from a previously opened panel.
+
+There is no need to edit the app's HTML, add a server route, install a local web
+server or copy account tokens into a mod. Panel CSS stays in its frame, so an
+extension cannot accidentally restyle the deck or another mod's page.
 
 ## Test without touching the stream
 
@@ -199,18 +255,18 @@ Removing an inbox ZIP does not uninstall its private installed copy.
 
 ## Troubleshooting and compatibility
 
-| Symptom | Check |
-| --- | --- |
-| Package not listed | Community component enabled; folder/ZIP directly under `mod/`; correct manifest root. |
-| Integrity error | Recompute all changed file hashes after final formatting/building. |
-| Approval required | Review the exact current fingerprint; changing files invalidates old approval. |
-| Network isolation unavailable | Current runtime limitation; use the test harness or explicitly review reduced isolation for trusted code. |
-| Action missing | Mod active; `contributes.actions` valid; action capability present in `provides`. |
-| Provider unavailable/ambiguous | Required provider active and compatible; explicitly select its `providerId` where needed. |
-| Storage/network permission denied | Declare capability, exact permission and a nonzero resource budget. |
-| Quarantined or disabled | Inspect lifecycle/error, frame size, timeouts, resource ceilings and repeated malformed requests. |
-| UI panel cannot call Core | Expected: panels have no direct API or network bridge. Use contributed actions. |
-| Wrong state after an external change | Read confirmed provider state; do not maintain a guessed copy of another app's toggle. |
+| Symptom                              | Check                                                                                                           |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| Package not listed                   | Folder/ZIP directly under `mods/`; correct manifest root and valid inventory. Legacy `mod/` is also recognized. |
+| Integrity error                      | Recompute all changed file hashes after final formatting/building.                                              |
+| Approval required                    | Review the exact current fingerprint; permission or resource changes require renewed approval.                  |
+| Network isolation unavailable        | Current runtime limitation; use the test harness or explicitly review reduced isolation for trusted code.       |
+| Action missing                       | Mod active; `contributes.actions` valid; action capability present in `provides`.                               |
+| Provider unavailable/ambiguous       | Required provider active and compatible; explicitly select its `providerId` where needed.                       |
+| Storage/network permission denied    | Declare capability, exact permission and a nonzero resource budget.                                             |
+| Quarantined or disabled              | Inspect lifecycle/error, frame size, timeouts, resource ceilings and repeated malformed requests.               |
+| UI panel cannot call Core            | Expected: panels have no direct API or network bridge. Use contributed actions.                                 |
+| Wrong state after an external change | Read confirmed provider state; do not maintain a guessed copy of another app's toggle.                          |
 
 Keep older stored settings readable, separate state migrations from external
 effects, release all owned resources on shutdown and bound every cache/queue.

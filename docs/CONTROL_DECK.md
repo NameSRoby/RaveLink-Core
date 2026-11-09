@@ -273,8 +273,8 @@ second, while slower external checks run independently; confirmed action results
 appear immediately. Unchanged views send no updates and hidden decks disconnect.
 Opening more LAN screens does not start more polling loops.
 
-The two included mods work without enabling community packages. Install your own
-mods through the optional community-mod platform. A mod contributes an action
+The included clip adapter starts with the app. Add your own mods by dropping a
+folder or ZIP into `mods`, then confirm Activate in Mods. A mod contributes an action
 that names an existing provided capability method, parameter schema and defaults,
 plus an optional state method for live feedback. Those functions appear in the
 button library with the mod's symbol and title.

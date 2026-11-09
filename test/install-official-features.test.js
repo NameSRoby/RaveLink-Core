@@ -1,5 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const {
   installSelectedFeatures,
   selectedFeatureIds,
@@ -80,4 +83,29 @@ test("installer fails clearly instead of accepting an unavailable official selec
     installSelectedFeatures({ featureIds: ["song-request"], manager }),
     /feature_package_not_available:song-request/,
   );
+});
+
+test("a clean installation installs both bundled features offline and preserves existing versions", async (t) => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "ravelink-offline-setup-"));
+  t.after(() => fs.rmSync(rootDir, { recursive: true, force: true }));
+  const { stageOfflineFeatures } = require("../scripts/stage-offline-features");
+  await stageOfflineFeatures(
+    path.resolve(__dirname, ".."),
+    path.join(rootDir, "optional-components", "feature-packages"),
+  );
+  const install = () =>
+    installSelectedFeatures({
+      rootDir,
+      featureIds: ["song-request", "twitch-integration"],
+      offline: true,
+    });
+  const first = await install();
+  assert(first.every((r) => r.operation === "installed"));
+  assert((await install()).every((r) => r.operation === "already_current"));
+  assert(
+    !fs.existsSync(path.join(rootDir, "runtime", "system")),
+    "no account/host settings are copied",
+  );
+  fs.rmSync(path.join(rootDir, "optional-components"), { recursive: true });
+  await assert.rejects(install(), /feature_package_not_available/);
 });

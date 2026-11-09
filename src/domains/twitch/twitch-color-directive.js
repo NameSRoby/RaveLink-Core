@@ -136,6 +136,7 @@ module.exports = function createTwitchColorDirectiveService(options = {}) {
         }
       : colorLibrary.parseColorText(colorText, {
           allowFuzzy: settings.allowFuzzy !== false,
+          wholeOnly: settings.wholeOnly === true,
         });
     if (!parsed.ok) return { ok: false, error: parsed.error || "invalid color text" };
     const rgb = applyDescriptors(parsed.rgb, modifiers);

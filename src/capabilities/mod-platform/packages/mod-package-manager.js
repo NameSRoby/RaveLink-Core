@@ -235,6 +235,7 @@ module.exports = function createModPackageManager(options = {}) {
       ok: true,
       modId,
       version: installed.manifest.version,
+      packageFingerprint: require("./mod-content-fingerprint")(installed.manifest),
       approval: await approvalStore.getStatus(installed.manifest),
       rollbackAvailable: await pathExists(locations.rollback),
       dataPresent: await pathExists(locations.data),

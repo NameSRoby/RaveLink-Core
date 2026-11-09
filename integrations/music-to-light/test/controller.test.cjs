@@ -49,6 +49,7 @@ function environment(t, overrides = {}) {
     );
   const controller = createController({
     savedEffects: overrides.savedEffects,
+    ...(overrides.designPolicy ? { designPolicy: overrides.designPolicy } : {}),
     now: () => at,
     wallNow: () => 100000 + at,
     readPlayback: overrides.readPlayback,
@@ -260,6 +261,51 @@ test("Rave shuffles profiles once per start, keeps custom/generated palettes ind
   await e.pump(100);
   assert.deepEqual(e.operator.pipeline().effective.palette, ["#ff0000", "#0000ff"]);
 });
+test("viewer colors override fixture palettes and profile shuffle without changing saved choices", async (t) => {
+  const e = environment(t, {
+    designPolicy: require("../direct-brightness-settings.cjs"),
+    savedEffects: {
+      choose: (design, fixtures) => ({
+        design,
+        fixtures: fixtures.map((f) => ({ ...f, assignedPalette: ["#00ffff", "#ff00ff"] })),
+        profile: null,
+      }),
+    },
+  });
+  await authorizeRave(e);
+  e.client.configure({
+    ...e.client.exportDesign(),
+    behaviors: {
+      ...e.client.exportDesign().behaviors,
+      randomProfileEnabled: true,
+      profilePaletteEnabled: true,
+    },
+  });
+  const before = e.client.exportDesign();
+  const bindings = e.operator.bindings();
+  for (const palette of [["#ff0000", "#00ff00", "#0000ff"], ["#ff0000"]]) {
+    await e.operator.rave({ fixtureIds: ["bulb"], palette, seconds: 10 });
+    await e.pump();
+    const pipeline = e.operator.pipeline();
+    assert.deepEqual(pipeline.effective.palette.slice(0, palette.length), palette);
+    assert.equal(pipeline.effective.behaviors.profilePaletteEnabled, false);
+    assert.equal(pipeline.assignments[0].assignedPalette, undefined);
+    if (palette.length === 1) {
+      assert.equal(pipeline.effective.behaviors.colorEnabled, false);
+      const mapper = require("../mapper.cjs")(pipeline.effective);
+      mapper.update(
+        { endFrame: 960, discontinuities: 0, rms: 0.1, signal: "signal", invalidSamples: 0 },
+        20,
+      );
+      for (const role of ["all", "low", "mid", "high"])
+        assert.deepEqual(mapper.render(20, { role, position: 1 }).rgb, { r: 255, g: 0, b: 0 });
+    }
+    assert.deepEqual(e.client.exportDesign(), before);
+    assert.deepEqual(e.operator.bindings(), bindings);
+    await e.operator.stopRave();
+  }
+});
+
 test("calibration measures a preview and saves only its fixed audio reference", async (t) => {
   const e = environment(t);
   await authorize(e);
@@ -872,6 +918,7 @@ test("saved-only policy controls manual and channel-points starts and preserves 
   assert.equal(e.operator.pipeline().savedEffect.id, p.id);
   assert.equal(e.operator.pipeline().recipe.shape, "wave");
   assert.equal(e.operator.pipeline().effective.feel, "fast");
+  assert.deepEqual(e.operator.pipeline().effective.palette, ["#ff0000", "#00ff00"]);
 });
 
 test("contrast validates atomically, persists bindings and edits live or preview without restarting", async (t) => {

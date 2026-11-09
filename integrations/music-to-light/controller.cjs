@@ -317,6 +317,31 @@ module.exports = function createMusicController({
     }
     if (!chosen?.profile)
       config = validateSettings(require("./random-profile.cjs")(config, recipeHistory));
+    // A viewer's explicit colors take precedence over a saved/shuffled look's
+    // palette, including per-light palettes. Keep its choreography and limits.
+    if (request.palette?.length) {
+      config = validateSettings({
+        ...config,
+        palette: request.palette,
+        ...(request.palette.length === 1 ? { arrangement: "unified" } : {}),
+        warmCoolColors: false,
+        behaviors: {
+          ...config.behaviors,
+          profilePaletteEnabled: false,
+          colorEnabled: request.palette.length > 1,
+        },
+        recipeOptions: {
+          ...config.recipeOptions,
+          palette: { mode: "configured", value: "configured", allowed: ["configured"] },
+          paletteScope: { mode: "fixed", value: "shared", allowed: ["shared"] },
+        },
+      });
+      fixtures = fixtures.map((f) => {
+        if (companionIds.has(f.id)) return f;
+        const { assignedPalette: _palette, ...binding } = f;
+        return binding;
+      });
+    }
     let playback = null;
     try {
       playback = await readPlayback();

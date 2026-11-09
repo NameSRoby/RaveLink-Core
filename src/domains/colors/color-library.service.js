@@ -128,7 +128,9 @@ module.exports = function createColorLibraryService(options = {}) {
     }
 
     const words = text.split(/\s+/).filter(Boolean);
-    const hexToken = words.find((word) => /^#[0-9a-f]{6}$/i.test(word));
+    const hexToken = words.find(
+      (word) => /^#[0-9a-f]{6}$/i.test(word) && (!optionsSafe.wholeOnly || words.length === 1),
+    );
     if (hexToken) {
       const hex = normalizeHex(hexToken);
       return {
@@ -172,6 +174,20 @@ module.exports = function createColorLibraryService(options = {}) {
     const fullQuery = normalizeColorName(words.join(" "));
     const fullExact = resolveExact(fullQuery);
     if (fullExact) return fullExact;
+
+    // Palette entries must consume the whole color name. Chat prose may still
+    // use the more permissive embedded-color matching below.
+    if (optionsSafe.wholeOnly) {
+      const fuzzy = allowFuzzy
+        ? findBestFuzzyMatch(fullQuery, Object.keys(getColorMap()), {
+            minScore: fuzzyMinScore,
+            allowTranspositions: true,
+          })
+        : null;
+      if (!fuzzy) return { ok: false, error: "invalid color text" };
+      const result = resolveExact(fuzzy.value);
+      return { ...result, fuzzy };
+    }
 
     for (let start = 0; start < normalizedWords.length; start += 1) {
       for (let end = normalizedWords.length; end > start + 1; end -= 1) {

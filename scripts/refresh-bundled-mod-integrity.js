@@ -6,7 +6,7 @@ const prettier = require("prettier");
 const base = path.resolve(__dirname, "../packages/bundled-mods"),
   check = process.argv.includes("--check");
 async function main() {
-  for (const slug of ["discord-controls", "twitch-clips"]) {
+  for (const slug of ["twitch-clips"]) {
     const directory = path.join(base, slug),
       manifestPath = path.join(directory, "ravelink.mod.json");
     const current = fs.readFileSync(manifestPath, "utf8"),

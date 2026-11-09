@@ -47,15 +47,8 @@ test("retired Discord lifecycle/settings commands never reach the desktop bridge
       return {};
     },
   });
-  for (const op of [
-    "open",
-    "togglecamera",
-    "leavevoice",
-    "streamerstatus",
-    "togglestreamer",
-    "prepare",
-  ])
-    await assert.rejects(service.discordControl(op), /discord_control_invalid/);
+  for (const method of ["discordControl", "discordStatus", "bindDiscord", "discordToggle"])
+    assert.equal(service[method], undefined);
   service.shutdown();
   assert.deepEqual(calls, []);
 });

@@ -208,6 +208,7 @@ function createFeaturePlatformExtension(options = {}) {
       packageRoots: options.packageRoots || [
         path.join(rootDir, "feature-packages"),
         path.join(rootDir, "features"),
+        path.join(rootDir, "optional-components", "feature-packages"),
       ],
       remoteSources:
         options.remoteSources || (options.packageRoots ? [] : OFFICIAL_FEATURE_SOURCES),

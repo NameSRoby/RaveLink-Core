@@ -232,16 +232,10 @@ module.exports = function registerControlDeck(
   app.get(
     "/api/control-deck/integrations",
     route(async () => ({
-      ...(await desktop.integrations()),
       twitchClips: getTwitchClips()
         ? await getTwitchClips().status()
         : { available: false, code: "twitch_integration_unavailable" },
     })),
-  );
-  app.post(
-    "/api/control-deck/integrations/discord/bind",
-    edit,
-    route(() => desktop.bindDiscord()),
   );
   app.get(
     "/api/control-deck/windows/audio",

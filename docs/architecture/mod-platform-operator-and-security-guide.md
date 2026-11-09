@@ -16,11 +16,11 @@ Use the strict core with no mod routes or filesystem watcher:
 npm.cmd run start:core
 ```
 
-The host defaults to `127.0.0.1`, four active mod processes, a root `mod/` inbox, and private `runtime/mods/` installed packages, approvals, rollback, and data. Core-only startup does not discover mods, create mod directories, start a monitor, or expose the mod API/tab.
+The host defaults to `127.0.0.1`, four active mod processes, a root `mods/` inbox (with legacy `mod/` compatibility), and private `runtime/mods/` installed packages, approvals, rollback, and data. Core-only startup does not discover mods, create mod directories, start a monitor, or expose the mod API/tab.
 
 ## Operator Flow
 
-1. Place a locally obtained `.zip` or unpacked package folder directly under `mod/`.
+1. Place a locally obtained `.zip` or unpacked package folder directly under `mods/`.
 2. Review publisher, version, license, exact fingerprint, permissions, resource requests, and approval changes in the Mods tab.
 3. Confirm approval and execution; RaveLink copies the verified package to private runtime storage before starting it.
 4. Disable before update, rollback, or uninstall.
@@ -28,7 +28,7 @@ The host defaults to `127.0.0.1`, four active mod processes, a root `mod/` inbox
 
 Package uploads are capped at 16 MiB compressed and 32 MiB expanded. Installation rejects traversal, links, special files, path collisions, high compression ratios, undeclared files, and SHA-256 mismatches. Upload staging files are private and removed after each attempt.
 
-Filesystem detection is event-driven with a short debounce and never evaluates package entry code. Removing a source from `mod/` removes it from the inbox but does not uninstall its private installed copy. A changed package requires fresh review even when it reuses the same version string.
+Filesystem detection is event-driven with a short debounce and never evaluates package entry code. Removing a source from `mods/` removes it from the inbox but does not uninstall its private installed copy. A changed package requires fresh review even when it reuses the same version string.
 
 ## Administration Boundary
 
@@ -41,26 +41,26 @@ untrusted clients. The bundled-only profile rejects community mutations.
 
 Installed mods never run in the core process. They remain disabled until approved, execute in supervised child processes, communicate through bounded IPC, and may use only declared broker capabilities. The host caps active processes and samples all active PIDs in one coarse resource pass.
 
-Node on Windows currently cannot enforce network denial. Running a mod therefore requires a second reduced-isolation confirmation. This is meaningful residual risk: only run code from a trusted publisher. Package integrity, filesystem restrictions, broker permissions, process supervision, and resource ceilings do not turn the host into a malware sandbox.
+Node on Windows currently cannot enforce network denial. The activation confirmation therefore includes explicit acceptance of reduced isolation. This is meaningful residual risk: only run code from a trusted publisher. Package integrity, filesystem restrictions, broker permissions, process supervision, and resource ceilings do not turn the host into a malware sandbox.
 
 ## UI Contributions
 
-A mod may declare at most four single-file HTML panels. Every panel requires `permissions.ui`, must be listed in package integrity, is reverified before delivery, and is limited to 256 KiB. Panels load only when opened in an opaque-origin sandbox.
+A mod may declare at most four HTML panels, with declared local CSS and JavaScript files embedded on delivery. Every panel requires `permissions.ui`, must be listed in package integrity, is reverified before delivery, and is limited to 256 KiB. Panels load only when opened in an opaque-origin sandbox.
 
-The contribution CSP denies network access, forms, objects, base URL changes, and external assets. A panel cannot inject into the core DOM or directly invoke server APIs. Future interactive bridges must use explicit versioned broker messages rather than widening frame permissions.
+The contribution CSP denies network access, forms, objects, base URL changes, and external assets. A panel cannot inject into the Core DOM or directly invoke server APIs. Its injected `window.ravelink.call` bridge can invoke its own worker capabilities or declared consumed capabilities through the active approval. Parent frame identity and a per-open nonce prevent unrelated windows from borrowing that relay. Requests have size, concurrency and deadline limits; disabling the mod rejects subsequent calls. See the [mod API reference](../MOD_API_REFERENCE.md#panel-javascript-api) for the JavaScript contract.
 
 ## Threat Model
 
-| Risk | Current control | Residual risk / release rule |
-| --- | --- | --- |
-| Package supply chain | Complete SHA-256 inventory, bounded verified staging, explicit local install and approval | Hashes prove package consistency, not publisher identity. Treat publisher as self-asserted until signed packages and a trust store exist. |
-| Credential abuse | Opaque operation-only handles, declared permission, redacted audit | An approved operation can still affect the external account. Keep handles narrowly scoped and revocable. |
-| SSRF and DNS rebinding | Exact public host allowlist, address policy, bounded transport | Re-resolve and reject non-public destinations for every new connection; never add wildcard/local host permissions. |
-| Archive extraction | Preflight limits, portable paths, no links/special files, measured streaming limits | New archive formats require an equivalent adversarial fixture set before support. |
-| IPC flooding | Frame, queue, concurrency, timeout, invalid-message, and quarantine limits | Run sustained multi-mod soak tests on each release runtime. |
-| UI injection | Integrity check, sandboxed opaque origin, restrictive CSP, no broker bridge | Do not add `allow-same-origin`, navigation, forms, or direct API credentials. |
-| Localhost CSRF | Loopback plus same-Origin/Host check on every administration and panel route | Keep external widget intake on separate scoped-token routes. |
-| Resource exhaustion | Process cap, declared ceilings, coarse batched sampling, sustained-breach shutdown | OS-level RSS/CPU enforcement remains observational on Windows; retain conservative process limits. |
+| Risk                   | Current control                                                                           | Residual risk / release rule                                                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Package supply chain   | Complete SHA-256 inventory, bounded verified staging, explicit local install and approval | Hashes prove package consistency, not publisher identity. Treat publisher as self-asserted until signed packages and a trust store exist. |
+| Credential abuse       | Opaque operation-only handles, declared permission, redacted audit                        | An approved operation can still affect the external account. Keep handles narrowly scoped and revocable.                                  |
+| SSRF and DNS rebinding | Exact public host allowlist, address policy, bounded transport                            | Re-resolve and reject non-public destinations for every new connection; never add wildcard/local host permissions.                        |
+| Archive extraction     | Preflight limits, portable paths, no links/special files, measured streaming limits       | New archive formats require an equivalent adversarial fixture set before support.                                                         |
+| IPC flooding           | Frame, queue, concurrency, timeout, invalid-message, and quarantine limits                | Run sustained multi-mod soak tests on each release runtime.                                                                               |
+| UI injection           | Integrity check, sandboxed opaque origin, restrictive CSP, no broker bridge               | Do not add `allow-same-origin`, navigation, forms, or direct API credentials.                                                             |
+| Localhost CSRF         | Loopback plus same-Origin/Host check on every administration and panel route              | Keep external widget intake on separate scoped-token routes.                                                                              |
+| Resource exhaustion    | Process cap, declared ceilings, coarse batched sampling, sustained-breach shutdown        | OS-level RSS/CPU enforcement remains observational on Windows; retain conservative process limits.                                        |
 
 ## Recovery
 

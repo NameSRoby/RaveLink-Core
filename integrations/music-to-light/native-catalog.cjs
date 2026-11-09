@@ -79,7 +79,9 @@ const looks = ids.map((id) => {
       ? "Fresh palettes and audio-driven color styles, with the accepted brightness response kept stable."
       : id === "smooth-reference"
         ? "Musical energy drives brightness; measured rhythmic hits alternate neighboring colors with controlled fades. Calibration and output limits stay yours."
-        : "Apply this palette while keeping your brightness smoothing, audio mapping, calibration and limits.",
+        : id === "ember-pulse"
+          ? "Crimson and molten gold alternate with orange and violet flame accents. Your audio response and brightness limits stay unchanged."
+          : "Apply this palette while keeping your brightness smoothing, audio mapping, calibration and limits.",
     design: direct({
       ...artistic,
       palette: id === "smooth-reference" || randomized ? artistic.palette : old.design.palette,

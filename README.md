@@ -24,33 +24,37 @@ Mod developers: [Start here](docs/MOD_AUTHOR_GUIDE.md) ·
 [Application APIs](docs/API_REFERENCE.md) ·
 [Runnable button starter](packages/mod-sdk/starter).
 
-## Install 0.7.6
+## Install 0.7.6a
+
+Setup includes offline prerequisites and optional first-party packages, including
+the full Microsoft WebView2 runtime installer. See
+[Windows setup and offline dependencies](docs/WINDOWS_SETUP.md).
 
 Choose the installer for guided setup or the self-contained ZIP for portable
 use. Both include Node, production dependencies, the tray launcher and an audio
 helper with its C runtime built in. No separate Node, npm, Rust, Visual C++ runtime
 installer or developer tools are needed.
 
-1. Download **RaveLink-Core-Windows-v0.7.6-setup-installer.exe** from the [0.7.6 release](https://github.com/NameSRoby/RaveLink-Core/releases/tag/v0.7.6).
-2. Choose an installation folder, Music-to-Light and optional features. Setup checks bundled prerequisites and downloads only your selected online features. Use a separate folder from an old RaveLink Bridge installation.
+1. Download **RaveLink-Core-Windows-v0.7.6a-setup-installer.exe** from the [0.7.6a release](https://github.com/NameSRoby/RaveLink-Core/releases/tag/v0.7.6a).
+2. Choose an installation folder, Music-to-Light and optional features. Setup installs missing prerequisites and your selected bundled features without extra downloads. Use a separate folder from an old RaveLink Bridge installation.
 3. Choose **Main**, **More** or **Hidden** placement for tabs. Change this later from the settings gear → **Choose tabs**.
 4. Launch from the Start menu or desktop shortcut. RaveLink opens its desktop workspace. The window menu and tray can reopen, restart or exit it; **Open in browser** keeps the normal website available.
 
 Windows 10 build 19041 or later, or Windows 11, 64-bit, is required. Music-to-Light process capture requires build 20348 or later; Windows 11 is recommended. Setup checks .NET Framework 4.8 and explains any missing prerequisite. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-For portable use, extract **RaveLink-Core-Windows-v0.7.6-self-contained.zip**
+For portable use, extract **RaveLink-Core-Windows-v0.7.6a-self-contained.zip**
 completely and run `RaveLink-Core.exe`. Both release ZIPs contain the complete
-application and runtime. First extraction and launch can be done offline; optional
-package downloads and online services need internet. Install features later under
+application and runtime. The optional packages are included for offline installation; account sign-in and
+online services need internet. Install features later under
 **Packages**. Upgrades preserve local settings and feature data.
 
 If you downloaded **Code > Download ZIP**, that is the source checkout. Extract
 it and run `Start-RaveLink.cmd`; first setup downloads a verified runtime bundle.
 See [source and offline setup](docs/USER_GUIDE.md#source-and-tests) for details.
 
-The Windows desktop window uses Microsoft WebView2. If its runtime is missing,
-Core provides an installation link and a browser fallback. Both ZIPs include the
-WebView2 loader files.
+The installer installs Microsoft WebView2 automatically when needed. Portable
+ZIPs include its full offline installer under `optional-components/prerequisites`;
+run that installer once if WebView2 is missing.
 
 ### First launch
 
@@ -62,8 +66,8 @@ WebView2 loader files.
 - Install optional packages under **Packages**, then connect your own accounts.
   Device pairings and account credentials must be configured on each PC.
 - If the dashboard does not open, the desktop window provides **Retry**, **Restart Core**,
-  **Open in browser**, and **Startup log**. If Microsoft WebView2 is missing, use
-  the displayed installation link or continue in your browser.
+  **Open in browser**, and **Startup log**. For a missing WebView2 runtime, rerun
+  Setup or use the included offline prerequisite installer.
 
 See the [user guide](docs/USER_GUIDE.md) for detailed setup, source-checkout
 instructions and upgrades from older installations.
@@ -233,7 +237,15 @@ StreamElements widget-only intake leaves refunds and fulfillment manual.
 - Room Layout uses positions you place manually. Community mods are optional
   third-party code; review them before enabling them. Java/JavaFX is not required to run Core.
 
-## New in 0.7.6
+## New in 0.7.6a
+
+- **Offline setup:** full WebView2 prerequisite and verified optional features are included. No Node, npm, Rust or Visual C++ runtime installation is needed.
+- **Drop-in mods:** put a folder or ZIP in `mods`, confirm Activate, and its buttons and HTML/CSS/JavaScript panels become available. Legacy `mod` folders remain readable.
+- **App APIs for mods:** discover the same validated first-party actions as deck buttons and call them through approved capabilities. Mod panels can use those APIs without receiving host credentials or patching Core HTML.
+- **Rave colors:** comma- or space-separated viewer palettes survive profile selection. Single-color requests stay that color; Ember has stronger crimson/gold and flame accents.
+- **Maintenance:** retired Discord accessibility automation has been removed; keyboard macros and saved-button migration remain.
+
+## Included from 0.7.6
 
 - **Button deck dashboard:** switch between the overview and customizable controls on one Quick Access page. Add optional pages, folders, ordered macros, alternate press actions and hold actions. Clear acrylic buttons support 250 searchable offline icons with selectable colors, custom symbols, text, PNG/JPEG/GIF images, static or cycling backlight tints and individual/master brightness. Shared style presets preserve artwork and actions. Quick Edit layout controls and fullscreen with status widgets keep the deck usable across screens.
 - **Reward and light controls:** use individual buttons, one all-controls button or compact popups. Pin individual managed rewards or a saved light setting. Popup light changes use an explicit Apply control; reward toggles follow the current owner state.

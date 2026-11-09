@@ -25,8 +25,8 @@ async function installSelectedFeatures(options = {}) {
     options.manager ||
     createFeaturePackageManager({
       installedRoot: path.join(rootDir, "features", "installed"),
-      packageRoots: [],
-      remoteSources: OFFICIAL_FEATURE_SOURCES,
+      packageRoots: [path.join(rootDir, "optional-components", "feature-packages")],
+      remoteSources: options.offline ? [] : OFFICIAL_FEATURE_SOURCES,
       runtimeRoot: path.join(rootDir, "runtime", "features"),
     });
   const catalog = await manager.listAvailable();
@@ -73,7 +73,8 @@ async function main() {
   };
   try {
     const results = await installSelectedFeatures({
-      featureIds: process.argv.slice(2),
+      featureIds: process.argv.slice(2).filter((value) => value !== "--offline"),
+      offline: process.argv.includes("--offline"),
     });
     for (const row of results) {
       process.stdout.write(`[FEATURE SETUP] ${row.featureId} ${row.operation}\n`);

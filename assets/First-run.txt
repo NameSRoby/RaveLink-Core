@@ -1,7 +1,8 @@
 RaveLink Core - First-time setup
 
 Core includes its Node runtime and production dependencies. You do not need to
-install Node, npm or Rust. Setup checks the runtime before offering Launch.
+install Node, npm or Rust. Setup also includes the full offline Microsoft WebView2
+runtime installer and checks the runtime before offering Launch.
 Music-to-Light and Rave include the native audio helper when selected in Setup;
 application audio capture needs Windows build 20348 or later (Windows 11 recommended).
 
@@ -14,8 +15,8 @@ Use the LAN button to enable full controls from another phone, tablet or compute
 on your private network. It shows the address to open there; localhost and the
 desktop window keep working. If Windows asks, allow Private network access.
 Complete account connections that require localhost callbacks on the Core PC.
-The desktop viewer uses Microsoft Edge WebView2, normally included with Windows.
-If missing, the window offers an installation link and Open in browser.
+Setup installs Microsoft WebView2 offline if missing. Portable users can run the
+included optional-components\prerequisites\MicrosoftEdgeWebView2RuntimeInstallerX64.exe.
 
 Choose a new folder if you previously used RaveLink Bridge. Do not mix the two
 applications. Existing Core installations can be upgraded in their normal folder.
@@ -31,8 +32,8 @@ output. Selecting the feature in Setup does not grant these permissions or start
 recording. Run Setup again to add it if it was not selected.
 
 Twitch and Song Request: install the optional features in Setup or Packages, then
-sign in and configure them in the dashboard. Downloads need internet access.
-If a download fails, Setup reports it and Packages can retry later.
+sign in and configure them in the dashboard. The feature packages are bundled;
+account sign-in and online services need internet access.
 
 Desktop music providers still need their own installed applications and accounts.
 Follow the TIDAL/Spotify setup steps in Song Request for their local companions.

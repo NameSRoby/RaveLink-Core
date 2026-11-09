@@ -133,6 +133,9 @@ module.exports = function createModHostRegistry(options = {}) {
       resources: row.valid ? { ...row.manifest.resources } : null,
       provides: row.valid ? [...row.manifest.provides] : [],
       consumes: row.valid ? [...row.manifest.consumes] : [],
+      packageFingerprint: row.valid
+        ? require("../packages/mod-content-fingerprint")(row.manifest)
+        : "",
       actions: row.valid
         ? row.manifest.contributes.actions.map((action) => structuredClone(action))
         : [],
@@ -414,10 +417,20 @@ module.exports = function createModHostRegistry(options = {}) {
     if (!approval.approved) return { ok: false, error: "permission_approval_required" };
     const file = verified.files.find((item) => item.path === panel.entry);
     if (!file || file.bytes > 262144) return { ok: false, error: "ui_contribution_size_limit" };
-    const content = await fs.promises.readFile(
+    let content = await fs.promises.readFile(
       path.join(row.rootPath, ...panel.entry.split("/")),
       "utf8",
     );
+    try {
+      content = await require("../http/bundle-mod-panel")(
+        content,
+        panel.entry,
+        row.rootPath,
+        verified.manifest,
+      );
+    } catch (error) {
+      return { ok: false, error: error.message };
+    }
     return {
       ok: true,
       modId: row.id,
@@ -438,6 +451,21 @@ module.exports = function createModHostRegistry(options = {}) {
 
   function requestCapability(capability, method, payload, requestOptions) {
     return broker.callFromCore(capability, method, payload, requestOptions);
+  }
+
+  async function requestFromUi(modId, capability, method, payload, requestOptions = {}) {
+    const row = catalog.get(String(modId));
+    if (
+      !row?.valid ||
+      !row.manifest.permissions.ui ||
+      supervisors.get(row.id)?.getStatus()?.lifecycle !== "active"
+    )
+      return { ok: false, error: "mod_ui_inactive" };
+    const approval = await approvalStore.getStatus(row.manifest);
+    if (!approval.approved) return { ok: false, error: "permission_approval_required" };
+    return row.manifest.provides.includes(capability)
+      ? request(row.id, capability, method, payload, requestOptions)
+      : broker.callFromMod(row.manifest, capability, method, payload, requestOptions);
   }
 
   function publishCapabilityEvent(capability, eventName, payload) {
@@ -466,6 +494,7 @@ module.exports = function createModHostRegistry(options = {}) {
     invokeAction,
     readActionState,
     requestCapability,
+    requestFromUi,
     shutdown,
   });
 };

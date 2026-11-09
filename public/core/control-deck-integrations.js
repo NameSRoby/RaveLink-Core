@@ -6,7 +6,7 @@ export function createDeckIntegrations({ request, refresh, onTwitchSetup }) {
   document.body.append(dialog);
   dialog.setAttribute("aria-labelledby", "deckIntegrationTitle");
   dialog.innerHTML =
-    '\n<div class="deckEditorHeading"><h2 id="deckIntegrationTitle">Connections</h2><button id="deckIntegrationsClose" type="button" aria-label="Close connections">Close</button></div>\n<nav class="deckSettingsTabs" aria-label="Connections"><button id="deckDiscordTab" type="button" aria-pressed="true">Keyboard keys</button><button id="deckTwitchTab" type="button" aria-pressed="false">Twitch</button></nav>\n<p id="deckIntegrationNotice" class="deckEditorNotice" role="status" aria-live="polite"></p>\n<div class="deckIntegrationPanels">\n<div id="deckDiscordPanel">\n<section><h3>Keyboard buttons</h3><p>Add a Keyboard shortcut action to any button. Choose F13–F24 or enter a key combination. Input is sent on the RaveLink PC, including when pressed from a LAN browser.</p><p>No Discord connection or mod is required.</p></section>\n</div>\n<div id="deckTwitchPanel" hidden>\n<section><h3>Twitch connection</h3><p id="deckClipStatus" class="deckConnectionStatus" role="status"></p><p>Choose permissions in Twitch Connection. You can grant clipping, chat or rewards access separately and see which features are ready.</p><button id="deckClipAuthorize" type="button">Choose Twitch permissions</button></section>\n<section><h3>Chat clipping</h3><label class="deckCheck"><input id="deckClipChat" type="checkbox"><span>Allow viewers to use !clip</span></label><label class="deckField"><span>Who can request a clip?</span><select id="deckClipChatAccess"><option value="everyone">Everyone</option><option value="moderators">Broadcaster and moderators</option></select></label><p class="deckEditorHint">Viewers can add a title: <code>!clip 3k on tracer</code>. Requires clip and chat access. Your broadcast must be live and allow clips.</p></section>\n</div>\n</div>';
+    '\n<div class="deckEditorHeading"><h2 id="deckIntegrationTitle">Connections</h2><button id="deckIntegrationsClose" type="button" aria-label="Close connections">Close</button></div>\n<nav class="deckSettingsTabs" aria-label="Connections"><button id="deckKeyboardTab" type="button" aria-pressed="true">Keyboard keys</button><button id="deckTwitchTab" type="button" aria-pressed="false">Twitch</button></nav>\n<p id="deckIntegrationNotice" class="deckEditorNotice" role="status" aria-live="polite"></p>\n<div class="deckIntegrationPanels">\n<div id="deckKeyboardPanel">\n<section><h3>Keyboard buttons</h3><p>Add a Keyboard shortcut action to any button. Choose F13–F24 or enter a key combination. Input is sent on the RaveLink PC, including when pressed from a LAN browser.</p><p>No Discord connection or mod is required.</p></section>\n</div>\n<div id="deckTwitchPanel" hidden>\n<section><h3>Twitch connection</h3><p id="deckClipStatus" class="deckConnectionStatus" role="status"></p><p>Choose permissions in Twitch Connection. You can grant clipping, chat or rewards access separately and see which features are ready.</p><button id="deckClipAuthorize" type="button">Choose Twitch permissions</button></section>\n<section><h3>Chat clipping</h3><label class="deckCheck"><input id="deckClipChat" type="checkbox"><span>Allow viewers to use !clip</span></label><label class="deckField"><span>Who can request a clip?</span><select id="deckClipChatAccess"><option value="everyone">Everyone</option><option value="moderators">Broadcaster and moderators</option></select></label><p class="deckEditorHint">Viewers can add a title: <code>!clip 3k on tracer</code>. Requires clip and chat access. Your broadcast must be live and allow clips.</p></section>\n</div>\n</div>';
   const $ = (id) => document.getElementById("deck" + id);
   $("TwitchPanel").insertAdjacentHTML(
     "beforeend",
@@ -35,12 +35,12 @@ export function createDeckIntegrations({ request, refresh, onTwitchSetup }) {
     </section>`,
   );
   function chooseTab(twitch) {
-    $("DiscordPanel").hidden = twitch;
+    $("KeyboardPanel").hidden = twitch;
     $("TwitchPanel").hidden = !twitch;
-    $("DiscordTab").setAttribute("aria-pressed", String(!twitch));
+    $("KeyboardTab").setAttribute("aria-pressed", String(!twitch));
     $("TwitchTab").setAttribute("aria-pressed", String(twitch));
   }
-  $("DiscordTab").onclick = () => chooseTab(false);
+  $("KeyboardTab").onclick = () => chooseTab(false);
   $("TwitchTab").onclick = () => chooseTab(true);
   let busy = false,
     snapshot = null;
