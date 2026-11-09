@@ -28,7 +28,8 @@ source publication. Test fixtures do not use the operator's accounts or devices.
   it excludes recursive mod actions and navigation-only actions.
 - Mod HTML panels can use declared local CSS/JavaScript and a scoped API relay.
   Opaque frame identity, per-open nonce, active approval, capability declarations,
-  file integrity, bounded requests and cancellation are enforced. Direct host
+  file integrity, bounded requests and cancellation are enforced. Panel nonces
+  use the existing cryptographic helper that also works on plain-HTTP LAN. Direct host
   service objects and credentials are not exposed to worker or browser code.
 - The unused Discord accessibility worker, provider, binding endpoint and
   UIAutomation implementation are removed. Keyboard macros and saved mute/deafen
@@ -70,7 +71,8 @@ validated against their published build pin and Microsoft signature.
   installer and source-bootstrap smoke checks passed native ABI, profiles, bundled
   mods, HTTP controls and restart persistence.
 - Sanitized-source regression: **1,187 passed**, five optional skips, no failures.
-  The separate clean install and source health checks also passed.
+  The separate clean install and source health checks also passed. The mod-panel
+  browser checks additionally passed with secure-context-only randomUUID disabled.
 - Real updater Apply/Rollback in an isolated NoLaunch fixture preserved deck
   layout, media and clip preferences. Hosted health and CodeQL checks remain
   required on the exact candidate commit before publication.

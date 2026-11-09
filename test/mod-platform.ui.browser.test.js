@@ -147,6 +147,10 @@ test("management UI loads an approved contribution only when opened", async (t) 
   const page = await browser.newPage({
     viewport: { width: 1280, height: 800 },
   });
+  // Plain-HTTP LAN browsers expose getRandomValues, but not randomUUID.
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis.crypto, "randomUUID", { value: undefined });
+  });
   const panelRequests = [];
   const browserErrors = [];
   page.on("request", (request) => {

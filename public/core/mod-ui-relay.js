@@ -1,4 +1,6 @@
 /** Only the currently opened opaque sandbox can call its own approved host API. */
+import "./browser-random-id.js";
+
 export function initModUiRelay(frame) {
   const flights = new Set();
   let nonce = "",
@@ -57,7 +59,7 @@ export function initModUiRelay(frame) {
   return {
     open(id, panel) {
       close();
-      nonce = crypto.randomUUID();
+      nonce = globalThis.RaveLinkRandomId();
       modId = id;
       frame.src = `/mods-ui/${encodeURIComponent(id)}/${encodeURIComponent(panel)}#ravelinkRelay=${encodeURIComponent(nonce)}`;
     },
