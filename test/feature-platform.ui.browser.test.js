@@ -749,12 +749,21 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   await designer.locator("#status").filter({ hasText: "Draft recovered" }).waitFor();
   assert.equal(await designer.locator("#workspace .segment").count(), 2);
   const activePid = created.extension.registry.list().features[0].pid;
+  await page.locator('[data-tab="dashboard"]').click();
   process.kill(activePid);
+  await page
+    .locator("#featureCrashWarning")
+    .filter({ hasText: "Song Request stopped unexpectedly" })
+    .waitFor();
+  await page.locator("#featureCrashWarning").getByRole("button", { name: "Open Packages" }).click();
+  assert.equal(await page.locator('[data-panel="features"]').isVisible(), true);
+  await page.locator('[data-tab="feature:song-request"]').click();
   await workspace.getByRole("status").filter({ hasText: "stopped unexpectedly" }).waitFor();
   assert.equal(await page.locator('[data-tab="feature:song-request"]').count(), 1);
   assert.equal(await workspace.locator("iframe").count(), 0);
   assert.equal(await workspace.getByRole("button", { name: "Open Packages" }).count(), 1);
   await fetch(`${base}/api/features/song-request/restart`, { method: "POST" });
+  await page.locator("#featureCrashWarning").waitFor({ state: "hidden" });
   await page.locator('[data-tab="feature:song-request"]').waitFor({ state: "attached" });
   await page.locator('[data-tab="feature:song-request"]').click();
   await workspace.locator("iframe").waitFor();
@@ -905,4 +914,10 @@ test("Features HUD lazy-loads integrity-checked Song Request player and overlay 
   for (let i = 0; streamConnections && i < 50; i++)
     await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(streamConnections, 0);
+  await created.extension.registry.disable("song-request", { reason: "active_rss_limit" });
+  const stoppedContext = await browser.newContext();
+  const stoppedHud = await stoppedContext.newPage();
+  await stoppedHud.goto(base);
+  await stoppedHud.locator("#featureCrashWarning").filter({ hasText: "memory limit" }).waitFor();
+  await stoppedContext.close();
 });

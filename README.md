@@ -24,7 +24,7 @@ Mod developers: [Start here](docs/MOD_AUTHOR_GUIDE.md) ·
 [Application APIs](docs/API_REFERENCE.md) ·
 [Runnable button starter](packages/mod-sdk/starter).
 
-## Install 0.7.6a
+## Install 0.7.6b
 
 Setup includes offline prerequisites and optional first-party packages, including
 the full Microsoft WebView2 runtime installer. See
@@ -35,14 +35,14 @@ use. Both include Node, production dependencies, the tray launcher and an audio
 helper with its C runtime built in. No separate Node, npm, Rust, Visual C++ runtime
 installer or developer tools are needed.
 
-1. Download **RaveLink-Core-Windows-v0.7.6a-setup-installer.exe** from the [0.7.6a release](https://github.com/NameSRoby/RaveLink-Core/releases/tag/v0.7.6a).
+1. Download **RaveLink-Core-Windows-v0.7.6b-setup-installer.exe** from the [0.7.6b release](https://github.com/NameSRoby/RaveLink-Core/releases/tag/v0.7.6b).
 2. Choose an installation folder, Music-to-Light and optional features. Setup installs missing prerequisites and your selected bundled features without extra downloads. Use a separate folder from an old RaveLink Bridge installation.
 3. Choose **Main**, **More** or **Hidden** placement for tabs. Change this later from the settings gear → **Choose tabs**.
 4. Launch from the Start menu or desktop shortcut. RaveLink opens its desktop workspace. The window menu and tray can reopen, restart or exit it; **Open in browser** keeps the normal website available.
 
 Windows 10 build 19041 or later, or Windows 11, 64-bit, is required. Music-to-Light process capture requires build 20348 or later; Windows 11 is recommended. Setup checks .NET Framework 4.8 and explains any missing prerequisite. The Node.js runtime and production dependencies are bundled. The release is unsigned; SmartScreen may show an unknown-publisher warning. Verify downloads against `SHA256SUMS.txt`.
 
-For portable use, extract **RaveLink-Core-Windows-v0.7.6a-self-contained.zip**
+For portable use, extract **RaveLink-Core-Windows-v0.7.6b-self-contained.zip**
 completely and run `RaveLink-Core.exe`. Both release ZIPs contain the complete
 application and runtime. The optional packages are included for offline installation; account sign-in and
 online services need internet. Install features later under
@@ -237,7 +237,11 @@ StreamElements widget-only intake leaves refunds and fulfillment manual.
 - Room Layout uses positions you place manually. Community mods are optional
   third-party code; review them before enabling them. Java/JavaFX is not required to run Core.
 
-## New in 0.7.6a
+## New in 0.7.6b
+
+- More memory headroom for Song Request and Twitch, safe timeouts for delayed worker requests, and a visible warning with a Packages recovery link when a feature stops.
+
+### Changes carried forward from 0.7.6a
 
 - **Offline setup:** full WebView2 prerequisite and verified optional features are included. No Node, npm, Rust or Visual C++ runtime installation is needed.
 - **Drop-in mods:** put a folder or ZIP in `mods`, confirm Activate, and its buttons and HTML/CSS/JavaScript panels become available. Legacy `mod` folders remain readable.

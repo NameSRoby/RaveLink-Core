@@ -3,7 +3,7 @@
   "id": "song-request",
   "name": "Song Request",
   "description": "Song requests, portable playlists and reviewed cross-service transfers with moderation and OBS overlays.",
-  "version": "0.45.10",
+  "version": "0.45.12",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
@@ -63,8 +63,8 @@
   },
   "resources": {
     "idleCpuPercent": 0.1,
-    "idleRssMiB": 32,
-    "activeRssMiB": 64,
+    "idleRssMiB": 64,
+    "activeRssMiB": 256,
     "timers": 2,
     "minTimerMs": 1000,
     "ipcFrameBytes": 65536,

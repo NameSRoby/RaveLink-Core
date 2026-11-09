@@ -309,7 +309,7 @@ async function shutdown(deadlineAt) {
       ]);
     }
   } catch {}
-  process.exit(0);
+  process.exit(process.exitCode || 0);
 }
 
 function handleResponse(envelope) {
@@ -379,6 +379,19 @@ process.on("message", (message) => {
   }
   const validation = parseBrokerFrameV1(serialized, { maxFrameBytes });
   if (!validation.ok) {
+    // Scheduler delays can expire a valid request in transit. Match the host's
+    // timeout disposition instead of disconnecting and stopping the workload.
+    if (validation.errors.length === 1 && validation.errors[0].code === "invalid_deadline") {
+      const expired = JSON.parse(serialized);
+      if (expired.type === "request" && expired.deadlineAt <= Date.now()) {
+        response(expired.id, false, null, {
+          code: "broker_timeout",
+          message: "Capability request expired before dispatch",
+          retryable: true,
+        });
+        return;
+      }
+    }
     process.exitCode = 3;
     process.disconnect?.();
     return;

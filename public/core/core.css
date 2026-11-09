@@ -332,6 +332,16 @@ tr:last-child td {
 .notice.bad {
   color: var(--bad);
 }
+#featureCrashWarning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  margin: 8px 0;
+  border: 1px solid var(--bad);
+  color: var(--bad);
+}
 .modIdentity strong,
 .modIdentity span,
 .resourceCell span {

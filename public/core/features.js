@@ -3,7 +3,7 @@
  * Developer context and change constraints:
  * docs/DEVELOPMENT.md#request-security-and-the-feature-ui-relay
  */
-import { syncFeatureNavigation, openFeaturePage } from "./feature-navigation.js";
+import { syncFeatureNavigation, openFeaturePage, selectMainTab } from "./feature-navigation.js";
 import { confirmFeatureDrafts } from "./feature-drafts.js";
 import "./feature-events-client.js";
 const byId = (id) => document.getElementById(id);
@@ -70,6 +70,34 @@ function permissionText(permissions = {}) {
 
 function render() {
   syncFeatureNavigation(state.features);
+  const failed = state.features.filter(
+    (row) =>
+      row.lifecycle !== "active" &&
+      (["crashed", "quarantined", "incompatible"].includes(row.lifecycle) ||
+        ["active_rss_limit", "idle_cpu_limit"].includes(row.stateReason)),
+  );
+  const warning = byId("featureCrashWarning");
+  warning.hidden = failed.length === 0;
+  const warningText = failed
+    .map((row) =>
+      ["active_rss_limit", "idle_cpu_limit"].includes(row.stateReason)
+        ? `${row.name} stopped after exceeding its ${row.stateReason === "active_rss_limit" ? "memory" : "CPU"} limit.`
+        : `${row.name} stopped unexpectedly or could not start.`,
+    )
+    .join(" ");
+  if (warning.dataset.message !== warningText) {
+    warning.dataset.message = warningText;
+    warning.replaceChildren();
+    if (failed.length) {
+      const text = document.createElement("span");
+      text.textContent = `${warningText} Open Packages to review and restart.`;
+      const manage = document.createElement("button");
+      manage.type = "button";
+      manage.textContent = "Open Packages";
+      manage.onclick = () => selectMainTab("features");
+      warning.append(text, manage);
+    }
+  }
   byId("featureHostStatus").textContent =
     `${state.active || 0} ACTIVE // ${state.total || 0} INSTALLED`;
   byId("featureHostStatus").className = `statusLine${state.active > 0 ? " ok" : ""}`;

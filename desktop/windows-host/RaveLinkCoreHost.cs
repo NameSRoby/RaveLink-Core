@@ -17,9 +17,9 @@ using Microsoft.Win32;
 [assembly: System.Reflection.AssemblyDescription("RaveLink Core Windows runtime host")]
 [assembly: System.Reflection.AssemblyCompany("NameSRoby")]
 [assembly: System.Reflection.AssemblyProduct("RaveLink Core")]
-[assembly: System.Reflection.AssemblyVersion("0.7.6.1")]
-[assembly: System.Reflection.AssemblyFileVersion("0.7.6.1")]
-[assembly: System.Reflection.AssemblyInformationalVersion("0.7.6a")]
+[assembly: System.Reflection.AssemblyVersion("0.7.6.2")]
+[assembly: System.Reflection.AssemblyFileVersion("0.7.6.2")]
+[assembly: System.Reflection.AssemblyInformationalVersion("0.7.6b")]
 
 namespace RaveLink.Core.WindowsHost
 {

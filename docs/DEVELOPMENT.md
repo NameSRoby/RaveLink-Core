@@ -285,6 +285,13 @@ request cancellation, crash tracking, protocol violations, and child termination
 Feature and mod adapters supply their own manifest validation and permissions.
 Do not merge their trust policies merely because they share process mechanics.
 
+RSS budgets cover the whole Node worker, including runtime and IPC allocations.
+Song Request declares 256 MiB active RSS and Twitch Integration declares 192 MiB:
+the former 64 MiB budgets caused sustained watchdog stops during normal use on
+Windows. Keep enforcement enabled and measure full-process memory when tuning
+these budgets. An otherwise valid IPC request that expires in transit must return
+a retryable timeout on either side of the broker without disconnecting its worker.
+
 IPC envelopes and data contracts are validated separately. The envelope bounds
 the transport, deadline, identity, and message shape. A capability contract bounds
 the particular method payload. Validate both before invoking a provider. A timeout

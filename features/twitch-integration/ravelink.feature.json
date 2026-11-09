@@ -3,7 +3,7 @@
   "id": "twitch-integration",
   "name": "Twitch Integration",
   "description": "Optional Twitch Device Code authorization, redemption settlement, EventSub foundation, and chat transport.",
-  "version": "0.12.8",
+  "version": "0.12.10",
   "publisher": "ravelink",
   "entry": "dist/main.js",
   "engine": {
@@ -41,8 +41,8 @@
   },
   "resources": {
     "idleCpuPercent": 0.1,
-    "idleRssMiB": 48,
-    "activeRssMiB": 64,
+    "idleRssMiB": 64,
+    "activeRssMiB": 192,
     "timers": 1,
     "minTimerMs": 1000,
     "ipcFrameBytes": 32768,

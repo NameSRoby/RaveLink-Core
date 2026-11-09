@@ -10,6 +10,7 @@ const { RESOURCE_LIMITS } = require("../../supervised-runtime/resource-limits-v1
 // Third-party mods continue to use the shared 1000 ms minimum in their own validator.
 const FEATURE_RESOURCE_LIMITS = Object.freeze({
   ...RESOURCE_LIMITS,
+  activeRssMiB: [8, 256, "integer"],
   minTimerMs: [50, 86400000, "integer"],
 });
 

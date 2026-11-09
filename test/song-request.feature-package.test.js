@@ -58,6 +58,20 @@ test("Song Request is a verified first-party feature package, not a mod", async 
 
 test("feature manifest rejects non-RaveLink publishers and capability overlap", () => {
   const input = JSON.parse(fs.readFileSync(path.join(root, "ravelink.feature.json"), "utf8"));
+  assert.equal(
+    validateFeatureManifestV1({
+      ...input,
+      resources: { ...input.resources, activeRssMiB: 256 },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateFeatureManifestV1({
+      ...input,
+      resources: { ...input.resources, activeRssMiB: 257 },
+    }).ok,
+    false,
+  );
   assert.equal(validateFeatureManifestV1({ ...input, publisher: "someone-else" }).ok, false);
   assert.equal(
     validateFeatureManifestV1({
